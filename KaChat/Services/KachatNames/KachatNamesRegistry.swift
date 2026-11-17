@@ -489,6 +489,12 @@ final class KachatNamesRegistry: ObservableObject {
         if case .indexer(let base) = source,
            let j = try await fromIndexer(KachatNames.IndexerAPI.NameJSON.self, base, "/names/\(name)") {
             if let info = j.info(keyOf: Self.keyOf) { return .registered(info) }
+            // Registered, but a record this app can't read (a missing outpoint, an owner it can't
+            // parse): that is not "free". Saying so would offer a taken name, and point a send at
+            // nobody, so it's a failed lookup instead.
+            if j.registered == true || (j.registered == nil && (j.outpoint != nil || j.owner != nil || j.ownerKey != nil)) {
+                throw KachatNames.Failure("the indexer's record for this name couldn't be read")
+            }
             return .free(name: name, gap: j.gap?.info)
         }
         let st = try readChainState()
@@ -613,8 +619,10 @@ final class KachatNamesRegistry: ObservableObject {
     /// cancelled). A lapse is just the clock running out, so no registry change announces it.
     func dropLapsed(from names: [KachatNames.NameInfo], update: ([KachatNames.NameInfo]) -> Void) async {
         var held = names
-        while let next = held.map({ $0.expiresAt + graceMs }).filter({ $0 > KachatNames.nowMs() }).min() {
-            let wait = UInt64(max(0, next - KachatNames.nowMs()) + 500) * 1_000_000
+        while let next = held.map({ KachatNames.Codec.saturatingAdd($0.expiresAt, graceMs) }).filter({ $0 > KachatNames.nowMs() }).min() {
+            // At most a day per wait: a far-off (or absurd) expiry must not overflow the sleep.
+            let waitMs = min(max(0, next - KachatNames.nowMs()), 86_400_000) + 500
+            let wait = UInt64(waitMs) * 1_000_000
             try? await Task.sleep(nanoseconds: wait)
             if Task.isCancelled { return }
             let grace = graceMs

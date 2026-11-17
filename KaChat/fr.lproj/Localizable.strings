@@ -1314,7 +1314,6 @@
 "Fee (KAS)" = "Frais (KAS)";
 "fee: %@ KAS" = "frais : %@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "Cela supprime définitivement tous les messages de chaque discussion sélectionnée sur cet appareil. Cette action est irréversible.";
-"Confirm sending Kaspa" = "Confirmer l'envoi de Kaspa";
 "Accepted your request to communicate" = "A accepté votre demande de communication";
 "Sent you a message" = "Vous a envoyé un message";
 "[Payment]" = "[Paiement]";
@@ -1342,7 +1341,6 @@
 "One transaction can combine %d coins, so this combines the largest %d. Compound again for the rest." = "Une transaction peut consolider %d pièces, donc les %d plus grosses sont consolidées. Consolide à nouveau pour le reste.";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs combines the rest." = "Max correspond à ce qu'une transaction peut contenir : ses %d plus grosses pièces. « Consolider les UTXO » regroupe le reste.";
 "Couldn't load this address's balance." = "Impossible de charger le solde de cette adresse.";
-"Sending Kaspa needs Face ID or your passcode." = "L'envoi de Kaspa nécessite Face ID ou ton code.";
 "The network fee is now %@ KAS, more than the Review showed. Nothing was sent: check the new fee and swipe again." = "Les frais de réseau sont maintenant de %@ KAS, plus que ce qu'indiquait le récapitulatif. Rien n'a été envoyé : vérifiez les nouveaux frais et glissez à nouveau.";
 "Unable to sign in to this account." = "Impossible de se connecter à ce compte.";
 "This account's keys are on this phone again, so nothing was removed." = "Les clés de ce compte sont de nouveau sur ce téléphone, donc rien n'a été supprimé.";
@@ -1478,7 +1476,7 @@
 "Restoring messages... %d of %d conversations" = "Restauration des messages... %d conversations sur %d";
 "Deletes %@ (%@) and its local data from this device." = "Supprime %@ (%@) et ses données locales de cet appareil.";
 "Passcode Required" = "Code requis";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat." = "Définissez un code sur cet iPhone (Réglages > Face ID et code) pour envoyer des Kaspa, supprimer un compte ou voir les clés secrètes dans KaChat.";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "Définissez un code sur cet iPhone (Réglages > Face ID et code) pour supprimer un compte ou voir les clés secrètes dans KaChat.";
 "Waiting on opponent" = "En attente de l'adversaire";
 "Not sent: you switched accounts before this went out." = "Non envoyé : vous avez changé de compte avant l'envoi.";
 "The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "La première des deux transactions est passée, mais pas la seconde. KaChat la terminera à sa prochaine ouverture.";
@@ -1506,3 +1504,22 @@
 "Microphone Access Required" = "Accès au micro requis";
 "Allow camera access in Settings to take photos in chats." = "Autorisez l’accès à la caméra dans Réglages pour prendre des photos dans les discussions.";
 "Allow microphone access in Settings to record voice messages." = "Autorisez l’accès au micro dans Réglages pour enregistrer des messages vocaux.";
+
+/* 5.3 audit fixes: recording, message fee limit, voice part Retry, Siri fee */
+"Recording..." = "Enregistrement…";
+"Audio ready" = "Audio prêt";
+"Recording failed. Please try again." = "L’enregistrement a échoué. Veuillez réessayer.";
+"Camera not available on this device." = "Appareil photo indisponible sur cet appareil.";
+"Failed to send voice message: %@" = "Impossible d’envoyer le message vocal : %@";
+"Fee Too High" = "Frais trop élevés";
+"A message fee can be at most 1 KAS." = "Les frais d’un message ne peuvent pas dépasser 1 KAS.";
+"Use a High Fee?" = "Utiliser des frais élevés ?";
+"%@ KAS is much more than the network needs to send a message." = "%@ KAS, c’est bien plus que ce dont le réseau a besoin pour envoyer un message.";
+"Use It" = "Les utiliser";
+"Tap Retry on the voice message to send the rest." = "Touchez Réessayer sur le message vocal pour envoyer le reste.";
+"Network fee: %@" = "Frais de réseau : %@";
+"Couldn't Remove App Password" = "Mot de passe d’application non supprimé";
+"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat n’a pas pu supprimer son mot de passe d’application de %@. Il n’est plus sur ce téléphone, mais il peut encore se connecter là-bas : supprimez-le dans Nextcloud sous Paramètres > Sécurité > Appareils et sessions.";
+"Your chatting address also pays %@ KAS to tell %@ about this payment." = "Votre adresse de chat paie aussi %@ KAS pour informer %@ de ce paiement.";
+"Tap Retry on the photo to send the rest." = "Touchez Réessayer sur la photo pour envoyer le reste.";
+"This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Ce message nécessite trop de pièces pour une seule transaction. Utilisez Compound UTXOs sur votre adresse de chat, puis réessayez.";

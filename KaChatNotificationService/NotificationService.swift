@@ -30,11 +30,11 @@ class NotificationService: UNNotificationServiceExtension {
     private var receivedAt = Date()
     /// True once this push's message was read off chain (it came without a payload).
     private var readOffChain = false
-    /// Set for a payload-less push (a photo or voice note part, or any message read off chain)
-    /// whose chain read failed or that turned out to be a part: who sent it, as "dm:<address>" or
-    /// "group:<blinded id>". Back-to-back ones from the same owner ring once
-    /// (`claimPartBurstBanner`), so a multi-part photo or voice note whose parts can't be read
-    /// in time still rings only once.
+    /// Set only for a payload-less push whose content could not be read (no part tag to match):
+    /// who sent it, as "dm:<address>" or "group:<blinded id>" (a blinded id is per group and
+    /// sender). Back-to-back ones from the same owner ring once (`claimPartBurstBanner`), so a
+    /// multi-part photo or voice note whose parts can't be read in time still rings only once.
+    /// A part whose tag was read goes by its note alone (`claimVoicePartBanner`).
     private var partBurstOwner: String?
     /// App Group ledger for `claimPartBurstBanner`: owner -> ["t": last push time, "q": the
     /// quiet notification ids its later pushes left].
@@ -87,6 +87,11 @@ class NotificationService: UNNotificationServiceExtension {
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
         requestIdentifier = request.identifier
         receivedAt = Date()
+        // iOS can hand one extension instance several pushes: nothing from the last one may
+        // carry over, or a plain message could go quiet as a "later part".
+        voicePartKey = nil
+        partBurstOwner = nil
+        readOffChain = false
 
         guard let content = bestAttemptContent else {
             contentHandler(request.content)
@@ -346,11 +351,10 @@ class NotificationService: UNNotificationServiceExtension {
                     case .unreadable:
                         break
                     }
-                    // A message that couldn't be read in time, or a part of a photo or voice
-                    // note, joins its sender's burst: back-to-back ones ring once.
+                    // A message that couldn't be read in time joins its sender's burst:
+                    // back-to-back unreadable ones ring once. A part that was read goes by its
+                    // note's tag alone.
                     if case .unreadable = read {
-                        self.partBurstOwner = Self.dmBurstOwner(senderAddress)
-                    } else if self.voicePartKey != nil {
                         self.partBurstOwner = Self.dmBurstOwner(senderAddress)
                     }
                     self.finishContextual(
@@ -446,20 +450,22 @@ class NotificationService: UNNotificationServiceExtension {
     }
 
     /// True when this push is a later part of a note or burst that already rang: a tagged part
-    /// whose note was announced (`claimVoicePartBanner`), or a payload-less push that follows
-    /// another from the same owner within `partBurstWindow` (`claimPartBurstBanner`). Claims
-    /// both ledgers, so call it once per push.
+    /// whose note was announced (`claimVoicePartBanner`), or an unreadable payload-less push
+    /// that follows another from the same owner within `partBurstWindow`
+    /// (`claimPartBurstBanner`). Only one of the two is ever set for a push. Claims its ledger,
+    /// so call it once per push.
     private func isLaterPartPush() -> Bool {
         let firstOfNote = voicePartKey.map { claimVoicePartBanner(key: $0) } ?? true
         let firstOfBurst = partBurstOwner.map { claimPartBurstBanner(owner: $0) } ?? true
         return !firstOfNote || !firstOfBurst
     }
 
-    /// True for the first payload-less push from `owner` in a while, false for one that follows
-    /// another within `partBurstWindow`. A later one records this push's id and removes the quiet
-    /// notification the one before it left. Parts whose chain read failed carry no tag to match,
-    /// so this is what keeps them to one banner. Two separate photos sent within the window
-    /// also ring once, which is acceptable: the app shows both.
+    /// True for the first unreadable payload-less push from `owner` in a while, false for one
+    /// that follows another within `partBurstWindow`. A later one records this push's id and
+    /// removes the quiet notification the one before it left. Parts whose chain read failed
+    /// carry no tag to match, so this is what keeps them to one banner. Two separate unreadable
+    /// messages from one sender within the window also ring once, which is acceptable: the app
+    /// shows both.
     private func claimPartBurstBanner(owner: String) -> Bool {
         guard let defaults = UserDefaults(suiteName: appGroupIdentifier) else { return true }
         let now = Date().timeIntervalSince1970
@@ -612,14 +618,19 @@ class NotificationService: UNNotificationServiceExtension {
             // A group photo hits the same wall a 1:1 photo does: over 3.5KB, so the push carries
             // no payload and there is nothing to decrypt. Read it off chain first, exactly as the
             // 1:1 path does, so a group photo says what it is instead of "New group message".
-            if userInfo["payload"] == nil,
-               let blindedGroupIdHex = userInfo["blinded_group_id"] as? String {
+            // Only once: a read that came back empty re-enters with no payload and must fall
+            // through to the fallback, not fetch again.
+            if userInfo["payload"] == nil, !readOffChain,
+               userInfo["blinded_group_id"] is String {
                 fetchGroupChainPayload(txId: txId) { [weak self] chainPayloadHex in
                     guard let self else { return }
                     self.readOffChain = true
                     var enriched = userInfo
-                    if let chainPayloadHex { enriched["payload"] = chainPayloadHex }
-                    _ = blindedGroupIdHex
+                    // The API's payload is hex of the whole on-chain string; the push's is what
+                    // follows the `kchat:1:gcomm:` prefix.
+                    if let body = chainPayloadHex.flatMap(Self.groupMessageBody(fromChainPayload:)) {
+                        enriched["payload"] = body
+                    }
                     self.handleGroupPushResolved(
                         messageType: messageType,
                         content: content,
@@ -650,7 +661,8 @@ class NotificationService: UNNotificationServiceExtension {
                     return
                 }
                 // Read off chain and still unreadable (most often: not on the API yet after
-                // every retry): back-to-back ones in this group ring once, as parts would.
+                // every retry): back-to-back ones from this sender in this group (the blinded id
+                // is per group and sender) ring once, as parts would.
                 if readOffChain {
                     partBurstOwner = Self.groupBurstOwner(userInfo["blinded_group_id"] as? String)
                 }
@@ -711,20 +723,37 @@ class NotificationService: UNNotificationServiceExtension {
             content.threadIdentifier = "group:\(match.groupId)"
             // A long voice note in a group: keyed by (group, sender, voicePart.id), as the app.
             voicePartKey = Self.voicePartKey(in: match.plaintext, sender: "group:\(match.groupId.lowercased())|\(match.senderAddress)")
-            if readOffChain, voicePartKey != nil {
-                partBurstOwner = Self.groupBurstOwner(blindedGroupIdHex)
-            }
             content.categoryIdentifier = "KACHAT_MESSAGE"
             content.sound = defaultSoundEnabled ? .default : nil
         } else {
+            // A big control message (a group photo, a root with a long roster) comes without a
+            // payload: read it off chain once, so a new group's invite can still announce itself.
+            if userInfo["payload"] == nil, !readOffChain {
+                fetchGroupChainPayload(txId: txId) { [weak self] chainPayloadHex in
+                    guard let self else { return }
+                    self.readOffChain = true
+                    var enriched = userInfo
+                    if let hex = chainPayloadHex.flatMap(Self.controlCiphertextHex(fromChainPayload:)) {
+                        enriched["payload"] = hex
+                    }
+                    self.handleGroupPushResolved(
+                        messageType: messageType,
+                        content: content,
+                        userInfo: enriched,
+                        txId: txId
+                    )
+                }
+                return
+            }
+            // Only an invite to a new group announces itself. Everything else a control message
+            // carries - a key rotation when members change, a rename or photo, an invite accept
+            // or reject, a delete marker - updates the group quietly, as does one this
+            // extension can't read: no sound, no badge, nothing on the lock screen. The app
+            // applies it on its next sync.
             guard let payloadHex = userInfo["payload"] as? String,
                   let control = decryptGroupControlForName(payloadHex: payloadHex) else {
-                // Same terminated-device reasoning as group_message above: show the server's
-                // generic fallback rather than blanking the banner to nothing.
-                deliverGroupFallback(content: content, senderAddress: userInfo["sender"] as? String,
-                                     soundEnabled: defaultSoundEnabled,
-                                     shouldIncrementUnread: shouldIncrementUnread,
-                                     txId: txId, messageType: messageType)
+                suppressGroupNotification(content)
+                addPendingMessage(txId: txId, sender: "group", type: messageType)
                 return
             }
             // Being added is only a request, announced once: nothing for a group you're already in
@@ -943,7 +972,9 @@ class NotificationService: UNNotificationServiceExtension {
 
     private func decryptGroupMessage(blindedGroupIdHex: String, payloadHex: String) -> GroupMessageMatch? {
         guard let targetBlindedId = Data(hexString: blindedGroupIdHex) else { return nil }
-        let payloadString = "kchat:1:gcomm:" + payloadHex
+        let payloadString = (payloadHex.hasPrefix("kchat:1:gcomm:") || payloadHex.hasPrefix("ciph_msg:1:gcomm:"))
+            ? payloadHex
+            : "kchat:1:gcomm:" + payloadHex
         guard let parsed = NotificationGroupCipher.parseGroupMessagePayload(payloadString),
               parsed.blindedGroupId == targetBlindedId else { return nil }
 
@@ -995,7 +1026,8 @@ class NotificationService: UNNotificationServiceExtension {
     /// runs, so this only needs to recover the group name for the notification body.
     private func decryptGroupControlForName(payloadHex: String) -> (name: String, groupId: String, adminSigningPub: String)? {
         guard let privateKey = loadPrivateKey() else { return nil }
-        guard let plaintext = try? NotificationCipher.decryptHex(payloadHex, privateKey: privateKey),
+        let ciphertextHex = Self.stripControlRecipient(payloadHex)
+        guard let plaintext = try? NotificationCipher.decryptHex(ciphertextHex, privateKey: privateKey),
               let jsonData = plaintext.data(using: .utf8) else { return nil }
         guard let rootPayload = try? JSONDecoder().decode(NotificationGroupCipher.GroupRootPayload.self, from: jsonData),
               rootPayload.type == "gctl_root",
@@ -1637,6 +1669,43 @@ class NotificationService: UNNotificationServiceExtension {
         fetchTransactionPayload(txId: txId, completion: completion)
     }
 
+    /// The on-chain string of a REST payload: hex of UTF-8 text such as `kchat:1:gcomm:...`.
+    private static func chainPayloadString(_ payloadHex: String) -> String? {
+        if let data = Data(hexString: payloadHex), let text = String(data: data, encoding: .utf8) {
+            return text
+        }
+        return nil
+    }
+
+    /// What follows `kchat:1:gcomm:` (or the old `ciph_msg:1:gcomm:`) in a REST payload, the same
+    /// form a group push's own `payload` takes. nil when it isn't a group message.
+    static func groupMessageBody(fromChainPayload payloadHex: String) -> String? {
+        guard let text = chainPayloadString(payloadHex) else { return nil }
+        for prefix in ["kchat:1:gcomm:", "ciph_msg:1:gcomm:"] where text.hasPrefix(prefix) {
+            return String(text.dropFirst(prefix.count))
+        }
+        return nil
+    }
+
+    /// The ECIES hex of a control message read off chain: `kchat:1:gctl:` (or the old
+    /// `ciph_msg:1:gctl:`), then an optional 64-hex recipient and a colon, then the ciphertext -
+    /// as the app's `GroupChatService.normalizeControlPayload` reads it. nil when it isn't one.
+    static func controlCiphertextHex(fromChainPayload payloadHex: String) -> String? {
+        guard let text = chainPayloadString(payloadHex) else { return nil }
+        for prefix in ["kchat:1:gctl:", "ciph_msg:1:gctl:"] where text.hasPrefix(prefix) {
+            return stripControlRecipient(String(text.dropFirst(prefix.count)))
+        }
+        return nil
+    }
+
+    /// `ciphertext` from `<64-hex recipient>:<ciphertext>`; anything else unchanged.
+    static func stripControlRecipient(_ body: String) -> String {
+        let parts = body.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 2, parts[0].count == 64,
+              parts[0].allSatisfy({ $0.isASCII && $0.isHexDigit }) else { return body }
+        return String(parts[1])
+    }
+
     /// A transaction's payload hex from the configured REST API, retried until
     /// `chainReadDeadline` after the push arrived. The push comes the moment the transaction is
     /// sent, often before the API has it (a 404), and a multi-part photo or voice note sends its
@@ -2094,8 +2163,8 @@ private struct NotificationCipher {
               let mimeType = header["mimeType"] as? String, !mimeType.isEmpty else { return nil }
         let raw = Data(bytes[(headerStart + headerLength)...])
         guard !raw.isEmpty else { return nil }
-        let name = ((header["name"] as? String) ?? "file")
-            .replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let name = jsonEscaped((header["name"] as? String) ?? "file")
+        let mime = jsonEscaped(mimeType)
         // A long voice note's part tag, as the app's MediaFileEnvelope writes it (before content).
         var part = ""
         let lowered = mimeType.lowercased()
@@ -2103,7 +2172,33 @@ private struct NotificationCipher {
         if let tagKey, let tag = NotificationService.voicePart(from: header[tagKey]) {
             part = ",\"\(tagKey)\":{\"id\":\"\(tag.id)\",\"index\":\(tag.index),\"count\":\(tag.count)}"
         }
-        return "{\"type\":\"file\",\"name\":\"\(name)\",\"size\":\(raw.count),\"mimeType\":\"\(mimeType)\"\(part),\"content\":\"data:\(mimeType);base64,\(raw.base64EncodedString())\"}"
+        return "{\"type\":\"file\",\"name\":\"\(name)\",\"size\":\(raw.count),\"mimeType\":\"\(mime)\"\(part),\"content\":\"data:\(mime);base64,\(raw.base64EncodedString())\"}"
+    }
+
+    /// `text` as the inside of a JSON string: quotes, backslashes and every control character
+    /// escaped. Written by hand rather than with JSONSerialization so the keys keep the order
+    /// the part-tag sniff relies on, and "/" stays unescaped (`"mimeType":"audio/`).
+    static func jsonEscaped(_ text: String) -> String {
+        var out = ""
+        out.reserveCapacity(text.count)
+        for scalar in text.unicodeScalars {
+            switch scalar {
+            case "\\": out += "\\\\"
+            case "\"": out += "\\\""
+            case "\n": out += "\\n"
+            case "\r": out += "\\r"
+            case "\t": out += "\\t"
+            case "\u{2028}", "\u{2029}":
+                out += String(format: "\\u%04x", scalar.value)
+            default:
+                if scalar.value < 0x20 {
+                    out += String(format: "\\u%04x", scalar.value)
+                } else {
+                    out.unicodeScalars.append(scalar)
+                }
+            }
+        }
+        return out
     }
 
     private static func performECDH(privateKey: Data, ephemeralPublicKey: Data) throws -> Data {
@@ -2385,19 +2480,26 @@ private struct NotificationGroupCipher {
 }
 
 private extension Data {
+    /// Hex digits only (either case), an even number of them. `UInt8(_:radix:)` alone would take
+    /// a sign ("+a" reads as 0x0a), so a copy of an id could pass as a different string.
     init?(hexString: String) {
-        let hex = hexString.lowercased()
-        let len = hex.count / 2
-        var data = Data(capacity: len)
-        var index = hex.startIndex
-
-        for _ in 0..<len {
-            let nextIndex = hex.index(index, offsetBy: 2)
-            guard let byte = UInt8(hex[index..<nextIndex], radix: 16) else { return nil }
-            data.append(byte)
-            index = nextIndex
+        let bytes = Array(hexString.utf8)
+        guard bytes.count % 2 == 0 else { return nil }
+        func nibble(_ c: UInt8) -> UInt8? {
+            switch c {
+            case 0x30...0x39: return c - 0x30
+            case 0x61...0x66: return c - 0x61 + 10
+            case 0x41...0x46: return c - 0x41 + 10
+            default: return nil
+            }
         }
-
+        var data = Data(capacity: bytes.count / 2)
+        var index = 0
+        while index < bytes.count {
+            guard let high = nibble(bytes[index]), let low = nibble(bytes[index + 1]) else { return nil }
+            data.append(high << 4 | low)
+            index += 2
+        }
         self = data
     }
 }

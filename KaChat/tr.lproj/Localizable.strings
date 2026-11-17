@@ -1314,7 +1314,6 @@
 "Fee (KAS)" = "Ücret (KAS)";
 "fee: %@ KAS" = "ücret: %@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "Bu, seçili her sohbetteki tüm mesajları bu cihazdan kalıcı olarak siler. Bu geri alınamaz.";
-"Confirm sending Kaspa" = "Kaspa gönderimini onayla";
 "Accepted your request to communicate" = "İletişim isteğini kabul etti";
 "Sent you a message" = "Sana bir mesaj gönderdi";
 "[Payment]" = "[Ödeme]";
@@ -1342,7 +1341,6 @@
 "One transaction can combine %d coins, so this combines the largest %d. Compound again for the rest." = "Bir işlem %d coin birleştirebilir, bu yüzden en büyük %d tanesi birleştirilir. Kalanlar için yeniden birleştir.";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs combines the rest." = "Maks., bir işlemin taşıyabileceği miktardır: en büyük %d coin. \"UTXO'ları Birleştir\" kalanları birleştirir.";
 "Couldn't load this address's balance." = "Bu adresin bakiyesi yüklenemedi.";
-"Sending Kaspa needs Face ID or your passcode." = "Kaspa göndermek için Face ID veya parolan gerekir.";
 "The network fee is now %@ KAS, more than the Review showed. Nothing was sent: check the new fee and swipe again." = "Ağ ücreti artık %@ KAS, İnceleme'de gösterilenden fazla. Hiçbir şey gönderilmedi: yeni ücreti kontrol edip tekrar kaydırın.";
 "Unable to sign in to this account." = "Bu hesapta oturum açılamıyor.";
 "This account's keys are on this phone again, so nothing was removed." = "Bu hesabın anahtarları yeniden bu telefonda, bu yüzden hiçbir şey kaldırılmadı.";
@@ -1478,7 +1476,7 @@
 "Restoring messages... %d of %d conversations" = "Mesajlar geri yükleniyor... %d / %d sohbet";
 "Deletes %@ (%@) and its local data from this device." = "%@ (%@) ve yerel verilerini bu cihazdan siler.";
 "Passcode Required" = "Parola Gerekli";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat." = "KaChat'te Kaspa göndermek, hesap silmek veya gizli anahtarları görmek için bu iPhone'da bir parola belirleyin (Ayarlar > Face ID ve Parola).";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "KaChat'te hesap silmek veya gizli anahtarları görmek için bu iPhone'da bir parola belirleyin (Ayarlar > Face ID ve Parola).";
 "Waiting on opponent" = "Rakip bekleniyor";
 "Not sent: you switched accounts before this went out." = "Gönderilmedi: bu gitmeden önce hesap değiştirdiniz.";
 "The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "İki işlemden ilki gerçekleşti ama ikincisi gerçekleşmedi. KaChat bir sonraki açılışta tamamlayacak.";
@@ -1506,3 +1504,22 @@
 "Microphone Access Required" = "Mikrofon Erişimi Gerekli";
 "Allow camera access in Settings to take photos in chats." = "Sohbetlerde fotoğraf çekmek için Ayarlar’dan kamera erişimine izin verin.";
 "Allow microphone access in Settings to record voice messages." = "Sesli mesaj kaydetmek için Ayarlar’dan mikrofon erişimine izin verin.";
+
+/* 5.3 audit fixes: recording, message fee limit, voice part Retry, Siri fee */
+"Recording..." = "Kaydediliyor…";
+"Audio ready" = "Ses hazır";
+"Recording failed. Please try again." = "Kayıt başarısız oldu. Lütfen tekrar deneyin.";
+"Camera not available on this device." = "Bu cihazda kamera kullanılamıyor.";
+"Failed to send voice message: %@" = "Sesli mesaj gönderilemedi: %@";
+"Fee Too High" = "Ücret Çok Yüksek";
+"A message fee can be at most 1 KAS." = "Bir mesaj ücreti en fazla 1 KAS olabilir.";
+"Use a High Fee?" = "Yüksek Ücret Kullanılsın mı?";
+"%@ KAS is much more than the network needs to send a message." = "%@ KAS, ağın bir mesaj göndermek için ihtiyacından çok daha fazla.";
+"Use It" = "Kullan";
+"Tap Retry on the voice message to send the rest." = "Kalanını göndermek için sesli mesajda Tekrar dene'ye dokunun.";
+"Network fee: %@" = "Ağ ücreti: %@";
+"Couldn't Remove App Password" = "Uygulama Parolası Kaldırılamadı";
+"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat, %@ üzerindeki uygulama parolasını kaldıramadı. Bu telefondan silindi ama orada hâlâ oturum açabilir: Nextcloud'da Ayarlar > Güvenlik > Cihazlar ve oturumlar bölümünden silin.";
+"Your chatting address also pays %@ KAS to tell %@ about this payment." = "Sohbet adresiniz, %2$@ kişisini bu ödemeden haberdar etmek için ayrıca %1$@ KAS öder.";
+"Tap Retry on the photo to send the rest." = "Kalanını göndermek için fotoğrafta Tekrar dene'ye dokunun.";
+"This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Bu mesaj tek bir işlem için çok fazla coin gerektiriyor. Sohbet adresinizde Compound UTXOs kullanın, sonra tekrar deneyin.";

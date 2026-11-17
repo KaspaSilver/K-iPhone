@@ -246,6 +246,8 @@ struct GroupChatDetailView: View {
     @State private var feeEstimateTask: Task<Void, Never>?
     /// User-set fee, from tapping the fee pill - see ChatDetailView.feeOverrideSompi's doc comment.
     @State private var feeOverrideSompi: UInt64?
+    @State private var showFeeTooHigh = false
+    @State private var pendingHighFeeSompi: UInt64?
     @State private var showFeeEditor = false
     @State private var feeEditorText = ""
 
@@ -874,6 +876,10 @@ struct GroupChatDetailView: View {
         .onDisappear {
             chatService.setDraft(draft, for: "group:\(group.id)")
             groupChatService.exitGroup()
+            // Leaving ends a recording, as in 1:1: the mic must not stay on behind another
+            // screen, and the temp files go with it.
+            recorder.cancel()
+            feeEstimateSompi = nil
             // Voice-note playback is owned per bubble; the thread going away is what ends it.
             LazyAudioBubble.stopAllPlayback()
         }
@@ -904,6 +910,24 @@ struct GroupChatDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("If the network is busy, a higher fee can help your transaction confirm faster.")
+        }
+        .alert("Fee Too High", isPresented: $showFeeTooHigh) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            KaspaUnit.text("A message fee can be at most 1 KAS.")
+        }
+        .alert("Use a High Fee?", isPresented: Binding(
+            get: { pendingHighFeeSompi != nil },
+            set: { if !$0 { pendingHighFeeSompi = nil } }
+        )) {
+            Button("Use It") {
+                if let sompi = pendingHighFeeSompi { applyFeeOverride(sompi) }
+                pendingHighFeeSompi = nil
+            }
+            Button("Cancel", role: .cancel) { pendingHighFeeSompi = nil }
+        } message: {
+            Text(verbatim: KaspaUnit.label(String(format: AppLocalization.string("%@ KAS is much more than the network needs to send a message."),
+                                                  locale: AppLocalization.locale, formatKaspaExact(pendingHighFeeSompi ?? 0))))
         }
     }
 
@@ -985,7 +1009,7 @@ struct GroupChatDetailView: View {
     private var bottomComposeArea: some View {
         VStack(spacing: 0) {
             if let errorMessage {
-                Text(errorMessage)
+                Text(verbatim: AppLocalization.string(errorMessage))
                     .font(.caption)
                     .foregroundColor(.red)
                     .padding(.horizontal)
@@ -1206,9 +1230,9 @@ struct GroupChatDetailView: View {
         Group {
             if isEstimatingFee {
                 KaspaUnit.text("fee: -------- KAS")
-            } else if let fee = feeOverrideSompi ?? feeEstimateSompi {
+            } else if let fee = (feeIsAdjustable ? feeOverrideSompi : nil) ?? feeEstimateSompi {
                 Text(localizedFeeText(fee))
-                    .underline()
+                    .underline(feeIsAdjustable)
             } else {
                 KaspaUnit.text("fee: -- KAS")
             }
@@ -1227,16 +1251,36 @@ struct GroupChatDetailView: View {
         }
         .allowsHitTesting(true)
         .onTapGesture {
-            guard !isEstimatingFee, let currentFee = feeOverrideSompi ?? feeEstimateSompi else { return }
+            guard feeIsAdjustable, !isEstimatingFee, let currentFee = (feeIsAdjustable ? feeOverrideSompi : nil) ?? feeEstimateSompi else { return }
             feeEditorText = formatKaspaExact(currentFee)
             showFeeEditor = true
         }
     }
 
+    /// Fee pill Save. Above MessageFeeLimit.maxSompi it refuses; above warnSompi it asks first.
+    /// Below the network minimum the builder raises it.
     private func commitFeeOverride() {
-        guard let sompi = KaspaUnit.sompi(fromUserText: feeEditorText) else { return }
+        guard let sompi = KaspaUnit.sompi(fromUserText: feeEditorText), sompi > 0 else { return }
+        if sompi > MessageFeeLimit.maxSompi {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { showFeeTooHigh = true }
+            return
+        }
+        if sompi > MessageFeeLimit.warnSompi {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { pendingHighFeeSompi = sompi }
+            return
+        }
+        applyFeeOverride(sompi)
+    }
+
+    private func applyFeeOverride(_ sompi: UInt64) {
         feeOverrideSompi = sompi
         scheduleTextFeeEstimate(for: draft, force: true)
+    }
+
+    /// A custom fee applies to text only: voice notes and photos price their own parts, so in
+    /// those modes the pill shows their estimate and can't be tapped.
+    private var feeIsAdjustable: Bool {
+        !isVoiceNoteActive && pendingPhotoImage == nil
     }
 
     private func localizedFeeText(_ feeSompi: UInt64) -> String {
@@ -1866,7 +1910,7 @@ struct GroupChatDetailView: View {
                             .animation(.linear(duration: 1), value: recorder.elapsedSeconds)
                     }
                     .frame(width: 20, height: 20)
-                    Text(verbatim: "\(String(localized: "Recording...")) \(Self.clock(recorder.elapsedSeconds)) / \(Self.clock(effectiveMaxRecordingDuration))")
+                    Text(verbatim: "\(AppLocalization.string("Recording...")) \(Self.clock(recorder.elapsedSeconds)) / \(Self.clock(effectiveMaxRecordingDuration))")
                         .monospacedDigit()
                 case .ready:
                     Button {
@@ -1876,7 +1920,7 @@ struct GroupChatDetailView: View {
                             .foregroundColor(.accentColor)
                     }
                     .buttonStyle(.plain)
-                    Text("\(String(localized: "Audio ready")) • \(recorder.previewLabel)")
+                    Text(verbatim: "\(AppLocalization.string("Audio ready")) • \(recorder.previewLabel)")
                         .monospacedDigit()
                 default:
                     ProgressView()
@@ -2085,7 +2129,7 @@ struct GroupChatDetailView: View {
                         try await groupChatService.sendGroupAudio(only, to: group.id, fileName: "voice.webm", mimeType: "audio/webm")
                     }
                 } catch {
-                    await MainActor.run { errorMessage = "Failed to send voice message: \(UserFacingError.message(for: error))" }
+                    await MainActor.run { errorMessage = String(format: AppLocalization.string("Failed to send voice message: %@"), UserFacingError.message(for: error)) }
                 }
             case .nextcloud(let originalPCMURL, let fallback):
                 // The original is this send's to delete (success, upload failure and send failure
@@ -2100,8 +2144,9 @@ struct GroupChatDetailView: View {
                     var shareURL: URL?
                     do {
                         let m4aURL = try await exportRecordingAsM4A(originalPCMURL: originalPCMURL, webmData: fallback)
+                        // Deleted even when reading it throws.
+                        defer { try? FileManager.default.removeItem(at: m4aURL) }
                         let m4aData = try Data(contentsOf: m4aURL)
-                        try? FileManager.default.removeItem(at: m4aURL)
                         let stamp = Self.mediaTimestampFormatter.string(from: Date())
                         shareURL = try await NextcloudService.shared.uploadMediaAndShare(
                             data: m4aData,
@@ -2123,7 +2168,7 @@ struct GroupChatDetailView: View {
                     // arrives cut short - the same trade-off as 1:1's fallback).
                     try await groupChatService.sendGroupAudio(fallback, to: group.id, fileName: "voice.webm", mimeType: "audio/webm")
                 } catch {
-                    await MainActor.run { errorMessage = "Failed to send voice message: \(UserFacingError.message(for: error))" }
+                    await MainActor.run { errorMessage = String(format: AppLocalization.string("Failed to send voice message: %@"), UserFacingError.message(for: error)) }
                 }
             }
         }
@@ -2386,9 +2431,9 @@ struct GroupChatDetailView: View {
         }
     }
 
-    /// Group messages don't have an in-place "retry" record the way 1:1 does - resends the same
-    /// content (works uniformly for text/photo/audio, since all three are just a content string)
-    /// as a fresh message rather than mutating the failed one, which stays in history marked failed.
+    /// Resends the failed message in place (the same row; text, photo and audio alike). The
+    /// service re-reads the live rows, marks them Sending at once, and ignores a second tap while
+    /// a retry runs, so a double tap can't pay twice.
     private func retry(_ message: GroupMessage) {
         errorMessage = nil
         // A long voice note's Retry resends only its failed parts, in order.
@@ -3801,7 +3846,9 @@ private struct AddGroupMembersView: View {
     }
 
     private func selectResolution(_ resolution: NameResolution) {
-        guard let address = resolution.address else { return }
+        // A name service's answer must be a valid address on this network (NameResolution drops
+        // others too; checked again here, where it becomes the address used).
+        guard let address = resolution.address, KaspaAddress.isValidOnActiveNetwork(address) else { return }
         resolvedDomainAddress = address
         resolvedDomainName = resolution.display
         selectedTLD = resolution.tld

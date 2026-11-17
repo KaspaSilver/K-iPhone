@@ -41,6 +41,21 @@ final class KaspaFiatAmountState: ObservableObject {
     /// Caller's own Max button already knows the current max sendable KAS (fee-aware, etc.) -
     /// this just also reflects it into whichever unit is currently being displayed. Returns the
     /// canonical KAS string.
+    /// Max from an exact sompi amount: the KAS text is built by integer math, so it is exact
+    /// to the sompi at any balance. Prefer this over `setMaxKas`.
+    @discardableResult
+    func setMaxSompi(_ sompi: UInt64, priceInCurrency: Double?) -> String {
+        let maxKas = Double(sompi) / 100_000_000.0
+        let exact = formatKasAmountPlain(sompi: sompi)
+        if isFiatMode, let priceInCurrency, priceInCurrency > 0 {
+            displayText = String(format: "%.2f", maxKas * priceInCurrency)
+        } else {
+            displayText = exact
+        }
+        kasText = exact
+        return kasText
+    }
+
     @discardableResult
     func setMaxKas(_ maxKas: Double, priceInCurrency: Double?) -> String {
         if isFiatMode, let priceInCurrency, priceInCurrency > 0 {

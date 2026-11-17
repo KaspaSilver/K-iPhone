@@ -208,6 +208,8 @@ final class AddressActivityNotifier: ObservableObject {
         guard let utxos = try? await NodePoolService.shared.getUtxosByAddresses(Array(watched)) else {
             return
         }
+        // Signed out or switched while fetching: these balances aren't the current account's.
+        guard WalletManager.shared.currentWallet?.publicAddress == wallet.publicAddress else { return }
         var currentBalances: [String: UInt64] = [:]
         for address in watched { currentBalances[address] = 0 }
         for utxo in utxos where currentBalances[utxo.address] != nil {
@@ -237,6 +239,9 @@ final class AddressActivityNotifier: ObservableObject {
                     delta: balance - previous,
                     walletAddress: wallet.publicAddress
                 )
+                // Switched account meanwhile: stop, and save nothing more for this one now;
+                // the next catch-up for it starts from the saved baseline.
+                guard WalletManager.shared.currentWallet?.publicAddress == wallet.publicAddress else { return }
             }
             baselines[address] = balance
         }
@@ -267,17 +272,31 @@ final class AddressActivityNotifier: ObservableObject {
         // Those retries can run ~12s: if the account changed meanwhile, this receive isn't the
         // current account's news. Left unmarked, so the catch-up finds it on the way back.
         guard WalletManager.shared.currentWallet?.publicAddress == walletAddress else { return }
-        if let fullTx {
-            let inputAddresses = (fullTx.inputs ?? [])
-                .compactMap { $0.previousOutpointAddress }
-                .filter { !$0.isEmpty }
-            if !inputAddresses.isEmpty {
-                isSelfSend = inputAddresses.contains { ownAddresses.contains($0) }
-            }
+        // A transaction REST can't read stays quiet: the amounts in the node's batch are the
+        // node's word alone. Left unmarked and its baseline untouched, so the catch-up still
+        // finds the funds (attributed, or "Balance increased") from the chain.
+        guard let fullTx else {
+            AppLog.log("[AddressActivity] Couldn't read %@, leaving it to the catch-up", String(txId.prefix(12)))
+            return
         }
-        // The chatting address notifies only for a plain transfer we could read: a chat payment
-        // or a handshake (a payload) is the chat's news, and an unreadable one stays quiet.
-        if fullTx.map({ !Self.isPlainTransfer($0) }) ?? true {
+        let inputAddresses = (fullTx.inputs ?? [])
+            .compactMap { $0.previousOutpointAddress }
+            .filter { !$0.isEmpty }
+        if !inputAddresses.isEmpty {
+            isSelfSend = inputAddresses.contains { ownAddresses.contains($0) }
+        }
+        // The amounts come from the transaction itself: its outputs to each of our addresses
+        // the batch named.
+        let hitAddresses = Set(hits.map(\.address))
+        hits = hitAddresses.compactMap { address -> (address: String, amount: UInt64)? in
+            let amount = fullTx.outputs
+                .filter { $0.scriptPublicKeyAddress == address }
+                .reduce(UInt64(0)) { $0 &+ $1.amount }
+            return amount > 0 ? (address: address, amount: amount) : nil
+        }
+        // The chatting address notifies only for a plain transfer: a chat payment or a
+        // handshake (a payload) is the chat's news.
+        if !Self.isPlainTransfer(fullTx) {
             hits.removeAll { $0.address == walletAddress }
         }
         guard !hits.isEmpty else {
@@ -285,9 +304,9 @@ final class AddressActivityNotifier: ObservableObject {
             await refreshBaselines(for: [walletAddress], wallet: walletAddress)
             return
         }
-        // Unresolvable txs still notify: the removed-set fast path already suppressed every
-        // self-send whose inputs we watch (which is all of them), so an unknown-input tx here
-        // is overwhelmingly external - missing real funds is worse than a rare duplicate.
+        // A readable tx whose inputs REST couldn't name still notifies: the removed-set fast
+        // path already suppressed every self-send whose inputs we watch (all of them), so it is
+        // overwhelmingly external.
 
         guard !handledTxIds.contains(txId) else { return }
         markHandled(txId: txId, wallet: walletAddress)

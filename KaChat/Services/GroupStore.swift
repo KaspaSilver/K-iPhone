@@ -84,6 +84,45 @@ final class GroupStore {
         }
     }
 
+    /// Delete Account: closes this account's group store and deletes its SQLite file with the
+    /// `-wal` and `-shm` beside it. `clearAll` only deletes rows, and names, rosters, reactions
+    /// and restored group messages (kept as plain bytes) could still be read back from the
+    /// file's free pages and the WAL. As `MessageStore.destroyLocalStoreFiles`.
+    ///
+    /// Main thread (the view context's queue). Afterwards no store is open: the next
+    /// `setCurrentWallet`, for any address, opens a fresh one.
+    func destroyLocalStoreFiles() {
+        guard let walletAddress = currentWalletAddress else { return }
+        let context = viewContext
+        context.performAndWait {
+            if context.hasChanges { context.rollback() }
+            context.reset()
+        }
+        let coordinator = container.persistentStoreCoordinator
+        for store in coordinator.persistentStores {
+            do {
+                try coordinator.remove(store)
+            } catch {
+                AppLog.log("[GroupStore] Failed to remove store before delete: %@", error.localizedDescription)
+            }
+        }
+        // Stops a load still in flight from attaching the file after it is gone.
+        loadGeneration += 1
+        isLoaded = false
+        currentWalletAddress = nil
+
+        let url = storeURL(forWallet: walletAddress)
+        // SQLite's own names: "x.sqlite-wal", which `appendingPathExtension` can't produce.
+        for fileURL in [url, URL(fileURLWithPath: url.path + "-wal"), URL(fileURLWithPath: url.path + "-shm")]
+        where FileManager.default.fileExists(atPath: fileURL.path) {
+            do {
+                try FileManager.default.removeItem(at: fileURL)
+            } catch {
+                AppLog.log("[GroupStore] Failed to delete %@: %@", fileURL.lastPathComponent, error.localizedDescription)
+            }
+        }
+    }
+
     private var viewContext: NSManagedObjectContext { container.viewContext }
 
     // MARK: - Groups

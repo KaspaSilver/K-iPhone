@@ -8,6 +8,13 @@ import Intents
 
 // MARK: - Conversation state, message sending, handshake sending, fee estimation
 
+/// Thrown by `ChatService.sendMediaParts` once the note's rows are in the chat: the failed parts
+/// carry Retry, so the composer clears instead of offering to send the whole note again.
+struct MediaPartsSendError: LocalizedError {
+    let underlying: Error
+    var errorDescription: String? { underlying.localizedDescription }
+}
+
 extension ChatService {
     func enterConversation(for address: String) {
         activeConversationAddress = address
@@ -1602,16 +1609,26 @@ extension ChatService {
                         messageType: .audio,
                         pendingTxId: part.txId,
                         pendingMessageId: part.id,
-                        ownerAddress: wallet.publicAddress
+                        ownerAddress: wallet.publicAddress,
+                        failInsteadOfDeferring: true
                     )
                 }
             } catch {
+                // A throw that left this part's row on Sending (a key unreadable this instant)
+                // fails it, so the bubble offers Retry rather than waiting forever.
+                let row = conversations.first(where: { $0.contact.address == contact.address })?
+                    .messages.first(where: { $0.id == part.id })
+                if row?.deliveryStatus == .pending {
+                    markPendingMessageFailed(row?.txId ?? part.txId, contactAddress: contact.address)
+                }
                 // The rest never went: failed too, so one Retry resends them in order.
                 for rest in pending[(offset + 1)...] {
                     markPendingMessageFailed(rest.txId, contactAddress: contact.address)
                 }
                 saveMessages()
-                throw error
+                // The note is in the chat now, its failed parts with Retry: the composer clears
+                // rather than offering to send the whole note (and pay for it) again.
+                throw MediaPartsSendError(underlying: error)
             }
         }
 
@@ -1622,8 +1639,12 @@ extension ChatService {
     /// Retry on a long voice note's bubble: only its failed parts, in index order, one after
     /// another. Stops at the first that fails again.
     func retryVoiceNoteParts(_ failedParts: [ChatMessage], contact: Contact) async throws {
+        let ids = Set(failedParts.map(\.id))
+        guard !ids.isEmpty, retryingVoicePartIds.isDisjoint(with: ids) else { return }
+        retryingVoicePartIds.formUnion(ids)
+        defer { retryingVoicePartIds.subtract(ids) }
         for part in failedParts where part.isOutgoing && part.deliveryStatus == .failed {
-            try await retryOutgoingMessage(part, contact: contact)
+            try await retryOutgoingMessage(part, contact: contact, asPart: true)
         }
     }
 
@@ -1707,7 +1728,9 @@ extension ChatService {
         try await sendMessage(to: contact, content: jsonString, messageType: .audio)
     }
 
-    func retryOutgoingMessage(_ message: ChatMessage, contact: Contact) async throws {
+    /// `asPart`: one part of a long voice note or photo, so an error fails it rather than
+    /// scheduling a later retry that the next parts would overtake.
+    func retryOutgoingMessage(_ message: ChatMessage, contact: Contact, asPart: Bool = false) async throws {
         // Not confirmed may have landed: a second send could post or pay it twice.
         guard message.isOutgoing, message.deliveryStatus != .warning else { return }
         switch message.messageType {
@@ -1727,7 +1750,8 @@ extension ChatService {
                     messageType: message.messageType,
                     pendingTxId: message.txId,
                     pendingMessageId: message.id,
-                    ownerAddress: ownerAddress
+                    ownerAddress: ownerAddress,
+                    failInsteadOfDeferring: asPart
                 )
             }
         case .handshake:
@@ -1748,7 +1772,10 @@ extension ChatService {
         spendableFundsRetryAttempt: Int = 0,
         feeOverride: UInt64? = nil,
         /// The account this send was queued under: it never signs as another one.
-        ownerAddress: String? = nil
+        ownerAddress: String? = nil,
+        /// A part of a multi-part note: a later retry would let the next parts go first, so an
+        /// error that would schedule one fails the part instead and the caller stops there.
+        failInsteadOfDeferring: Bool = false
     ) async throws {
         guard let wallet = WalletManager.shared.currentWallet else {
             throw KasiaError.walletNotFound
@@ -2122,11 +2149,12 @@ extension ChatService {
                     pendingTxId: activePendingTxId,
                     pendingMessageId: activePendingMessageId,
                     spendableFundsRetryAttempt: retryNumber,
-                    ownerAddress: ownerAddress ?? wallet.publicAddress
+                    ownerAddress: ownerAddress ?? wallet.publicAddress,
+                    failInsteadOfDeferring: failInsteadOfDeferring
                 )
                 return
             }
-            if shouldRetryNoSpendableFundsError(error) {
+            if shouldRetryNoSpendableFundsError(error), !failInsteadOfDeferring {
                 let delay = nextNoInputRetryDelay(for: activePendingTxId)
                 AppLog.log(
                     "[ChatService] Deferred retry (no confirmed inputs) for %@ in %.0fs",
@@ -2142,7 +2170,7 @@ extension ChatService {
                 )
                 return
             }
-            if shouldRetrySendError(error) {
+            if shouldRetrySendError(error), !failInsteadOfDeferring {
                 AppLog.log("[ChatService] Message send retry scheduled for %@: %@",
                       String(activePendingTxId.prefix(12)), error.localizedDescription)
                 scheduleOutgoingRetry(
@@ -2372,7 +2400,7 @@ extension ChatService {
         let now = Date()
         pruneMessageUtxoCaches(confirmed: confirmed, now: now)
         let confirmedSpendable = confirmed
-            .filter { $0.blockDaaScore > 0 && !$0.isCoinbase }
+            .filter { $0.blockDaaScore > 0 && !$0.isCoinbase && $0.covenantId == nil }
         // A pending coin is only ever signed by the chatting key, so only coins locked to the
         // chatting address may be offered. The cache is shared and outlives an account switch;
         // a coin locked to another address, signed with this key, is rejected by the network
@@ -2403,7 +2431,7 @@ extension ChatService {
     }
 
     func reserveMessageOutpoints(_ utxos: [UTXO]) {
-        let expiration = Date().addingTimeInterval(pendingMessageUtxoTTL)
+        let expiration = Date().addingTimeInterval(reservedOutpointTTL)
         for utxo in utxos {
             reservedMessageOutpoints[outpointKey(utxo.outpoint)] = expiration
         }
@@ -2412,12 +2440,43 @@ extension ChatService {
     /// Called by `NodePoolService` for every transaction it sends (or may have sent): its inputs
     /// stay out of every coin pick (`unreservedUtxos`, `prepareMessageUtxos`) until they expire.
     func reserveSpentOutpoints(_ outpoints: [UTXO.Outpoint]) {
-        let expiration = Date().addingTimeInterval(pendingMessageUtxoTTL)
+        let expiration = Date().addingTimeInterval(reservedOutpointTTL)
         for outpoint in outpoints {
             let key = outpointKey(outpoint)
             if let until = reservedMessageOutpoints[key], until > expiration { continue }
             reservedMessageOutpoints[key] = expiration
             pendingMessageUtxos.removeValue(forKey: key)
+        }
+    }
+
+    /// Called by `NodePoolService` just BEFORE a submit: the transaction's coins leave every pick
+    /// while its submit runs, so a send running beside it (a name action, a payment) can't build
+    /// on the same coins. Returns what each key held before, for `releaseSubmitHold`; a coin
+    /// already held for longer is left as it is.
+    func holdOutpointsForSubmit(_ outpoints: [UTXO.Outpoint]) -> [(key: String, previous: Date?)] {
+        let expiration = Date().addingTimeInterval(reservedOutpointTTL)
+        var held: [(key: String, previous: Date?)] = []
+        var seen = Set<String>()
+        for outpoint in outpoints {
+            let key = outpointKey(outpoint)
+            guard seen.insert(key).inserted else { continue }
+            let previous = reservedMessageOutpoints[key]
+            if let previous, previous >= expiration { continue }
+            held.append((key: key, previous: previous))
+            reservedMessageOutpoints[key] = expiration
+        }
+        return held
+    }
+
+    /// A submit that failed, or whose outcome is unknown: its coins go back to what they were, so
+    /// a resend picks the same ones and at most one of the two can land.
+    func releaseSubmitHold(_ held: [(key: String, previous: Date?)]) {
+        for entry in held {
+            if let previous = entry.previous {
+                reservedMessageOutpoints[entry.key] = previous
+            } else {
+                reservedMessageOutpoints.removeValue(forKey: entry.key)
+            }
         }
     }
 
@@ -2542,6 +2601,9 @@ extension ChatService {
         /// The payment's extra (Fast / Priority / custom) fee and coin-control selection.
         paymentExtraFeeSompi: UInt64 = 0,
         paymentManualUtxos: [UTXO]? = nil,
+        /// The fee the payment's Review showed: the retry rebuilds from the coins of that later
+        /// moment and is held to it, as the swipe was.
+        paymentExpectedFeeSompi: UInt64? = nil,
         handshakeIsResponse: Bool? = nil
     ) {
         guard !scheduledSendRetries.contains(pendingTxId) else { return }
@@ -2591,6 +2653,7 @@ extension ChatService {
                             extraFeeSompi: paymentExtraFeeSompi,
                             sourceSpendingIndex: paymentSourceIndex,
                             manualUtxos: paymentManualUtxos,
+                            expectedFeeSompi: paymentExpectedFeeSompi,
                             ownerAddress: owner
                         )
                     case .handshake:
@@ -2949,6 +3012,15 @@ extension ChatService {
                 throw error
             }
 
+            if error is SendFeeChangedError, pendingTxId != nil {
+                // A deferred retry: no Review is on screen to show the new fee, so the bubble
+                // stays as a Failed payment rather than vanishing; nothing went out.
+                markOutgoingAttemptFailed(messageId: pendingMessageId, pendingTxId: activePendingTxId)
+                markPendingMessageFailed(activePendingTxId, contactAddress: contact.address)
+                clearNoInputRetryState(for: activePendingTxId)
+                saveMessages()
+                throw error
+            }
             if error is SendFeeChangedError {
                 // Nothing went out and the Review shows the new fee: the next swipe makes its own
                 // bubble, so this one goes rather than staying behind as a Failed payment.
@@ -2978,7 +3050,8 @@ extension ChatService {
                     paymentNote: note,
                     paymentSourceIndex: sourceSpendingIndex,
                     paymentExtraFeeSompi: extraFeeSompi,
-                    paymentManualUtxos: manualUtxos
+                    paymentManualUtxos: manualUtxos,
+                    paymentExpectedFeeSompi: expectedFeeSompi
                 )
                 // Deferred, not sent - nothing to confirm yet.
                 return nil
@@ -3008,6 +3081,9 @@ extension ChatService {
         }
         // the script ignores the prefix: a kaspatest: address on mainnet would pay real KAS
         if let reason = KaspaAddress.otherNetworkReason(toAddress) { throw KasiaError.networkError(reason) }
+        // The same test the address field uses (checksum, prefix, version), here too: a
+        // resolved .k / .kaspa name or any other caller reaches the send without that field.
+        guard KaspaAddress.isValidOnActiveNetwork(toAddress) else { throw KasiaError.invalidAddress }
         guard let wallet = WalletManager.shared.currentWallet else {
             throw KasiaError.walletNotFound
         }
@@ -3157,6 +3233,9 @@ extension ChatService {
     func unreservedUtxos(_ utxos: [UTXO]) -> [UTXO] {
         let now = Date()
         return utxos.filter { utxo in
+            // A covenant-bound coin can only be spent under its covenant's rules: never in a
+            // plain send, message or record.
+            guard utxo.covenantId == nil else { return false }
             guard let until = reservedMessageOutpoints[outpointKey(utxo.outpoint)] else { return true }
             return until <= now
         }
@@ -3226,37 +3305,42 @@ extension ChatService {
         }
         // the script ignores the prefix: a kaspatest: address on mainnet would pay real KAS
         if let reason = KaspaAddress.otherNetworkReason(toAddress) { throw KasiaError.networkError(reason) }
+        // The same test the address field uses (checksum, prefix, version), here too: a
+        // resolved .k / .kaspa name or any other caller reaches the send without that field.
+        guard KaspaAddress.isValidOnActiveNetwork(toAddress) else { throw KasiaError.invalidAddress }
         guard let fromAddress = WalletManager.shared.spendingAddress(at: index),
               let privateKey = WalletManager.shared.spendingPrivateKey(at: index) else {
             throw KasiaError.keychainError("Could not derive this spending address")
         }
-        // Fresh change index for the primary only: past the all-time max, so it has never been
-        // revealed, funded or offered (the same rule `sendPaymentInternal` uses). Decided up
-        // front and applied only after the node accepts the transaction, so a failed send moves
-        // nothing. If the fresh address cannot be derived this instant, change stays put and
-        // the primary stays put with it - rotating onto an address the change did not reach
-        // would strand the funds behind a pointer. A self-send (the Compound action) moves
-        // nothing out of the address, so it neither splits its consolidation onto a fresh
-        // address nor rotates.
-        var freshChangeIndex: Int?
-        var changeAddress: String?
-        let isSelfSend = toAddress.lowercased() == fromAddress.lowercased()
-        let isPrimarySource = index == WalletManager.shared.currentSpendingAddressIndex
-        // A quantum source's change must NEVER return to it - the spend reveals its key, and
-        // change back would park funds on a revealed address (KIP-22). A legacy primary keeps
-        // rotating as before; both rotate onto a fresh quantum slot now. A self-send (Compound)
-        // still consolidates into the address itself, shield off.
-        if !isSelfSend, WalletManager.isQuantumIndex(index) || isPrimarySource {
-            if let slot = await WalletManager.shared.verifiedFreshQuantumSlot() {
-                freshChangeIndex = slot.index
-                changeAddress = slot.address
-            } else if WalletManager.isQuantumIndex(index) {
-                // never change back onto the key this spend reveals (IOS-104)
-                throw KasiaError.keychainError(AppLocalization.string("Couldn't prepare the next address. Try again."))
-            }
-        }
-
         return try await enqueueOutgoingTxOperation {
+            // Picked inside the queue, as `sendPaymentInternal` does: two queued sends must not
+            // both take the same fresh slot.
+            // Fresh change index for the primary only: past the all-time max, so it has never been
+            // revealed, funded or offered (the same rule `sendPaymentInternal` uses). Decided up
+            // front and applied only after the node accepts the transaction, so a failed send moves
+            // nothing. If the fresh address cannot be derived this instant, change stays put and
+            // the primary stays put with it - rotating onto an address the change did not reach
+            // would strand the funds behind a pointer. A self-send (the Compound action) moves
+            // nothing out of the address, so it neither splits its consolidation onto a fresh
+            // address nor rotates.
+            var freshChangeIndex: Int?
+            var changeAddress: String?
+            let isSelfSend = toAddress.lowercased() == fromAddress.lowercased()
+            let isPrimarySource = index == WalletManager.shared.currentSpendingAddressIndex
+            // A quantum source's change must NEVER return to it - the spend reveals its key, and
+            // change back would park funds on a revealed address (KIP-22). A legacy primary keeps
+            // rotating as before; both rotate onto a fresh quantum slot now. A self-send (Compound)
+            // still consolidates into the address itself, shield off.
+            if !isSelfSend, WalletManager.isQuantumIndex(index) || isPrimarySource {
+                if let slot = await WalletManager.shared.verifiedFreshQuantumSlot() {
+                    freshChangeIndex = slot.index
+                    changeAddress = slot.address
+                } else if WalletManager.isQuantumIndex(index) {
+                    // never change back onto the key this spend reveals (IOS-104)
+                    throw KasiaError.keychainError(AppLocalization.string("Couldn't prepare the next address. Try again."))
+                }
+            }
+
             let rpcManager = NodePoolService.shared
             let settings = self.currentSettings
 
@@ -3807,6 +3891,27 @@ extension ChatService {
             throw KasiaError.invalidAddress
         }
 
+        if let spendingIndex = sourceSpendingIndex {
+            // From a spending address the send is a plain transfer with no payload, its change
+            // on a fresh quantum slot (`sendPaymentInternal`): priced with the payload it doesn't
+            // carry, the fee shown was higher than the one paid. The chat notice that follows is
+            // its own transaction (`estimatePaymentNoticeFee`).
+            var changeScriptPubKey = senderScriptPubKey
+            if let slotAddress = WalletManager.shared.spendingAddress(at: WalletManager.shared.nextFreshQuantumIndex()),
+               let slotScript = KaspaAddress.scriptPublicKey(from: slotAddress) {
+                changeScriptPubKey = slotScript
+            }
+            return try KasiaTransactionBuilder.estimatePlainTransferFee(
+                utxos: spendable,
+                amount: amountSompi,
+                recipientScriptPubKey: recipientScriptPubKey,
+                senderScriptPubKey: changeScriptPubKey,
+                extraFeeSompi: extraFeeSompi,
+                signatureScriptSize: WalletManager.isQuantumIndex(spendingIndex)
+                    ? KasiaTransactionBuilder.kip22SignatureScriptSize : 66
+            )
+        }
+
         return try KasiaTransactionBuilder.estimatePaymentFee(
             utxos: spendable,
             payload: payload,
@@ -3817,6 +3922,21 @@ extension ChatService {
             signatureScriptSize: sourceSpendingIndex.map(WalletManager.isQuantumIndex) == true
                 ? KasiaTransactionBuilder.kip22SignatureScriptSize : 66
         )
+    }
+
+    /// What the chat notice after a payment From a spending address costs the chatting address
+    /// (`sendSpendingPaymentNotice`): a second transaction, so the Review shows it beside the
+    /// payment's own fee. Nil when it can't be priced (an empty chatting address: the notice
+    /// then waits until it has KAS).
+    func estimatePaymentNoticeFee(to contact: Contact, amountSompi: UInt64, memo: String) async -> UInt64? {
+        let trimmedMemo = String(memo.trimmingCharacters(in: .whitespacesAndNewlines).prefix(PaymentNoticeContent.maxMemoLength))
+        // A real txId's length: the notice's size, and so its fee, doesn't depend on which.
+        let payload = PaymentPoolCodec.encode(
+            PaymentNoticeContent(txId: String(repeating: "0", count: 64), amountSompi: amountSompi,
+                                 address: contact.address, memo: trimmedMemo.isEmpty ? nil : trimmedMemo)
+        )
+        guard !payload.isEmpty else { return nil }
+        return try? await estimateMessageFee(to: contact, content: payload, wrapReply: false)
     }
 
     /// Calculate maximum sendable amount (balance - fee for send-all transaction with no change output)

@@ -17,8 +17,12 @@ final class UtxoSubscriptionManager: ObservableObject {
     // MARK: - Published Properties
 
     @Published private(set) var state: SubscriptionState = .disconnected
-    @Published private(set) var primaryEndpoint: Endpoint?
-    @Published private(set) var standbyEndpoint: Endpoint?
+    @Published private(set) var primaryEndpoint: Endpoint? {
+        didSet { if primaryEndpoint?.key != oldValue?.key { syncPinnedConnections() } }
+    }
+    @Published private(set) var standbyEndpoint: Endpoint? {
+        didSet { if standbyEndpoint?.key != oldValue?.key { syncPinnedConnections() } }
+    }
     /// Not `@Published`: every notification sets it - block-added ones about ten times a second
     /// on mainnet - and nothing observes it.
     private(set) var lastNotificationAt: Date?
@@ -118,6 +122,16 @@ final class UtxoSubscriptionManager: ObservableObject {
         }
     }
 
+    /// Tells the pool which connections are the subscription's (primary and standby): only those
+    /// reconnect without end and are never pruned. Read when it runs, so the last change wins.
+    private func syncPinnedConnections() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let keys = Set([self.primaryEndpoint?.key, self.standbyEndpoint?.key].compactMap { $0 })
+            await self.connectionPool.setPinned(keys)
+        }
+    }
+
     // MARK: - Public API
 
     /// The subscribe running now. Subscribes run one at a time (IOS-071): two interleaving at
@@ -154,7 +168,8 @@ final class UtxoSubscriptionManager: ObservableObject {
     /// paid a TLS reconnect and dropped utxosChanged for the gap. Only for a superset: dropping
     /// addresses goes the full way. False when it didn't apply or the node refused.
     private func widenLiveSubscription(to addresses: [String], excluding: Set<String>) async -> Bool {
-        guard state == .subscribed, let conn = primaryConnection, let endpoint = primaryEndpoint,
+        guard state == .subscribed, !subscribedAddresses.isEmpty,
+              let conn = primaryConnection, let endpoint = primaryEndpoint,
               !excluding.contains(endpoint.key),
               Set(addresses).isSuperset(of: subscribedAddresses),
               await conn.isConnected else { return false }
@@ -217,6 +232,11 @@ final class UtxoSubscriptionManager: ObservableObject {
                 primaryEndpoint = endpoint
 
                 try await subscribeOn(endpoint: endpoint, isPrimary: true)
+                // Unsubscribed while that ran: undo it rather than leave it live.
+                if Task.isCancelled {
+                    await undoCancelledSubscribe(addresses: addresses)
+                    throw CancellationError()
+                }
                 state = .subscribed
         lastHealthyAt = Date()
                 primaryFailures = 0
@@ -241,6 +261,9 @@ final class UtxoSubscriptionManager: ObservableObject {
                 return  // Success!
 
             } catch {
+                // Unsubscribed meanwhile: stop here, leaving the state unsubscribe set (not
+                // "failed" with a retry armed).
+                if error is CancellationError { throw error }
                 AppLog.log("[UtxoSub] Subscription failed on %@: %@", endpoint.key, error.localizedDescription)
                 lastError = error
                 // Continue immediately to next node
@@ -251,6 +274,38 @@ final class UtxoSubscriptionManager: ObservableObject {
         state = .failed
         scheduleResubscribeRetry()
         throw lastError ?? KasiaError.networkError("All capable nodes failed")
+    }
+
+    /// A subscribe that finished on the node after `unsubscribe()`: its handler and its start go.
+    private func undoCancelledSubscribe(addresses: [String]) async {
+        if let conn = primaryConnection {
+            if let handlerId = primaryHandlerId { await conn.removeNotificationHandler(handlerId) }
+            await Self.sendNotifyStop(addresses: addresses, on: conn)
+        }
+        primaryConnection = nil
+        primaryHandlerId = nil
+        primaryConnectionGeneration = nil
+        primaryEndpoint = nil
+        standbyEndpoint = nil
+        state = .disconnected
+    }
+
+    /// Stops utxosChanged for `addresses` on `conn`. Never with an empty list: that would stop
+    /// every subscription on the stream. Best effort: a dead connection has nothing to stop.
+    private static func sendNotifyStop(addresses: [String], on conn: GRPCStreamConnection) async {
+        guard !addresses.isEmpty, await conn.isConnected else { return }
+        var msg = Protowire_KaspadMessage()
+        var req = Protowire_NotifyUtxosChangedRequestMessage()
+        req.addresses = addresses
+        req.command = .notifyStop
+        msg.notifyUtxosChangedRequest = req
+        do {
+            _ = try await conn.sendRequest(msg, type: .notifyUtxosChanged,
+                                           timeout: OperationClass.subscribeUtxosChanged.timeout)
+            AppLog.log("[UtxoSub] Stopped utxosChanged for %d addresses on %@", addresses.count, conn.endpoint.key)
+        } catch {
+            AppLog.log("[UtxoSub] Stop on %@ failed: %@", conn.endpoint.key, error.localizedDescription)
+        }
     }
 
     /// Keeps retrying on a capped backoff (1, 2, 4, 8, 16, 30, 30...s) while the subscription
@@ -325,6 +380,19 @@ final class UtxoSubscriptionManager: ObservableObject {
         if let conn = primaryConnection, let handlerId = primaryHandlerId {
             Task {
                 await conn.removeNotificationHandler(handlerId)
+            }
+        }
+
+        // A start is additive on the node's side: without a stop, the old account's addresses
+        // stay subscribed on this pooled connection and their changes reach the next account's
+        // handler. The stop runs in line with subscribes, so the next start comes after it and
+        // a re-login on the same addresses isn't stopped behind its back.
+        if let conn = primaryConnection, !subscribedAddresses.isEmpty {
+            let stale = subscribedAddresses
+            let previous = subscribeInFlight
+            subscribeInFlight = Task<Void, Error> { @MainActor in
+                _ = try? await previous?.value
+                await Self.sendNotifyStop(addresses: stale, on: conn)
             }
         }
 
@@ -527,6 +595,11 @@ final class UtxoSubscriptionManager: ObservableObject {
     /// the response. Used both for the initial subscribe and for re-arming a subscription the
     /// node silently dropped when the underlying stream reconnected.
     private func sendNotifyUtxosChanged(on conn: GRPCStreamConnection) async throws {
+        // An empty start means EVERY address to a node: never send one (an unsubscribe can
+        // clear the list while a subscribe is still on its way).
+        guard !subscribedAddresses.isEmpty else {
+            throw KasiaError.networkError("No addresses to subscribe")
+        }
         var msg = Protowire_KaspadMessage()
         var req = Protowire_NotifyUtxosChangedRequestMessage()
         req.addresses = subscribedAddresses
@@ -618,6 +691,12 @@ final class UtxoSubscriptionManager: ObservableObject {
             )
 
             AppLog.log("[UtxoSub] Ping OK on %@ (%.0fms)", endpoint.key, latencyMs)
+
+            // The node answers again after a failover that found nothing: subscribe once more.
+            if state == .failed {
+                scheduleResubscribeRetry()
+                return
+            }
 
         } catch {
             AppLog.log("[UtxoSub] Ping failed on %@ - triggering immediate failover: %@", endpoint.key, error.localizedDescription)
@@ -783,6 +862,8 @@ final class UtxoSubscriptionManager: ObservableObject {
         state = .failed
         isFailingOver = false
         AppLog.log("[UtxoSub] Failover failed - no working endpoints")
+        // Nothing else would try again: the health check only re-arms a subscribed primary.
+        scheduleResubscribeRetry()
     }
 
     // MARK: - State Resync

@@ -200,6 +200,11 @@ final class NodePoolService: ObservableObject {
             connectionPool: connectionPool,
             epochMonitor: epochMonitor
         )
+        // A scan that asked for block-added before the manager existed (subscribeBlockAdded's
+        // optional call did nothing) still gets it for this run.
+        if !blockAddedClients.isEmpty {
+            await subscriptionManager?.setBlockAddedWanted(true)
+        }
 
         // Bind subscription manager state
         subscriptionManager?.$state
@@ -611,6 +616,9 @@ final class NodePoolService: ObservableObject {
     /// rejections, for sends that move money and must not sit in a node's orphan pool.
     func submitTransaction(_ transaction: KaspaRpcTransaction, allowOrphan: Bool = false, escalateOrphan: Bool = true) async throws -> (txId: String, endpoint: String) {
         let spent = transaction.inputs.map(\.previousOutpoint)
+        // Held from before the submit, not after: a send running beside this one must not pick
+        // the same coins while it is on its way.
+        let hold = ChatService.shared.holdOutpointsForSubmit(spent)
         do {
             let sent = try await submitTransactionLookingUp(transaction, allowOrphan: allowOrphan, escalateOrphan: escalateOrphan)
             ChatService.shared.reserveSpentOutpoints(spent)
@@ -618,14 +626,19 @@ final class NodePoolService: ObservableObject {
         } catch let unknown as SendOutcomeUnknownError {
             // Coins are deliberately not held: a resend then picks the same ones, so at most one
             // of the two can land. Held, it would pick others and both could pay.
+            ChatService.shared.releaseSubmitHold(hold)
             ChatService.shared.invalidateUtxoCache()
             throw unknown
+        } catch {
+            ChatService.shared.releaseSubmitHold(hold)
+            throw error
         }
     }
 
     private func submitTransactionLookingUp(_ transaction: KaspaRpcTransaction, allowOrphan: Bool, escalateOrphan: Bool) async throws -> (txId: String, endpoint: String) {
+        let answers = SubmitAnswers()
         do {
-            return try await submitRpcTransaction(transaction.toProtobuf(), allowOrphan: allowOrphan)
+            return try await submitRpcTransactionRecording(transaction.toProtobuf(), allowOrphan: allowOrphan, answers: answers)
         } catch {
             var answerLost = error is SubmitAnswerLostError
             // "Orphan where orphan is disallowed": its inputs came from a node that already has
@@ -636,13 +649,13 @@ final class NodePoolService: ObservableObject {
             if !allowOrphan, Self.isOrphanRejection(error) {
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
                 do {
-                    return try await submitRpcTransaction(transaction.toProtobuf(), allowOrphan: false)
+                    return try await submitRpcTransactionRecording(transaction.toProtobuf(), allowOrphan: false, answers: answers)
                 } catch {
                     answerLost = answerLost || error is SubmitAnswerLostError
                 }
                 if escalateOrphan {
                     do {
-                        let sent = try await submitRpcTransaction(transaction.toProtobuf(), allowOrphan: true)
+                        let sent = try await submitRpcTransactionRecording(transaction.toProtobuf(), allowOrphan: true, answers: answers)
                         AppLog.log("[NodePool] %@ submitted as an orphan: its parent hadn't reached that node yet", String(sent.txId.prefix(12)))
                         return sent
                     } catch {
@@ -651,7 +664,7 @@ final class NodePoolService: ObservableObject {
                 }
             }
             let txId = KasiaTransactionBuilder.computeTransactionId(transaction)
-            if await isTransactionKnown(txId: txId, afterRejection: !answerLost) {
+            if await isTransactionKnown(txId: txId, afterRejection: !answerLost, answers: answers) {
                 AppLog.log("[NodePool] submit of %@ reported \"%@\" but the network has it: treated as sent",
                            String(txId.prefix(12)), error.localizedDescription)
                 return (txId: txId, endpoint: "already-known")
@@ -668,22 +681,28 @@ final class NodePoolService: ObservableObject {
         let spent = rpcTransaction.inputs.map {
             UTXO.Outpoint(transactionId: $0.previousOutpoint.transactionID, index: $0.previousOutpoint.index)
         }
+        let hold = ChatService.shared.holdOutpointsForSubmit(spent)
         do {
             let sent = try await submitRpcTransactionLookingUp(rpcTransaction, expectedTxId: expectedTxId)
             ChatService.shared.reserveSpentOutpoints(spent)
             return sent
         } catch let unknown as SendOutcomeUnknownError {
             // not held, for the reason in `submitTransaction`
+            ChatService.shared.releaseSubmitHold(hold)
             ChatService.shared.invalidateUtxoCache()
             throw unknown
+        } catch {
+            ChatService.shared.releaseSubmitHold(hold)
+            throw error
         }
     }
 
     private func submitRpcTransactionLookingUp(_ rpcTransaction: Protowire_RpcTransaction, expectedTxId: String) async throws -> (txId: String, endpoint: String) {
+        let answers = SubmitAnswers()
         do {
-            return try await submitRpcTransaction(rpcTransaction)
+            return try await submitRpcTransactionRecording(rpcTransaction, allowOrphan: false, answers: answers)
         } catch {
-            if await isTransactionKnown(txId: expectedTxId, afterRejection: !(error is SubmitAnswerLostError)) {
+            if await isTransactionKnown(txId: expectedTxId, afterRejection: !(error is SubmitAnswerLostError), answers: answers) {
                 AppLog.log("[NodePool] submit of %@ reported \"%@\" but the network has it: treated as sent",
                            String(expectedTxId.prefix(12)), error.localizedDescription)
                 return (txId: expectedTxId, endpoint: "already-known")
@@ -698,7 +717,7 @@ final class NodePoolService: ObservableObject {
     private func confirmAfterLostAnswer(txId: String) async throws -> (txId: String, endpoint: String) {
         for attempt in 0..<6 {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
-            if await getMempoolEntry(txId: txId, attempt: attempt + 2) != nil { return (txId: txId, endpoint: "already-known") }
+            if await verifiedMempoolHolders(txId: txId, excluding: []) >= 1 { return (txId: txId, endpoint: "already-known") }
             if await Self.isAcceptedViaREST(txId: txId) { return (txId: txId, endpoint: "already-known") }
         }
         AppLog.log("[NodePool] submit of %@ got no answer and the network doesn't have it yet: outcome unknown", String(txId.prefix(12)))
@@ -713,13 +732,104 @@ final class NodePoolService: ObservableObject {
     /// twice, a moment apart, since a just-accepted transaction may not have propagated yet.
     /// `afterRejection`: a node refused it, so a REST "accepted" counts only from the built-in
     /// REST server. A custom one in Settings could otherwise turn a refused send into Sent.
-    private func isTransactionKnown(txId: String, afterRejection: Bool) async -> Bool {
+    ///
+    /// A mempool answer counts only when its transaction hashes to `txId` and isn't an orphan,
+    /// and never from a node that answered this submit (`answers`): one bad node must not turn
+    /// a refused send into Sent. After a node gave a real verdict against the transaction, two
+    /// other nodes must hold it (or the built-in REST server must have it accepted).
+    private func isTransactionKnown(txId: String, afterRejection: Bool, answers: SubmitAnswers? = nil) async -> Bool {
+        let skip = answers?.answeredKeys ?? []
+        let needed = (answers?.sawVerdict ?? false) ? 2 : 1
         for attempt in 0..<2 {
             if attempt > 0 { try? await Task.sleep(nanoseconds: 1_500_000_000) }
-            if await getMempoolEntry(txId: txId, attempt: attempt) != nil { return true }
+            if await verifiedMempoolHolders(txId: txId, excluding: skip) >= needed { return true }
             if await Self.isAcceptedViaREST(txId: txId, builtInOnly: afterRejection) { return true }
         }
         return false
+    }
+
+    /// How many nodes (the primary, then the three fastest other active ones, never those in
+    /// `excluding`) hold `txId` in their mempool: not as an orphan, and as a transaction whose
+    /// recomputed id is `txId`.
+    private func verifiedMempoolHolders(txId: String, excluding: Set<String>) async -> Int {
+        let activeRecords = await registry.records(inState: .active)
+        let sorted = activeRecords
+            .filter { !excluding.contains($0.endpoint.key) }
+            .sorted { a, b in
+                let aLatency = a.health.latencyMs.value ?? a.health.globalLatencyMs.value ?? Double.infinity
+                let bLatency = b.health.latencyMs.value ?? b.health.globalLatencyMs.value ?? Double.infinity
+                return aLatency < bLatency
+            }
+        let primaryKey = primaryEndpoint?.key
+        var endpoints = sorted.filter { $0.endpoint.key != primaryKey }.prefix(3).map(\.endpoint)
+        if let primary = sorted.first(where: { $0.endpoint.key == primaryKey })?.endpoint {
+            endpoints.insert(primary, at: 0)
+        }
+        guard !endpoints.isEmpty else { return 0 }
+        return await withTaskGroup(of: Bool.self) { group in
+            for endpoint in endpoints {
+                group.addTask { await self.hasVerifiedMempoolEntry(txId: txId, endpoint: endpoint) }
+            }
+            var count = 0
+            for await held in group where held { count += 1 }
+            return count
+        }
+    }
+
+    private func hasVerifiedMempoolEntry(txId: String, endpoint: Endpoint) async -> Bool {
+        let conn = await connectionPool.connection(for: endpoint)
+        do {
+            if await !conn.isConnected { try await conn.connect() }
+        } catch {
+            return false
+        }
+        var msg = Protowire_KaspadMessage()
+        var req = Protowire_GetMempoolEntryRequestMessage()
+        req.txID = txId
+        req.includeOrphanPool = false
+        req.filterTransactionPool = false
+        msg.getMempoolEntryRequest = req
+        guard let response = try? await conn.sendRequest(msg, type: .getMempoolEntry, timeout: 2.0),
+              case .getMempoolEntryResponse(let mempoolResponse) = response.payload,
+              !(mempoolResponse.hasError && !mempoolResponse.error.message.isEmpty),
+              mempoolResponse.hasEntry, !mempoolResponse.entry.isOrphan,
+              mempoolResponse.entry.hasTransaction,
+              let recomputed = Self.recomputedTransactionId(mempoolResponse.entry.transaction) else { return false }
+        guard recomputed == txId.lowercased() else {
+            AppLog.log("[NodePool] %@ answered for %@ with a transaction that hashes to %@: ignored",
+                       endpoint.key, String(txId.prefix(12)), String(recomputed.prefix(12)))
+            return false
+        }
+        return true
+    }
+
+    /// The id the chain gives a transaction a node returned, recomputed from its fields (v0 and
+    /// v1, `KasiaTransactionBuilder.restTransactionId`). Nil when a field can't be read or an
+    /// output script isn't version 0 (no transaction this app sends has one).
+    private static func recomputedTransactionId(_ tx: Protowire_RpcTransaction) -> String? {
+        guard tx.version <= UInt32(UInt16.max) else { return nil }
+        let inputs = tx.inputs.map {
+            (hash: $0.previousOutpoint.transactionID, index: $0.previousOutpoint.index, sequence: $0.sequence)
+        }
+        var outputs: [(amount: UInt64, script: Data, covenant: KasiaTransactionBuilder.OutputCovenant?)] = []
+        for output in tx.outputs {
+            guard output.scriptPublicKey.version == 0,
+                  let script = Data(hexString: output.scriptPublicKey.scriptPublicKey) else { return nil }
+            var covenant: KasiaTransactionBuilder.OutputCovenant?
+            if output.hasCovenant {
+                guard output.covenant.authorizingInput <= UInt32(UInt16.max),
+                      let id = Data(hexString: output.covenant.covenantID) else { return nil }
+                covenant = KasiaTransactionBuilder.OutputCovenant(
+                    authorizingInput: UInt16(output.covenant.authorizingInput), covenantId: id)
+            }
+            outputs.append((amount: output.amount, script: script, covenant: covenant))
+        }
+        guard let subnetwork = Data(hexString: tx.subnetworkID),
+              let payload = Data(hexString: tx.payload) else { return nil }
+        return KasiaTransactionBuilder.restTransactionId(
+            version: UInt16(tx.version), inputs: inputs, outputs: outputs,
+            lockTime: tx.lockTime, subnetworkId: subnetwork, gas: tx.gas, payload: payload
+        )?.lowercased()
     }
 
     private static func isAcceptedViaREST(txId: String, builtInOnly: Bool = false) async -> Bool {
@@ -738,9 +848,15 @@ final class NodePoolService: ObservableObject {
     /// Submit an already-converted transaction. The version-1 (Toccata) builders fill
     /// `computeBudget`, `covenant` and `storageMass` themselves (`KachatNamesService`).
     func submitRpcTransaction(_ rpcTransaction: Protowire_RpcTransaction, allowOrphan: Bool = false) async throws -> (txId: String, endpoint: String) {
+        try await submitRpcTransactionRecording(rpcTransaction, allowOrphan: allowOrphan, answers: nil)
+    }
+
+    /// `submitRpcTransaction`, noting in `answers` which nodes answered with a rejection, for the
+    /// "did it go out anyway" look-up that follows a failure.
+    private func submitRpcTransactionRecording(_ rpcTransaction: Protowire_RpcTransaction, allowOrphan: Bool, answers: SubmitAnswers?) async throws -> (txId: String, endpoint: String) {
         let answerLost = SubmitAnswerLostFlag()
         do {
-            return try await hedgedSubmit(rpcTransaction, allowOrphan: allowOrphan, answerLost: answerLost)
+            return try await hedgedSubmit(rpcTransaction, allowOrphan: allowOrphan, answerLost: answerLost, answers: answers)
         } catch {
             // A node that refused the transaction as invalid has given a verdict on it: the race
             // isn't lost, even if another node timed out. An "already known" style refusal is no
@@ -752,7 +868,7 @@ final class NodePoolService: ObservableObject {
 
     /// `answerLost` is set only around the request itself: a node that couldn't be connected to
     /// never saw the transaction, and one that rejected it has answered.
-    private func hedgedSubmit(_ rpcTransaction: Protowire_RpcTransaction, allowOrphan: Bool, answerLost: SubmitAnswerLostFlag) async throws -> (txId: String, endpoint: String) {
+    private func hedgedSubmit(_ rpcTransaction: Protowire_RpcTransaction, allowOrphan: Bool, answerLost: SubmitAnswerLostFlag, answers: SubmitAnswers? = nil) async throws -> (txId: String, endpoint: String) {
         try await executeHedged(op: .submitTransaction) { conn in
             var msg = Protowire_KaspadMessage()
             var req = Protowire_SubmitTransactionRequestMessage()
@@ -780,9 +896,11 @@ final class NodePoolService: ObservableObject {
                 // are what a node says when another node (the one whose answer was lost) has
                 // already taken and relayed this very transaction: they mean it may well land,
                 // so they leave the longer check (`confirmAfterLostAnswer`) in place.
-                if !Self.rejectionMayMeanAlreadyKnown(txResponse.error.message) {
+                let isVerdict = !Self.rejectionMayMeanAlreadyKnown(txResponse.error.message)
+                if isVerdict {
                     answerLost.markRejected()
                 }
+                answers?.note(conn.endpoint.key, verdict: isVerdict)
                 throw NodeRejectedTransactionError(message: txResponse.error.message)
             }
 
@@ -811,6 +929,22 @@ final class NodePoolService: ObservableObject {
     private struct SubmitAnswerLostError: LocalizedError {
         let underlying: Error
         var errorDescription: String? { underlying.localizedDescription }
+    }
+
+    /// The nodes that answered a submit with a rejection, and whether any of those was a verdict
+    /// against the transaction itself. Their own mempool answer is then not taken as proof.
+    private final class SubmitAnswers: @unchecked Sendable {
+        private let lock = NSLock()
+        private var keys: Set<String> = []
+        private var verdict = false
+        var answeredKeys: Set<String> { lock.withLock { keys } }
+        var sawVerdict: Bool { lock.withLock { verdict } }
+        func note(_ key: String, verdict isVerdict: Bool) {
+            lock.withLock {
+                keys.insert(key)
+                if isVerdict { verdict = true }
+            }
+        }
     }
 
     private final class SubmitAnswerLostFlag: @unchecked Sendable {

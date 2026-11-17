@@ -1425,24 +1425,71 @@ extension ChatService {
 
     // MARK: - Draft Storage
 
-    func loadMessageDrafts() {
-        guard let data = userDefaults.data(forKey: draftsKey),
-              let drafts = try? JSONDecoder().decode([String: String].self, from: data) else {
-            return
+    /// Drafts are kept per account (`kachat_message_drafts_<address>`): one key for every
+    /// account let the next account to sign in find the last one's half-typed messages.
+    nonisolated static func draftsStorageKey(forWallet address: String) -> String {
+        "kachat_message_drafts_\(address.lowercased())"
+    }
+
+    /// Erases one account's drafts (Delete Account, Log Out): its key, and the copy in memory
+    /// with any write still pending, so nothing writes them back afterwards.
+    func discardDrafts(forWallet address: String) {
+        if draftsOwner == address.lowercased() {
+            draftSaveTask?.cancel()
+            draftSaveTask = nil
+            messageDrafts = [:]
+            draftsOwner = nil
         }
-        messageDrafts = drafts
+        userDefaults.removeObject(forKey: Self.draftsStorageKey(forWallet: address))
+    }
+
+    func loadMessageDrafts() {
+        let owner = WalletManager.shared.currentWallet?.publicAddress.lowercased()
+        draftsOwner = owner
+        messageDrafts = [:]
+        guard let owner else { return }
+        let key = Self.draftsStorageKey(forWallet: owner)
+        if let data = userDefaults.data(forKey: key),
+           let drafts = try? JSONDecoder().decode([String: String].self, from: data) {
+            messageDrafts = drafts
+        } else if let legacy = userDefaults.data(forKey: draftsKey),
+                  WalletManager.shared.savedAccounts.count <= 1,
+                  let drafts = try? JSONDecoder().decode([String: String].self, from: legacy) {
+            // The old single key: only one account on this phone can have written it.
+            messageDrafts = drafts
+            userDefaults.set(legacy, forKey: key)
+        }
+        // With more than one account the old key's owner is unknown: dropped, never shown.
+        userDefaults.removeObject(forKey: draftsKey)
     }
 
     func saveMessageDrafts() {
+        guard let owner = draftsOwner else { return }
+        let key = Self.draftsStorageKey(forWallet: owner)
+        if messageDrafts.isEmpty {
+            userDefaults.removeObject(forKey: key)
+            return
+        }
         guard let data = try? JSONEncoder().encode(messageDrafts) else { return }
-        userDefaults.set(data, forKey: draftsKey)
+        userDefaults.set(data, forKey: key)
+    }
+
+    /// The drafts in memory belong to the signed-in account: reloaded when it changes (account
+    /// switch, Log Out, sign-in), after the last account's pending write goes to its own key.
+    func ensureDraftsBelongToCurrentWallet() {
+        let current = WalletManager.shared.currentWallet?.publicAddress.lowercased()
+        guard current != draftsOwner else { return }
+        flushPendingDraftSave()
+        loadMessageDrafts()
     }
 
     func draft(for contactAddress: String) -> String {
-        messageDrafts[contactAddress] ?? ""
+        ensureDraftsBelongToCurrentWallet()
+        return messageDrafts[contactAddress] ?? ""
     }
 
     func setDraft(_ text: String, for contactAddress: String) {
+        ensureDraftsBelongToCurrentWallet()
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             messageDrafts.removeValue(forKey: contactAddress)
@@ -1471,6 +1518,7 @@ extension ChatService {
     }
 
     func clearDraft(for contactAddress: String) {
+        ensureDraftsBelongToCurrentWallet()
         if messageDrafts.removeValue(forKey: contactAddress) != nil {
             saveMessageDrafts()
         }

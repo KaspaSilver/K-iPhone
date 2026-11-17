@@ -293,6 +293,12 @@ struct ChatDetailView: View {
     /// reset-on-send, though Android's is rate-based; this is a flat sompi total - see
     /// KasiaTransactionBuilder.selectUtxosForContextualMessage's `feeOverride` param).
     @State private var feeOverrideSompi: UInt64?
+    /// The current recording's encode: the trash cancels it and clears the token, and a result
+    /// for any other token is discarded.
+    @State private var recordingEncodeTask: Task<Void, Never>?
+    @State private var recordingEncodeToken: UUID?
+    @State private var showFeeTooHigh = false
+    @State private var pendingHighFeeSompi: UInt64?
     @State private var showFeeEditor = false
     @State private var feeEditorText = ""
     /// Tap-a-reply-quote-to-jump-to-original - mirrors `GroupChatDetailView`'s
@@ -325,6 +331,8 @@ struct ChatDetailView: View {
     /// The fee this payment pays at the chosen speed (network fee, extra and any change too
     /// small to keep), from an estimate made with that extra; nil until it is known.
     @State private var paymentBuiltFeeSompi: UInt64?
+    /// From a spending address: what the separate chat notice costs the chatting address.
+    @State private var paymentNoticeFeeSompi: UInt64?
     @State private var isEstimatingPaymentFee = false
     @State private var paymentFeeTask: Task<Void, Never>?
     @State private var paymentError: String?
@@ -718,7 +726,9 @@ struct ChatDetailView: View {
             && !hasEstablishedRelationship && !hasIncomingHandshakeMessage && !isDeclined
     }
 
-    var body: some View {
+    /// The screen and its sheets. Split from `body`, whose single modifier chain got too long for
+    /// the type checker.
+    private var chatScreenCore: some View {
         ZStack {
             // Messages
             ScrollViewReader { proxy in
@@ -898,49 +908,7 @@ struct ChatDetailView: View {
                                 .padding(.top, 8)
                         }
                     }
-                    .overlay(alignment: .bottomTrailing) {
-                        if !isBottomAnchorVisible && initialViewportPositioned {
-                            Button {
-                                Haptics.impact(.light)
-                                scrollToBottom(using: proxy, animated: true)
-                            } label: {
-                                ZStack(alignment: .topTrailing) {
-                                    Circle()
-                                        .fill(.regularMaterial)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-                                        )
-                                        .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
-                                        .frame(width: 36, height: 36)
-                                        .overlay(
-                                            Image(systemName: "chevron.down")
-                                                .font(.scaled(size: 14, weight: .semibold))
-                                                .foregroundColor(.primary)
-                                        )
-
-                                    if newMessagesWhileScrolledUp > 0 {
-                                        Text("\(min(newMessagesWhileScrolledUp, 99))")
-                                            .font(.scaled(size: 11, weight: .bold))
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 5)
-                                            .padding(.vertical, 1)
-                                            .background(Capsule().fill(Color.accentColor))
-                                            .offset(x: 6, y: -6)
-                                    }
-                                }
-                            }
-                            .padding(.trailing, 12)
-                            // Base 76pt clears the composer alone; when a reply is active, the
-                            // reply banner sits above the composer too, so its live-measured
-                            // height (+ the input bar's own 8pt VStack spacing) is added on top -
-                            // otherwise this button sits directly on the reply banner's Cancel (X).
-                            .padding(.bottom, 76 + (chatService.replyingTo != nil || chatService.editingMessage != nil ? replyBannerHeight + 8 : 0))
-                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                            .animation(.easeInOut(duration: 0.2), value: isBottomAnchorVisible)
-                            .animation(.easeInOut(duration: 0.2), value: chatService.replyingTo != nil || chatService.editingMessage != nil)
-                        }
-                    }
+                    .overlay(alignment: .bottomTrailing) { scrollToBottomButton(using: proxy) }
                     // `.immediately` rather than `.interactively`. An interactive dismissal drives the
                     // keyboard frame from the drag, so SwiftUI's keyboard safe-area inset is mid-
                     // animation for as long as the finger is down. Every one of these screens
@@ -1167,12 +1135,16 @@ struct ChatDetailView: View {
                     .environmentObject(walletManager)
             }
         }
+    }
+
+    var body: some View {
+        chatScreenCore
         .alert("Failed to Send", isPresented: .constant(error != nil)) {
             Button("OK") { error = nil }
         } message: {
             if let error = error {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(error)
+                    Text(verbatim: AppLocalization.string(error))
                         .font(.body)
 
                     if shouldShowRetryHint(for: error) {
@@ -1196,6 +1168,12 @@ struct ChatDetailView: View {
         } message: {
             Text("If the network is busy, a higher fee can help your transaction confirm faster.")
         }
+        .alert("Fee Too High", isPresented: $showFeeTooHigh) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            KaspaUnit.text("A message fee can be at most 1 KAS.")
+        }
+        .alert("Use a High Fee?", isPresented: highFeeAlertShown, actions: highFeeAlertButtons, message: highFeeAlertMessage)
         .onChange(of: amountText) { newValue in
             schedulePaymentFee(for: newValue)
         }
@@ -1294,6 +1272,7 @@ struct ChatDetailView: View {
             // automatically on navigation pop, and on tab switches we want
             // to preserve the scroll position and loaded message count.
         }
+        .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification), perform: handleRecordingInterruption)
         .onChange(of: chatService.replyingTo) { newValue in
             scheduleFeeEstimate(for: messageText, force: true)
             if newValue == nil {
@@ -1473,6 +1452,89 @@ struct ChatDetailView: View {
                 rememberRenderedWindowStart()
                 refreshStoredMessageCountAsync()
             }
+        }
+    }
+
+    // The high-fee alert and the recording interruption live outside `body`: inline, the body's
+    // modifier chain got too long for the type checker.
+    private var highFeeAlertShown: Binding<Bool> {
+        Binding(
+            get: { pendingHighFeeSompi != nil },
+            set: { if !$0 { pendingHighFeeSompi = nil } }
+        )
+    }
+
+    @ViewBuilder
+    private func highFeeAlertButtons() -> some View {
+        Button("Use It") {
+            if let sompi = pendingHighFeeSompi { applyFeeOverride(sompi) }
+            pendingHighFeeSompi = nil
+        }
+        Button("Cancel", role: .cancel) { pendingHighFeeSompi = nil }
+    }
+
+    private func highFeeAlertMessage() -> Text {
+        let format = AppLocalization.string("%@ KAS is much more than the network needs to send a message.")
+        let line = String(format: format, locale: AppLocalization.locale, formatKaspaExact(pendingHighFeeSompi ?? 0))
+        return Text(verbatim: KaspaUnit.label(line))
+    }
+
+    /// A call or Siri pauses the recorder (the clock reads currentTime, so it pauses too).
+    /// Resume when iOS says so; otherwise Stop keeps what was captured.
+    private func handleRecordingInterruption(_ note: Notification) {
+        guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              AVAudioSession.InterruptionType(rawValue: raw) == .ended,
+              let optionsRaw = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt,
+              AVAudioSession.InterruptionOptions(rawValue: optionsRaw).contains(.shouldResume),
+              isRecording, let recorder, !recorder.isRecording else { return }
+        try? AVAudioSession.sharedInstance().setActive(true)
+        recorder.record()
+    }
+
+    /// The scroll-to-bottom button, with the count of messages that arrived while scrolled up.
+    /// Outside `body`: inline, the body got too long for the type checker.
+    @ViewBuilder
+    private func scrollToBottomButton(using proxy: ScrollViewProxy) -> some View {
+        if !isBottomAnchorVisible && initialViewportPositioned {
+            Button {
+                Haptics.impact(.light)
+                scrollToBottom(using: proxy, animated: true)
+            } label: {
+                ZStack(alignment: .topTrailing) {
+                    Circle()
+                        .fill(.regularMaterial)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                        )
+                        .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Image(systemName: "chevron.down")
+                                .font(.scaled(size: 14, weight: .semibold))
+                                .foregroundColor(.primary)
+                        )
+
+                    if newMessagesWhileScrolledUp > 0 {
+                        Text("\(min(newMessagesWhileScrolledUp, 99))")
+                            .font(.scaled(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(Color.accentColor))
+                            .offset(x: 6, y: -6)
+                    }
+                }
+            }
+            .padding(.trailing, 12)
+            // Base 76pt clears the composer alone; when a reply is active, the
+            // reply banner sits above the composer too, so its live-measured
+            // height (+ the input bar's own 8pt VStack spacing) is added on top -
+            // otherwise this button sits directly on the reply banner's Cancel (X).
+            .padding(.bottom, 76 + (chatService.replyingTo != nil || chatService.editingMessage != nil ? replyBannerHeight + 8 : 0))
+            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            .animation(.easeInOut(duration: 0.2), value: isBottomAnchorVisible)
+            .animation(.easeInOut(duration: 0.2), value: chatService.replyingTo != nil || chatService.editingMessage != nil)
         }
     }
 
@@ -2821,7 +2883,7 @@ struct ChatDetailView: View {
                                 .animation(.linear(duration: 1), value: recordingDuration)
                         }
                         .frame(width: 20, height: 20)
-                        Text(verbatim: "\(String(localized: "Recording...")) \(formatDuration(recordingDuration)) / \(formatDuration(effectiveMaxRecordingDuration))")
+                        Text(verbatim: "\(AppLocalization.string("Recording...")) \(formatDuration(recordingDuration)) / \(formatDuration(effectiveMaxRecordingDuration))")
                             .monospacedDigit()
                         Spacer()
                         Button {
@@ -2849,7 +2911,7 @@ struct ChatDetailView: View {
                             Image(systemName: previewIsPlaying ? "pause.circle.fill" : "play.circle.fill")
                                 .foregroundColor(.accentColor)
                         }
-                        Text("\(String(localized: "Audio ready")) • \(previewLabel)")
+                        Text(verbatim: "\(AppLocalization.string("Audio ready")) • \(previewLabel)")
                         Spacer()
                         Button {
                             // Back to texting: switching modes throws the recording away.
@@ -2939,9 +3001,9 @@ struct ChatDetailView: View {
         HStack(spacing: 6) {
             if isEstimatingFee {
                 KaspaUnit.text("fee: -------- KAS")
-            } else if let fee = feeOverrideSompi ?? feeEstimateSompi ?? recordingFeeSompi {
+            } else if let fee = (feeIsAdjustable ? feeOverrideSompi : nil) ?? feeEstimateSompi ?? recordingFeeSompi {
                 Text(localizedFeeText(fee))
-                    .underline()
+                    .underline(feeIsAdjustable)
             } else {
                 KaspaUnit.text("fee: -- KAS")
             }
@@ -2960,7 +3022,7 @@ struct ChatDetailView: View {
         }
         .allowsHitTesting(true)
         .onTapGesture {
-            guard !isEstimatingFee, let currentFee = feeOverrideSompi ?? feeEstimateSompi ?? recordingFeeSompi else { return }
+            guard feeIsAdjustable, !isEstimatingFee, let currentFee = (feeIsAdjustable ? feeOverrideSompi : nil) ?? feeEstimateSompi ?? recordingFeeSompi else { return }
             feeEditorText = formatKaspaExact(currentFee)
             showFeeEditor = true
         }
@@ -3064,6 +3126,7 @@ struct ChatDetailView: View {
         isEditingPaymentFee = false
         paymentManualUtxos = nil
         paymentFeeSompi = nil
+        paymentNoticeFeeSompi = nil
         paymentFeeError = nil
         paymentCappedMaxText = nil
         isEstimatingPaymentFee = false
@@ -3353,6 +3416,14 @@ struct ChatDetailView: View {
 
                 // From a spending address the chatting address tells them about it (a small
                 // message fee); an empty one can't, until it has some KAS (IOS-086)
+                if paymentFrom != .chatting, !walletManager.hasConfirmedZeroChattingBalance,
+                   let noticeFee = paymentNoticeFeeSompi {
+                    Text(verbatim: KaspaUnit.label(String(format: AppLocalization.string("Your chatting address also pays %@ KAS to tell %@ about this payment."),
+                                                          KaspaUnit.plain(noticeFee), contactsManager.displayName(for: contact))))
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if paymentFrom != .chatting, walletManager.hasConfirmedZeroChattingBalance {
                     Label(String(format: AppLocalization.string("Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. KaChat tells them once your chatting address has some KAS."),
                                  contactsManager.displayName(for: contact)),
@@ -3528,8 +3599,7 @@ struct ChatDetailView: View {
                 )
                 await MainActor.run {
                     guard paymentMaxRequest == request else { return }
-                    let kas = Double(result.amountSompi) / 100_000_000.0
-                    amountText = fiatAmountState.setMaxKas(kas, priceInCurrency: priceModel.currentPriceUsd)
+                    amountText = fiatAmountState.setMaxSompi(result.amountSompi, priceInCurrency: priceModel.currentPriceUsd)
                     paymentCappedMaxText = result.cappedAtInputLimit ? amountText : nil
                     isEstimatingPaymentMax = false
                 }
@@ -3685,6 +3755,7 @@ struct ChatDetailView: View {
                     fiatAmountState.reset()
                     paymentNote = ""
                     paymentFeeSompi = nil
+                    paymentNoticeFeeSompi = nil
                     isEstimatingPaymentFee = false
                     if let txId, !txId.isEmpty {
                         // The swipe-up screen shows Sent with the transaction until Done (it
@@ -4269,10 +4340,30 @@ struct ChatDetailView: View {
         shouldShowFeeBubble
     }
 
+    /// Fee pill Save. Above MessageFeeLimit.maxSompi it refuses; above warnSompi it asks first.
+    /// Below the network minimum the builder raises it.
     private func commitFeeOverride() {
-        guard let sompi = KaspaUnit.sompi(fromUserText: feeEditorText) else { return }
+        guard let sompi = KaspaUnit.sompi(fromUserText: feeEditorText), sompi > 0 else { return }
+        if sompi > MessageFeeLimit.maxSompi {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { showFeeTooHigh = true }
+            return
+        }
+        if sompi > MessageFeeLimit.warnSompi {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { pendingHighFeeSompi = sompi }
+            return
+        }
+        applyFeeOverride(sompi)
+    }
+
+    private func applyFeeOverride(_ sompi: UInt64) {
         feeOverrideSompi = sompi
         scheduleFeeEstimate(for: messageText, force: true)
+    }
+
+    /// A custom fee applies to text only: voice notes and photos price their own parts, so in
+    /// those modes the pill shows their estimate and can't be tapped.
+    private var feeIsAdjustable: Bool {
+        inputMode == .message && pendingPhotoImage == nil
     }
 
     /// Re-estimates the message fee. While typing (`force` false) it waits for a 0.6 s pause and
@@ -4358,6 +4449,7 @@ struct ChatDetailView: View {
         guard amountSompi > 0 else {
             paymentFeeSompi = nil
             paymentBuiltFeeSompi = nil
+            paymentNoticeFeeSompi = nil
             paymentFeeError = nil
             isEstimatingPaymentFee = false
             return
@@ -4384,9 +4476,16 @@ struct ChatDetailView: View {
                     paid = try await chatService.estimatePaymentFee(to: contact, amountSompi: amountSompi, note: note, sourceSpendingIndex: source, manualUtxos: manual, extraFeeSompi: extra)
                     if Task.isCancelled { return }
                 }
+                // Its own transaction from the chatting address: shown, never part of the fee
+                // the send is checked against.
+                let noticeFee = source == nil
+                    ? nil
+                    : await chatService.estimatePaymentNoticeFee(to: contact, amountSompi: amountSompi, memo: note)
+                if Task.isCancelled { return }
                 await MainActor.run {
                     paymentFeeSompi = base.networkFee
                     paymentBuiltFeeSompi = paid.networkFee + paid.foldedChange
+                    paymentNoticeFeeSompi = noticeFee
                     paymentFeeError = nil
                     isEstimatingPaymentFee = false
                 }
@@ -4394,6 +4493,7 @@ struct ChatDetailView: View {
                 if Task.isCancelled { return }
                 await MainActor.run {
                     paymentFeeSompi = nil
+                    paymentNoticeFeeSompi = nil
                     paymentBuiltFeeSompi = nil
                     paymentFeeError = UserFacingError.message(for: error)
                     isEstimatingPaymentFee = false
@@ -4445,12 +4545,21 @@ struct ChatDetailView: View {
                         self.recorder = nil
                     }
                     if success {
-                        Task {
-                            try? await Task.sleep(nanoseconds: 200_000_000)
-                            await encodeRecording(from: recorder.url)
-                            await MainActor.run {
-                                preparePreview()
-                                updateRecordingFee()
+                        Task { @MainActor in
+                            // The trash (or leaving) while Encoding... clears the token and
+                            // cancels this task, so a late result can't bring the note back.
+                            let token = UUID()
+                            self.recordingEncodeToken = token
+                            self.recordingEncodeTask?.cancel()
+                            self.recordingEncodeTask = Task {
+                                try? await Task.sleep(nanoseconds: 200_000_000)
+                                guard await MainActor.run(body: { self.recordingEncodeToken == token }) else { return }
+                                await encodeRecording(from: recorder.url, token: token)
+                                await MainActor.run {
+                                    guard self.recordingEncodeToken == token else { return }
+                                    preparePreview()
+                                    updateRecordingFee()
+                                }
                             }
                         }
                     }
@@ -4462,6 +4571,9 @@ struct ChatDetailView: View {
                     if let previewURL = self.recordedAudioPreviewURL {
                         secureDeleteTempFile(previewURL)
                     }
+                    self.recordingEncodeToken = nil
+                    self.recordingEncodeTask?.cancel()
+                    self.recordingEncodeTask = nil
                     self.discardEncodedAudio()
                     self.recordingFeeTask?.cancel()
                     self.recorder = recorder
@@ -4498,6 +4610,11 @@ struct ChatDetailView: View {
     }
 
     private func cancelRecording() {
+        // Before stop(): a finish callback must not start an encode for a discarded note.
+        recorderDelegate.onFinish = nil
+        recordingEncodeToken = nil
+        recordingEncodeTask?.cancel()
+        recordingEncodeTask = nil
         recorder?.stop()
         recordingTimer?.invalidate()
         recordingTimer = nil
@@ -4689,6 +4806,14 @@ struct ChatDetailView: View {
             )
             await MainActor.run {
                 cancelPendingPhoto()
+            }
+        } catch let partsError as MediaPartsSendError {
+            // A multi-part photo already in the chat, its unsent parts on Retry: clear it here so
+            // a second Send can't pay for the whole photo again.
+            await MainActor.run {
+                cancelPendingPhoto()
+                self.error = displayErrorMessage(partsError.underlying) + "\n\n"
+                    + AppLocalization.string("Tap Retry on the photo to send the rest.")
             }
         } catch {
             await MainActor.run {
@@ -5018,12 +5143,18 @@ struct ChatDetailView: View {
         }
     }
 
-    private func encodeRecording(from url: URL) async {
+    /// `token` is the recording's encode token: once the trash or a new recording replaces it,
+    /// every result of this run is thrown away (its files deleted) instead of filling the composer.
+    private func encodeRecording(from url: URL, token: UUID) async {
+        func isCurrent() async -> Bool {
+            await MainActor.run { self.recordingEncodeToken == token && !Task.isCancelled }
+        }
         await MainActor.run {
             self.isEstimatingFee = true
             self.isEncodingAudio = true
         }
         await waitForRecordingFile(url)
+        guard await isCurrent() else { return }
         // Nextcloud mode: stash the full-length original BEFORE the payload-capped encode —
         // the M4A upload exports from this copy so long recordings survive intact.
         if voiceViaNextcloud {
@@ -5031,6 +5162,10 @@ struct ChatDetailView: View {
                 .appendingPathComponent("kachat-voice-original-\(UUID().uuidString).caf")
             if (try? FileManager.default.copyItem(at: url, to: keepURL)) != nil {
                 await MainActor.run {
+                    guard self.recordingEncodeToken == token else {
+                        secureDeleteTempFile(keepURL)
+                        return
+                    }
                     if let stale = nextcloudOriginalRecordingURL { secureDeleteTempFile(stale) }
                     nextcloudOriginalRecordingURL = keepURL
                 }
@@ -5069,6 +5204,10 @@ struct ChatDetailView: View {
                 #endif
             }
             await MainActor.run {
+                guard self.recordingEncodeToken == token else {
+                    partURLs.forEach { secureDeleteTempFile($0) }
+                    return
+                }
                 self.recordedAudioPartURLs = partURLs
                 self.recordedAudioURL = partURLs.first
                 self.isEstimatingFee = false
@@ -5076,6 +5215,8 @@ struct ChatDetailView: View {
             }
         } catch {
             await MainActor.run {
+                // Thrown away meanwhile: no "Failed to encode" for a note the user deleted.
+                guard self.recordingEncodeToken == token else { return }
                 self.discardEncodedAudio()
                 self.isEstimatingFee = false
                 self.isEncodingAudio = false
@@ -5253,6 +5394,25 @@ struct ChatDetailView: View {
                         // Back to the normal text composer — staying in audio mode after a
                         // successful send left the "tap send to record" bar up.
                         switchMode(.message)
+                    }
+                } catch let partsError as MediaPartsSendError {
+                    // The note is already in the chat, its unsent parts marked Failed with
+                    // Retry. Keeping it here would invite sending the whole note (and its fee)
+                    // a second time, so clear the composer and point to Retry.
+                    await MainActor.run {
+                        if let previewURL = recordedAudioPreviewURL {
+                            secureDeleteTempFile(previewURL)
+                        }
+                        discardEncodedAudio()
+                        recordedAudioURL = nil
+                        recordedAudioPreviewURL = nil
+                        recordingFeeSompi = nil
+                        feeEstimateSompi = nil
+                        stopPreview()
+                        previewLabel = "--:--"
+                        switchMode(.message)
+                        self.error = displayErrorMessage(partsError.underlying) + "\n\n"
+                            + AppLocalization.string("Tap Retry on the voice message to send the rest.")
                     }
                 } catch {
                     await MainActor.run {

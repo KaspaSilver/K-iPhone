@@ -282,7 +282,7 @@ struct ChattingAddressDetailView: View {
                             ForEach(candidate.otherNames) { name in
                                 DomainNameCardView(
                                     title: name.display,
-                                    badge: name.isProvisional ? String(localized: "Settling") : nil
+                                    badge: name.isProvisional ? AppLocalization.string("Settling") : nil
                                 )
                             }
                         }

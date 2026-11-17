@@ -447,6 +447,9 @@ actor NodeRegistry {
         scheduleSave()
     }
 
+    /// How far behind the median DAA score an active node may be: about a minute of blocks.
+    static let maxActiveDaaLag: UInt64 = 600
+
     /// Rebalance active node pool to keep the best latency nodes within a target band.
     /// - Parameters:
     ///   - minActive: Minimum desired active nodes when enough eligible nodes exist
@@ -483,6 +486,51 @@ actor NodeRegistry {
             records[key] = record
         }
 
+        // Active also needs the node to have reported this network's name, and a DAA score no
+        // more than `maxActiveDaaLag` behind the median (carried forward to now, as
+        // NodeSelector does). `isActiveEligible` alone let a node that never said which network
+        // it is on, or one far behind, serve sends and balances. When too few nodes pass that,
+        // the old rule applies, rather than leaving the pool short.
+        let now = Date()
+        let network = self.network
+        func projectedDaa(_ record: NodeRecord) -> UInt64? {
+            guard let daa = record.profile.virtualDaaScore,
+                  let profiledAt = record.profile.lastProfiledAt else { return nil }
+            let age = now.timeIntervalSince(profiledAt)
+            guard age >= 0, age <= record.profile.profileTTL else { return nil }
+            let (projected, overflow) = daa.addingReportingOverflow(UInt64(age * 10))
+            return overflow ? UInt64.max : projected
+        }
+        let namedOnNetwork: (NodeRecord) -> Bool = { record in
+            guard let name = record.profile.networkName, !name.isEmpty else { return false }
+            return NodeRegistry.belongs(record, to: network)
+        }
+        let projectedScores = records.values
+            .filter { $0.isActiveEligible && namedOnNetwork($0) }
+            .compactMap(projectedDaa)
+            .sorted()
+        let medianDaa: UInt64? = projectedScores.count >= 3 ? projectedScores[projectedScores.count / 2] : nil
+        let strictFit: (NodeRecord) -> Bool = { record in
+            guard record.isActiveEligible, namedOnNetwork(record) else { return false }
+            guard let medianDaa, let daa = projectedDaa(record) else { return true }
+            return daa >= medianDaa || medianDaa - daa <= Self.maxActiveDaaLag
+        }
+        let strictCount = records.values.filter(strictFit).count
+        let useStrict = strictCount >= minActive
+        let isFit: (NodeRecord) -> Bool = { record in
+            if record.origin == .userAdded { return record.isActiveEligible }
+            return useStrict ? strictFit(record) : (record.isActiveEligible && NodeRegistry.belongs(record, to: network))
+        }
+
+        // An active node that no longer fits steps down (a pinned node keeps its own rule).
+        for key in Array(records.keys) {
+            guard var record = records[key], record.state == .active,
+                  record.origin != .userAdded, !isFit(record) else { continue }
+            record.state = .verified
+            records[key] = record
+            demoted += 1
+        }
+
         let compareBetter: (NodeRecord, NodeRecord) -> Bool = { lhs, rhs in
             if lhs.effectiveLatencyMs != rhs.effectiveLatencyMs {
                 return lhs.effectiveLatencyMs < rhs.effectiveLatencyMs
@@ -507,7 +555,7 @@ actor NodeRegistry {
         }
 
         let eligible = records.values
-            .filter { $0.isActiveEligible }
+            .filter { isFit($0) }
             .sorted(by: compareBetter)
 
         let eligibleCount = eligible.count
@@ -520,7 +568,7 @@ actor NodeRegistry {
 
         // Hard cap active nodes to maxActive by demoting worst active nodes first.
         var activeEligible = records.values
-            .filter { $0.state == .active && $0.isActiveEligible }
+            .filter { $0.state == .active && isFit($0) }
             .sorted(by: compareBetter)
 
         if activeEligible.count > maxActive {
@@ -533,7 +581,7 @@ actor NodeRegistry {
             }
 
             activeEligible = records.values
-                .filter { $0.state == .active && $0.isActiveEligible }
+                .filter { $0.state == .active && isFit($0) }
                 .sorted(by: compareBetter)
         }
 
@@ -550,7 +598,7 @@ actor NodeRegistry {
 
         // Keep active count at desiredCount if we still have excess.
         activeEligible = records.values
-            .filter { $0.state == .active && $0.isActiveEligible }
+            .filter { $0.state == .active && isFit($0) }
             .sorted(by: compareBetter)
 
         if activeEligible.count > desiredCount {
@@ -567,7 +615,7 @@ actor NodeRegistry {
         var replacements = 0
         while replacements < maxReplacementsPerCycle {
             let activeNow = records.values
-                .filter { $0.state == .active && $0.isActiveEligible }
+                .filter { $0.state == .active && isFit($0) }
                 .sorted(by: compareBetter)
 
             guard activeNow.count >= minActive else { break }

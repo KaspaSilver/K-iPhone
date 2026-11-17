@@ -353,19 +353,27 @@ struct KasiaCipher {
 // MARK: - Data Extension for Hex
 
 extension Data {
+    /// Hex digits only, either case, in pairs. `UInt8(_:radix:)` took a sign, so "+a" and "-0"
+    /// read as bytes, and an odd last digit was dropped: two spellings of one group id passed as
+    /// two groups and slipped past the lowercase rule. Now those are nil.
     init?(hexString: String) {
-        let hex = hexString.lowercased()
-        let len = hex.count / 2
-        var data = Data(capacity: len)
-        var index = hex.startIndex
-
-        for _ in 0..<len {
-            let nextIndex = hex.index(index, offsetBy: 2)
-            guard let byte = UInt8(hex[index..<nextIndex], radix: 16) else { return nil }
-            data.append(byte)
-            index = nextIndex
+        let utf8 = Array(hexString.utf8)
+        guard utf8.count % 2 == 0 else { return nil }
+        func nibble(_ c: UInt8) -> UInt8? {
+            switch c {
+            case UInt8(ascii: "0")...UInt8(ascii: "9"): return c - UInt8(ascii: "0")
+            case UInt8(ascii: "a")...UInt8(ascii: "f"): return c - UInt8(ascii: "a") + 10
+            case UInt8(ascii: "A")...UInt8(ascii: "F"): return c - UInt8(ascii: "A") + 10
+            default: return nil
+            }
         }
-
+        var data = Data(capacity: utf8.count / 2)
+        var i = 0
+        while i < utf8.count {
+            guard let high = nibble(utf8[i]), let low = nibble(utf8[i + 1]) else { return nil }
+            data.append(high << 4 | low)
+            i += 2
+        }
         self = data
     }
 

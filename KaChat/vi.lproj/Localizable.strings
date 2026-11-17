@@ -1314,7 +1314,6 @@
 "Fee (KAS)" = "Phí (KAS)";
 "fee: %@ KAS" = "phí: %@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "Thao tác này xóa vĩnh viễn mọi tin nhắn trong từng cuộc trò chuyện đã chọn khỏi thiết bị này. Không thể hoàn tác.";
-"Confirm sending Kaspa" = "Xác nhận gửi Kaspa";
 "Accepted your request to communicate" = "Đã chấp nhận yêu cầu liên lạc của bạn";
 "Sent you a message" = "Đã gửi cho bạn một tin nhắn";
 "[Payment]" = "[Thanh toán]";
@@ -1342,7 +1341,6 @@
 "One transaction can combine %d coins, so this combines the largest %d. Compound again for the rest." = "Một giao dịch có thể hợp nhất %d đồng, nên %d đồng lớn nhất được hợp nhất. Hợp nhất lại cho phần còn lại.";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs combines the rest." = "Tối đa là lượng một giao dịch có thể chứa: %d đồng lớn nhất. \"Hợp nhất UTXO\" gộp phần còn lại.";
 "Couldn't load this address's balance." = "Không thể tải số dư của địa chỉ này.";
-"Sending Kaspa needs Face ID or your passcode." = "Gửi Kaspa cần Face ID hoặc mật mã của bạn.";
 "The network fee is now %@ KAS, more than the Review showed. Nothing was sent: check the new fee and swipe again." = "Phí mạng hiện là %@ KAS, cao hơn mức Xem lại đã hiển thị. Chưa có gì được gửi: hãy kiểm tra phí mới rồi vuốt lại.";
 "Unable to sign in to this account." = "Không thể đăng nhập vào tài khoản này.";
 "This account's keys are on this phone again, so nothing was removed." = "Khóa của tài khoản này đã có lại trên điện thoại này, nên không có gì bị xóa.";
@@ -1478,7 +1476,7 @@
 "Restoring messages... %d of %d conversations" = "Đang khôi phục tin nhắn... %d/%d cuộc trò chuyện";
 "Deletes %@ (%@) and its local data from this device." = "Xóa %@ (%@) và dữ liệu cục bộ khỏi thiết bị này.";
 "Passcode Required" = "Cần mật mã";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat." = "Hãy đặt mật mã trên iPhone này (Cài đặt > Face ID & Mật mã) để gửi Kaspa, xóa tài khoản hoặc xem khóa bí mật trong KaChat.";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "Hãy đặt mật mã trên iPhone này (Cài đặt > Face ID & Mật mã) để xóa tài khoản hoặc xem khóa bí mật trong KaChat.";
 "Waiting on opponent" = "Đang chờ đối thủ";
 "Not sent: you switched accounts before this went out." = "Chưa gửi: bạn đã đổi tài khoản trước khi gửi.";
 "The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "Giao dịch đầu tiên trong hai giao dịch đã thành công, nhưng giao dịch thứ hai thì chưa. KaChat sẽ hoàn tất ở lần mở tiếp theo.";
@@ -1506,3 +1504,22 @@
 "Microphone Access Required" = "Cần quyền truy cập micrô";
 "Allow camera access in Settings to take photos in chats." = "Cho phép truy cập camera trong Cài đặt để chụp ảnh trong cuộc trò chuyện.";
 "Allow microphone access in Settings to record voice messages." = "Cho phép truy cập micrô trong Cài đặt để ghi tin nhắn thoại.";
+
+/* 5.3 audit fixes: recording, message fee limit, voice part Retry, Siri fee */
+"Recording..." = "Đang ghi…";
+"Audio ready" = "Âm thanh đã sẵn sàng";
+"Recording failed. Please try again." = "Ghi âm thất bại. Vui lòng thử lại.";
+"Camera not available on this device." = "Camera không khả dụng trên thiết bị này.";
+"Failed to send voice message: %@" = "Không gửi được tin nhắn thoại: %@";
+"Fee Too High" = "Phí quá cao";
+"A message fee can be at most 1 KAS." = "Phí cho một tin nhắn tối đa là 1 KAS.";
+"Use a High Fee?" = "Dùng mức phí cao?";
+"%@ KAS is much more than the network needs to send a message." = "%@ KAS cao hơn nhiều so với mức mạng cần để gửi một tin nhắn.";
+"Use It" = "Dùng";
+"Tap Retry on the voice message to send the rest." = "Nhấn Thử lại trên tin nhắn thoại để gửi phần còn lại.";
+"Network fee: %@" = "Phí mạng: %@";
+"Couldn't Remove App Password" = "Không xoá được mật khẩu ứng dụng";
+"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat không xoá được mật khẩu ứng dụng khỏi %@. Nó đã bị xoá khỏi điện thoại này nhưng vẫn có thể đăng nhập ở đó: hãy xoá nó trong Nextcloud tại Cài đặt > Bảo mật > Thiết bị & phiên.";
+"Your chatting address also pays %@ KAS to tell %@ about this payment." = "Địa chỉ trò chuyện của bạn cũng trả %@ KAS để báo cho %@ về khoản thanh toán này.";
+"Tap Retry on the photo to send the rest." = "Nhấn Thử lại trên ảnh để gửi phần còn lại.";
+"This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Tin nhắn này cần quá nhiều coin cho một giao dịch. Hãy dùng Compound UTXOs cho địa chỉ trò chuyện, rồi thử lại.";

@@ -278,7 +278,7 @@ struct ManageAddressesView: View {
                     Text(verbatim: "\(wallet.publicAddress.prefix(14))...\(wallet.publicAddress.suffix(6))")
                         .font(.system(.subheadline, design: .monospaced))
                         .foregroundColor(.primary)
-                    Text(verbatim: "\(formatKasExact(wallet.balanceSompi ?? 0)) \(KaspaUnit.symbol)")
+                    Text(verbatim: "\(wallet.balanceSompi.map { formatKasExact($0) } ?? "--") \(KaspaUnit.symbol)")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                     Text("Used")
@@ -381,8 +381,11 @@ struct ManageAddressesView: View {
 
     /// Everything this account holds: the chatting address and every spending address, hidden
     /// ones too - the same total as Profile's Manage Addresses card.
-    private var totalBalanceSompi: UInt64 {
-        (walletManager.currentWallet?.balanceSompi ?? 0) + entries.reduce(0) { $0 + $1.balanceSompi }
+    /// Nil while the chatting address's balance is unknown, so the Total shows "--" instead of
+    /// a figure that silently leaves that part out.
+    private var totalBalanceSompi: UInt64? {
+        guard let chatting = walletManager.currentWallet?.balanceSompi else { return nil }
+        return chatting + entries.reduce(0) { $0 + $1.balanceSompi }
     }
 
     private var accountSummary: some View {
@@ -391,7 +394,7 @@ struct ManageAddressesView: View {
                 Text("Total Balance")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text(verbatim: "\(formatKasExact(totalBalanceSompi)) \(KaspaUnit.symbol)")
+                Text(verbatim: "\(totalBalanceSompi.map { formatKasExact($0) } ?? "--") \(KaspaUnit.symbol)")
                     .font(.title2)
                     .fontWeight(.bold)
             }
@@ -1293,7 +1296,11 @@ struct SpendingAddressWithdrawView: View {
     }
 
     private func handleInputChange(_ input: String) {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An all-uppercase address (a compact QR code's "KASPA:QR...") is the same address in
+        // lowercase: shown and used that way. The field's change runs this again, as a no-op.
+        let trimmed = KaspaAddress.hasAddressPrefix(raw) ? KaspaAddress.normalizedCase(raw) : raw
+        if trimmed != raw { addressInput = trimmed }
 
         resolvedAddress = nil
         resolvedDomain = nil
@@ -1307,7 +1314,7 @@ struct SpendingAddressWithdrawView: View {
             return
         }
 
-        if trimmed.hasPrefix("kaspa:") || trimmed.hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(trimmed) {
             // the other network's address is the same key on another chain: refused
             isValidAddress = KaspaAddress.isValidOnActiveNetwork(trimmed)
             return
@@ -1323,7 +1330,9 @@ struct SpendingAddressWithdrawView: View {
 
     /// Use one service's answer (the priority one, or a pick from "Other domains").
     private func selectResolution(_ resolution: NameResolution) {
-        guard let address = resolution.address else { return }
+        // A name service's answer must be a valid address on this network (NameResolution drops
+        // others too; checked again here, where it becomes the address used).
+        guard let address = resolution.address, KaspaAddress.isValidOnActiveNetwork(address) else { return }
         resolvedAddress = address
         resolvedDomain = resolution.display
         selectedTLD = resolution.tld
@@ -1366,10 +1375,12 @@ struct SpendingAddressWithdrawView: View {
 
     private func handleScannedQRCode(_ code: String) {
         var address = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        if address.lowercased().hasPrefix("kaspa:") || address.lowercased().hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(address) {
             if let queryIndex = address.firstIndex(of: "?") {
                 address = String(address[..<queryIndex])
             }
+            // After the query is gone: an all-uppercase QR address becomes lowercase
+            address = KaspaAddress.normalizedCase(address)
         }
         addressInput = address
         handleInputChange(address)
@@ -1416,7 +1427,7 @@ struct SpendingAddressWithdrawView: View {
                     let result = try await chatService.estimateMaxSpendingAddressAmount(index: index, toAddress: recipient, manualUtxos: pickedCoins, extraFeeSompi: tipSompi, availableUtxos: preloaded)
                     await MainActor.run {
                         guard maxRequest == request else { return }
-                        amountInput = fiatAmountState.setMaxKas(Double(result.amountSompi) / 100_000_000.0, priceInCurrency: priceModel.currentPriceUsd)
+                        amountInput = fiatAmountState.setMaxSompi(result.amountSompi, priceInCurrency: priceModel.currentPriceUsd)
                         maxSetAmount = amountInput
                         isEstimatingMax = false
                     }
@@ -1430,7 +1441,7 @@ struct SpendingAddressWithdrawView: View {
                     await MainActor.run {
                         guard maxRequest == request else { return }
                         manualUtxos = utxos
-                        amountInput = fiatAmountState.setMaxKas(Double(maxSompi) / 100_000_000.0, priceInCurrency: priceModel.currentPriceUsd)
+                        amountInput = fiatAmountState.setMaxSompi(maxSompi, priceInCurrency: priceModel.currentPriceUsd)
                         maxSetAmount = amountInput
                         isEstimatingMax = false
                     }
@@ -1438,7 +1449,7 @@ struct SpendingAddressWithdrawView: View {
                     let result = try await chatService.estimateMaxSpendingAddressAmount(index: source.index, toAddress: recipient, manualUtxos: manualUtxos, extraFeeSompi: tipSompi)
                     await MainActor.run {
                         guard maxRequest == request else { return }
-                        amountInput = fiatAmountState.setMaxKas(Double(result.amountSompi) / 100_000_000.0, priceInCurrency: priceModel.currentPriceUsd)
+                        amountInput = fiatAmountState.setMaxSompi(result.amountSompi, priceInCurrency: priceModel.currentPriceUsd)
                         cappedMaxAmount = result.cappedAtInputLimit ? amountInput : nil
                         maxSetAmount = amountInput
                         isEstimatingMax = false

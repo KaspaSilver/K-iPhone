@@ -324,6 +324,21 @@ actor GRPCStreamConnection {
     /// The sleeping or running self-reconnect, which a deliberate `disconnect()` calls off.
     private var autoReconnectTask: Task<Void, Never>?
 
+    /// The subscription's primary or standby (`GRPCConnectionPool.setPinned`): reconnects for as
+    /// long as it takes, and is never pruned or evicted.
+    private(set) var isPinned = false
+
+    /// When a caller last sent a request on it. Unlike `lastActivityAt`, a reconnect doesn't
+    /// count: a connection only reconnects on its own while someone is still using it.
+    private(set) var lastRequestAt: Date?
+
+    /// A request is waiting for its answer: closing now would fail it.
+    var hasPendingRequests: Bool { !pendingRequests.isEmpty }
+
+    func setPinned(_ pinned: Bool) {
+        isPinned = pinned
+    }
+
     /// The stream ended while its connect was still waiting for the connection to be ready.
     private var streamClosedWhileConnecting = false
 
@@ -593,6 +608,10 @@ actor GRPCStreamConnection {
             }
             try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
             guard !Task.isCancelled, await self.state == .disconnected else { return }
+            // Only the subscription's nodes reconnect without end. Any other connection - a
+            // probe's, a node used once - tries a few times while it was in use lately, then
+            // stays down until a request needs it (and the pool prunes it).
+            guard await self.shouldKeepReconnecting(attempt: attempt) else { return }
             do {
                 try await self.connect()
             } catch {
@@ -602,6 +621,12 @@ actor GRPCStreamConnection {
                 await self.scheduleAutoReconnect()
             }
         }
+    }
+
+    private func shouldKeepReconnecting(attempt: Int) -> Bool {
+        if isPinned { return true }
+        guard attempt <= 3, let lastRequestAt else { return false }
+        return Date().timeIntervalSince(lastRequestAt) < 10 * 60
     }
 
     /// Disconnect from the endpoint
@@ -651,6 +676,7 @@ actor GRPCStreamConnection {
         type: KaspaRequestType,
         timeout: TimeInterval
     ) async throws -> Protowire_KaspadMessage {
+        lastRequestAt = Date()
         // Check connection first
         guard stream != nil, state == .connected else {
             // Only check circuit breaker if not connected
@@ -1066,41 +1092,74 @@ actor GRPCConnectionPool {
         }
     }
 
+    /// The subscription's primary and standby: never evicted or pruned, always reconnected.
+    private var pinnedKeys: Set<String> = []
+
     /// Get or create a connection for an endpoint
     func connection(for endpoint: Endpoint) async -> GRPCStreamConnection {
         if let existing = connections[endpoint.key] {
             return existing
         }
 
-        // Evict oldest disconnected connections if at capacity
+        // At capacity: make room (a disconnected one first, else the least recently used)
         if connections.count >= maxTotalConnections {
-            await evictOldestDisconnected()
+            await evictForRoom()
         }
 
         let conn = GRPCStreamConnection(endpoint: endpoint, eventLoopGroup: sharedEventLoopGroup)
+        // Into the pool before the await below, so a concurrent call finds it instead of making
+        // a second, untracked (and, pinned, forever-reconnecting) connection.
         connections[endpoint.key] = conn
+        if pinnedKeys.contains(endpoint.key) { await conn.setPinned(true) }
         return conn
     }
 
-    /// Evict the oldest disconnected connection to make room
-    private func evictOldestDisconnected() async {
-        var oldest: (key: String, lastActivity: Date)? = nil
+    /// Whether the pool holds a live connection for `endpoint` (without creating one).
+    func isConnected(_ endpoint: Endpoint) async -> Bool {
+        guard let conn = connections[endpoint.key] else { return false }
+        return await conn.isConnected
+    }
 
+    /// Marks the subscription's primary and standby. Only these reconnect without end.
+    func setPinned(_ keys: Set<String>) async {
+        pinnedKeys = keys
         for (key, conn) in connections {
-            // Skip connected connections
-            if await conn.isConnected { continue }
+            await conn.setPinned(keys.contains(key))
+        }
+    }
 
-            let lastActivity = await conn.lastActivityAt
-            if oldest == nil || lastActivity < oldest!.lastActivity {
-                oldest = (key, lastActivity)
+    /// A probe opened this connection for a node not in use: close it, unless it's pinned or a
+    /// request is waiting on it. Without this every node ever probed kept a live connection
+    /// (and reconnected it on every drop).
+    func closeProbeConnection(for endpoint: Endpoint) async {
+        guard !pinnedKeys.contains(endpoint.key), let conn = connections[endpoint.key] else { return }
+        guard await !conn.hasPendingRequests else { return }
+        connections.removeValue(forKey: endpoint.key)
+        await conn.disconnect()
+    }
+
+    /// LRU eviction to stay at `maxTotalConnections`: the oldest disconnected connection, else
+    /// the least recently used connected one with nothing in flight. Pinned ones never go.
+    private func evictForRoom() async {
+        var oldestDisconnected: (key: String, at: Date)?
+        var leastUsed: (key: String, at: Date)?
+
+        for (key, conn) in connections where !pinnedKeys.contains(key) {
+            if await conn.isConnected {
+                guard await !conn.hasPendingRequests else { continue }
+                let used = await conn.lastRequestAt ?? .distantPast
+                if leastUsed == nil || used < leastUsed!.at { leastUsed = (key, used) }
+            } else {
+                let lastActivity = await conn.lastActivityAt
+                if oldestDisconnected == nil || lastActivity < oldestDisconnected!.at {
+                    oldestDisconnected = (key, lastActivity)
+                }
             }
         }
 
-        if let key = oldest?.key {
-            if let conn = connections.removeValue(forKey: key) {
-                await conn.disconnect()
-                AppLog.log("[GRPCPool] Evicted oldest disconnected connection: %@", key)
-            }
+        if let key = (oldestDisconnected ?? leastUsed)?.key, let conn = connections.removeValue(forKey: key) {
+            await conn.disconnect()
+            AppLog.log("[GRPCPool] Evicted %@ to stay within %d connections", key, maxTotalConnections)
         }
     }
 
@@ -1146,6 +1205,11 @@ actor GRPCConnectionPool {
             for conn in connections.values {
                 group.addTask {
                     guard await !conn.isConnected else { return }
+                    // The subscription's nodes, and ones requests used in the last 10 minutes:
+                    // not every node a probe ever touched.
+                    let pinned = await conn.isPinned
+                    let recentlyUsed = await conn.lastRequestAt.map { Date().timeIntervalSince($0) < 10 * 60 } ?? false
+                    guard pinned || recentlyUsed else { return }
                     try? await conn.connect()
                 }
             }
@@ -1158,9 +1222,17 @@ actor GRPCConnectionPool {
         var pruned = 0
         let now = Date()
 
-        for (key, conn) in connections {
-            // Keep connected connections
+        for (key, conn) in connections where !pinnedKeys.contains(key) {
+            // Keep connected connections - unless no request has used one for 10 minutes
+            // (its node dropped out of use; a request reconnects it on demand)
             if await conn.isConnected {
+                let lastRequest = await conn.lastRequestAt
+                let idleSince = lastRequest != nil ? lastRequest! : await conn.lastActivityAt
+                guard now.timeIntervalSince(idleSince) > max(maxAge, 10 * 60),
+                      await !conn.hasPendingRequests else { continue }
+                await conn.disconnect()
+                connections.removeValue(forKey: key)
+                pruned += 1
                 continue
             }
 

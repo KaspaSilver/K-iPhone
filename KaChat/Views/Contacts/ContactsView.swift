@@ -1865,12 +1865,12 @@ private struct KNSProfileEditorSheet: View {
 
         do {
             guard let rawData = try await item.loadTransferable(type: Data.self) else {
-                throw KasiaError.apiError(String(localized: "Could not load selected image"))
+                throw KasiaError.apiError(AppLocalization.string("Could not load selected image"))
             }
 
             let prepared = try prepareImageForUpload(rawData)
             guard !prepared.data.isEmpty else {
-                throw KasiaError.apiError(String(localized: "Could not encode selected image"))
+                throw KasiaError.apiError(AppLocalization.string("Could not encode selected image"))
             }
             await MainActor.run {
                 switch kind {
@@ -1904,7 +1904,7 @@ private struct KNSProfileEditorSheet: View {
     private func prepareImageForUpload(_ rawData: Data) throws -> (image: UIImage, data: Data, mimeType: String) {
         let maxDimension: CGFloat = 1400
         guard let source = CGImageSourceCreateWithData(rawData as CFData, nil) else {
-            throw KasiaError.apiError(String(localized: "Selected data is not a valid image"))
+            throw KasiaError.apiError(AppLocalization.string("Selected data is not a valid image"))
         }
 
         let thumbnailOptions: [CFString: Any] = [
@@ -1918,7 +1918,7 @@ private struct KNSProfileEditorSheet: View {
             0,
             thumbnailOptions as CFDictionary
         ) else {
-            throw KasiaError.apiError(String(localized: "Could not process selected image"))
+            throw KasiaError.apiError(AppLocalization.string("Could not process selected image"))
         }
 
         let previewImage = UIImage(cgImage: cgImage)
@@ -1929,12 +1929,12 @@ private struct KNSProfileEditorSheet: View {
             1,
             nil
         ) else {
-            throw KasiaError.apiError(String(localized: "Could not initialize image encoder"))
+            throw KasiaError.apiError(AppLocalization.string("Could not initialize image encoder"))
         }
 
         CGImageDestinationAddImage(destination, cgImage, nil)
         guard CGImageDestinationFinalize(destination) else {
-            throw KasiaError.apiError(String(localized: "Could not encode selected image"))
+            throw KasiaError.apiError(AppLocalization.string("Could not encode selected image"))
         }
 
         return (previewImage, outputData as Data, "image/png")
@@ -2141,7 +2141,7 @@ private struct KNSDomainsListView: View {
                     ForEach(names) { owned in
                         DomainNameCardView(
                             title: owned.display,
-                            badge: owned.isProvisional ? String(localized: "Settling") : nil
+                            badge: owned.isProvisional ? AppLocalization.string("Settling") : nil
                         )
                     }
                 }
@@ -2178,7 +2178,7 @@ struct KNSDomainCard: View {
     var isPrimary: Bool = false
 
     var body: some View {
-        DomainNameCardView(title: domain.fullName, badge: isPrimary ? String(localized: "Primary") : nil)
+        DomainNameCardView(title: domain.fullName, badge: isPrimary ? AppLocalization.string("Primary") : nil)
     }
 }
 
@@ -2652,7 +2652,11 @@ struct KNSDomainSendView: View {
     }
 
     private func handleInputChange(_ input: String) {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An all-uppercase address (a compact QR code's "KASPA:QR...") is the same address in
+        // lowercase: shown and used that way. The field's change runs this again, as a no-op.
+        let trimmed = KaspaAddress.hasAddressPrefix(raw) ? KaspaAddress.normalizedCase(raw) : raw
+        if trimmed != raw { addressInput = trimmed }
 
         resolvedAddress = nil
         resolvedDomain = nil
@@ -2666,7 +2670,7 @@ struct KNSDomainSendView: View {
             return
         }
 
-        if trimmed.hasPrefix("kaspa:") || trimmed.hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(trimmed) {
             isValidAddress = KaspaAddress.isValidOnActiveNetwork(trimmed)
             return
         }
@@ -2681,7 +2685,9 @@ struct KNSDomainSendView: View {
 
     /// Use one service's answer (the priority one, or a pick from "Other domains").
     private func selectResolution(_ resolution: NameResolution) {
-        guard let address = resolution.address else { return }
+        // A name service's answer must be a valid address on this network (NameResolution drops
+        // others too; checked again here, where it becomes the address used).
+        guard let address = resolution.address, KaspaAddress.isValidOnActiveNetwork(address) else { return }
         resolvedAddress = address
         resolvedDomain = resolution.display
         selectedTLD = resolution.tld
@@ -2724,10 +2730,12 @@ struct KNSDomainSendView: View {
 
     private func handleScannedQRCode(_ code: String) {
         var address = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        if address.lowercased().hasPrefix("kaspa:") || address.lowercased().hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(address) {
             if let queryIndex = address.firstIndex(of: "?") {
                 address = String(address[..<queryIndex])
             }
+            // After the query is gone: an all-uppercase QR address becomes lowercase
+            address = KaspaAddress.normalizedCase(address)
         }
         addressInput = address
         handleInputChange(address)
@@ -4287,7 +4295,11 @@ struct WithdrawKaspaView: View {
     }
 
     private func handleInputChange(_ input: String) {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An all-uppercase address (a compact QR code's "KASPA:QR...") is the same address in
+        // lowercase: shown and used that way. The field's change runs this again, as a no-op.
+        let trimmed = KaspaAddress.hasAddressPrefix(raw) ? KaspaAddress.normalizedCase(raw) : raw
+        if trimmed != raw { addressInput = trimmed }
 
         resolvedAddress = nil
         resolvedDomain = nil
@@ -4310,7 +4322,7 @@ struct WithdrawKaspaView: View {
             return
         }
 
-        if trimmed.hasPrefix("kaspa:") || trimmed.hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(trimmed) {
             // the other network's address is the same key on another chain: refused
             isValidAddress = KaspaAddress.isValidOnActiveNetwork(trimmed)
             return
@@ -4337,12 +4349,14 @@ struct WithdrawKaspaView: View {
         isValidAddress = KaspaAddress.isValidOnActiveNetwork(request.address)
         // the exact amount is what's sent; the field shows it in whichever unit it is in
         amountInput = request.amountText
-        _ = fiatAmountState.setMaxKas(Double(request.amountSompi) / 100_000_000.0, priceInCurrency: priceModel.currentPriceUsd)
+        _ = fiatAmountState.setMaxSompi(request.amountSompi, priceInCurrency: priceModel.currentPriceUsd)
     }
 
     /// Use one service's answer (the priority one, or a pick from "Other domains").
     private func selectResolution(_ resolution: NameResolution) {
-        guard let address = resolution.address else { return }
+        // A name service's answer must be a valid address on this network (NameResolution drops
+        // others too; checked again here, where it becomes the address used).
+        guard let address = resolution.address, KaspaAddress.isValidOnActiveNetwork(address) else { return }
         resolvedAddress = address
         resolvedDomain = resolution.display
         selectedTLD = resolution.tld
@@ -4385,10 +4399,12 @@ struct WithdrawKaspaView: View {
 
     private func handleScannedQRCode(_ code: String) {
         var address = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        if address.lowercased().hasPrefix("kaspa:") || address.lowercased().hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(address) {
             if let queryIndex = address.firstIndex(of: "?") {
                 address = String(address[..<queryIndex])
             }
+            // After the query is gone: an all-uppercase QR address becomes lowercase
+            address = KaspaAddress.normalizedCase(address)
         }
         addressInput = address
         handleInputChange(address)
@@ -4431,7 +4447,7 @@ struct WithdrawKaspaView: View {
                 await MainActor.run {
                     // a newer Max (another speed tapped meanwhile) decides the amount
                     guard maxRequest == request else { return }
-                    amountInput = fiatAmountState.setMaxKas(Double(result.amountSompi) / 100_000_000.0, priceInCurrency: priceModel.currentPriceUsd)
+                    amountInput = fiatAmountState.setMaxSompi(result.amountSompi, priceInCurrency: priceModel.currentPriceUsd)
                     maxCapped = result.cappedAtInputLimit
                     isEstimatingMax = false
                 }

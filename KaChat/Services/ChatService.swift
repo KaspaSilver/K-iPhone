@@ -305,6 +305,7 @@ final class ChatService: ObservableObject {
     var handshakeFetchTasks: [String: Task<[HandshakeResponse], Error>] = [:]
     var paymentFetchTasks: [String: Task<[PaymentResponse], Error>] = [:]
     let messagesKey = "kachat_messages"
+    /// The pre-5.3 key that held every account's drafts; read once, then removed.
     let draftsKey = "kachat_message_drafts"
     let aliasesKey = "kachat_conversation_aliases"
     let ourAliasesKey = "kachat_our_aliases"
@@ -560,8 +561,15 @@ final class ChatService: ObservableObject {
     // Serialize all outgoing tx sends to avoid UTXO contention/orphan errors.
     var outgoingTxTail: Task<Void, Never>?
     var reservedMessageOutpoints: [String: Date] = [:]
+    /// Parts of a 1:1 long voice note whose Retry is running: a second tap while it runs does
+    /// nothing, so no part goes twice or out of order.
+    var retryingVoicePartIds: Set<UUID> = []
     var pendingMessageUtxos: [String: (utxo: UTXO, expiresAt: Date)] = [:]
     let pendingMessageUtxoTTL: TimeInterval = 120
+    /// How long a spent coin stays out of every pick. Longer than `pendingMessageUtxoTTL`: a
+    /// transaction can wait in the mempool for minutes, and offering its coin again makes the
+    /// next send a rejected double spend.
+    let reservedOutpointTTL: TimeInterval = 600
     var outgoingAttemptsByMessageId: [UUID: OutgoingTxAttempt] = [:]
     var outgoingAttemptByPendingTxId: [String: UUID] = [:]
     var outgoingAttemptByRealTxId: [String: UUID] = [:]
@@ -596,6 +604,8 @@ final class ChatService: ObservableObject {
     var conversationIds: [String: String] = [:]
     // Drafts keyed by contact address
     var messageDrafts: [String: String] = [:]
+    /// The account (lowercased address) whose drafts `messageDrafts` holds; nil when signed out.
+    var draftsOwner: String?
     // Debounces the drafts' disk write so typing doesn't JSON-encode + write UserDefaults on the
     // main thread on every keystroke (see setDraft / flushPendingDraftSave).
     var draftSaveTask: Task<Void, Never>?
@@ -646,7 +656,7 @@ final class ChatService: ObservableObject {
                 self.conversations[index].messages.removeAll { deletedSet.contains($0.txId) }
             }
         }
-        loadMessageDrafts()
+        // Drafts load per account on first use (ensureDraftsBelongToCurrentWallet).
         loadConversationAliases()
         loadOurAliases()
         loadConversationIds()
@@ -856,6 +866,11 @@ final class ChatService: ObservableObject {
         incomingResolutionAmountHints = [:]
         hiddenPaymentTxIdTimestamps = [:]
         knsTransferHintsByTxId = [:]
+        // The last account's drafts go to its own key and leave memory; the next account's are
+        // loaded the first time a composer asks.
+        flushPendingDraftSave()
+        messageDrafts = [:]
+        draftsOwner = nil
         suppressNotificationsUntilSynced = true  // Suppress notifications during initial sync
         hasCompletedInitialSync = false  // Allow full re-sync for new wallet
         // a new wallet starts from scratch on both networks

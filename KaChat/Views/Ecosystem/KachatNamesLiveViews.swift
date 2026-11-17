@@ -915,7 +915,7 @@ struct KachatOwnedNamesList: View {
     static func expiryLine(for n: KachatNames.NameInfo, graceMs: Int64) -> String? {
         switch n.status(graceMs: graceMs) {
         case .active: return String(format: AppLocalization.string("Expires %@"), KachatLive.day(n.expiresAt))
-        case .grace: return String(format: AppLocalization.string("Grace ends %@"), KachatLive.day(n.expiresAt + graceMs))
+        case .grace: return String(format: AppLocalization.string("Grace ends %@"), KachatLive.day(KachatNames.Codec.saturatingAdd(n.expiresAt, graceMs)))
         case .lapsed: return nil
         }
     }

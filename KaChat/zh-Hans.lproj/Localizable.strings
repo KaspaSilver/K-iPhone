@@ -1314,7 +1314,6 @@
 "Fee (KAS)" = "手续费（KAS）";
 "fee: %@ KAS" = "手续费：%@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "这将从此设备永久删除所选每个聊天中的所有消息。此操作无法撤销。";
-"Confirm sending Kaspa" = "确认发送 Kaspa";
 "Accepted your request to communicate" = "已接受你的通信请求";
 "Sent you a message" = "给你发了一条消息";
 "[Payment]" = "[付款]";
@@ -1342,7 +1341,6 @@
 "One transaction can combine %d coins, so this combines the largest %d. Compound again for the rest." = "一笔交易最多可合并 %d 个币，因此会合并最大的 %d 个。请再次合并剩下的部分。";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs combines the rest." = "最大值是一笔交易能承载的金额：最大的 %d 个币。“合并 UTXO”可合并其余的币。";
 "Couldn't load this address's balance." = "无法加载此地址的余额。";
-"Sending Kaspa needs Face ID or your passcode." = "发送 Kaspa 需要面容 ID 或你的密码。";
 "The network fee is now %@ KAS, more than the Review showed. Nothing was sent: check the new fee and swipe again." = "网络费用现在为 %@ KAS，高于确认页面显示的金额。未发送任何内容：请查看新的费用后再次滑动。";
 "Unable to sign in to this account." = "无法登录此账户。";
 "This account's keys are on this phone again, so nothing was removed." = "此账户的密钥已重新回到这部手机上，因此未移除任何内容。";
@@ -1478,7 +1476,7 @@
 "Restoring messages... %d of %d conversations" = "正在恢复消息... %d/%d 个会话";
 "Deletes %@ (%@) and its local data from this device." = "从此设备删除 %@（%@）及其本地数据。";
 "Passcode Required" = "需要密码";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat." = "请在此 iPhone 上设置密码（设置 > 面容 ID 与密码），才能在 KaChat 中发送 Kaspa、删除账户或查看私钥。";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "请在此 iPhone 上设置密码（设置 > 面容 ID 与密码），才能在 KaChat 中删除账户或查看私钥。";
 "Waiting on opponent" = "正在等待对手";
 "Not sent: you switched accounts before this went out." = "未发送：发送前你切换了账户。";
 "The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "两笔交易中的第一笔已完成，但第二笔未完成。KaChat 下次打开时会完成它。";
@@ -1506,3 +1504,22 @@
 "Microphone Access Required" = "需要麦克风访问权限";
 "Allow camera access in Settings to take photos in chats." = "请在“设置”中允许访问相机，以便在聊天中拍照。";
 "Allow microphone access in Settings to record voice messages." = "请在“设置”中允许访问麦克风，以便录制语音消息。";
+
+/* 5.3 audit fixes: recording, message fee limit, voice part Retry, Siri fee */
+"Recording..." = "正在录音…";
+"Audio ready" = "音频已就绪";
+"Recording failed. Please try again." = "录音失败，请重试。";
+"Camera not available on this device." = "此设备上的相机不可用。";
+"Failed to send voice message: %@" = "无法发送语音消息：%@";
+"Fee Too High" = "手续费过高";
+"A message fee can be at most 1 KAS." = "消息手续费最多为 1 KAS。";
+"Use a High Fee?" = "使用高手续费？";
+"%@ KAS is much more than the network needs to send a message." = "%@ KAS 远高于网络发送一条消息所需的费用。";
+"Use It" = "使用";
+"Tap Retry on the voice message to send the rest." = "点击语音消息上的“重试”以发送其余部分。";
+"Network fee: %@" = "网络手续费：%@";
+"Couldn't Remove App Password" = "无法删除应用密码";
+"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat 无法从 %@ 删除其应用密码。它已从此手机删除，但仍可在那里登录：请在 Nextcloud 的“设置 > 安全 > 设备与会话”中删除它。";
+"Your chatting address also pays %@ KAS to tell %@ about this payment." = "你的聊天地址还会支付 %@ KAS，用于告知 %@ 这笔付款。";
+"Tap Retry on the photo to send the rest." = "点击照片上的“重试”以发送其余部分。";
+"This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "这条消息在一笔交易中需要的币太多。请在你的聊天地址上使用 Compound UTXOs，然后重试。";

@@ -15,29 +15,29 @@ struct KaChatBot: Identifiable, Equatable {
     static let all: [KaChatBot] = [
         KaChatBot(
             id: "block-rewards",
-            name: String(localized: "Block Reward Tracker"),
-            summary: String(localized: "A message for every block reward paid to your mining address."),
+            name: AppLocalization.string("Block Reward Tracker"),
+            summary: AppLocalization.string("A message for every block reward paid to your mining address."),
             systemImage: "cube.transparent",
             address: "kaspa:qram07v34rnfwthwc7vssvgapxtdy9mheg8mz0v0yudqtm8z94sv5upwasd8q"
         ),
         KaChatBot(
             id: "wallet",
-            name: String(localized: "Wallet Tracker"),
-            summary: String(localized: "Tells you when a watched address receives or sends KAS."),
+            name: AppLocalization.string("Wallet Tracker"),
+            summary: AppLocalization.string("Tells you when a watched address receives or sends KAS."),
             systemImage: "wallet.pass",
             address: "kaspa:qzh3m296f44ez75avxd4k0dyvv5hj6sf06cuzaty5hk89w9nsprr6nngjsfvq"
         ),
         KaChatBot(
             id: "price",
-            name: String(localized: "Price Bot"),
-            summary: String(localized: "Alerts when KAS crosses your price, big moves and a daily summary."),
+            name: AppLocalization.string("Price Bot"),
+            summary: AppLocalization.string("Alerts when KAS crosses your price, big moves and a daily summary."),
             systemImage: "chart.line.uptrend.xyaxis",
             address: "kaspa:qzk2jrk7wq3zdw2n0260v87fglky82cg5u3pwy73wpktk3u864yecm5djll40"
         ),
         KaChatBot(
             id: "kaspa-answers",
-            name: String(localized: "Kaspa Answers"),
-            summary: String(localized: "Ask anything related to Kaspa."),
+            name: AppLocalization.string("Kaspa Answers"),
+            summary: AppLocalization.string("Ask anything related to Kaspa."),
             systemImage: "questionmark.bubble",
             address: "kaspa:qqj0vdfxv66xad0j382jeur2jpdpsjej2qzqzwaxtw66h2f3zg0djndh8ypq8"
         ),
@@ -58,8 +58,8 @@ struct KaChatBot: Identifiable, Equatable {
 
     /// Why the bot can't be messaged from here, or nil when it can.
     var unavailableReason: String? {
-        guard !address.isEmpty else { return String(localized: "Coming soon.") }
-        guard KaspaAddress.isValidOnActiveNetwork(address) else { return String(localized: "Bots run on mainnet only.") }
+        guard !address.isEmpty else { return AppLocalization.string("Coming soon.") }
+        guard KaspaAddress.isValidOnActiveNetwork(address) else { return AppLocalization.string("Bots run on mainnet only.") }
         return nil
     }
 

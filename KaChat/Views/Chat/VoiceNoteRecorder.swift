@@ -71,6 +71,12 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
         return parts.map(\.count)
     }
 
+    override init() {
+        super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(handleInterruption(_:)),
+                                               name: AVAudioSession.interruptionNotification, object: nil)
+    }
+
     func start() {
         switch state {
         case .idle, .failed: break
@@ -114,12 +120,30 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
         }
     }
 
+    /// The clock reads what was actually captured (`currentTime`), in whole seconds: a call or
+    /// going to the background pauses capture, and the ring and the limit pause with it.
     private func startTimer() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                self?.elapsedSeconds += 1
+                guard let self, let recorder = self.recorder else { return }
+                let captured = recorder.currentTime.rounded(.down)
+                if captured != self.elapsedSeconds { self.elapsedSeconds = captured }
             }
+        }
+    }
+
+    /// iOS pauses the recorder for a call, Siri or an alarm. When it says recording may resume,
+    /// pick up where it stopped; otherwise it stays paused and Stop keeps what was captured.
+    @objc nonisolated private func handleInterruption(_ note: Notification) {
+        guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
+        let optionsRaw = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+        guard AVAudioSession.InterruptionOptions(rawValue: optionsRaw).contains(.shouldResume) else { return }
+        Task { @MainActor in
+            guard self.state == .recording, let recorder = self.recorder, !recorder.isRecording else { return }
+            try? AVAudioSession.sharedInstance().setActive(true)
+            recorder.record()
         }
     }
 

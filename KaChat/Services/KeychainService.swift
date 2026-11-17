@@ -506,7 +506,9 @@ final class KeychainService {
         if let wrappedData = tryWrapPrivateKey(data) {
             wrapped = wrappedData
         } else {
-            // Fallback to raw storage if SE unavailable
+            // Fallback to raw storage if SE unavailable (the Simulator, an SE error): still a
+            // device-only Keychain item, but said in the log rather than silently.
+            AppLog.log("%@", "[Keychain] Secure Enclave wrap unavailable; storing \(baseKey.rawValue) as a device-only item without it")
             wrapped = data
         }
 
@@ -543,6 +545,7 @@ final class KeychainService {
         if let wrappedData = tryWrapPrivateKey(data) {
             wrapped = wrappedData
         } else {
+            AppLog.log("%@", "[Keychain] Secure Enclave wrap unavailable; storing an account snapshot's \(baseKey.rawValue) without it")
             wrapped = data
         }
 
@@ -574,24 +577,10 @@ final class KeychainService {
 
     /// Low-level save for device-specific data (no sync, device-only access)
     private func saveSensitiveDataRaw(_ data: Data, keyName: String) throws {
-        var query = genericPasswordQueryForKey(keyName, includeAccessGroup: true)
-
-        SecItemDelete(query as CFDictionary)
-
-        query[kSecValueData as String] = data
-        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        query[kSecAttrSynchronizable as String] = kCFBooleanFalse
-
-        let status = SecItemAdd(query as CFDictionary, nil)
+        let status = Self.upsertDeviceOnly(genericPasswordQueryForKey(keyName, includeAccessGroup: true), data: data)
         if status == errSecMissingEntitlement {
             // Fallback without access group
-            var fallbackQuery = genericPasswordQueryForKey(keyName, includeAccessGroup: false)
-            SecItemDelete(fallbackQuery as CFDictionary)
-            fallbackQuery[kSecValueData as String] = data
-            fallbackQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            fallbackQuery[kSecAttrSynchronizable as String] = kCFBooleanFalse
-
-            let fallbackStatus = SecItemAdd(fallbackQuery as CFDictionary, nil)
+            let fallbackStatus = Self.upsertDeviceOnly(genericPasswordQueryForKey(keyName, includeAccessGroup: false), data: data)
             guard fallbackStatus == errSecSuccess else {
                 throw KasiaError.keychainError("Failed to save sensitive data: \(fallbackStatus)")
             }
@@ -600,6 +589,32 @@ final class KeychainService {
         guard status == errSecSuccess else {
             throw KasiaError.keychainError("Failed to save sensitive data: \(status)")
         }
+    }
+
+    /// Writes `data` as a device-only, never-synced item without ever deleting the old copy first:
+    /// update in place, add only when there is none. A delete-then-add lost the old copy (a seed,
+    /// a key) whenever the add failed, e.g. with the phone locked. A legacy synced copy is removed
+    /// only once the device-only one is written.
+    private static func upsertDeviceOnly(_ baseQuery: [String: Any], data: Data) -> OSStatus {
+        var match = baseQuery
+        match[kSecAttrSynchronizable as String] = kCFBooleanFalse
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        var status = SecItemUpdate(match as CFDictionary, attributes as CFDictionary)
+        if status == errSecItemNotFound {
+            var add = match
+            add[kSecValueData as String] = data
+            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            status = SecItemAdd(add as CFDictionary, nil)
+        }
+        if status == errSecSuccess {
+            var synced = baseQuery
+            synced[kSecAttrSynchronizable as String] = kCFBooleanTrue
+            SecItemDelete(synced as CFDictionary)
+        }
+        return status
     }
 
     /// Low-level load for device-specific data
@@ -704,18 +719,8 @@ final class KeychainService {
 
     @discardableResult
     private func save(data: Data, forKey key: KeychainKey) throws -> Bool {
-        let query = genericPasswordQuery(for: key, includeAccessGroup: true)
-
-        // Delete any existing item
-        SecItemDelete(query as CFDictionary)
-
-        // Add new item
-        var newQuery = query
-        newQuery[kSecValueData as String] = data
-        newQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        newQuery[kSecAttrSynchronizable as String] = kCFBooleanFalse
-
-        let status = SecItemAdd(newQuery as CFDictionary, nil)
+        // Update in place, add only when missing: never delete the old copy first.
+        let status = Self.upsertDeviceOnly(genericPasswordQuery(for: key, includeAccessGroup: true), data: data)
         if status == errSecMissingEntitlement {
             try saveLegacy(data: data, forKey: key)
             return false
@@ -986,15 +991,7 @@ final class KeychainService {
     }
 
     private func saveLegacy(data: Data, forKey key: KeychainKey) throws {
-        let query = genericPasswordQuery(for: key, includeAccessGroup: false)
-        SecItemDelete(query as CFDictionary)
-
-        var newQuery = query
-        newQuery[kSecValueData as String] = data
-        newQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        newQuery[kSecAttrSynchronizable as String] = kCFBooleanFalse
-
-        let status = SecItemAdd(newQuery as CFDictionary, nil)
+        let status = Self.upsertDeviceOnly(genericPasswordQuery(for: key, includeAccessGroup: false), data: data)
         guard status == errSecSuccess else {
             throw KasiaError.keychainError("Failed to save to keychain: \(status)")
         }

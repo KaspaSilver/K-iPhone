@@ -1274,7 +1274,7 @@ struct KasiaTransactionBuilder {
         senderScriptPubKey: Data,
         feeOverride: UInt64? = nil
     ) throws -> ContextualSelection {
-        let spendable = utxos.filter { !$0.isCoinbase }
+        let spendable = utxos.filter { !$0.isCoinbase && $0.covenantId == nil }
         let pending = spendable
             .filter { $0.blockDaaScore == 0 }
             .sorted { $0.amount > $1.amount }
@@ -1288,10 +1288,13 @@ struct KasiaTransactionBuilder {
             scriptPublicKey: KaspaScriptPublicKey(version: 0, script: senderScriptPubKey)
         )
 
-        // A user-set fee (see ChatDetailView/GroupChatDetailView's tappable
-        // fee pill) always wins over the computed estimate, regardless of input count.
+        // A user-set fee (see ChatDetailView/GroupChatDetailView's tappable fee pill) wins over
+        // the computed estimate, but never goes below what the network needs (it would be
+        // rejected) or above MessageFeeLimit.maxSompi (a typo must not burn a balance).
         let feeFor: (Int) -> UInt64 = { inputCount in
-            feeOverride ?? (estimateFee(payload: payload, inputCount: inputCount, outputs: [outputTemplate]) + 3)
+            let minimum = estimateFee(payload: payload, inputCount: inputCount, outputs: [outputTemplate]) + 3
+            guard let feeOverride else { return minimum }
+            return max(min(feeOverride, MessageFeeLimit.maxSompi), minimum)
         }
 
         // Prefer chaining on a single pending self-change UTXO when it can cover the fee and the
@@ -1322,6 +1325,15 @@ struct KasiaTransactionBuilder {
         var total: UInt64 = 0
 
         for utxo in prioritized {
+            // Many small coins plus a large payload (a voice part) can pass the input count but
+            // not the network's mass limit, and the node rejects it after the balance check said
+            // yes. Stop at either limit and ask for a compound instead.
+            let nextCount = selected.count + 1
+            let nextMass = estimateFee(payload: payload, inputCount: nextCount, outputs: [outputTemplate])
+                / KaspaFeePolicy.minimumRelayFeePerGramSompi
+            if nextCount > maxInputsPerTransaction || nextMass > maxStandardMass {
+                throw KasiaError.networkError("This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again.")
+            }
             selected.append(utxo)
             total = try addSompiChecked(total, utxo.amount, context: "contextual selection")
 
@@ -2504,4 +2516,14 @@ struct SendFeeEstimate: Equatable {
     func total(extra: UInt64) -> UInt64 {
         networkFee + max(extra, foldedChange)
     }
+}
+
+/// Limits on the fee a user can type for a message (the fee pill in 1:1 and group chats).
+/// Messages don't ask for Face ID, so the custom fee is capped, and a fee far above what a
+/// message needs asks for a confirm first.
+enum MessageFeeLimit {
+    /// 1 KAS. Above this the fee editor refuses, and the builder clamps as a backstop.
+    static let maxSompi: UInt64 = 100_000_000
+    /// 0.01 KAS - roughly 100x a typical message fee. Above this the editor asks to confirm.
+    static let warnSompi: UInt64 = 1_000_000
 }

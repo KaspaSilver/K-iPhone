@@ -3187,7 +3187,10 @@ struct WebMOpusDecoder {
             let skip = Int(Double(head.preSkip) * outputRate / 48_000.0)
             if skip > 0 && mono.count > skip { mono.removeFirst(skip) }
             if let durationMs = parsed.durationMs {
-                let wanted = Int((durationMs / 1000.0 * outputRate).rounded())
+                // The header comes from the sender. Clamp before converting so an absurd value
+                // (e.g. 1e300) can't trap Int() - no genuine part runs longer than the cap.
+                let cappedMs = min(durationMs, (VoicePartTag.maxPartSeconds + 1) * 1000.0)
+                let wanted = Int((cappedMs / 1000.0 * outputRate).rounded())
                 if wanted > 0 && wanted < mono.count { mono.removeLast(mono.count - wanted) }
             }
 

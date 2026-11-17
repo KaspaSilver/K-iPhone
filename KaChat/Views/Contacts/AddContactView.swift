@@ -340,11 +340,13 @@ struct AddContactView: View {
         var address = code.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Handle kaspa: URI format (kaspa:ADDRESS or kaspa:ADDRESS?amount=X)
-        if address.lowercased().hasPrefix("kaspa:") || address.lowercased().hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(address) {
             // Check for query parameters and strip them
             if let queryIndex = address.firstIndex(of: "?") {
                 address = String(address[..<queryIndex])
             }
+            // After the query is gone: an all-uppercase QR address becomes lowercase
+            address = KaspaAddress.normalizedCase(address)
         }
 
         addressInput = address
@@ -362,7 +364,11 @@ struct AddContactView: View {
     // MARK: - Contacts picker
 
     private func handleInputChange(_ input: String) {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An all-uppercase address (a compact QR code's "KASPA:QR...") is the same address in
+        // lowercase: shown and used that way. The field's change runs this again, as a no-op.
+        let trimmed = KaspaAddress.hasAddressPrefix(raw) ? KaspaAddress.normalizedCase(raw) : raw
+        if trimmed != raw { addressInput = trimmed }
 
         // Reset state
         resolvedAddress = nil
@@ -379,7 +385,7 @@ struct AddContactView: View {
         }
 
         // Check if it's a direct Kaspa address
-        if trimmed.hasPrefix("kaspa:") || trimmed.hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(trimmed) {
             // the other network's address is the same key on another chain: refused
             isValidAddress = KaspaAddress.isValidOnActiveNetwork(trimmed)
             return
@@ -816,10 +822,12 @@ struct AddContactView: View {
 
     private func handleScannedGroupQRCode(_ code: String, rowID: UUID) {
         var scannedAddress = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        if scannedAddress.lowercased().hasPrefix("kaspa:") || scannedAddress.lowercased().hasPrefix("kaspatest:") {
+        if KaspaAddress.hasAddressPrefix(scannedAddress) {
             if let queryIndex = scannedAddress.firstIndex(of: "?") {
                 scannedAddress = String(scannedAddress[..<queryIndex])
             }
+            // After the query is gone: an all-uppercase QR address becomes lowercase
+            scannedAddress = KaspaAddress.normalizedCase(scannedAddress)
         }
         guard let index = groupAddressEntries.firstIndex(where: { $0.id == rowID }) else { return }
         groupAddressEntries[index].text = scannedAddress

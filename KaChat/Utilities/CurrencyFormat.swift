@@ -20,6 +20,16 @@ func formatFiatAmount(_ value: Double, currency: AppCurrency, decimals: Int = 2)
 }
 
 /// Trimmed 8-decimal KAS amount (e.g. "12.5" rather than "12.50000000").
+/// Exact plain KAS text for a sompi amount, by integer math (no Double rounding at large
+/// balances): "12.5", "0.00000001", "90000000.12345678".
+func formatKasAmountPlain(sompi: UInt64) -> String {
+    let whole = sompi / 100_000_000
+    var fraction = String(sompi % 100_000_000)
+    fraction = String(repeating: "0", count: 8 - fraction.count) + fraction
+    while fraction.hasSuffix("0") { fraction.removeLast() }
+    return fraction.isEmpty ? String(whole) : "\(whole).\(fraction)"
+}
+
 func formatKasAmountPlain(_ value: Double) -> String {
     var text = String(format: "%.8f", value)
     while text.hasSuffix("0") { text.removeLast() }

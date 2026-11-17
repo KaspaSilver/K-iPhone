@@ -889,6 +889,25 @@ actor NodeProfiler {
     /// Background probe-loop probing keeps them.
     @discardableResult
     private func probeNode(_ endpoint: Endpoint, skipCandidateScreening: Bool = false) async -> Bool {
+        let wasConnected = await connectionPool.isConnected(endpoint)
+        let result = await probeNodeOnce(endpoint, skipCandidateScreening: skipCandidateScreening)
+        await closeProbeConnectionIfUnused(endpoint, wasConnected: wasConnected, succeeded: result)
+        return result
+    }
+
+    /// A probe or discovery that opened a connection the pool can't use - it failed, or the node
+    /// isn't synced - closes it again (an active or eligible node always keeps its connection).
+    /// Before, every node ever probed kept a live connection and reconnected it on every drop;
+    /// the rest is bounded by the pool's cap and its pruning of unused connections.
+    private func closeProbeConnectionIfUnused(_ endpoint: Endpoint, wasConnected: Bool, succeeded: Bool) async {
+        guard !wasConnected else { return }
+        let record = await registry.get(endpoint)
+        if let record, record.state == .active || record.isActiveEligible { return }
+        guard !succeeded || record == nil || record?.profile.isSynced == false else { return }
+        await connectionPool.closeProbeConnection(for: endpoint)
+    }
+
+    private func probeNodeOnce(_ endpoint: Endpoint, skipCandidateScreening: Bool) async -> Bool {
         if !skipCandidateScreening, let record = await registry.get(endpoint) {
             if await shouldProbeCandidate(record) == false {
                 return false
@@ -957,17 +976,23 @@ actor NodeProfiler {
                 profile.isUtxoIndexed = info.isUtxoIndexed
                 profile.serverVersion = info.serverVersion
                 profile.mempoolSize = info.mempoolSize
+                // A failed GetBlockDagInfo says nothing about the node's network: keep the name
+                // it reported before. Its DAA score is unknown now, not the old one (which would
+                // look ever more behind).
                 profile.virtualDaaScore = virtualDaaScore
-                profile.networkName = networkName
+                if let networkName, !networkName.isEmpty {
+                    profile.networkName = networkName
+                }
             }
 
             // A node on the other network (a mainnet peer gossiped into a testnet pool, or the
             // reverse) would answer this network's addresses with that chain's coins - drop it.
-            if let networkName, !networkName.isEmpty,
-               let record = await registry.get(endpoint),
+            // Checked against the name it has reported, also when this probe couldn't read it.
+            if let record = await registry.get(endpoint),
+               let knownName = record.profile.networkName, !knownName.isEmpty,
                !NodeRegistry.belongs(record, to: networkType) {
                 AppLog.log("[NodeProfiler] Dropping %@: it is on %@, not %@",
-                      endpoint.key, networkName, networkType.displayName)
+                      endpoint.key, knownName, networkType.displayName)
                 await registry.remove(endpoint)
                 return false
             }
@@ -1244,6 +1269,13 @@ actor NodeProfiler {
 
     /// Discover peers from a specific node (returns true on success)
     private func discoverFromNode(_ endpoint: Endpoint) async -> Bool {
+        let wasConnected = await connectionPool.isConnected(endpoint)
+        let result = await discoverFromNodeOnce(endpoint)
+        await closeProbeConnectionIfUnused(endpoint, wasConnected: wasConnected, succeeded: result)
+        return result
+    }
+
+    private func discoverFromNodeOnce(_ endpoint: Endpoint) async -> Bool {
         let conn = await connectionPool.connection(for: endpoint)
 
         do {

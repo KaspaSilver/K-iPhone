@@ -1314,7 +1314,6 @@
 "Fee (KAS)" = "Biaya (KAS)";
 "fee: %@ KAS" = "biaya: %@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "Ini menghapus permanen semua pesan di setiap obrolan yang dipilih dari perangkat ini. Ini tidak dapat dibatalkan.";
-"Confirm sending Kaspa" = "Konfirmasi pengiriman Kaspa";
 "Accepted your request to communicate" = "Menerima permintaan Anda untuk berkomunikasi";
 "Sent you a message" = "Mengirimi Anda pesan";
 "[Payment]" = "[Pembayaran]";
@@ -1342,7 +1341,6 @@
 "One transaction can combine %d coins, so this combines the largest %d. Compound again for the rest." = "Satu transaksi dapat menggabungkan %d koin, jadi %d koin terbesar digabungkan. Gabungkan lagi untuk sisanya.";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs combines the rest." = "Maks adalah yang bisa dimuat satu transaksi: %d koin terbesarnya. \"Gabungkan UTXO\" menggabungkan sisanya.";
 "Couldn't load this address's balance." = "Saldo alamat ini tidak dapat dimuat.";
-"Sending Kaspa needs Face ID or your passcode." = "Mengirim Kaspa memerlukan Face ID atau kode sandi Anda.";
 "The network fee is now %@ KAS, more than the Review showed. Nothing was sent: check the new fee and swipe again." = "Biaya jaringan sekarang %@ KAS, lebih dari yang ditampilkan di Tinjauan. Tidak ada yang terkirim: periksa biaya baru lalu geser lagi.";
 "Unable to sign in to this account." = "Tidak dapat masuk ke akun ini.";
 "This account's keys are on this phone again, so nothing was removed." = "Kunci akun ini sudah ada lagi di ponsel ini, jadi tidak ada yang dihapus.";
@@ -1478,7 +1476,7 @@
 "Restoring messages... %d of %d conversations" = "Memulihkan pesan... %d dari %d percakapan";
 "Deletes %@ (%@) and its local data from this device." = "Menghapus %@ (%@) dan data lokalnya dari perangkat ini.";
 "Passcode Required" = "Kode Sandi Diperlukan";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat." = "Atur kode sandi di iPhone ini (Pengaturan > Face ID & Kode Sandi) untuk mengirim Kaspa, menghapus akun, atau melihat kunci rahasia di KaChat.";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "Atur kode sandi di iPhone ini (Pengaturan > Face ID & Kode Sandi) untuk menghapus akun atau melihat kunci rahasia di KaChat.";
 "Waiting on opponent" = "Menunggu lawan";
 "Not sent: you switched accounts before this went out." = "Tidak terkirim: Anda berganti akun sebelum ini terkirim.";
 "The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "Yang pertama dari dua transaksi berhasil, tetapi yang kedua tidak. KaChat akan menyelesaikannya saat dibuka berikutnya.";
@@ -1506,3 +1504,22 @@
 "Microphone Access Required" = "Akses Mikrofon Diperlukan";
 "Allow camera access in Settings to take photos in chats." = "Izinkan akses kamera di Pengaturan untuk mengambil foto di chat.";
 "Allow microphone access in Settings to record voice messages." = "Izinkan akses mikrofon di Pengaturan untuk merekam pesan suara.";
+
+/* 5.3 audit fixes: recording, message fee limit, voice part Retry, Siri fee */
+"Recording..." = "Merekam…";
+"Audio ready" = "Audio siap";
+"Recording failed. Please try again." = "Perekaman gagal. Silakan coba lagi.";
+"Camera not available on this device." = "Kamera tidak tersedia di perangkat ini.";
+"Failed to send voice message: %@" = "Gagal mengirim pesan suara: %@";
+"Fee Too High" = "Biaya Terlalu Tinggi";
+"A message fee can be at most 1 KAS." = "Biaya pesan paling banyak 1 KAS.";
+"Use a High Fee?" = "Pakai Biaya Tinggi?";
+"%@ KAS is much more than the network needs to send a message." = "%@ KAS jauh lebih banyak dari yang dibutuhkan jaringan untuk mengirim pesan.";
+"Use It" = "Pakai";
+"Tap Retry on the voice message to send the rest." = "Ketuk Coba lagi pada pesan suara untuk mengirim sisanya.";
+"Network fee: %@" = "Biaya jaringan: %@";
+"Couldn't Remove App Password" = "Kata Sandi Aplikasi Tidak Terhapus";
+"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat tidak bisa menghapus kata sandi aplikasinya dari %@. Kata sandi itu sudah hilang dari ponsel ini, tetapi masih bisa masuk di sana: hapus di Nextcloud lewat Pengaturan > Keamanan > Perangkat & sesi.";
+"Your chatting address also pays %@ KAS to tell %@ about this payment." = "Alamat chat Anda juga membayar %@ KAS untuk memberi tahu %@ tentang pembayaran ini.";
+"Tap Retry on the photo to send the rest." = "Ketuk Coba lagi pada foto untuk mengirim sisanya.";
+"This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Pesan ini butuh terlalu banyak koin untuk satu transaksi. Gunakan Compound UTXOs pada alamat chat Anda, lalu coba lagi.";

@@ -189,11 +189,12 @@ final class CacheManager: ObservableObject {
         }.value
     }
 
-    /// Audio and diagnostics exports the app wrote to tmp and could not clean up
+    /// Audio, camera and video picks, history and Address Book exports the app wrote to tmp and could not clean up
     /// (killed mid-way, a share sheet that never completed). Anything of ours older than a day
     /// is nobody's any more. Runs once per launch, off the main thread.
     nonisolated static func sweepStaleTempFiles() {
-        let prefixes = ["kasia-audio", "kachat-voice", "kachat-broadcast-voice", "broadcast_rec_", "broadcast_voice_", "kasia-diagnostics-"]
+        let prefixes = ["kasia-audio", "kachat-voice", "kachat-broadcast-voice", "broadcast_rec_", "broadcast_voice_", "kasia-diagnostics-",
+                        "kachat-group-voice-", "kachat-capture-", "kachat-picked-video-", "kachat-history-", "address_book_exports"]
         let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
         let directory = FileManager.default.temporaryDirectory
         guard let items = try? FileManager.default.contentsOfDirectory(
@@ -206,7 +207,7 @@ final class CacheManager: ObservableObject {
             if (try? FileManager.default.removeItem(at: url)) != nil { removed += 1 }
         }
         if removed > 0 {
-            AppLog.log("%@", "[CacheManager] Removed \(removed) stale temp audio file(s)")
+            AppLog.log("%@", "[CacheManager] Removed \(removed) stale temp file(s)")
         }
     }
 

@@ -256,7 +256,8 @@ raw file bytes                      the JPEG / WebM-Opus exactly, no base64
 
 - Applies to the media-file JSON (`{"type":"file",...,"content":"data:<mime>;base64,..."}`)
   of `image/*` and `audio/*` types only. Every other message stays UTF-8 text.
-- Groups (since 2026-11-11): voice notes only, as the `gcomm` plaintext ("In group chats" below).
+- Groups: voice notes since 2026-11-11 and photos since then too, as the `gcomm` plaintext
+  ("In group chats" below).
 - The payload around it is unchanged: `kchat:1:comm:<alias>:<base64(encrypted)>` (or the `dm`
   form), so indexers and push need no change.
 - Reading: decrypt to BYTES first. If they start with the magic, rebuild the media-file JSON:
@@ -403,11 +404,14 @@ one message with no tag. Nextcloud voice notes are unchanged.
   a banner (`kachat_quiet_voice_part`). Multi-part photos (`mediaPart`) work the same way.
 - **Parts arrive as bare txIds:** a part is too big for the push payload, so the extension reads
   it from the Kaspa REST API to find its tag. The push often beats the API to the transaction,
-  so the read retries for up to 20 seconds (`fetchTransactionPayload`). A payload-less push that
-  still can't be read joins its sender's burst (`part_push_bursts`: by sender in 1:1, by
-  blinded group id in groups): one that follows another within 60 seconds is delivered quiet,
-  as a later part would be. Two separate large messages sent within a minute ring once; the
-  app still shows both.
+  so the read retries for up to 20 seconds (`fetchTransactionPayload`). The API's `payload` is
+  hex of the whole on-chain string: decode it to UTF-8 and strip the `kchat:1:gcomm:` /
+  `ciph_msg:1:gcomm:` prefix (`comm` in 1:1) before parsing, as for a push's own payload.
+- **Reads that fail:** only a payload-less push that still can't be read joins its sender's
+  burst (`part_push_bursts`: by sender in 1:1, by blinded group id in groups, which is already
+  per group and sender). One that follows another within 60 seconds is delivered quiet, as a
+  later part would be. A part whose tag was read goes by its note's ledger only, so another
+  person's note in the same group still rings.
 - iOS: `VoicePartTag` / `VoicePartGrouping` (Models.swift), `WebMOpusEncoder.encodeParts`
   (ChatDetailView.swift), `ChatService.sendVoiceNoteParts`, and
   `WebMOpusDecoder.decodePartsToPCMFile` with `LazyMultipartAudioBubble` (MessageBubbleView.swift).
@@ -417,8 +421,8 @@ one message with no tag. Nextcloud voice notes are unchanged.
 Since 2026-11-11 every group voice note, short or long, is sealed as the **binary media frame**
 above (`0xFF "KCM" 0x01`, header JSON, raw WebM bytes) in place of the base64 media-file JSON.
 **Older and other clients (Android, Desktop, older iOS) can't read these until they're
-updated:** they show nothing or a blank bubble. The owner accepted this. Group photos and
-every other group message stay UTF-8 text.
+updated:** they show nothing or a blank bubble. The owner accepted this. Group photos use the
+same frame (see "Groups" under multi-part photos above). Every other group message stays UTF-8 text.
 
 - **Wire:** the outer `gcomm` payload is unchanged:
   `kchat:1:gcomm:<blinded id>:<epoch>:<sender id>:<sender key>:<msg id>:<ciphertext hex>:<signature>`.
@@ -773,6 +777,11 @@ passes, and the live block scan reads the sender from the first output, which th
 chooses. Those gaps close only once every client signs and unsigned roots can be refused. A device
 without a pin can also be shown an older signed roster, since it's still genuinely the admin's. iOS's
 push extension doesn't check `roster_sig` for the group name in an invite banner.
+
+**iOS notifications for control messages.** The push extension announces only a readable
+`gctl_root` for a group this wallet doesn't hold (an invite). Every other control message (key
+rotations on a member change, photo changes, invite answers) and one it can't read is delivered
+silently and left for the app, so a group update never makes a sound or raises the badge.
 
 ## Group invites
 

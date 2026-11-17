@@ -148,6 +148,28 @@ enum KachatNames {
             return out
         }
 
+        /// The largest time (unix ms) a record may carry: about the year 2286. Times come from the
+        /// chain, a REST server or an indexer the user picked, so they're checked before any math.
+        static let maxTimeMs: Int64 = 10_000_000_000_000
+
+        /// `base + years * periodMs`, refused (not trapped) when it overflows or leaves 0...maxTimeMs.
+        static func periodEnd(_ base: Int64, years: Int64, periodMs: Int64) throws -> Int64 {
+            let span = years.multipliedReportingOverflow(by: periodMs)
+            guard !span.overflow else { throw Failure("a name's period is out of range") }
+            let end = base.addingReportingOverflow(span.partialValue)
+            guard !end.overflow, (0...maxTimeMs).contains(base), (0...maxTimeMs).contains(end.partialValue) else {
+                throw Failure("a name's period is out of range")
+            }
+            return end.partialValue
+        }
+
+        /// `a + b`, stopping at Int64's limits instead of trapping.
+        static func saturatingAdd(_ a: Int64, _ b: Int64) -> Int64 {
+            let r = a.addingReportingOverflow(b)
+            guard r.overflow else { return r.partialValue }
+            return b > 0 ? .max : .min
+        }
+
         /// Little-endian sign-magnitude bytes -> Int64.
         static func scriptNum(_ b: Data) throws -> Int64 {
             if b.isEmpty { return 0 }
@@ -322,15 +344,15 @@ enum KachatNames {
         }
 
         /// What `extend(years)` leaves: the same period start, the expiry `years` periods later.
-        func extended(_ years: Int64, periodMs: Int64) -> NameFields {
+        func extended(_ years: Int64, periodMs: Int64) throws -> NameFields {
             NameFields(key: key, paddedName: paddedName, owner: owner, price: price, periodStart: periodStart,
-                       expiresAt: expiresAt + years * periodMs)
+                       expiresAt: try Codec.periodEnd(expiresAt, years: years, periodMs: periodMs))
         }
 
         /// What `renew(years)` leaves: a new period from the old expiry, so no time is lost or gained.
-        func renewed(_ years: Int64, periodMs: Int64) -> NameFields {
+        func renewed(_ years: Int64, periodMs: Int64) throws -> NameFields {
             NameFields(key: key, paddedName: paddedName, owner: owner, price: price, periodStart: expiresAt,
-                       expiresAt: expiresAt + years * periodMs)
+                       expiresAt: try Codec.periodEnd(expiresAt, years: years, periodMs: periodMs))
         }
     }
 

@@ -81,7 +81,7 @@ struct AddressBookView: View {
                 afterActionsSheet = nil
                 next?()
             }) { actionsSheet }
-            .sheet(item: $exportFile) { file in
+            .sheet(item: $exportFile, onDismiss: removeExportFiles) { file in
                 AddressBookShareSheet(fileURL: file.url)
             }
             .sheet(isPresented: $showNextcloudImporter) {
@@ -210,6 +210,13 @@ struct AddressBookView: View {
             showToast(AppLocalization.string("Export failed. Couldn't write the file."), style: .error)
             return nil
         }
+    }
+
+    /// The export holds every name and address in the book: once the share sheet is gone (the
+    /// file saved or sent, or not), the copy in tmp goes too.
+    private func removeExportFiles() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("address_book_exports", isDirectory: true)
+        try? FileManager.default.removeItem(at: dir)
     }
 
     private func exportToFile() {
@@ -714,13 +721,22 @@ struct AddressBookEntryEditor: View {
     }
 
     private func selectResolution(_ resolution: NameResolution) {
-        guard let address = resolution.address else { return }
+        // A name service's answer must be a valid address on this network (NameResolution drops
+        // others too; checked again here, where it becomes the address used).
+        guard let address = resolution.address, KaspaAddress.isValidOnActiveNetwork(address) else { return }
         resolvedAddress = address
         resolvedName = resolution.display
         selectedTLD = resolution.tld
         lookupError = nil
-        // the name they're known by, unless one was typed already
-        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { name = resolution.display }
+        // The name they're known by, unless one was typed already: saved in full ("alice.kachat"),
+        // never the shortened form the hide-endings setting shows, since the book syncs to
+        // Nextcloud and KaPay, where that setting doesn't apply.
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let shown = resolution.display
+            name = resolution.tld == .kachat && !shown.lowercased().hasSuffix(NameServiceTLD.kachat.suffix)
+                ? shown + NameServiceTLD.kachat.suffix
+                : shown
+        }
     }
 
     private func save() {

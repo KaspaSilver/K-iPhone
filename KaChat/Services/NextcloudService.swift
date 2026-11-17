@@ -104,7 +104,7 @@ enum NextcloudError: LocalizedError {
         case .noActiveWallet:
             return "Sign in to a KaChat account before connecting Nextcloud."
         case .offOnTestnet:
-            return String(localized: "Nextcloud is off while Testnet is on.")
+            return AppLocalization.string("Nextcloud is off while Testnet is on.")
         case .httpError(let code):
             return "Nextcloud returned HTTP \(code)."
         case .malformedResponse:
@@ -144,6 +144,11 @@ final class NextcloudService: ObservableObject {
     static let shared = NextcloudService()
 
     @Published private(set) var account: NextcloudAccount?
+    /// Set when a disconnect or account removal couldn't revoke the app password on the server
+    /// (offline, server error): the message Settings shows. Cleared with `clearRevokeFailure()`.
+    @Published private(set) var appPasswordRevokeFailure: String?
+
+    func clearRevokeFailure() { appPasswordRevokeFailure = nil }
 
     /// "Automatic Sync" toggle (Settings > Storage > Nextcloud), per wallet account. Nextcloud backs
     /// up contacts and nothing else: messages and groups come back from the seed, off the chain.
@@ -364,10 +369,12 @@ final class NextcloudService: ObservableObject {
 
     /// Revokes the app password KaChat created on the user's Nextcloud (Login Flow v2 mints
     /// one per connect), so disconnecting or deleting the wallet leaves nothing that can still
-    /// log in. Best effort: the local copy is deleted whatever the server says.
-    func revokeAppPassword() async {
-        guard let account else { return }
-        await revokeAppPassword(of: account)
+    /// log in. Best effort: the local copy is deleted whatever the server says, and a revoke the
+    /// server didn't confirm is kept in `appPasswordRevokeFailure` for Settings to say so.
+    @discardableResult
+    func revokeAppPassword() async -> Bool {
+        guard let account else { return true }
+        return await revokeAppPassword(of: account)
     }
 
     /// An account being removed from this phone: revokes the app password KaChat made with its
@@ -380,8 +387,10 @@ final class NextcloudService: ObservableObject {
         purgeStoredState(forWalletAddress: walletAddress)
     }
 
-    private func revokeAppPassword(of account: NextcloudAccount) async {
-        guard let server = account.serverURL else { return }
+    /// True when the server confirmed it (200), or answered 401: that password no longer works.
+    @discardableResult
+    private func revokeAppPassword(of account: NextcloudAccount) async -> Bool {
+        guard let server = account.serverURL else { return false }
         var request = URLRequest(url: server.appendingPathComponent("ocs/v2.php/core/apppassword"))
         request.httpMethod = "DELETE"
         request.setValue("true", forHTTPHeaderField: "OCS-APIRequest")
@@ -390,9 +399,19 @@ final class NextcloudService: ObservableObject {
             let (_, response) = try await URLSession.shared.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
             AppLog.log("%@", "[Nextcloud] App password revoke answered HTTP \(status)")
+            if status == 200 || status == 401 {
+                appPasswordRevokeFailure = nil
+                return true
+            }
         } catch {
             AppLog.log("%@", "[Nextcloud] App password revoke failed: \(error.localizedDescription)")
         }
+        // Removed here, still valid there: the person revokes it in Nextcloud themselves.
+        appPasswordRevokeFailure = String(
+            format: AppLocalization.string("KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions."),
+            server.host ?? server.absoluteString
+        )
+        return false
     }
 
     /// Deletes a wallet's stored Nextcloud login and settings outright - used when that account

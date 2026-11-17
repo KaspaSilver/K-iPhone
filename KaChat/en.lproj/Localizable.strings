@@ -1314,7 +1314,6 @@
 "Fee (KAS)" = "Fee (KAS)";
 "fee: %@ KAS" = "fee: %@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "This permanently deletes every message in each selected chat from this device. This cannot be undone.";
-"Confirm sending Kaspa" = "Confirm sending Kaspa";
 "Accepted your request to communicate" = "Accepted your request to communicate";
 "Sent you a message" = "Sent you a message";
 "[Payment]" = "[Payment]";
@@ -1342,7 +1341,6 @@
 "One transaction can combine %d coins, so this combines the largest %d. Compound again for the rest." = "One transaction can combine %d coins, so this combines the largest %d. Compound again for the rest.";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs combines the rest." = "Max is what one transaction can carry: its largest %d coins. Compound UTXOs combines the rest.";
 "Couldn't load this address's balance." = "Couldn't load this address's balance.";
-"Sending Kaspa needs Face ID or your passcode." = "Sending Kaspa needs Face ID or your passcode.";
 "The network fee is now %@ KAS, more than the Review showed. Nothing was sent: check the new fee and swipe again." = "The network fee is now %@ KAS, more than the Review showed. Nothing was sent: check the new fee and swipe again.";
 "Unable to sign in to this account." = "Unable to sign in to this account.";
 "This account's keys are on this phone again, so nothing was removed." = "This account's keys are on this phone again, so nothing was removed.";
@@ -1478,7 +1476,7 @@
 "Restoring messages... %d of %d conversations" = "Restoring messages... %d of %d conversations";
 "Deletes %@ (%@) and its local data from this device." = "Deletes %@ (%@) and its local data from this device.";
 "Passcode Required" = "Passcode Required";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat." = "Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat.";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat.";
 "Waiting on opponent" = "Waiting on opponent";
 "Not sent: you switched accounts before this went out." = "Not sent: you switched accounts before this went out.";
 "The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens.";
@@ -1506,3 +1504,22 @@
 "Microphone Access Required" = "Microphone Access Required";
 "Allow camera access in Settings to take photos in chats." = "Allow camera access in Settings to take photos in chats.";
 "Allow microphone access in Settings to record voice messages." = "Allow microphone access in Settings to record voice messages.";
+
+/* 5.3 audit fixes: recording, message fee limit, voice part Retry, Siri fee */
+"Recording..." = "Recording...";
+"Audio ready" = "Audio ready";
+"Recording failed. Please try again." = "Recording failed. Please try again.";
+"Camera not available on this device." = "Camera not available on this device.";
+"Failed to send voice message: %@" = "Failed to send voice message: %@";
+"Fee Too High" = "Fee Too High";
+"A message fee can be at most 1 KAS." = "A message fee can be at most 1 KAS.";
+"Use a High Fee?" = "Use a High Fee?";
+"%@ KAS is much more than the network needs to send a message." = "%@ KAS is much more than the network needs to send a message.";
+"Use It" = "Use It";
+"Tap Retry on the voice message to send the rest." = "Tap Retry on the voice message to send the rest.";
+"Network fee: %@" = "Network fee: %@";
+"Couldn't Remove App Password" = "Couldn't Remove App Password";
+"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions.";
+"Your chatting address also pays %@ KAS to tell %@ about this payment." = "Your chatting address also pays %@ KAS to tell %@ about this payment.";
+"Tap Retry on the photo to send the rest." = "Tap Retry on the photo to send the rest.";
+"This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again.";

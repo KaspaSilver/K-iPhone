@@ -1,3 +1,6 @@
+> **Historical.** This is the 5.1 audit (2026-09-25). Many files and features it names have since
+> changed or been removed (calls among them). The current audit is AUDIT_5.3.md.
+
 # KaChat 5.1 — App Store launch audit
 
 Date: 2026-09-25. Scope: the iOS app and its four extensions at commit 727d191, read-only.

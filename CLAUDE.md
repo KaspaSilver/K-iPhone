@@ -350,6 +350,12 @@ The input bubble is the text field only. Everything else is in the "+" sheet:
     composers ask the first time, and once access is off show `mediaAccessAlert` (Camera / Microphone
     Access Required, Open Settings, Not Now) instead of a blank camera or a bare error. The
     permission prompts' reasons are in Info.plist, translated in each `<lang>.lproj/InfoPlist.strings`.
+  - The message fee pill (text only; voice notes and photos price their own parts and can't be
+    tapped) is capped by `MessageFeeLimit` (KaChatTransactionBuilder.swift): above 1 KAS the editor
+    refuses, above 0.01 KAS it asks "Use a High Fee?", and the builder clamps a custom fee between
+    the network minimum and the cap. Messages don't ask for Face ID, so this is their guard.
+  - Drafts are per account (`kachat_message_drafts_<address>`) and are cleared on Log Out and
+    Delete Account, along with every delivered notification. Quick reply needs the phone unlocked.
   - Paste, drop and share-extension photos go on chain. Pasted, dropped and share-extension
     photos opened in the composer ask for a quality too. A photo the share extension sends
     straight away has no sheet to ask, so it goes at Low.
@@ -439,12 +445,17 @@ Every sign-in gets new tabs (`ContentView`'s `signInSession`, the `MainTabView` 
 sign-out), opening on Chats; without it SwiftUI brought the last account's tabs back, on Settings
 and with no onAppear. Biometrics for account login are off by default.
 
-### Face ID on Kaspa leaving and on deleting
+### Face ID on deleting, not on sends
 
-`SwipeUpToSendScrollView` asks `DeviceAuth` before every send: declined, the screen settles back
-with everything filled in. A Siri or Shortcuts payment asks too (`DeviceAuth.confirm`, after its
-Confirm). Both Delete Account sheets and the keys-missing screen's Remove ask too. A device with no passcode can't do
-either (`DeviceAuth` refuses and says why). Messages don't ask.
+Sends don't ask for Face ID (owner's call, 2026-11-13): the swipe in `SwipeUpToSendScrollView` is the
+confirmation, and a Siri or Shortcuts payment goes on its spoken Confirm, on an unlocked phone
+(`.requiresAuthentication`). Messages don't ask either. `DeviceAuth` still guards both Delete Account
+sheets, the keys-missing screen's Remove, giving a domain away (Send Domain), .kachat name
+transactions, the seed phrase and private keys. A device with no passcode can't do those
+(`DeviceAuth` refuses and says why).
+
+No privacy cover in the App Switcher (owner's call, 2026-11-15): the app's snapshot shows what was
+on screen. Don't add it back, and audits shouldn't flag it.
 
 ### Reading back what you sent
 

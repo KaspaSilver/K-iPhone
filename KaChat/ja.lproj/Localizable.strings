@@ -1314,7 +1314,6 @@
 "Fee (KAS)" = "手数料（KAS）";
 "fee: %@ KAS" = "手数料: %@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "選択した各チャットのすべてのメッセージを、この端末から完全に削除します。この操作は取り消せません。";
-"Confirm sending Kaspa" = "Kaspaの送信を確認";
 "Accepted your request to communicate" = "通信リクエストを承認しました";
 "Sent you a message" = "メッセージが届きました";
 "[Payment]" = "[支払い]";
@@ -1342,7 +1341,6 @@
 "One transaction can combine %d coins, so this combines the largest %d. Compound again for the rest." = "1回の取引で統合できるのは %d 枚のコインなので、大きい順に %d 枚を統合します。残りはもう一度統合してください。";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs combines the rest." = "最大は1回の取引で送れる額です（大きい順に %d 枚のコイン）。残りは「UTXO を統合」でまとめられます。";
 "Couldn't load this address's balance." = "このアドレスの残高を読み込めませんでした。";
-"Sending Kaspa needs Face ID or your passcode." = "Kaspa を送るには Face ID またはパスコードが必要です。";
 "The network fee is now %@ KAS, more than the Review showed. Nothing was sent: check the new fee and swipe again." = "ネットワーク手数料が %@ KAS になり、確認画面の表示より高くなりました。何も送信されていません。新しい手数料を確認して、もう一度スワイプしてください。";
 "Unable to sign in to this account." = "このアカウントにサインインできません。";
 "This account's keys are on this phone again, so nothing was removed." = "このアカウントの鍵がこのiPhoneに戻っているため、何も削除されませんでした。";
@@ -1478,7 +1476,7 @@
 "Restoring messages... %d of %d conversations" = "メッセージを復元中... %d / %d 件の会話";
 "Deletes %@ (%@) and its local data from this device." = "%@（%@）とそのローカルデータをこのデバイスから削除します。";
 "Passcode Required" = "パスコードが必要です";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat." = "KaChat で Kaspa の送信、アカウントの削除、秘密鍵の表示を行うには、この iPhone にパスコードを設定してください（設定 > Face ID とパスコード）。";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "KaChat でアカウントの削除や秘密鍵の表示を行うには、この iPhone にパスコードを設定してください（設定 > Face ID とパスコード）。";
 "Waiting on opponent" = "対戦相手を待っています";
 "Not sent: you switched accounts before this went out." = "未送信：送信前にアカウントを切り替えました。";
 "The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "2 件のトランザクションのうち最初の 1 件は完了しましたが、2 件目は完了していません。次回 KaChat を開いたときに完了します。";
@@ -1506,3 +1504,22 @@
 "Microphone Access Required" = "マイクへのアクセスが必要です";
 "Allow camera access in Settings to take photos in chats." = "チャットで写真を撮るには、設定でカメラへのアクセスを許可してください。";
 "Allow microphone access in Settings to record voice messages." = "ボイスメッセージを録音するには、設定でマイクへのアクセスを許可してください。";
+
+/* 5.3 audit fixes: recording, message fee limit, voice part Retry, Siri fee */
+"Recording..." = "録音中…";
+"Audio ready" = "オーディオの準備完了";
+"Recording failed. Please try again." = "録音に失敗しました。もう一度お試しください。";
+"Camera not available on this device." = "このデバイスではカメラを使用できません。";
+"Failed to send voice message: %@" = "ボイスメッセージを送信できませんでした: %@";
+"Fee Too High" = "手数料が高すぎます";
+"A message fee can be at most 1 KAS." = "メッセージの手数料は最大 1 KAS です。";
+"Use a High Fee?" = "高い手数料を使いますか？";
+"%@ KAS is much more than the network needs to send a message." = "%@ KAS は、メッセージの送信にネットワークが必要とする額よりはるかに多いです。";
+"Use It" = "使用する";
+"Tap Retry on the voice message to send the rest." = "残りを送信するには、ボイスメッセージの「再試行」をタップしてください。";
+"Network fee: %@" = "ネットワーク手数料: %@";
+"Couldn't Remove App Password" = "アプリパスワードを削除できませんでした";
+"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat は %@ からアプリパスワードを削除できませんでした。この電話からは削除されていますが、そこではまだサインインできます。Nextcloud の「設定 > セキュリティ > デバイスとセッション」で削除してください。";
+"Your chatting address also pays %@ KAS to tell %@ about this payment." = "チャットアドレスは、この支払いを %2$@ に知らせるために、さらに %1$@ KAS を支払います。";
+"Tap Retry on the photo to send the rest." = "残りを送信するには、写真の「再試行」をタップしてください。";
+"This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "このメッセージは 1 つのトランザクションに必要なコインが多すぎます。チャットアドレスで Compound UTXOs を使ってから、もう一度お試しください。";

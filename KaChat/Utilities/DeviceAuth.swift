@@ -2,8 +2,8 @@ import Foundation
 import LocalAuthentication
 import UIKit
 
-/// Gates sensitive actions (viewing the seed phrase, unlocking a saved account, sending Kaspa,
-/// deleting an account) behind whatever
+/// Gates sensitive actions (viewing the seed phrase, unlocking a saved account, giving a domain
+/// away, deleting an account) behind whatever
 /// the device's own lock screen is set to — Face ID/Touch ID, falling back to the device passcode
 /// — mirroring Android's `authenticateWithDeviceCredential`.
 ///
@@ -34,16 +34,6 @@ enum DeviceAuth {
         }
     }
 
-    /// The same check for a place with no screen of its own to show an alert on (a Siri or
-    /// Shortcuts action): true only once the person has passed Face ID, Touch ID or the passcode.
-    /// A device with no passcode fails, as above.
-    static func confirm(reason: String) async -> Bool {
-        let context = LAContext()
-        var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { return false }
-        return (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) ?? false
-    }
-
     /// The window the alert below is shown in, while it's up.
     private static var passcodeAlertWindow: UIWindow?
 
@@ -68,7 +58,7 @@ enum DeviceAuth {
 
         let alert = UIAlertController(
             title: AppLocalization.string("Passcode Required"),
-            message: AppLocalization.string("Set a passcode on this iPhone (Settings > Face ID & Passcode) to send Kaspa, delete an account, or view secret keys in KaChat."),
+            message: AppLocalization.string("Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat."),
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: AppLocalization.string("OK"), style: .default) { _ in

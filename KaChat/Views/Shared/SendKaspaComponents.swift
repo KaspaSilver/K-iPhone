@@ -235,8 +235,8 @@ struct OtherDomainsDropdown: View {
     }
 
     static func missingText(_ r: NameResolution) -> String {
-        if r.notLive { return String(localized: "Coming soon") }
-        return r.failed ? String(localized: "Couldn't check") : String(localized: "Not registered")
+        if r.notLive { return AppLocalization.string("Coming soon") }
+        return r.failed ? AppLocalization.string("Couldn't check") : AppLocalization.string("Not registered")
     }
 }
 
@@ -1258,14 +1258,11 @@ struct SwipeUpToSendScrollView<Content: View>: View {
     @State private var confirmed = false
     /// The send ended without a transaction: the sending screen shows "Failed".
     @State private var failed = false
-    /// Face ID is up for a send. Until it answers the screen is still the form, so without this a
-    /// second swipe (or VoiceOver activation) in that moment asked again and could send twice.
-    @State private var authPending = false
 
     private static var barHeight: CGFloat { 64 }
     private static var settle: Animation { .spring(response: 0.45, dampingFraction: 0.86) }
 
-    private var active: Bool { isEnabled && !isBusy && !authPending }
+    private var active: Bool { isEnabled && !isBusy }
 
     var body: some View {
         GeometryReader { geometry in
@@ -1374,10 +1371,9 @@ struct SwipeUpToSendScrollView<Content: View>: View {
                     }
                 }
                 .onEnded { _ in
-                    // a touch while Face ID is up leaves the waiting send as it is
-                    guard phase == .form, !authPending else { return }
+                    guard phase == .form else { return }
                     if armed && active {
-                        authenticateThenSend()
+                        startSending()
                     } else {
                         armed = false
                         withAnimation(Self.settle) { lift = 0 }
@@ -1392,29 +1388,12 @@ struct SwipeUpToSendScrollView<Content: View>: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
             guard active, phase == .form else { return }
-            authenticateThenSend()
+            startSending()
         }
     }
 
-    /// Kaspa never leaves on the swipe alone: Face ID first, on every Send Kaspa screen. Declined,
-    /// the screen settles back with everything still filled in.
-    private func authenticateThenSend() {
-        guard !authPending, phase == .form else { return }
-        authPending = true
-        DeviceAuth.authenticate(
-            reason: AppLocalization.string("Confirm sending Kaspa"),
-            onSuccess: {
-                startSending()
-                authPending = false
-            },
-            onFailure: {
-                authPending = false
-                armed = false
-                withAnimation(Self.settle) { lift = 0 }
-            }
-        )
-    }
-
+    /// The swipe is the confirmation: no Face ID on sends (owner's call, 2026-11-13). The switch
+    /// to `.sending` happens at once, so a second swipe or VoiceOver activation can't send twice.
     private func startSending() {
         guard phase == .form else { return }
         armed = false

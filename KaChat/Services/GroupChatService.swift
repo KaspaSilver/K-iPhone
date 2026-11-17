@@ -893,13 +893,13 @@ final class GroupChatService: ObservableObject {
         content.title = group.name
         switch (targetIsMine, trimmedEmoji.isEmpty) {
         case (true, false):
-            content.body = String(format: String(localized: "%1$@ reacted %2$@ to your message"), reactorName, trimmedEmoji)
+            content.body = String(format: AppLocalization.string("%1$@ reacted %2$@ to your message"), reactorName, trimmedEmoji)
         case (true, true):
-            content.body = String(format: String(localized: "%@ reacted to your message"), reactorName)
+            content.body = String(format: AppLocalization.string("%@ reacted to your message"), reactorName)
         case (false, false):
-            content.body = String(format: String(localized: "%1$@ reacted %2$@ to a message"), reactorName, trimmedEmoji)
+            content.body = String(format: AppLocalization.string("%1$@ reacted %2$@ to a message"), reactorName, trimmedEmoji)
         case (false, true):
-            content.body = String(format: String(localized: "%@ reacted to a message"), reactorName)
+            content.body = String(format: AppLocalization.string("%@ reacted to a message"), reactorName)
         }
         content.threadIdentifier = "group:\(group.id)"
         content.sound = settings.incomingNotificationSoundEnabled ? .default : nil
@@ -1048,6 +1048,8 @@ final class GroupChatService: ObservableObject {
         }
         setCurrentWallet(address)
         clearAllLocalData()
+        // The emptied file and its WAL still hold what was in it: gone too.
+        store.destroyLocalStoreFiles()
     }
 
     func clearAllLocalData() {
@@ -1925,6 +1927,10 @@ final class GroupChatService: ObservableObject {
             // The message just got its real txId - share it with the notification extension so a
             // reaction to it counts as personal under "Only Notify if I'm Mentioned".
             SharedDataManager.syncOwnGroupTxIdsForExtension()
+        } catch let error as GroupSendAccountChangedError {
+            // Another account's store is open now: the row stays with its own account, where the
+            // next launch fails it (`settlePendingMessages`).
+            throw error
         } catch {
             // An unknown outcome may have landed: Not confirmed, no Retry, until its copy arrives.
             let status: ChatMessage.DeliveryStatus = error is SendOutcomeUnknownError ? .warning : .failed
@@ -2010,9 +2016,12 @@ final class GroupChatService: ObservableObject {
             do {
                 try await submitPreparedGroupSend(part)
             } catch {
-                // The rest never went: failed too, so one Retry resends them in order.
-                for rest in prepared[(offset + 1)...] {
-                    markPreparedGroupSend(rest, status: .failed)
+                // The rest never went: failed too, so one Retry resends them in order. Not after
+                // an account switch: their rows aren't in the store that's open now.
+                if !(error is GroupSendAccountChangedError) {
+                    for rest in prepared[(offset + 1)...] {
+                        markPreparedGroupSend(rest, status: .failed)
+                    }
                 }
                 throw error
             }
@@ -2020,10 +2029,52 @@ final class GroupChatService: ObservableObject {
     }
 
     /// Retry on a long voice note's bubble: only its failed parts, in index order, one after
-    /// another. Stops at the first that fails again.
+    /// another. Stops at the first that fails again, and the parts after it stay failed.
+    ///
+    /// - The parts are read live, not from the copies the bubble passed: a part a Retry
+    ///   already sent is no longer failed and isn't sent twice.
+    /// - Every one goes Sending before the first goes out, so the bubble shows Sending for the
+    ///   whole Retry (any failed part shows Failed) and a second tap finds nothing to resend.
+    /// - A second Retry while one runs does nothing (`retryingGroupMessageIds`).
     func retryGroupVoiceNoteParts(_ failedParts: [GroupMessage]) async throws {
-        for part in failedParts where part.isOutgoing && part.deliveryStatus == .failed {
-            try await retryGroupMessage(part)
+        let ids = failedParts.filter(\.isOutgoing).map(\.id)
+        guard !ids.contains(where: { retryingGroupMessageIds.contains($0) }) else { return }
+        let live = failedParts.compactMap { liveFailedOutgoingRow(like: $0) }
+        guard !live.isEmpty else { return }
+        retryingGroupMessageIds.formUnion(live.map(\.id))
+        defer { retryingGroupMessageIds.subtract(live.map(\.id)) }
+        for part in live { setOutgoingRowStatus(part, .pending) }
+
+        let ownerAddress = WalletManager.shared.currentWallet?.publicAddress
+        for (offset, part) in live.enumerated() {
+            do {
+                try await resendGroupMessage(part, ownerAddress: ownerAddress)
+            } catch {
+                if !(error is GroupSendAccountChangedError) {
+                    for rest in live[(offset + 1)...] { setOutgoingRowStatus(rest, .failed) }
+                }
+                throw error
+            }
+        }
+    }
+
+    /// Group messages being resent right now, so a second Retry tap is a no-op.
+    private var retryingGroupMessageIds: Set<UUID> = []
+
+    /// The in-memory row `message` stands for, if it is still an outgoing failed send under the
+    /// same `pending_…` txId. Nil once it was sent, deleted or is being resent.
+    private func liveFailedOutgoingRow(like message: GroupMessage) -> GroupMessage? {
+        guard message.isOutgoing,
+              let row = groupMessages[message.groupId]?.first(where: { $0.id == message.id }),
+              row.txId == message.txId, row.isOutgoing, row.deliveryStatus == .failed else { return nil }
+        return row
+    }
+
+    /// One outgoing row's status, on screen and in the store (keyed by its `pending_…` txId).
+    private func setOutgoingRowStatus(_ message: GroupMessage, _ status: ChatMessage.DeliveryStatus) {
+        store.markMessageFailed(pendingId: message.txId, status: status)
+        if let index = groupMessages[message.groupId]?.firstIndex(where: { $0.id == message.id }) {
+            groupMessages[message.groupId]?[index].deliveryStatus = status
         }
     }
 
@@ -2056,9 +2107,43 @@ final class GroupChatService: ObservableObject {
     /// the message. `message.content` is already the final payload (reply envelope included if it
     /// was a reply), so it's re-encrypted as-is under a fresh msg_id (reusing a msg_id is forbidden;
     /// the message's identity is unchanged).
+    ///
+    /// The row is read live and goes Sending at once, so a second tap (or a tap on a copy the
+    /// screen still shows as failed) finds nothing to resend.
     func retryGroupMessage(_ message: GroupMessage) async throws {
+        guard !retryingGroupMessageIds.contains(message.id),
+              let row = liveFailedOutgoingRow(like: message) else { return }
+        retryingGroupMessageIds.insert(row.id)
+        defer { retryingGroupMessageIds.remove(row.id) }
+        setOutgoingRowStatus(row, .pending)
+        try await resendGroupMessage(row, ownerAddress: WalletManager.shared.currentWallet?.publicAddress)
+    }
+
+    /// The resend itself, for a row already marked Sending. A failure marks it failed again (or
+    /// Not confirmed when the outcome is unknown), unless the account changed: its row is not
+    /// in this account's store, and the next launch settles it.
+    private func resendGroupMessage(_ message: GroupMessage, ownerAddress: String?) async throws {
         let groupId = message.groupId
-        guard message.isOutgoing, message.deliveryStatus == .failed else { return }
+        do {
+            try await resendGroupMessageSealed(message, ownerAddress: ownerAddress)
+        } catch {
+            // Thrown before the queue (missing secrets, no wallet): failed again, as it was.
+            if !(error is GroupSendAccountChangedError),
+               groupMessages[groupId]?.first(where: { $0.id == message.id })?.deliveryStatus == .pending {
+                setOutgoingRowStatus(message, .failed)
+            }
+            throw error
+        }
+    }
+
+    private func resendGroupMessageSealed(_ message: GroupMessage, ownerAddress: String?) async throws {
+        let groupId = message.groupId
+        // Each part of a long note is resent at its own turn: never under an account switched to
+        // since the Retry was tapped.
+        guard let ownerAddress, WalletManager.shared.currentWallet?.publicAddress == ownerAddress,
+              currentWalletAddress == ownerAddress else {
+            throw GroupSendAccountChangedError()
+        }
         guard store.group(id: groupId) != nil else {
             throw KasiaError.networkError("Unknown group.")
         }
@@ -2096,12 +2181,9 @@ final class GroupChatService: ObservableObject {
             msgId: msgId, ciphertext: ciphertext, signature: signature
         )
 
-        // The failed row's own id is its `pending_…` txId (it never got a real one). Reuse it: flip
-        // the existing row back to pending in memory, then resolve/fail the SAME row - no insert.
+        // The failed row's own id is its `pending_…` txId (it never got a real one). Reuse it: the
+        // caller already flipped it back to pending; resolve/fail the SAME row - no insert.
         let pendingId = message.txId
-        if let index = groupMessages[groupId]?.firstIndex(where: { $0.id == message.id }) {
-            groupMessages[groupId]?[index].deliveryStatus = .pending
-        }
 
         do {
             let realTxId = try await ChatService.shared.enqueueOutgoingTxOperation { [weak self] in
@@ -2117,6 +2199,9 @@ final class GroupChatService: ObservableObject {
             }
             // Same as sendGroupMessage: the retried message now has a real txId to share.
             SharedDataManager.syncOwnGroupTxIdsForExtension()
+        } catch let error as GroupSendAccountChangedError {
+            // Another account's store is open now: leave the row for the next launch to settle.
+            throw error
         } catch {
             let status: ChatMessage.DeliveryStatus = error is SendOutcomeUnknownError ? .warning : .failed
             store.markMessageFailed(pendingId: pendingId, status: status)
@@ -2185,6 +2270,9 @@ final class GroupChatService: ObservableObject {
                 applyLocalGroupReaction(targetTxId: targetTxId, groupId: groupId, reactorAddress: wallet.publicAddress, emoji: emoji, deliveryStatus: .sent)
                 store.upsertGroupReaction(targetTxId: targetTxId, groupId: groupId, reactorAddress: wallet.publicAddress, emoji: emoji, reactionTxId: realTxId, blockTime: Int64(Date().timeIntervalSince1970 * 1000), deliveryStatus: nil, failedAction: nil)
             }
+        } catch let error as GroupSendAccountChangedError {
+            // Signed in as someone else now: nothing of this reaction belongs in their store.
+            throw error
         } catch {
             // The reaction tx failed to send. Flag it failed so the pill shows the red error icon and
             // a "Retry" appears under the message. A failed "remove" restores the optimistically-
@@ -2251,6 +2339,8 @@ final class GroupChatService: ObservableObject {
             }
             applyLocalGroupEdit(MessageEditSnapshot(targetTxId: targetTxId, text: clean, editTxId: realTxId, blockTime: now, deliveryStatus: .sent), groupId: groupId)
             store.upsertGroupEdit(targetTxId: targetTxId, groupId: groupId, text: clean, editTxId: realTxId, blockTime: now, deliveryStatus: nil)
+        } catch let error as GroupSendAccountChangedError {
+            throw error
         } catch {
             applyLocalGroupEdit(MessageEditSnapshot(targetTxId: targetTxId, text: clean, editTxId: nil, blockTime: now, deliveryStatus: .failed), groupId: groupId)
             store.upsertGroupEdit(targetTxId: targetTxId, groupId: groupId, text: clean, editTxId: nil, blockTime: now, deliveryStatus: "failed")
@@ -2263,6 +2353,14 @@ final class GroupChatService: ObservableObject {
     /// reusing `ChatService`'s shared UTXO reservation state so group sends can't race with
     /// 1:1 sends for the same UTXOs.
     private func sendSelfStashPayload(_ payloadString: String, from address: String, privateKey: Data, feeOverride: UInt64? = nil) async throws -> String {
+        // Runs at the send's turn in the outgoing queue, which can be well after it was sealed: a
+        // queued group send never goes out once another account is signed in (Log Out, Delete
+        // Account or a switch since), as 1:1's `refuseIfAccountChanged`.
+        guard WalletManager.shared.currentWallet?.publicAddress == address,
+              currentWalletAddress == address else {
+            AppLog.log("[GroupChatService] Refused a queued group send: the account changed")
+            throw GroupSendAccountChangedError()
+        }
         let chatService = ChatService.shared
         let freshUtxos = try await NodePoolService.shared.getUtxosByAddresses([address])
         let candidateUtxos = chatService.prepareMessageUtxos(confirmed: freshUtxos)
@@ -2413,6 +2511,8 @@ final class GroupChatService: ObservableObject {
                     _ = try await self?.sendSelfStashPayload(payloadString, from: senderAddress, privateKey: privateKey)
                 }
                 return
+            } catch let error as GroupSendAccountChangedError {
+                throw error
             } catch {
                 lastError = error
                 if i < attempts - 1 { try? await Task.sleep(nanoseconds: 1_800_000_000) }
@@ -4098,6 +4198,14 @@ final class GroupChatService: ObservableObject {
 
 /// Someone taken out of a group, for telling what they sent while they were in from what they send
 /// after (`GroupChatService.wasMember`). Stored per wallet in `UserDefaults`, like member statuses.
+/// A queued group send whose turn came after another account was signed in. It is refused, and
+/// nothing about it is written into the store that's open now.
+struct GroupSendAccountChangedError: LocalizedError {
+    var errorDescription: String? {
+        AppLocalization.string("Not sent: you switched accounts before this went out.")
+    }
+}
+
 struct FormerGroupMember: Codable {
     let address: String
     let xOnlyPubKeyHex: String

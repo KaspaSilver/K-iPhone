@@ -41,6 +41,9 @@ struct Bech32 {
 
     /// Decode Kaspa bech32 address
     static func decode(_ address: String) -> (hrp: String, version: UInt8, data: Data)? {
+        // Bech32 is single-case: all lower, or all upper (compact QR codes use "KASPA:QR..."). A
+        // mixed-case string isn't a valid address.
+        guard address == address.lowercased() || address == address.uppercased() else { return nil }
         // Split by ":"
         let parts = address.lowercased().split(separator: ":")
         guard parts.count == 2 else { return nil }
@@ -194,23 +197,33 @@ struct KaspaAddress {
         return encoded
     }
 
+    /// Parses a Kaspa address: a known prefix (`kaspa` / `kaspatest`), a valid checksum, and a
+    /// payload of the length its version needs (v0 32, v1 33, v8 32). The length check keeps
+    /// `scriptPublicKey(from:)` from building an unspendable script, or trapping on `UInt8(count)`
+    /// for a payload over 255 bytes. The network isn't checked here: callers compare across both;
+    /// sends check `isValidOnActiveNetwork`.
     init?(address: String) {
-        guard let decoded = Bech32.decode(address) else {
+        guard let decoded = Bech32.decode(address),
+              decoded.hrp == "kaspa" || decoded.hrp == "kaspatest" else {
             return nil
         }
 
-        self.hrp = decoded.hrp
-        self.payload = decoded.data
-
-        // Determine type from version
+        // Determine type from version, with its payload length
         switch decoded.version {
-        case 0, 1:
-            self.type = decoded.version == 0 ? .pubKey : .pubKeyECDSA
+        case 0:
+            guard decoded.data.count == 32 else { return nil }
+            self.type = .pubKey
+        case 1:
+            guard decoded.data.count == 33 else { return nil }
+            self.type = .pubKeyECDSA
         case 8:
+            guard decoded.data.count == 32 else { return nil }
             self.type = .scriptHash
         default:
             return nil
         }
+        self.hrp = decoded.hrp
+        self.payload = decoded.data
     }
 
     init(hrp: String, type: KaspaAddressType, payload: Data) {
@@ -228,6 +241,19 @@ struct KaspaAddress {
         let type: KaspaAddressType = publicKey.count == 32 ? .pubKey : .pubKeyECDSA
 
         return KaspaAddress(hrp: hrp, type: type, payload: publicKey)
+    }
+
+    /// Typed, pasted or scanned input with an address's case fixed: an all-uppercase string (a
+    /// compact QR code's "KASPA:QR...") comes back lowercased; anything else is returned as it is,
+    /// so a mixed-case string stays invalid.
+    static func normalizedCase(_ input: String) -> String {
+        input == input.uppercased() ? input.lowercased() : input
+    }
+
+    /// The input starts with a Kaspa address prefix, in either single case.
+    static func hasAddressPrefix(_ input: String) -> Bool {
+        let normalized = normalizedCase(input)
+        return normalized.hasPrefix("kaspa:") || normalized.hasPrefix("kaspatest:")
     }
 
     /// Validate a Kaspa address string

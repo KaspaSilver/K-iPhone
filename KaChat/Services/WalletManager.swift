@@ -1,6 +1,8 @@
 import Foundation
 import CryptoKit
 import P256K
+import UIKit
+import UserNotifications
 
 struct SavedAccountSummary: Identifiable, Equatable, Codable {
     var alias: String
@@ -598,6 +600,10 @@ final class WalletManager: ObservableObject {
 
         await PushNotificationManager.shared.unregister()
         ChatService.shared.stopPolling()
+        // Its half-typed messages and its banners go with it: the next account to sign in
+        // must not find them, and a banner's Reply would send from that account.
+        ChatService.shared.discardDrafts(forWallet: wallet.publicAddress)
+        Self.clearNotificationsForSignedOutAccount()
         resetInMemoryChatStateForAccountSwitch()
 
         updateSavedAccounts(from: wallet)
@@ -743,6 +749,9 @@ final class WalletManager: ObservableObject {
 
         await PushNotificationManager.shared.unregister()
         ChatService.shared.stopPolling()
+        // Decrypted banners would outlive the account, and Reply on one sends from whichever
+        // account signs in next.
+        Self.clearNotificationsForSignedOutAccount()
 
         // Remove local message DB for the stored wallet, then clear local key material - on both
         // networks, since mainnet and testnet keep this account's data under different addresses,
@@ -797,6 +806,7 @@ final class WalletManager: ObservableObject {
             removeSpendingData(forAccount: owned)
             for variant in Self.accountAddressVariants(owned) {
                 ChatListSnapshotStore.clear(walletAddress: variant)
+                ChatService.shared.discardDrafts(forWallet: variant)
                 ContactsManager.shared.deletePersistedContacts(forWalletAddress: variant)
                 await NextcloudService.shared.revokeAndPurgeStoredState(forWalletAddress: variant)
                 await KachatNameReminders.removeAll(forWallet: variant)
@@ -897,6 +907,8 @@ final class WalletManager: ObservableObject {
 
     /// Get the private key data for the current wallet (used for decryption)
     func getPrivateKey() -> Data? {
+        // Signed out: no key at all, not one read back from the Keychain or the seed.
+        guard currentWallet != nil, !isLoggedOut else { return nil }
         if let cached = cachedPrivateKey, cached.address == currentWallet?.publicAddress {
             return cached.key
         }
@@ -1196,6 +1208,20 @@ final class WalletManager: ObservableObject {
     private func persistSavedAccountsToStorage() {
         guard let data = try? JSONEncoder().encode(savedAccounts) else { return }
         UserDefaults.standard.set(data, forKey: savedAccountsKey)
+    }
+
+    /// Delivered banners (decrypted message text), pending requests and the badge, when the
+    /// signed-in account leaves: Log Out and Delete Account.
+    static func clearNotificationsForSignedOutAccount() {
+        let center = UNUserNotificationCenter.current()
+        center.removeAllDeliveredNotifications()
+        center.removeAllPendingNotificationRequests()
+        SharedDataManager.setUnreadCount(0)
+        if #available(iOS 16.0, *) {
+            center.setBadgeCount(0)
+        } else {
+            UIApplication.shared.applicationIconBadgeNumber = 0
+        }
     }
 
     /// Clears in-memory chat/contact state so data from a previous account cannot leak into UI.

@@ -725,32 +725,38 @@ final class KNSService: NSObject, ObservableObject, URLSessionTaskDelegate {
     ///   - network: Network type (mainnet or testnet) - ignored, uses settings
     /// - Returns: KNSDomainResolution with owner address, or nil if not found
     func resolveDomain(_ domain: String, network: NetworkType = .mainnet) async -> KNSDomainResolution? {
+        await resolveDomainChecked(domain, network: network).resolution
+    }
+
+    /// `resolveDomain`, also saying whether KNS could be asked at all: `failed` is true for a
+    /// network error or a non-404 server error, false for an answer (found, or a 404).
+    func resolveDomainChecked(_ domain: String, network: NetworkType = .mainnet) async -> (resolution: KNSDomainResolution?, failed: Bool) {
         // Ensure domain has .kas suffix
         let fullDomain = domain.lowercased().hasSuffix(".kas") ? domain.lowercased() : "\(domain.lowercased()).kas"
 
         // URL encode the domain name
         guard let encodedDomain = fullDomain.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
-            return nil
+            return (nil, false)
         }
 
-        guard var components = URLComponents(string: baseURL) else { return nil }
+        guard var components = URLComponents(string: baseURL) else { return (nil, true) }
         components.path += "/\(encodedDomain)/owner"
-        guard let url = components.url else { return nil }
+        guard let url = components.url else { return (nil, true) }
 
         do {
             let (data, response) = try await fetchData(from: url)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                return nil
+                return (nil, true)
             }
 
             // 404 means domain not found
             if httpResponse.statusCode == 404 {
-                return nil
+                return (nil, false)
             }
 
             guard httpResponse.statusCode == 200 else {
-                return nil
+                return (nil, true)
             }
 
             let result = try JSONDecoder().decode(KNSDomainOwnerResponse.self, from: data)
@@ -758,17 +764,17 @@ final class KNSService: NSObject, ObservableObject, URLSessionTaskDelegate {
                   let ownerData = result.data,
                   let ownerAddress = ownerData.owner,
                   ownerData.asset == fullDomain else {
-                return nil
+                return (nil, false)
             }
 
-            return KNSDomainResolution(
+            return (KNSDomainResolution(
                 domain: fullDomain,
                 ownerAddress: ownerAddress,
                 inscriptionId: ownerData.id
-            )
+            ), false)
         } catch {
             AppLog.log("[KNS] Domain resolution error for %@: %@", domain, error.localizedDescription)
-            return nil
+            return (nil, true)
         }
     }
 
@@ -1624,6 +1630,12 @@ struct PendingKNSReveal: Codable {
     let revealAmountSompi: UInt64
     let commitOutputIndex: UInt32
     let createdAt: Date
+    /// The commit's coin has been seen unspent at least once. Once seen, its disappearing means
+    /// it was spent (the reveal, normally), and only then is this record safe to drop: it holds
+    /// the only copy of the redeem script that unlocks the commit.
+    var commitSeen: Bool? = nil
+    /// Resumes that looked and found no commit coin, while it had never been seen.
+    var emptyChecks: Int? = nil
     /// A domain transfer's details, for its chat notice; nil for a profile update.
     let domain: String?
     let assetId: String?
@@ -1679,8 +1691,11 @@ struct PendingKNSReveal: Codable {
 /// the fee. If the domain has moved on since, KNS ignores the inscription and the coins still return.
 @MainActor
 enum KNSRevealRecovery {
-    /// A commit that can't be found is dropped after this: it never landed, or its reveal did.
-    private static let missingCommitLifetime: TimeInterval = 24 * 60 * 60
+    /// A commit that was never seen is dropped only after this long and `missingCommitChecks`
+    /// empty looks: the record is the only copy of its redeem script, so a slow commit or a node
+    /// that missed it must not lose it. A commit seen once and then gone was spent: dropped then.
+    private static let missingCommitLifetime: TimeInterval = 30 * 24 * 60 * 60
+    private static let missingCommitChecks = 2
     private static let revealAttempts = 5
 
     /// Commits from this run: left to the send that made them, or to the next launch.
@@ -1710,6 +1725,11 @@ enum KNSRevealRecovery {
     private static func save(_ reveal: PendingKNSReveal, account: String) {
         savedThisRun.insert(reveal.commitTxId)
         store(load(account: account).filter { $0.commitTxId != reveal.commitTxId } + [reveal], account: account)
+    }
+
+    /// Rewrites a stored record in place (a resume's bookkeeping), without marking it as this run's.
+    private static func update(_ reveal: PendingKNSReveal, account: String) {
+        store(load(account: account).map { $0.commitTxId == reveal.commitTxId ? reveal : $0 }, account: account)
     }
 
     private static func clear(commitTxId: String, account: String) {
@@ -1824,10 +1844,35 @@ enum KNSRevealRecovery {
             guard utxos.contains(where: {
                 $0.outpoint.transactionId == reveal.commitTxId && $0.outpoint.index == reveal.commitOutputIndex
             }) else {
-                guard Date().timeIntervalSince(reveal.createdAt) > missingCommitLifetime else { return false }
-                AppLog.log("[KNS_REVEAL] commit %@ is gone: nothing to finish", label)
+                var counted = reveal
+                counted.emptyChecks = (reveal.emptyChecks ?? 0) + 1
+                if reveal.commitSeen == true {
+                    // Seen unspent before, gone now: spent, the reveal went through. The record
+                    // is the only copy of the redeem script, so one lagging node's empty answer
+                    // isn't enough: it takes two in a row.
+                    guard (counted.emptyChecks ?? 0) >= 2 else {
+                        update(counted, account: account)
+                        return false
+                    }
+                    AppLog.log("[KNS_REVEAL] commit %@ was spent: nothing to finish", label)
+                    clear(commitTxId: reveal.commitTxId, account: account)
+                    return true
+                }
+                guard Date().timeIntervalSince(reveal.createdAt) > missingCommitLifetime,
+                      (counted.emptyChecks ?? 0) >= missingCommitChecks else {
+                    update(counted, account: account)
+                    return false
+                }
+                AppLog.log("[KNS_REVEAL] commit %@ never appeared: dropped", label)
                 clear(commitTxId: reveal.commitTxId, account: account)
                 return true
+            }
+            if reveal.commitSeen != true || (reveal.emptyChecks ?? 0) > 0 {
+                // seen unspent: any earlier empty answers were a lagging node
+                var seen = reveal
+                seen.commitSeen = true
+                seen.emptyChecks = 0
+                update(seen, account: account)
             }
             // the reveal's change lands here, so it has to be on the list first
             if let changeIndex = reveal.changeIndex {
@@ -2503,16 +2548,16 @@ enum KNSProfileFieldKey: String, CaseIterable, Codable {
 
     var displayName: String {
         switch self {
-        case .redirectUrl: return String(localized: "Redirect")
-        case .avatarUrl: return String(localized: "Avatar")
-        case .bannerUrl: return String(localized: "Banner")
-        case .bio: return String(localized: "Bio")
-        case .x: return String(localized: "X")
-        case .website: return String(localized: "Website")
-        case .telegram: return String(localized: "Telegram")
-        case .discord: return String(localized: "Discord")
-        case .contactEmail: return String(localized: "Email")
-        case .github: return String(localized: "GitHub")
+        case .redirectUrl: return AppLocalization.string("Redirect")
+        case .avatarUrl: return AppLocalization.string("Avatar")
+        case .bannerUrl: return AppLocalization.string("Banner")
+        case .bio: return AppLocalization.string("Bio")
+        case .x: return AppLocalization.string("X")
+        case .website: return AppLocalization.string("Website")
+        case .telegram: return AppLocalization.string("Telegram")
+        case .discord: return AppLocalization.string("Discord")
+        case .contactEmail: return AppLocalization.string("Email")
+        case .github: return AppLocalization.string("GitHub")
         }
     }
 }

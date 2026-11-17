@@ -130,15 +130,7 @@ struct KaChatApp: App {
 
     @MainActor
     private func handleScenePhaseChange(to newPhase: ScenePhase) {
-        // Covered the moment the app stops being the thing in front (the switcher, a system
-        // prompt, a call), uncovered when it is again. The cover is its own window
-        // (`PrivacyCoverWindow`), so it is over every sheet too: the 12 or 24 words, the
-        // passphrase and the private key are shown on sheets.
-        if newPhase == .active {
-            PrivacyCoverWindow.hide()
-        } else {
-            PrivacyCoverWindow.show()
-        }
+        // No privacy cover in the App Switcher (owner's call, 2026-11-15): the app shows as it is.
         switch newPhase {
         case .background:
             // Persist any debounced message draft immediately so it survives termination.
@@ -704,10 +696,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     private func registerNotificationCategories() {
         let reply = UNTextInputNotificationAction(
             identifier: Self.replyActionId,
-            title: String(localized: "Reply"),
-            options: [],
-            textInputButtonTitle: String(localized: "Send"),
-            textInputPlaceholder: String(localized: "Message")
+            title: AppLocalization.string("Reply"),
+            // A reply sends from the owner's address and pays its fee: the phone must be
+            // unlocked first. An unlocked Apple Watch on the wrist still replies directly.
+            options: [.authenticationRequired],
+            textInputButtonTitle: AppLocalization.string("Send"),
+            textInputPlaceholder: AppLocalization.string("Message")
         )
         let category = UNNotificationCategory(
             identifier: Self.messageCategoryId,
@@ -777,8 +771,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     private func postQuickReplyFailureNotification(threadIdentifier: String) {
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "Reply not sent")
-        content.body = String(localized: "Your reply couldn't be sent. Open KaChat to try again.")
+        content.title = AppLocalization.string("Reply not sent")
+        content.body = AppLocalization.string("Your reply couldn't be sent. Open KaChat to try again.")
         content.sound = .default
         content.threadIdentifier = threadIdentifier
         UNUserNotificationCenter.current().add(
@@ -1116,54 +1110,4 @@ extension Notification.Name {
     /// A "Received" notification for one of your addresses was tapped: `OwnAddressRoute.pending`.
     static let openOwnAddress = Notification.Name("openOwnAddress")
     static let openGroup = Notification.Name("openGroup")
-}
-
-/// Puts `PrivacyCoverView` in a window of its own above the app, as KaPost and KaPay do. An
-/// overlay on the root view sat underneath presented sheets, which is where the 12 or 24 words,
-/// the passphrase and the private key are shown. Hidden, the window is gone, so it never takes
-/// a touch. One cover per window scene: on iPad and Mac the app can have several windows open,
-/// and each one is snapshotted.
-@MainActor
-private enum PrivacyCoverWindow {
-    private static var windows: [UIWindow] = []
-
-    static func show() {
-        let covered = Set(windows.compactMap { $0.windowScene.map(ObjectIdentifier.init) })
-        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
-        where !covered.contains(ObjectIdentifier(scene)) {
-            let cover = UIWindow(windowScene: scene)
-            cover.windowLevel = .alert + 1
-            // the app's appearance (Settings' choice), which its own windows carry
-            cover.overrideUserInterfaceStyle = scene.windows.first?.overrideUserInterfaceStyle ?? .unspecified
-            cover.rootViewController = UIHostingController(rootView: PrivacyCoverView())
-            cover.isHidden = false
-            windows.append(cover)
-        }
-    }
-
-    static func hide() {
-        windows.forEach { $0.isHidden = true }
-        windows = []
-    }
-}
-
-/// What the App Switcher and a system prompt see instead of the app's contents: the app's own
-/// icon (`KaChatAppIcon`, the home-screen icon's light and dark versions), not the Kaspa logo.
-private struct PrivacyCoverView: View {
-    var body: some View {
-        ZStack {
-            // Solid under the blur: in its own window the material would otherwise let large
-            // words on a sheet below be read through it.
-            Color(.systemBackground)
-            Rectangle().fill(.ultraThinMaterial)
-            Image("KaChatAppIcon")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 84, height: 84)
-                // The icon's own corner shape, as on the home screen.
-                .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
-                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-        }
-        .ignoresSafeArea()
-    }
 }

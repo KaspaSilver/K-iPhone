@@ -51,6 +51,15 @@ final class PushNotificationManager: ObservableObject {
     private var updateWatchedTask: Task<Void, Never>?
     /// How long sign-out waits on the push service (see `unregister`).
     private static let unregisterWaitNs: UInt64 = 6_000_000_000
+    /// The one unregister in progress. Log Out waits at most `unregisterWaitNs` for it, but it
+    /// runs to the end, and a registration waits for it first: a DELETE that landed after the
+    /// next account registered would wipe that account's registration.
+    private var unregisterTask: Task<Void, Never>?
+    /// Bumped by every successful registration; an older unregister's result then changes nothing.
+    private var registrationGeneration = 0
+    /// Set while an unregister the service hasn't confirmed is owed, so it's sent again later
+    /// (`retryPendingUnregisterIfNeeded`) until it goes through or a registration replaces it.
+    private let pendingUnregisterDefaultsKey = "push_pending_unregister"
     /// A pending push older than this is dropped unfetched (see `processPendingMessages`).
     private static let pendingMessageMaxAgeMs: Int64 = 3 * 24 * 60 * 60 * 1000
     private var lastWatchedUpdateAt: Date?
@@ -165,6 +174,7 @@ final class PushNotificationManager: ObservableObject {
     }
 
     private func applyRegistrationRefresh() {
+        retryPendingUnregisterIfNeeded()
         let settings = AppSettings.load()
         guard settings.notificationMode == .remotePush else { return }
         // No push service on this network (testnet has none yet). The service this device
@@ -330,6 +340,11 @@ final class PushNotificationManager: ObservableObject {
             throw PushError.noPushService
         }
         await unregisterFromSupersededServiceIfNeeded()
+        // An unregister still running (Log Out a moment ago) goes first, so its DELETE can't
+        // land after this registration and wipe it.
+        if let pendingUnregister = unregisterTask {
+            await pendingUnregister.value
+        }
         guard let token = deviceToken else {
             throw PushError.noDeviceToken
         }
@@ -461,6 +476,9 @@ final class PushNotificationManager: ObservableObject {
         isRegistered = true
         lastError = nil
         persistRegistrationStatus(true)
+        // This registration replaced anything an earlier unregister still owed the service.
+        registrationGeneration += 1
+        UserDefaults.standard.removeObject(forKey: pendingUnregisterDefaultsKey)
         UserDefaults.standard.set(AppSettings.load().pushIndexerURL, forKey: registeredBaseURLDefaultsKey)
         UserDefaults.standard.set(ApnsEnvironment.current.rawValue, forKey: registeredApnsEnvironmentDefaultsKey)
         UserDefaults.standard.set(Self.currentBuildIdentifier, forKey: registeredBuildDefaultsKey)
@@ -675,7 +693,8 @@ final class PushNotificationManager: ObservableObject {
         // users with groups but no push-eligible 1:1 chats.
         if watchedAddresses.isEmpty && watchedGroupIds.isEmpty {
             AppLog.log("[Push] No eligible chats for push, unregistering device from indexer")
-            await performUnregister()
+            // through the shared task, so a registration right after waits for it
+            await startUnregisterTask().value
             lastWatchedSignature = ""
             lastWatchedUpdateSuccessAt = Date()
             pendingWatchedSignature = nil
@@ -916,22 +935,58 @@ final class PushNotificationManager: ObservableObject {
     }
 
     /// Unregister for callers the user is waiting on (Log Out, Delete, turning push off). It can
-    /// take over a minute on a hung server and nothing on screen says so, so it gets a few
-    /// seconds; past that it's given up, the same outcome as any failed unregister.
+    /// take over a minute on a hung server and nothing on screen says so, so the caller waits a
+    /// few seconds at most. The request itself runs on to the end, the next registration waits
+    /// for it, and one that fails is sent again on a later refresh (`pendingUnregisterDefaultsKey`).
     func unregister() async {
+        guard deviceToken != nil else { return }
+        // Not registered as far as this device is concerned from now on: the next sign-in
+        // registers in full (replacing whatever the service still holds) instead of updating.
+        UserDefaults.standard.set(true, forKey: pendingUnregisterDefaultsKey)
+        isRegistered = false
+        persistRegistrationStatus(false)
+        let task = startUnregisterTask()
         let waitNs = Self.unregisterWaitNs
+        // Wait a few seconds at most; the unregister itself is never cancelled.
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.performUnregister() }
+            group.addTask { await task.value }
             group.addTask { try? await Task.sleep(nanoseconds: waitNs) }
             _ = await group.next()
             group.cancelAll()
         }
     }
 
-    private func performUnregister() async {
+    /// The shared unregister: a second call while one runs gets the same task.
+    @discardableResult
+    private func startUnregisterTask() -> Task<Void, Never> {
+        if let running = unregisterTask { return running }
+        let generation = registrationGeneration
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performUnregister(generation: generation)
+            self.unregisterTask = nil
+        }
+        unregisterTask = task
+        return task
+    }
+
+    /// An unregister the service never confirmed (no network at Log Out, a server error): sent
+    /// again on the next refresh, while nothing newer is registered.
+    private func retryPendingUnregisterIfNeeded() {
+        guard UserDefaults.standard.bool(forKey: pendingUnregisterDefaultsKey) else { return }
+        guard deviceToken != nil, !isRegistered, !registrationInFlight, unregisterTask == nil else { return }
+        AppLog.log("[Push] Retrying an unregister the service never confirmed")
+        startUnregisterTask()
+    }
+
+    private func performUnregister(generation: Int) async {
+        // A registration since this unregister began replaced it on the service: nothing to do.
+        var superseded: Bool { registrationGeneration != generation }
         guard let token = deviceToken else { return }
         guard hasPushService else {
             await leavePushServiceOfOtherNetworkIfNeeded()
+            // No push service on this network: nothing left to retry here.
+            if !superseded { UserDefaults.standard.removeObject(forKey: pendingUnregisterDefaultsKey) }
             return
         }
 
@@ -974,6 +1029,8 @@ final class PushNotificationManager: ObservableObject {
                 return
             }
             if httpResponse.statusCode == 200 {
+                UserDefaults.standard.removeObject(forKey: pendingUnregisterDefaultsKey)
+                guard !superseded else { return }
                 isRegistered = false
                 persistRegistrationStatus(false)
                 lastError = nil
@@ -987,12 +1044,16 @@ final class PushNotificationManager: ObservableObject {
                 activateWalletBindingConflictCooldown(reason: reason)
             }
             if (400...499).contains(httpResponse.statusCode) {
-                // Local token/state is stale or invalid for this backend; stop retry loops.
-                isRegistered = false
-                persistRegistrationStatus(false)
+                // Local token/state is stale or invalid for this backend: nothing to retry.
+                UserDefaults.standard.removeObject(forKey: pendingUnregisterDefaultsKey)
+                if !superseded {
+                    isRegistered = false
+                    persistRegistrationStatus(false)
+                }
             }
             AppLog.log("[Push] Failed to unregister: status=%d reason=%@", httpResponse.statusCode, reason)
         } catch {
+            // The marker stays set: retried on the next refresh.
             AppLog.log("[Push] Error unregistering: %@", error.localizedDescription)
         }
     }

@@ -267,7 +267,14 @@ struct SendKaChatPaymentIntent: AppIntent {
 
         // Every Siri / Shortcuts payment is confirmed first: an automation, an imported shortcut
         // or a misheard amount must never send KAS on its own (IOS-021). Declining cancels.
-        let question = String(format: AppLocalization.string("Send %@ to %@?"), KaspaUnit.amount(amountSompi), target.alias)
+        // Name the recipient even for an auto-added contact with no alias, and show the fee:
+        // the confirm is the only Review a Siri payment gets.
+        let alias = target.alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let recipient = alias.isEmpty ? "\(target.address.prefix(14))...\(target.address.suffix(6))" : alias
+        var question = String(format: AppLocalization.string("Send %@ to %@?"), KaspaUnit.amount(amountSompi), recipient)
+        if let estimate = try? await ChatService.shared.estimatePaymentFee(to: target, amountSompi: amountSompi, note: paymentNote) {
+            question += " " + String(format: AppLocalization.string("Network fee: %@"), KaspaUnit.amount(estimate.total(extra: 0)))
+        }
         if #available(iOS 18.0, *) {
             try await requestConfirmation(actionName: .send, dialog: IntentDialog(stringLiteral: question))
         } else {
@@ -278,18 +285,15 @@ struct SendKaChatPaymentIntent: AppIntent {
             }
         }
 
-        // Kaspa never leaves on a spoken Confirm alone: Face ID first, as at every in-app swipe.
-        // Declined or unavailable, nothing is sent.
-        guard await DeviceAuth.confirm(reason: AppLocalization.string("Confirm sending Kaspa")) else {
-            throw KasiaError.networkError(AppLocalization.string("Sending Kaspa needs Face ID or your passcode."))
-        }
+        // The Confirm above is the confirmation, on an unlocked phone (`.requiresAuthentication`):
+        // no Face ID on sends, as in the app.
 
         let txId = try await ChatService.shared.sendPayment(to: target, amountSompi: amountSompi, note: paymentNote)
         // nil: deferred until your coins confirm. It sends on its own, so it isn't "sent" yet.
         guard txId != nil else {
-            return .result(dialog: "Payment to \(target.alias) is waiting for your coins to confirm. It sends on its own in a moment, so don't send it again.")
+            return .result(dialog: "Payment to \(recipient) is waiting for your coins to confirm. It sends on its own in a moment, so don't send it again.")
         }
-        return .result(dialog: "Payment sent to \(target.alias)")
+        return .result(dialog: "Payment sent to \(recipient)")
     }
 }
 

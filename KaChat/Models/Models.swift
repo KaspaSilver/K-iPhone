@@ -163,9 +163,9 @@ enum ContactNotificationMode: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .off: return String(localized: "Off")
-        case .noSound: return String(localized: "No Sound")
-        case .sound: return String(localized: "Sound")
+        case .off: return AppLocalization.string("Off")
+        case .noSound: return AppLocalization.string("No Sound")
+        case .sound: return AppLocalization.string("Sound")
         }
     }
 }
@@ -558,13 +558,13 @@ enum MessageRetention: String, Codable, CaseIterable {
     var displayName: String {
         switch self {
         case .forever:
-            return String(localized: "Keep forever")
+            return AppLocalization.string("Keep forever")
         case .days30:
-            return String(localized: "30 days")
+            return AppLocalization.string("30 days")
         case .days90:
-            return String(localized: "90 days")
+            return AppLocalization.string("90 days")
         case .year1:
-            return String(localized: "1 year")
+            return AppLocalization.string("1 year")
         }
     }
 }
@@ -1503,10 +1503,29 @@ enum MediaFileEnvelope {
         return "{\"type\":\"file\",\"name\":\"\(escape(name))\",\"size\":\(size),\"mimeType\":\"\(escape(mimeType))\"\(part),\"content\":\"\(escape(dataUrlContent))\"}"
     }
 
+    /// A JSON string body: `"`, `\` and every control character, which a received frame's
+    /// `name` or `mimeType` can carry (the sender wrote them) and which used to leave invalid
+    /// JSON, so the message showed as raw text. Still no "\/" escaping, and a string with none
+    /// of these (every data URL) comes back as it is, with no copy of the multi-MB content.
     private static func escape(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+        guard value.utf8.contains(where: { $0 < 0x20 || $0 == 0x22 || $0 == 0x5C }) else { return value }
+        var out = String.UnicodeScalarView()
+        for scalar in value.unicodeScalars {
+            switch scalar {
+            case "\"": out.append(contentsOf: "\\\"".unicodeScalars)
+            case "\\": out.append(contentsOf: "\\\\".unicodeScalars)
+            case "\n": out.append(contentsOf: "\\n".unicodeScalars)
+            case "\r": out.append(contentsOf: "\\r".unicodeScalars)
+            case "\t": out.append(contentsOf: "\\t".unicodeScalars)
+            default:
+                if scalar.value < 0x20 {
+                    out.append(contentsOf: String(format: "\\u%04x", scalar.value).unicodeScalars)
+                } else {
+                    out.append(scalar)
+                }
+            }
+        }
+        return String(out)
     }
 }
 
@@ -1895,7 +1914,10 @@ enum VoicePartGrouping {
         }
         var result = Result<Message>()
         for key in order {
-            guard let members = tagged[key], let anchor = members.first?.message else { continue }
+            // Anchored on the lowest part present, not the earliest row: while a note sends its
+            // parts confirm out of order, and an earliest-row anchor made the bubble hop.
+            guard let members = tagged[key],
+                  let anchor = members.min(by: { $0.tag.index < $1.tag.index })?.message else { continue }
             var byIndex: [Int: Message] = [:]
             for member in members {
                 if let existing = byIndex[member.tag.index] {
@@ -2444,8 +2466,8 @@ enum NotificationMode: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .disabled: return String(localized: "Disabled")
-        case .remotePush: return String(localized: "Remote push")
+        case .disabled: return AppLocalization.string("Disabled")
+        case .remotePush: return AppLocalization.string("Remote push")
         }
     }
 }

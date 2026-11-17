@@ -20,7 +20,7 @@ extension KachatNames {
 
         static func of(expiresAt: Int64, graceMs: Int64, nowMs: Int64) -> Status {
             if nowMs < expiresAt { return .active }
-            if nowMs < expiresAt + graceMs { return .grace }
+            if nowMs < Codec.saturatingAdd(expiresAt, graceMs) { return .grace }
             return .lapsed
         }
     }
@@ -566,8 +566,10 @@ extension KachatNames {
                     throw Failure("\(idHex): input without its outpoint")
                 }
                 let sig = try unhex(str(any["signature_script"]) ?? "")
-                let order = num(any["index"]).map(Int.init) ?? k
-                inputs.append((order, ViewInput(outpoint: Outpoint(txid: try unhex32(prev), index: UInt32(idx)), signatureScript: sig)))
+                // A REST server's numbers are outside data: out of range is a bad answer, not a trap.
+                guard let index = UInt32(exactly: idx) else { throw Failure("\(idHex): input outpoint index out of range") }
+                let order = num(any["index"]).flatMap { Int(exactly: $0) } ?? k
+                inputs.append((order, ViewInput(outpoint: Outpoint(txid: try unhex32(prev), index: index), signatureScript: sig)))
             }
             var outputs: [(Int, TxOutput)] = []
             for (k, any) in ((j["outputs"] as? [[String: Any]]) ?? []).enumerated() {
@@ -576,10 +578,12 @@ extension KachatNames {
                 }
                 var covenant: CovenantBinding?
                 if let cid = str(any["covenant_id"]), !cid.isEmpty {
-                    guard let auth = num(any["covenant_authorizing_input"]) else { throw Failure("\(idHex): covenant output without its authorizing input") }
-                    covenant = CovenantBinding(authorizingInput: UInt16(auth), covenantId: try unhex32(cid))
+                    guard let auth = num(any["covenant_authorizing_input"]).flatMap({ UInt16(exactly: $0) }) else {
+                        throw Failure("\(idHex): covenant output without a valid authorizing input")
+                    }
+                    covenant = CovenantBinding(authorizingInput: auth, covenantId: try unhex32(cid))
                 }
-                let order = num(any["index"]).map(Int.init) ?? k
+                let order = num(any["index"]).flatMap { Int(exactly: $0) } ?? k
                 outputs.append((order, TxOutput(value: amount, scriptVersion: 0, script: try unhex(spk), covenant: covenant)))
             }
             let payload = try unhex(str(j["payload"]) ?? "")
@@ -862,7 +866,7 @@ extension KachatNames {
                     let k = blake3(nameBytes)
                     var padded = nameBytes.prefix(32)
                     padded.append(Data(repeating: 0, count: 32 - padded.count))
-                    let f = NameFields(key: k, paddedName: Data(padded), owner: owner, price: 0, periodStart: now, expiresAt: now + years * m.params.periodMs)
+                    let f = NameFields(key: k, paddedName: Data(padded), owner: owner, price: 0, periodStart: now, expiresAt: try Codec.periodEnd(now, years: years, periodMs: m.params.periodMs))
                     predicted.append((UInt16(i), .gap(lo: g.lo, hi: hex(k))))
                     predicted.append((UInt16(i), .gap(lo: hex(k), hi: g.hi)))
                     predicted.append((UInt16(i), .name(f, name: name)))
@@ -926,12 +930,12 @@ extension KachatNames {
                 case "extend":
                     // periodStart kept, expiresAt + years (the contract checked the 2-year cap)
                     let years = try RegistryState.argInt(sp.args, 0)
-                    predicted.append((UInt16(i), .name(f.extended(years, periodMs: m.params.periodMs), name: n.name)))
+                    predicted.append((UInt16(i), .name(try f.extended(years, periodMs: m.params.periodMs), name: n.name)))
                     events.append(Event(txId: id, op: "extend", name: n.name, at: tx.at, from: nil, to: nil, price: nil, years: years))
                 case "renew":
                     // a new period from the old expiry
                     let years = try RegistryState.argInt(sp.args, 0)
-                    predicted.append((UInt16(i), .name(f.renewed(years, periodMs: m.params.periodMs), name: n.name)))
+                    predicted.append((UInt16(i), .name(try f.renewed(years, periodMs: m.params.periodMs), name: n.name)))
                     events.append(Event(txId: id, op: "renew", name: n.name, at: tx.at, from: nil, to: nil, price: nil, years: years))
                 case "release":
                     events.append(Event(txId: id, op: "release", name: n.name, at: tx.at, from: n.owner, to: nil, price: nil, years: nil))
@@ -1059,6 +1063,9 @@ extension KachatNames {
             /// The record, when registered and complete. `ownerKey` falls back to `keyOf(owner)`.
             func info(keyOf: (String) -> Data?) -> NameInfo? {
                 guard registered != false, let expiresAt, let op = outpoint?.outpoint else { return nil }
+                // An indexer's times are outside data: out of range would trap the math on them.
+                let times = [expiresAt, periodStart ?? 0, registeredAt ?? 0, updatedAt ?? 0]
+                guard times.allSatisfy({ (0...Codec.maxTimeMs).contains($0) }) else { return nil }
                 let n = Codec.normalize(name)
                 guard Codec.isValid(n) else { return nil }
                 guard let owner = ownerKey.flatMap({ try? unhex32($0) }) ?? owner.flatMap(keyOf), owner.count == 32 else { return nil }

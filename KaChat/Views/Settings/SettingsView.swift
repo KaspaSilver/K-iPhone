@@ -2195,7 +2195,7 @@ struct ConnectionSettingsView: View {
                     Text(verbatim: tld.suffix)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(tld.apiBaseURL(for: settingsViewModel.settings.networkType) ?? String(localized: "Not available on this network"))
+                    Text(tld.apiBaseURL(for: settingsViewModel.settings.networkType) ?? AppLocalization.string("Not available on this network"))
                         .font(.system(.body, design: .monospaced))
                         .foregroundColor(.secondary)
                         .textSelection(.enabled)
@@ -2596,7 +2596,8 @@ struct BalanceToolbarLabel: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 15, height: 15)
-            Text(verbatim: "\(String(format: "%.8f", Double(walletManager.currentWallet?.balanceSompi ?? 0) / 100_000_000.0)) \(KaspaUnit.symbol)")
+            // "--" until the balance is known, as Wallet shows - never a "0" that looks real.
+            Text(verbatim: "\(walletManager.currentWallet?.balanceSompi.map { String(format: "%.8f", Double($0) / 100_000_000.0) } ?? "--") \(KaspaUnit.symbol)")
                 .font(.footnote.weight(.semibold))
                 .monospacedDigit()
                 .foregroundColor(.secondary)
@@ -3632,6 +3633,15 @@ struct NextcloudSettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("The app password is removed from this device's Keychain. You can reconnect any time.")
+        }
+        // The server didn't confirm the revoke: say so, and where to remove it by hand.
+        .alert("Couldn't Remove App Password", isPresented: Binding(
+            get: { service.appPasswordRevokeFailure != nil },
+            set: { if !$0 { service.clearRevokeFailure() } }
+        )) {
+            Button("OK", role: .cancel) { service.clearRevokeFailure() }
+        } message: {
+            Text(verbatim: service.appPasswordRevokeFailure ?? "")
         }
         .sheet(isPresented: $showStartFolderPicker) {
             NextcloudFolderSelectView { path in
