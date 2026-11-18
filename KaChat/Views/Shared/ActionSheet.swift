@@ -1024,13 +1024,17 @@ struct DeliveryStatusLabel: View {
 /// so the avatar sits inside the bar, and taps there reached the band behind the chip instead
 /// of the chip - tapping the avatar jumped to the top of the thread. The band now decides by
 /// where the tap landed, so wherever a tap on the chip ends up, it opens the info screen.
+///
+/// The band alone still missed the avatar's top half: that part is drawn inside the navigation
+/// bar, and the bar takes the touch before anything underneath sees it. An invisible principal
+/// item fills the bar's middle, over the avatar, and opens the info screen too.
 private struct ChatHeaderTapBand: ViewModifier {
     let onChip: () -> Void
     let onBand: () -> Void
     @State private var chipWidth: CGFloat = 0
 
     /// Extra reach either side of the chip, so a tap just off the pill still counts.
-    private let chipMargin: CGFloat = 24
+    private let chipMargin: CGFloat = 40
 
     func body(content: Content) -> some View {
         content
@@ -1040,6 +1044,16 @@ private struct ChatHeaderTapBand: ViewModifier {
                 }
             )
             .onPreferenceChange(ChatHeaderChipWidthKey.self) { chipWidth = $0 }
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Color.clear
+                        .frame(width: max(chipWidth, 120) + chipMargin * 2, height: 44)
+                        .contentShape(Rectangle())
+                        .onTapGesture(perform: onChip)
+                        // the chip below already says what this does
+                        .accessibilityHidden(true)
+                }
+            }
             .frame(maxWidth: .infinity)
             // A BACKGROUND, not a ZStack layer: `Color.clear` in a ZStack is flexible in both
             // axes and would size the whole inset to the proposed height, swallowing the screen.

@@ -400,7 +400,7 @@
 "No new requests" = "Новых запросов нет";
 
 /* Welcome Guide: .kachat and Message Requests */
-"50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages." = "Для начала рекомендуется 50 Kaspa — этого хватит, чтобы получить имя .kachat и какое-то время общаться. 5 Kaspa хватает примерно на 2500 сообщений.";
+"5 Kaspa is enough for about 2500 messages." = "5 Kaspa хватает примерно на 2500 сообщений.";
 "Nextcloud is off while Testnet is on." = "Nextcloud отключён, пока включена тестовая сеть.";
 "Cancelled." = "Отменено.";
 "Confirm this .kachat transaction" = "Подтвердите эту транзакцию .kachat";
@@ -1523,3 +1523,11 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Ваш адрес для чатов также платит %@ KAS, чтобы сообщить %@ об этом платеже.";
 "Tap Retry on the photo to send the rest." = "Нажмите «Повторить» на фото, чтобы отправить остальное.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Этому сообщению нужно слишком много монет для одной транзакции. Используйте Compound UTXOs для адреса чатов и попробуйте снова.";
+"Use Their Domain Name" = "Использовать доменное имя";
+"Show Request As QR" = "Показать запрос как QR";
+"Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Отсканируйте камерой iPhone, чтобы оплатить в KaPay — всё уже заполнено.";
+"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "Отсканируйте камерой iPhone, чтобы оплатить в KaChat — всё уже заполнено.";
+"Get a .kachat domain" = "Получить домен .kachat";
+"Set as Name" = "Сделать именем";
+"Their Name" = "Его имя";
+"Get a .kachat name" = "Получить имя .kachat";

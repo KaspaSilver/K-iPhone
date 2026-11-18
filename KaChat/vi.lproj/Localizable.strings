@@ -400,7 +400,7 @@
 "No new requests" = "Không có yêu cầu mới";
 
 /* Welcome Guide: .kachat and Message Requests */
-"50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages." = "Nên có 50 Kaspa để bắt đầu - đủ để nhận một tên .kachat và trò chuyện một thời gian. 5 Kaspa đủ cho khoảng 2500 tin nhắn.";
+"5 Kaspa is enough for about 2500 messages." = "5 Kaspa đủ cho khoảng 2500 tin nhắn.";
 "Nextcloud is off while Testnet is on." = "Nextcloud tắt khi Testnet đang bật.";
 "Cancelled." = "Đã hủy.";
 "Confirm this .kachat transaction" = "Xác nhận giao dịch .kachat này";
@@ -1523,3 +1523,11 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Địa chỉ trò chuyện của bạn cũng trả %@ KAS để báo cho %@ về khoản thanh toán này.";
 "Tap Retry on the photo to send the rest." = "Nhấn Thử lại trên ảnh để gửi phần còn lại.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Tin nhắn này cần quá nhiều coin cho một giao dịch. Hãy dùng Compound UTXOs cho địa chỉ trò chuyện, rồi thử lại.";
+"Use Their Domain Name" = "Dùng tên miền của họ";
+"Show Request As QR" = "Hiện yêu cầu dưới dạng QR";
+"Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Quét bằng camera iPhone để thanh toán trong KaPay, mọi thứ đã được điền sẵn.";
+"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "Quét bằng camera iPhone để thanh toán trong KaChat, mọi thứ đã được điền sẵn.";
+"Get a .kachat domain" = "Nhận tên miền .kachat";
+"Set as Name" = "Đặt làm tên";
+"Their Name" = "Tên của họ";
+"Get a .kachat name" = "Nhận tên .kachat";

@@ -381,7 +381,7 @@ struct WelcomeGuideView: View {
         scaffold(
             icon: "qrcode",
             title: "Fund Your Chatting Address",
-            body: "50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages.",
+            body: "5 Kaspa is enough for about 2500 messages.",
             buttonTitle: "Next",
             extra: {
                 VStack(spacing: 12) {

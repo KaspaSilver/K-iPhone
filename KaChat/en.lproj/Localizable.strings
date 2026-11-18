@@ -400,7 +400,7 @@
 "No new requests" = "No new requests";
 
 /* Welcome Guide: .kachat and Message Requests */
-"50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages." = "50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages.";
+"5 Kaspa is enough for about 2500 messages." = "5 Kaspa is enough for about 2500 messages.";
 "Nextcloud is off while Testnet is on." = "Nextcloud is off while Testnet is on.";
 "Cancelled." = "Cancelled.";
 "Confirm this .kachat transaction" = "Confirm this .kachat transaction";
@@ -1523,3 +1523,11 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Your chatting address also pays %@ KAS to tell %@ about this payment.";
 "Tap Retry on the photo to send the rest." = "Tap Retry on the photo to send the rest.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again.";
+"Use Their Domain Name" = "Use Their Domain Name";
+"Show Request As QR" = "Show Request As QR";
+"Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Scan it with an iPhone's camera to pay in KaPay, with everything filled in.";
+"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "Scan it with an iPhone's camera to pay in KaChat, with everything filled in.";
+"Get a .kachat domain" = "Get a .kachat domain";
+"Set as Name" = "Set as Name";
+"Their Name" = "Their Name";
+"Get a .kachat name" = "Get a .kachat name";

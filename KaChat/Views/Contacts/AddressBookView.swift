@@ -487,12 +487,15 @@ enum AddressBookEditResult: Equatable {
     case saved, removed
 }
 
-/// Add or edit one entry. With an `address` it edits that address's entry (or adds it, with
-/// `suggestedName` filled in - User Info's "Add to Address Book"); without one the address is
-/// typed, pasted or scanned.
+/// Add or edit one entry. With an `address` it edits that address's entry (or adds it - User
+/// Info's "Add to Contacts"); without one the address is typed, pasted or scanned. A new entry
+/// opens with no name - unless you already named them in their chat (`presetName`) - and Save
+/// needs one; "Use Their Domain Name" fills it in.
 struct AddressBookEntryEditor: View {
     let address: String?
-    var suggestedName: String = ""
+    /// The name you gave them in User Info before they were in Contacts. Never their address or
+    /// domain: those are what the empty field and the domain button are for.
+    var presetName: String? = nil
     let onDone: (AddressBookEditResult) -> Void
 
     @ObservedObject private var book = AddressBookManager.shared
@@ -514,6 +517,8 @@ struct AddressBookEntryEditor: View {
     @State private var selectedTLD: NameServiceTLD?
     @State private var isResolving = false
     @State private var lookupError: String?
+    /// The address's own .kachat name, in full ("alice.kachat"), once looked up.
+    @State private var kachatName: String?
 
     /// The address being saved: the one this editor was opened for, else what the typed domain
     /// resolved to, else what was typed.
@@ -528,6 +533,20 @@ struct AddressBookEntryEditor: View {
     }
     private var existing: AddressBookEntry? { book.entry(for: enteredAddress) }
     private var effectiveAddress: String { AddressBookManager.normalize(enteredAddress) }
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// The name "Use Their Domain Name" fills in: a typed domain that resolved, else the address's
+    /// .kachat name. Saved in full ("alice.kachat"), never the shortened form the hide-endings
+    /// setting shows, since the book syncs to Nextcloud and KaPay, where that setting doesn't
+    /// apply. Never a .kas domain: since 5.2 a .kas name is cleared from contacts on every load
+    /// (`ContactsManager.clearKasDomainAliases`), so it wouldn't stay.
+    private var domainSuggestion: String? {
+        if resolvedAddress != nil, let resolvedName, let tld = selectedTLD, tld != .kas {
+            let lower = resolvedName.lowercased()
+            return lower.hasSuffix(tld.suffix) ? resolvedName : resolvedName + tld.suffix
+        }
+        return kachatName
+    }
 
     var body: some View {
         NavigationStack {
@@ -560,8 +579,31 @@ struct AddressBookEntryEditor: View {
                 }
 
                 Section("Name") {
-                    TextField("Name", text: $name)
-                        .textInputAutocapitalization(.words)
+                    HStack {
+                        TextField("Name", text: $name)
+                            .textInputAutocapitalization(.words)
+                        if !name.isEmpty {
+                            Button {
+                                name = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel(Text("Clear"))
+                        }
+                    }
+                    if let domainSuggestion, trimmedName != domainSuggestion {
+                        Button {
+                            name = domainSuggestion
+                        } label: {
+                            Label {
+                                Text("Use Their Domain Name") + Text(verbatim: " (\(domainSuggestion))").foregroundColor(.secondary)
+                            } icon: {
+                                Image(systemName: "at")
+                            }
+                        }
+                    }
                 }
 
                 Section("Address") {
@@ -655,8 +697,7 @@ struct AddressBookEntryEditor: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
-                        // an empty name saves too: the address goes by its .kachat name or itself
-                        .disabled(effectiveAddress.isEmpty)
+                        .disabled(effectiveAddress.isEmpty || trimmedName.isEmpty)
                 }
             }
             .sheet(isPresented: $showScanner) {
@@ -687,10 +728,11 @@ struct AddressBookEntryEditor: View {
                 if let current = existing {
                     name = current.name
                     note = current.note
-                } else {
-                    name = suggestedName
+                } else if let presetName {
+                    name = presetName
                 }
             }
+            .task(id: address) { await lookUpKachatName() }
         }
     }
 
@@ -728,15 +770,21 @@ struct AddressBookEntryEditor: View {
         resolvedName = resolution.display
         selectedTLD = resolution.tld
         lookupError = nil
-        // The name they're known by, unless one was typed already: saved in full ("alice.kachat"),
-        // never the shortened form the hide-endings setting shows, since the book syncs to
-        // Nextcloud and KaPay, where that setting doesn't apply.
-        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let shown = resolution.display
-            name = resolution.tld == .kachat && !shown.lowercased().hasSuffix(NameServiceTLD.kachat.suffix)
-                ? shown + NameServiceTLD.kachat.suffix
-                : shown
+        // The name stays as typed: "Use Their Domain Name" offers the domain.
+    }
+
+    /// The opened address's .kachat name, for "Use Their Domain Name".
+    private func lookUpKachatName() async {
+        guard let address, KachatNamesService.isEnabled else { return }
+        let registry = KachatNamesRegistry.shared
+        let label: String?
+        if let cached = registry.cachedIdentity(for: address) {
+            label = cached.label
+        } else {
+            label = (try? await registry.identity(address: address))?.label
         }
+        guard let label, !label.isEmpty else { return }
+        kachatName = label.lowercased().hasSuffix(NameServiceTLD.kachat.suffix) ? label : label + NameServiceTLD.kachat.suffix
     }
 
     private func save() {

@@ -412,8 +412,17 @@ struct ChatInfoView: View {
             .fullScreenCover(isPresented: $showAddressBookEditor) {
                 AddressBookEntryEditor(
                     address: contact.address,
-                    suggestedName: contact.assignedName ?? contactsManager.displayName(for: contact)
+                    // the name in this screen's field, saved or just typed
+                    presetName: editedAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? nil : editedAlias.trimmingCharacters(in: .whitespacesAndNewlines)
                 ) { result in
+                    // The editor gave them a name (or took it away) on the contact and the entry.
+                    // Take it here too, or this screen's Save would write its older name back
+                    // over both.
+                    if let fresh = contactsManager.getContact(byAddress: contact.address) {
+                        contact.alias = fresh.alias
+                    }
+                    editedAlias = contact.assignedName ?? addressBook.entry(for: contact.address)?.customName ?? ""
                     switch result {
                     case .saved: showToast(localized("Saved to Contacts."))
                     case .removed: showToast(localized("Removed from Contacts."))
@@ -581,13 +590,17 @@ struct ChatInfoView: View {
         NavigationStack {
             List {
                 ForEach(kachatNames, id: \.self) { name in
-                    HStack {
+                    HStack(spacing: 8) {
                         Text(verbatim: KachatNameLabel.display(name))
-                        Spacer()
+                            .lineLimit(1)
                         if name == kachatLabel {
                             Text("Primary")
                                 .font(.caption.weight(.semibold))
                                 .foregroundColor(.accentColor)
+                        }
+                        Spacer()
+                        if !isSelf && !isBot {
+                            setAsNameButton(for: name)
                         }
                     }
                     .contentShape(Rectangle())
@@ -599,6 +612,33 @@ struct ChatInfoView: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    /// Set as Name: puts this .kachat name, in full ("alice.kachat"), in this screen's name field.
+    /// Nothing is saved until Save (top right); Cancel leaves their name as it was. Shown as set
+    /// once it is what the field holds.
+    @ViewBuilder
+    private func setAsNameButton(for name: String) -> some View {
+        let full = "\(name).kachat"
+        if editedAlias.trimmingCharacters(in: .whitespacesAndNewlines) == full {
+            Label("Their Name", systemImage: "checkmark")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.secondary)
+        } else {
+            Button {
+                Haptics.impact(.light)
+                editedAlias = full
+                activeSheet = nil
+            } label: {
+                Text("Set as Name")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.accentColor)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+            }
+            .buttonStyle(.borderless)
+        }
     }
 
     /// The list itself, not a row that opens it. Data comes from the same KNSService address-info
@@ -734,15 +774,24 @@ struct ChatInfoView: View {
                 item: url,
                 preview: SharePreview(contactsManager.displayName(for: contact), image: Image("KaspaLogo"))
             ) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.scaled(size: 22, weight: .semibold))
-                    .foregroundColor(.accentColor)
-                    .frame(width: 58, height: 58)
-                    .background(
-                        Circle()
-                            .fill(.regularMaterial)
-                            .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
-                    )
+                // the words are part of the button: tapping them shares too
+                VStack(spacing: 6) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.scaled(size: 22, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                        .frame(width: 58, height: 58)
+                        .background(
+                            Circle()
+                                .fill(.regularMaterial)
+                                // a whole point, inside the edge: a 0.8pt stroke on the edge drew
+                                // faint on whichever sides fell between pixels
+                                .overlay(Circle().strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
+                        )
+                    Text("Share Profile")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.accentColor)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Share this profile"))

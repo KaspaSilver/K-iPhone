@@ -168,7 +168,7 @@ struct ChatListView: View {
             .sheet(item: $addressBookTarget) { contact in
                 AddressBookEntryEditor(
                     address: contact.address,
-                    suggestedName: contact.assignedName ?? contactsManager.displayName(for: contact)
+                    presetName: contact.assignedName
                 ) { _ in }
             }
             .sheet(item: $conversationActionTarget) { conversation in

@@ -628,9 +628,43 @@ struct SendContinueButton: View {
     var title: LocalizedStringKey = "Continue"
     let isEnabled: Bool
     var onCancel: (() -> Void)? = nil
+    /// An optional second action, full width under the main button (Request Payment's QR).
+    var secondaryTitle: LocalizedStringKey? = nil
+    var secondaryIcon: String? = nil
+    var onSecondary: (() -> Void)? = nil
     let action: () -> Void
 
     var body: some View {
+        VStack(spacing: 10) {
+            mainRow
+            if let secondaryTitle, let onSecondary {
+                Button {
+                    Haptics.impact(.light)
+                    onSecondary()
+                } label: {
+                    Label {
+                        Text(secondaryTitle)
+                    } icon: {
+                        if let secondaryIcon { Image(systemName: secondaryIcon) }
+                    }
+                    .font(.headline)
+                    .foregroundColor(.accentColor)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Capsule().fill(.regularMaterial))
+                    .overlay(Capsule().stroke(Color.accentColor.opacity(0.35), lineWidth: 1))
+                    .opacity(isEnabled ? 1 : 0.4)
+                }
+                .buttonStyle(.plain)
+                .disabled(!isEnabled)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+
+    private var mainRow: some View {
         HStack(spacing: 12) {
             if let onCancel {
                 Button(action: onCancel) {
@@ -658,9 +692,6 @@ struct SendContinueButton: View {
             .buttonStyle(.plain)
             .disabled(!isEnabled)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-        .background(.bar)
     }
 }
 
@@ -673,6 +704,10 @@ struct SendStepScreen<Content: View>: View {
     let onCancel: () -> Void
     var continueTitle: LocalizedStringKey = "Continue"
     let canContinue: Bool
+    /// An optional second button under Continue (`SendContinueButton.secondaryTitle`).
+    var secondaryTitle: LocalizedStringKey? = nil
+    var secondaryIcon: String? = nil
+    var onSecondary: (() -> Void)? = nil
     let onContinue: () -> Void
     @ViewBuilder let content: Content
 
@@ -685,7 +720,9 @@ struct SendStepScreen<Content: View>: View {
         .background(Color(.systemBackground))
         .safeAreaInset(edge: .bottom) {
             SendContinueButton(title: continueTitle, isEnabled: canContinue,
-                               onCancel: onBack == nil ? onCancel : nil, action: onContinue)
+                               onCancel: onBack == nil ? onCancel : nil,
+                               secondaryTitle: secondaryTitle, secondaryIcon: secondaryIcon,
+                               onSecondary: onSecondary, action: onContinue)
         }
     }
 }

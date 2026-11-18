@@ -400,7 +400,7 @@
 "No new requests" = "没有新请求";
 
 /* Welcome Guide: .kachat and Message Requests */
-"50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages." = "建议先准备 50 Kaspa——足够领取一个 .kachat 名称并聊上一阵子。5 Kaspa 大约可发送 2500 条消息。";
+"5 Kaspa is enough for about 2500 messages." = "5 Kaspa 大约可发送 2500 条消息。";
 "Nextcloud is off while Testnet is on." = "测试网开启时，Nextcloud 处于关闭状态。";
 "Cancelled." = "已取消。";
 "Confirm this .kachat transaction" = "确认这笔 .kachat 交易";
@@ -1523,3 +1523,11 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "你的聊天地址还会支付 %@ KAS，用于告知 %@ 这笔付款。";
 "Tap Retry on the photo to send the rest." = "点击照片上的“重试”以发送其余部分。";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "这条消息在一笔交易中需要的币太多。请在你的聊天地址上使用 Compound UTXOs，然后重试。";
+"Use Their Domain Name" = "使用对方的域名";
+"Show Request As QR" = "以二维码显示请求";
+"Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "用 iPhone 相机扫描，即可在 KaPay 中付款，所有信息都已填好。";
+"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "用 iPhone 相机扫描，即可在 KaChat 中付款，所有信息都已填好。";
+"Get a .kachat domain" = "获取 .kachat 域名";
+"Set as Name" = "设为名称";
+"Their Name" = "对方名称";
+"Get a .kachat name" = "获取 .kachat 名称";

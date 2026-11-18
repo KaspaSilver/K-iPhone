@@ -2162,7 +2162,11 @@ extension ChatService {
         guard !aliases.isEmpty else { return true }
         beginChatFetch(contactAddress)
         var contactSuccess = true
-        defer { endChatFetch(contactAddress, success: contactSuccess) }
+        // A real fetch failure, which the chat row shows. A skip because the same fetch is already
+        // running is not one: that fetch reports for itself, and counting the skip put the warning
+        // on every chat at launch, when two syncs overlap.
+        var fetchFailed = false
+        defer { endChatFetch(contactAddress, success: !fetchFailed) }
         for alias in aliases {
             let syncObjectKey = contextualSyncObjectKey(
                 direction: "in",
@@ -2201,6 +2205,7 @@ extension ChatService {
                 }
             ) else {
                 contactSuccess = false
+                fetchFailed = true
                 continue  // Skip this alias for this cycle; still try the contact's other aliases.
             }
             advanceSyncCursor(for: syncObjectKey, maxBlockTime: messages.compactMap { $0.blockTime }.max())
@@ -2281,7 +2286,11 @@ extension ChatService {
         guard !aliasSet.isEmpty else { return true }
         beginChatFetch(contactAddress)
         var contactSuccess = true
-        defer { endChatFetch(contactAddress, success: contactSuccess) }
+        // A real fetch failure, which the chat row shows. A skip because the same fetch is already
+        // running is not one: that fetch reports for itself, and counting the skip put the warning
+        // on every chat at launch, when two syncs overlap.
+        var fetchFailed = false
+        defer { endChatFetch(contactAddress, success: !fetchFailed) }
         for ourAlias in aliasSet {
             let syncObjectKey = contextualSyncObjectKey(
                 direction: "out",
@@ -2319,6 +2328,7 @@ extension ChatService {
                 }
             ) else {
                 contactSuccess = false
+                fetchFailed = true
                 continue  // Skip this alias for this cycle; still try the contact's other aliases.
             }
             advanceSyncCursor(for: syncObjectKey, maxBlockTime: messages.compactMap { $0.blockTime }.max())

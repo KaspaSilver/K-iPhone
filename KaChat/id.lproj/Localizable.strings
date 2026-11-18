@@ -400,7 +400,7 @@
 "No new requests" = "Tidak ada permintaan baru";
 
 /* Welcome Guide: .kachat and Message Requests */
-"50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages." = "Disarankan 50 Kaspa untuk memulai - cukup untuk mengklaim nama .kachat dan mengobrol untuk sementara. 5 Kaspa cukup untuk sekitar 2500 pesan.";
+"5 Kaspa is enough for about 2500 messages." = "5 Kaspa cukup untuk sekitar 2500 pesan.";
 "Nextcloud is off while Testnet is on." = "Nextcloud nonaktif selama Testnet aktif.";
 "Cancelled." = "Dibatalkan.";
 "Confirm this .kachat transaction" = "Konfirmasi transaksi .kachat ini";
@@ -1523,3 +1523,11 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Alamat chat Anda juga membayar %@ KAS untuk memberi tahu %@ tentang pembayaran ini.";
 "Tap Retry on the photo to send the rest." = "Ketuk Coba lagi pada foto untuk mengirim sisanya.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Pesan ini butuh terlalu banyak koin untuk satu transaksi. Gunakan Compound UTXOs pada alamat chat Anda, lalu coba lagi.";
+"Use Their Domain Name" = "Gunakan nama domainnya";
+"Show Request As QR" = "Tampilkan permintaan sebagai QR";
+"Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Pindai dengan kamera iPhone untuk membayar di KaPay, semuanya sudah terisi.";
+"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "Pindai dengan kamera iPhone untuk membayar di KaChat, semuanya sudah terisi.";
+"Get a .kachat domain" = "Dapatkan domain .kachat";
+"Set as Name" = "Jadikan nama";
+"Their Name" = "Namanya";
+"Get a .kachat name" = "Dapatkan nama .kachat";

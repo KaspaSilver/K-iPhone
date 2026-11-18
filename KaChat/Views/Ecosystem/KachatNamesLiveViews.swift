@@ -590,6 +590,11 @@ struct KachatLiveProfileEditor: View {
                             Text("Coming soon").foregroundColor(.secondary)
                         }
                     }
+                    Button {
+                        UIApplication.shared.open(KachatNamesInfo.pageURL)
+                    } label: {
+                        Label("Get a .kachat name", systemImage: "at")
+                    }
                 } header: {
                     Text(".kachat Name")
                 }
@@ -853,9 +858,17 @@ struct KachatProfileSaveSheet: View {
 
 // MARK: - Your Domains > .kachat
 
+/// What .kachat names are, what they cost and how to claim one: the page on home.kachat.app that
+/// "Get a .kachat name" (Edit Profile) and "Get a .kachat domain" (Your Domains) open. Names are
+/// bought in KaPay, never in this app.
+enum KachatNamesInfo {
+    static let pageURL = URL(string: "https://home.kachat.app/kachat/")!
+}
+
 /// Your Domains > .kachat: the names this wallet holds, each with when it expires (or, in its
 /// grace period, when that ends). Read-only - buying, renewing, selling and transferring them
-/// happens in KaChat Wallet since the market left this app (2026-10-24).
+/// happens in KaChat Wallet since the market left this app (2026-10-24). Your own list ends with
+/// "Get a .kachat domain", which opens the .kachat names page (`KachatNamesInfo.pageURL`).
 struct KachatOwnedNamesList: View {
     let walletAddress: String
     @ObservedObject private var registry = KachatNamesRegistry.shared
@@ -903,6 +916,24 @@ struct KachatOwnedNamesList: View {
             .padding()
         }
         .refreshable { await registry.refresh() }
+        .safeAreaInset(edge: .bottom) {
+            if isOwnList {
+                Button {
+                    Haptics.impact(.light)
+                    UIApplication.shared.open(KachatNamesInfo.pageURL)
+                } label: {
+                    Text("Get a .kachat domain")
+                        .font(.headline)
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Capsule().fill(Color.accentColor))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+            }
+        }
         .task(id: registry.revision) {
             await load()
             // a name that lapses while this is open leaves right then
@@ -928,6 +959,9 @@ struct KachatOwnedNamesList: View {
         case .lapsed: return nil
         }
     }
+
+    /// This wallet's own list, not another address's: only yours offers to get a name.
+    private var isOwnList: Bool { walletAddress.lowercased() == KachatNamesActions.shared.myAddress }
 
     /// Your own list (the chatting address's) holds the names on every address of this wallet;
     /// any other address lists its own. Lapsed names aren't yours any more and aren't listed.
