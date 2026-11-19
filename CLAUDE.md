@@ -322,9 +322,14 @@ Companion targets at the repo root: `KaChatNotificationService/` (push decryptio
 
 The input bubble is the text field only. Everything else is in the "+" sheet:
 
-- **1:1 order:** Send Kaspa, Camera, Photo, Voice Message, File (Nextcloud only), Request Payment,
-  Play Chess, and Send Handshake where needed (only where first contact still needs one).
-- **Groups:** Camera, Photo, Voice Message, File. A group has no single recipient for pay or chess.
+- **1:1 order:** Send Kaspa, Camera, Photo, GIF, Voice Message, File (Nextcloud only), Request
+  Payment, Play Chess, and Send Handshake where needed (only where first contact still needs one).
+- **Groups:** Camera, Photo, GIF, Voice Message, File. A group has no single recipient for pay or chess.
+- **GIF** (since 2026-11-18) opens Photos showing only animated images and always goes on chain:
+  Send asks GIF Quality (the photo tiers), `GIFPrep` re-encodes it to fit, and it goes as an
+  `image/gif` photo (MESSAGING.md, "GIFs"). Bubbles and full screen play it
+  (`AnimatedImageView`, one frame decoded at a time). No GIF search: GIPHY and Klipy forbid
+  storing their GIFs, which on chain is permanent (owner's call: Photos only for now).
 - **On chain or via Nextcloud:** with a Nextcloud server connected, Camera / Photo / Voice Message
   open `ComposerMediaRouteStep` (`Views/Chat/ComposerMediaRoute.swift`) and ask every time. That
   choice replaced the old "Send Media via Nextcloud" setting.

@@ -1531,3 +1531,10 @@
 "Set as Name" = "Jadikan nama";
 "Their Name" = "Namanya";
 "Get a .kachat name" = "Dapatkan nama .kachat";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "Kirim GIF animasi dari pustaka Anda.";
+"Send an animated GIF from your library to the group." = "Kirim GIF animasi dari pustaka Anda ke grup.";
+"GIF Quality" = "Kualitas GIF";
+"That isn't an animated GIF. Please pick another." = "Itu bukan GIF animasi. Silakan pilih yang lain.";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "GIF ini terlalu panjang untuk kualitas itu. Pilih yang lebih tinggi, atau GIF yang lebih pendek.";

@@ -1531,3 +1531,10 @@
 "Set as Name" = "名前に設定";
 "Their Name" = "相手の名前";
 "Get a .kachat name" = ".kachat 名を入手";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "ライブラリからアニメーションGIFを送信します。";
+"Send an animated GIF from your library to the group." = "ライブラリからアニメーションGIFをグループに送信します。";
+"GIF Quality" = "GIFの画質";
+"That isn't an animated GIF. Please pick another." = "アニメーションGIFではありません。別のものを選んでください。";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "このGIFはその画質には長すぎます。より高い画質か、短いGIFを選んでください。";

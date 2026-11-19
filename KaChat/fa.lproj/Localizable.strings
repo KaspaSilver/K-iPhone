@@ -1531,3 +1531,10 @@
 "Set as Name" = "تنظیم به‌عنوان نام";
 "Their Name" = "نام او";
 "Get a .kachat name" = "دریافت نام ‎.kachat";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "یک GIF متحرک از کتابخانه‌تان بفرستید.";
+"Send an animated GIF from your library to the group." = "یک GIF متحرک از کتابخانه‌تان به گروه بفرستید.";
+"GIF Quality" = "کیفیت GIF";
+"That isn't an animated GIF. Please pick another." = "این یک GIF متحرک نیست. لطفاً یکی دیگر انتخاب کنید.";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "این GIF برای این کیفیت خیلی طولانی است. کیفیت بالاتر یا یک GIF کوتاه‌تر انتخاب کنید.";

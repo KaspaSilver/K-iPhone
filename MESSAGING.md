@@ -330,6 +330,27 @@ that. Older and other clients may show these photos broken or blank (the owner a
   - Show one bubble with "Receiving… N of M" until then.
   - Count, ring, retry and delete the photo once, as above.
 
+### GIFs
+
+Since 2026-11-18 iOS sends animated GIFs on chain, in 1:1 chats and groups. A GIF is an ordinary
+photo message with `"mimeType":"image/gif"`: the same binary media frame, the same quality tiers
+and byte budgets, and the same `mediaPart` chunks when it is bigger than one transaction (part
+files named `animation-<i>of<N>.gif`, a single one `animation.gif`).
+
+- **Where they come from (iOS):** the composer's GIF tile opens Photos showing only animated
+  images; a GIF pasted, dropped or picked with Photo goes the same way. No GIF search service is
+  used: their terms forbid storing their GIFs, and anything on chain is stored for good.
+- **Encoding (iOS, `GIFPrep`):** always re-encoded as a looping GIF with no metadata. Each tier
+  takes the largest long edge (480, 400, 360, 320, 280, 240, 200, 160, 128 or 96 px, never
+  upscaled) and then every frame, every 2nd or every 3rd (a kept frame shows for the dropped
+  ones' time too) that fits its budget. At most the first 300 frames or 30 seconds are read. A
+  GIF that fits no tier's budget can't be sent at that tier.
+- **Reading:** decode it as an animated GIF and loop it (iOS plays it in the bubble and full
+  screen, `AnimatedImageView`). A client that only shows the first frame still shows a picture.
+  Previews and the chat list say "GIF".
+- **Android and Desktop must:** play `image/gif` messages animated, and join `mediaPart` chunks
+  first exactly as for photos.
+
 ### Long voice notes (multi-part)
 
 Since 2026-11-11 iOS sends on-chain voice notes at **16 kbps CBR Opus in 60 ms frames**, in

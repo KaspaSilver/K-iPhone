@@ -3276,6 +3276,10 @@ extension ChatService {
         if contactsManager.isDeletedAsOf(contactAddress, txId: message.txId, blockTime: Int64(message.blockTime)) {
             return
         }
+        // A message deleted on this device: the chain still serves it, so syncs keep offering it.
+        if DeletedMessageLog.contains(message.txId, kind: .chat) {
+            return
+        }
         // Rejected in Message Requests: nothing they send is kept, until the user writes to them.
         if !message.isOutgoing, isChatBlocked(contactAddress) {
             return

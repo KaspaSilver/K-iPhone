@@ -1531,3 +1531,10 @@
 "Set as Name" = "设为名称";
 "Their Name" = "对方名称";
 "Get a .kachat name" = "获取 .kachat 名称";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "从你的图库发送动图 GIF。";
+"Send an animated GIF from your library to the group." = "从你的图库向群组发送动图 GIF。";
+"GIF Quality" = "GIF 画质";
+"That isn't an animated GIF. Please pick another." = "这不是动图 GIF。请另选一个。";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "这个 GIF 对于该画质来说太长了。请选择更高的画质，或更短的 GIF。";

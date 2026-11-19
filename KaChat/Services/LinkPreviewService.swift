@@ -587,7 +587,11 @@ actor LinkPreviewService {
             guard let self else { return nil }
             // First: browser UA (session default) + Referer. Fallback: Meta's crawler UA with no Referer -
             // some cdninstagram/fbcdn image URLs 403 the browser-UA/Referer combo but serve that crawler.
-            if let data = await self.fetchImageBytes(url, userAgentOverride: nil, referer: referer, maxBytes: maxBytes) { return data }
+            // The page's address goes only to the page's own site: an image on another server
+            // never learns which link was opened.
+            let sameSiteReferer = Self.isSameSite(url, referer) ? referer : nil
+            if let data = await self.fetchImageBytes(url, userAgentOverride: nil, referer: sameSiteReferer, maxBytes: maxBytes) { return data }
+            guard Self.isMetaImageHost(url) else { return nil }
             return await self.fetchImageBytes(url, userAgentOverride: Self.facebookExternalHitUserAgent, referer: nil, maxBytes: maxBytes)
         }
         imageInFlight[key] = task
@@ -635,6 +639,38 @@ actor LinkPreviewService {
     /// HTML has the page title/description but no post-specific image (why the preview showed text but
     /// no picture). Used for the scrape on Meta hosts, and as the image-load fallback everywhere.
     static let facebookExternalHitUserAgent = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+
+    /// Meta's image servers, the only ones the crawler-UA image retry goes to.
+    nonisolated static func isMetaImageHost(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else { return false }
+        return ["fbcdn.net", "cdninstagram.com"].contains { host == $0 || host.hasSuffix("." + $0) }
+    }
+
+    /// One site: the same host, or one a subdomain of the other (www.x.com and x.com,
+    /// cdn.x.com and x.com).
+    nonisolated static func isSameSite(_ a: URL, _ b: URL) -> Bool {
+        guard let ha = a.host?.lowercased(), let hb = b.host?.lowercased(), !ha.isEmpty, !hb.isEmpty else { return false }
+        return ha == hb || ha.hasSuffix("." + hb) || hb.hasSuffix("." + ha)
+    }
+
+    /// Where a preview fetch may be redirected: back to the same host (an http-only server
+    /// moving a path), or to an https URL on a public name. Never to plain http elsewhere, an
+    /// IP address or a local name, so a link can't bounce the reader's phone onto another
+    /// server in the clear or into their own network.
+    nonisolated static func isAllowedRedirect(from old: URL?, to new: URL) -> Bool {
+        guard let host = new.host?.lowercased(), !host.isEmpty else { return false }
+        if let oldHost = old?.host?.lowercased(), oldHost == host,
+           let scheme = new.scheme?.lowercased(), scheme == "https" || scheme == "http" {
+            return true
+        }
+        guard new.scheme?.lowercased() == "https" else { return false }
+        if host == "localhost" || host.hasSuffix(".localhost") || host.hasSuffix(".local") || !host.contains(".") {
+            return false
+        }
+        // IP literals: IPv6 carries colons, IPv4 is digits and dots only
+        if host.contains(":") || host.allSatisfy({ $0.isNumber || $0 == "." }) { return false }
+        return true
+    }
 
     private static let metaScrapeHosts: Set<String> = [
         "instagram.com", "www.instagram.com", "m.instagram.com",
@@ -1023,7 +1059,7 @@ actor LinkPreviewService {
                 url: url,
                 title: decoded.title,
                 description: nil,
-                imageURLString: decoded.thumbnailURL,
+                imageURLString: decoded.thumbnailURL.flatMap { URL(string: $0)?.scheme?.lowercased() == "https" ? $0 : nil },
                 siteName: "YouTube"
             )
         } catch {
@@ -1039,7 +1075,10 @@ actor LinkPreviewService {
         // signed CDN link (Instagram's cdninstagram `...&oh=...&oe=...`) left as `&amp;oh=` loses
         // its signature - the CDN answered 403 to every Instagram preview image (checked
         // 2026-10-22: raw 403, decoded 200). Desktop always decoded it, so it showed the picture.
-        let imageURLString = metaContent(property: "og:image", in: html).map { resolveURLString($0.htmlEntityDecoded, relativeTo: url) }
+        let imageURLString = metaContent(property: "og:image", in: html)
+            .map { resolveURLString($0.htmlEntityDecoded, relativeTo: url) }
+            // https only: a file:, data: or plain http: image never loads
+            .flatMap { URL(string: $0)?.scheme?.lowercased() == "https" ? $0 : nil }
         let siteName = metaContent(property: "og:site_name", in: html) ?? url.host
 
         guard title != nil || description != nil || imageURLString != nil else {
@@ -1203,6 +1242,29 @@ final class CappedResponseReader: NSObject, URLSessionDataDelegate, @unchecked S
         } else {
             completionHandler(.allow)
         }
+    }
+
+    /// A redirect is followed only where `LinkPreviewService.isAllowedRedirect` says; refused, the
+    /// task ends with the 3xx, which no caller takes as a preview. The Referer is dropped when the
+    /// redirect leaves the referring site.
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard let url = request.url,
+              LinkPreviewService.isAllowedRedirect(from: task.currentRequest?.url ?? task.originalRequest?.url, to: url) else {
+            completionHandler(nil)
+            return
+        }
+        var next = request
+        if let referer = next.value(forHTTPHeaderField: "Referer").flatMap(URL.init(string:)),
+           !LinkPreviewService.isSameSite(url, referer) {
+            next.setValue(nil, forHTTPHeaderField: "Referer")
+        }
+        completionHandler(next)
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {

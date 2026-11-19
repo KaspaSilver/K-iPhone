@@ -1531,3 +1531,10 @@
 "Set as Name" = "Imposta come nome";
 "Their Name" = "Il suo nome";
 "Get a .kachat name" = "Ottieni un nome .kachat";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "Invia una GIF animata dalla tua libreria.";
+"Send an animated GIF from your library to the group." = "Invia una GIF animata dalla tua libreria al gruppo.";
+"GIF Quality" = "Qualità GIF";
+"That isn't an animated GIF. Please pick another." = "Non è una GIF animata. Scegline un'altra.";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "Questa GIF è troppo lunga per questa qualità. Scegline una più alta o una GIF più corta.";

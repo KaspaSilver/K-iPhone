@@ -244,6 +244,7 @@ extension ChatService {
             var importedMessages = archivedConversation.messages.filter {
                 !$0.txId.isEmpty
                     && !contactsManager.isDeletedAsOf(contactAddress, txId: $0.txId, blockTime: Int64($0.blockTime))
+                    && !DeletedMessageLog.contains($0.txId, kind: .chat)
             }
             guard !importedMessages.isEmpty else { continue }
             importedMessages = Self.dedupeMessages(importedMessages)

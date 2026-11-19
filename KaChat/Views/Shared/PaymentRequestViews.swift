@@ -328,6 +328,8 @@ struct CreatePaymentRequestView: View {
     /// Sends the request into the chat as a message: it shows there as a Payment Request card,
     /// which they tap to pay.
     private func send(to contact: Contact) {
+        // two taps in one frame would each reserve a fresh address
+        guard !isWorking else { return }
         isWorking = true
         errorMessage = nil
         Task {
@@ -344,6 +346,8 @@ struct CreatePaymentRequestView: View {
     }
 
     private func copy() {
+        // two taps in one frame would each reserve a fresh address
+        guard !isWorking else { return }
         isWorking = true
         errorMessage = nil
         Task {
@@ -357,6 +361,8 @@ struct CreatePaymentRequestView: View {
 
     /// Show Request As QR: the same signed request, as a code to scan with a phone's camera.
     private func showQR() {
+        // two taps in one frame would each reserve a fresh address
+        guard !isWorking else { return }
         isWorking = true
         errorMessage = nil
         Task {
@@ -367,6 +373,8 @@ struct CreatePaymentRequestView: View {
     }
 
     private func share() {
+        // two taps in one frame would each reserve a fresh address
+        guard !isWorking else { return }
         isWorking = true
         errorMessage = nil
         Task {

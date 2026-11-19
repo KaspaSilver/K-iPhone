@@ -852,6 +852,11 @@ struct KachatEndingsToggle: View {
         Toggle("Show .kachat Endings", isOn: $showEndings)
             .onChange(of: showEndings) { _ in
                 NotificationCenter.default.post(name: .settingsDidChange, object: nil)
+                // Names are read from UserDefaults as rows draw, and nothing those rows watch
+                // changed: the chat list, Contacts and the headers kept the old form until a
+                // pull to refresh. Every view showing a name watches one of these two.
+                KachatNamesRegistry.shared.objectWillChange.send()
+                ContactsManager.shared.objectWillChange.send()
             }
     }
 }

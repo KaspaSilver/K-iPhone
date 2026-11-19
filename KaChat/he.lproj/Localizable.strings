@@ -1531,3 +1531,10 @@
 "Set as Name" = "הגדרה כשם";
 "Their Name" = "השם שלו";
 "Get a .kachat name" = "השיגו שם ‎.kachat";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "שלחו GIF מונפש מהספרייה שלכם.";
+"Send an animated GIF from your library to the group." = "שלחו GIF מונפש מהספרייה שלכם לקבוצה.";
+"GIF Quality" = "איכות GIF";
+"That isn't an animated GIF. Please pick another." = "זה לא GIF מונפש. נא לבחור אחר.";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "ה-GIF הזה ארוך מדי לאיכות הזו. בחרו איכות גבוהה יותר או GIF קצר יותר.";

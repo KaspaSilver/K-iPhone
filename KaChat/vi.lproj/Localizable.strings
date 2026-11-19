@@ -1531,3 +1531,10 @@
 "Set as Name" = "Đặt làm tên";
 "Their Name" = "Tên của họ";
 "Get a .kachat name" = "Nhận tên .kachat";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "Gửi một GIF động từ thư viện của bạn.";
+"Send an animated GIF from your library to the group." = "Gửi một GIF động từ thư viện của bạn vào nhóm.";
+"GIF Quality" = "Chất lượng GIF";
+"That isn't an animated GIF. Please pick another." = "Đó không phải là GIF động. Vui lòng chọn ảnh khác.";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "GIF này quá dài cho mức chất lượng đó. Hãy chọn mức cao hơn hoặc một GIF ngắn hơn.";

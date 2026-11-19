@@ -997,7 +997,7 @@ enum MessageReplyCodec {
             return "🎤 Audio message"
         }
         if InlineFileSniff.isImage(unwrapped) {
-            return "📷 Photo"
+            return InlineMediaSniff.mimeType(of: unwrapped)?.lowercased() == "image/gif" ? "GIF" : "📷 Photo"
         }
         if let chessEnvelope = ChessCodec.parseAny(unwrapped) {
             if case .invite(let invite) = chessEnvelope, let minutes = invite.tcMinutes {
@@ -1716,6 +1716,13 @@ enum PhotoTier: String, CaseIterable, Identifiable, Sendable {
         case (.medium, true): return 121_500
         case (.low, true): return 23_500
         }
+    }
+}
+
+/// A multi-part photo's part file name: `photo-2of6.jpg`, or `animation-2of6.gif` for a GIF.
+enum MediaPartName {
+    static func photo(index: Int, count: Int, mimeType: String) -> String {
+        mimeType.lowercased() == "image/gif" ? "animation-\(index)of\(count).gif" : "photo-\(index)of\(count).jpg"
     }
 }
 

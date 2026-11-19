@@ -1,5 +1,6 @@
 import ImageIO
 import UIKit
+import SwiftUI
 
 struct PreparedChatImage {
     let data: Data
@@ -258,5 +259,197 @@ enum ImagePrep {
         CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { return nil }
         return data as Data
+    }
+}
+
+/// Animated GIFs sent on chain (MESSAGING.md, "GIFs"): picked from Photos (the composer's GIF
+/// tile shows only animated images), pasted or dropped. Each `PhotoTier` buys the largest GIF
+/// that fits its byte budget: re-encoded at a smaller long edge, then with every second or third
+/// frame (a kept frame stays up for the dropped ones' time), so it still plays at its own speed.
+/// Re-encoding also leaves out every bit of metadata. The result is always `image/gif`, which
+/// every platform decodes.
+enum GIFPrep {
+    enum GIFError: Error {
+        case notAnimated
+    }
+
+    /// Longest edges tried, largest first (never larger than the GIF itself).
+    private static let edges: [CGFloat] = [480, 400, 360, 320, 280, 240, 200, 160, 128, 96]
+    private static let frameSteps = [1, 2, 3]
+    /// What is read of a long GIF: a few seconds is what fits on chain anyway.
+    private static let maxFrames = 300
+    private static let maxSeconds: Double = 30
+
+    /// More than one frame: an animated GIF, WebP, PNG or HEIC sequence.
+    static func isAnimated(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+        return CGImageSourceGetCount(source) > 1
+    }
+
+    /// How long frame `index` shows, as browsers read it: a delay under 20 ms means 100 ms.
+    static func frameDelay(_ source: CGImageSource, at index: Int) -> Double {
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any] ?? [:]
+        let dictionaries: [(CFString, CFString, CFString)] = [
+            (kCGImagePropertyGIFDictionary, kCGImagePropertyGIFUnclampedDelayTime, kCGImagePropertyGIFDelayTime),
+            (kCGImagePropertyWebPDictionary, kCGImagePropertyWebPUnclampedDelayTime, kCGImagePropertyWebPDelayTime),
+            (kCGImagePropertyPNGDictionary, kCGImagePropertyAPNGUnclampedDelayTime, kCGImagePropertyAPNGDelayTime),
+            (kCGImagePropertyHEICSDictionary, kCGImagePropertyHEICSUnclampedDelayTime, kCGImagePropertyHEICSDelayTime)
+        ]
+        for (dictionaryKey, unclampedKey, clampedKey) in dictionaries {
+            guard let dictionary = properties[dictionaryKey] as? [CFString: Any] else { continue }
+            let delay = (dictionary[unclampedKey] as? Double) ?? (dictionary[clampedKey] as? Double) ?? 0
+            return delay < 0.02 ? 0.1 : delay
+        }
+        return 0.1
+    }
+
+    /// The GIF each budget buys, keyed by budget. A budget nothing fits (a very long GIF at the
+    /// smallest size and every third frame) has no entry.
+    static func prepareForTiers(_ data: Data, budgets: [Int]) throws -> [Int: Data] {
+        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+              CGImageSourceGetCount(source) > 1 else {
+            throw GIFError.notAnimated
+        }
+        let largest = edges[0]
+        var frames: [(image: CGImage, delay: Double)] = []
+        var seconds = 0.0
+        for index in 0..<min(CGImageSourceGetCount(source), maxFrames) {
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: largest
+            ]
+            guard let image = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else { continue }
+            let delay = frameDelay(source, at: index)
+            frames.append((image, delay))
+            seconds += delay
+            if seconds >= maxSeconds { break }
+        }
+        guard frames.count > 1 else { throw GIFError.notAnimated }
+
+        let ownEdge = CGFloat(frames.map { max($0.image.width, $0.image.height) }.max() ?? Int(largest))
+        let top = min(ownEdge, largest)
+        let candidateEdges = [top] + edges.filter { $0 < top }
+
+        var open = Set(budgets)
+        var results: [Int: Data] = [:]
+        for edge in candidateEdges {
+            let scaled = edge >= ownEdge ? frames.map(\.image) : frames.compactMap { scale($0.image, toLongEdge: edge) }
+            guard scaled.count == frames.count else { continue }
+            for step in frameSteps {
+                guard !open.isEmpty else { return results }
+                var kept: [(CGImage, Double)] = []
+                for start in stride(from: 0, to: frames.count, by: step) {
+                    let delay = frames[start..<min(start + step, frames.count)].reduce(0) { $0 + $1.delay }
+                    kept.append((scaled[start], delay))
+                }
+                guard kept.count > 1, let encoded = encode(kept) else { continue }
+                for budget in open where encoded.count <= budget {
+                    results[budget] = encoded
+                    open.remove(budget)
+                }
+            }
+        }
+        return results
+    }
+
+    private static func scale(_ image: CGImage, toLongEdge edge: CGFloat) -> CGImage? {
+        let long = CGFloat(max(image.width, image.height))
+        guard long > 0 else { return nil }
+        let factor = edge / long
+        let width = max(1, Int((CGFloat(image.width) * factor).rounded()))
+        let height = max(1, Int((CGFloat(image.height) * factor).rounded()))
+        guard let context = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage()
+    }
+
+    /// A looping GIF of `frames`, nothing but the frames and their delays.
+    private static func encode(_ frames: [(CGImage, Double)]) -> Data? {
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, "com.compuserve.gif" as CFString, frames.count, nil) else {
+            return nil
+        }
+        let fileProperties: [CFString: Any] = [
+            kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]
+        ]
+        CGImageDestinationSetProperties(destination, fileProperties as CFDictionary)
+        for (image, delay) in frames {
+            let frameProperties: [CFString: Any] = [
+                kCGImagePropertyGIFDictionary: [
+                    kCGImagePropertyGIFDelayTime: delay,
+                    kCGImagePropertyGIFUnclampedDelayTime: delay
+                ]
+            ]
+            CGImageDestinationAddImage(destination, image, frameProperties as CFDictionary)
+        }
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return data as Data
+    }
+}
+
+/// Plays an animated GIF, WebP or PNG from its bytes (SwiftUI's `Image` shows only the first
+/// frame). ImageIO decodes one frame at a time, at the file's own timing
+/// (`CGAnimateImageDataWithBlock`), so a long GIF costs one frame of memory, not all of them.
+/// Stops when the view leaves the screen.
+struct AnimatedImageView: UIViewRepresentable {
+    let data: Data
+    var contentMode: UIView.ContentMode = .scaleAspectFill
+
+    func makeUIView(context: Context) -> UIImageView {
+        let view = UIImageView()
+        view.clipsToBounds = true
+        view.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        view.setContentHuggingPriority(.defaultLow, for: .vertical)
+        view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        return view
+    }
+
+    func updateUIView(_ view: UIImageView, context: Context) {
+        view.contentMode = contentMode
+        context.coordinator.player.play(data, in: view)
+    }
+
+    static func dismantleUIView(_ view: UIImageView, coordinator: Coordinator) {
+        coordinator.player.stop()
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        let player = ImageAnimationPlayer()
+    }
+}
+
+/// Runs one animation into a `UIImageView`; `play` with other bytes replaces it, the same bytes
+/// keep it going.
+final class ImageAnimationPlayer {
+    private var generation = 0
+    private var playing: Data?
+
+    func play(_ data: Data, in view: UIImageView) {
+        guard playing != data else { return }
+        stop()
+        playing = data
+        let current = generation
+        _ = CGAnimateImageDataWithBlock(data as CFData, nil) { [weak self, weak view] _, image, stop in
+            guard let self, let view, self.generation == current else {
+                stop.pointee = true
+                return
+            }
+            view.image = UIImage(cgImage: image)
+        }
+    }
+
+    func stop() {
+        generation &+= 1
+        playing = nil
     }
 }

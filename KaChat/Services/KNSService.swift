@@ -2031,11 +2031,13 @@ final class KNSDomainTransferService: ObservableObject {
         var freshChangeIndex: Int?
         var changeAddress = fundingAddress
         if let index = fromSpendingAddressIndex, index == walletManager.currentSpendingAddressIndex {
-            if let slot = await walletManager.verifiedFreshQuantumSlot() {
+            if let slot = await walletManager.claimFreshChangeSlot() {
                 freshChangeIndex = slot.index
                 changeAddress = slot.address
             }
         }
+        // the change slot stays off payment requests until this transfer ends
+        defer { walletManager.releaseFreshChange(freshChangeIndex == nil ? nil : changeAddress) }
 
         let assetId = rawAssetId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !assetId.isEmpty else {

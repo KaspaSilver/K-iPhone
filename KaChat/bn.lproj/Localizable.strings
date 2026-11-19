@@ -1531,3 +1531,10 @@
 "Set as Name" = "নাম হিসেবে সেট করুন";
 "Their Name" = "তাদের নাম";
 "Get a .kachat name" = ".kachat নাম নিন";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "আপনার লাইব্রেরি থেকে একটি অ্যানিমেটেড GIF পাঠান।";
+"Send an animated GIF from your library to the group." = "আপনার লাইব্রেরি থেকে গ্রুপে একটি অ্যানিমেটেড GIF পাঠান।";
+"GIF Quality" = "GIF কোয়ালিটি";
+"That isn't an animated GIF. Please pick another." = "এটি অ্যানিমেটেড GIF নয়। অনুগ্রহ করে অন্য একটি বেছে নিন।";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "এই GIF ওই কোয়ালিটির জন্য খুব দীর্ঘ। উচ্চতর কোয়ালিটি বা ছোট একটি GIF বেছে নিন।";

@@ -121,16 +121,20 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
     }
 
     /// The clock reads what was actually captured (`currentTime`), in whole seconds: a call or
-    /// going to the background pauses capture, and the ring and the limit pause with it.
+    /// going to the background pauses capture, and the ring and the limit pause with it. On the
+    /// run loop's common modes, so it keeps ticking while the chat scrolls: in the default mode
+    /// it stopped, and the note ran past its length limit with the fee shown too low.
     private func startTimer() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, let recorder = self.recorder else { return }
                 let captured = recorder.currentTime.rounded(.down)
                 if captured != self.elapsedSeconds { self.elapsedSeconds = captured }
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     /// iOS pauses the recorder for a call, Siri or an alarm. When it says recording may resume,

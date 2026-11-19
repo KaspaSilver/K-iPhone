@@ -445,6 +445,28 @@ extension WalletManager {
         return (index, address)
     }
 
+    /// `verifiedFreshQuantumSlot()` for a send's change, held as in flight until the send ends
+    /// (`releaseFreshChange`). The chain's end only moves once the send is accepted, so until
+    /// then a payment request reserving a fresh address would land on this same slot and the
+    /// request address would also hold your change. Every change-slot caller pairs this with a
+    /// `defer` release.
+    func claimFreshChangeSlot() async -> (index: Int, address: String)? {
+        guard let slot = await verifiedFreshQuantumSlot() else { return nil }
+        Self.changeSlotsInFlight.insert(slot.address.lowercased())
+        return slot
+    }
+
+    func releaseFreshChange(_ address: String?) {
+        guard let address else { return }
+        Self.changeSlotsInFlight.remove(address.lowercased())
+    }
+
+    func isFreshChangeInFlight(_ address: String) -> Bool {
+        Self.changeSlotsInFlight.contains(address.lowercased())
+    }
+
+    private static var changeSlotsInFlight: Set<String> = []
+
     /// Slots given to a send's change or a payment request in this run. A slot only joins the
     /// chain once its send is accepted, and until the chain shows it, a probe still calls it
     /// unused: this is what keeps the Receive QR off it meanwhile.
@@ -650,7 +672,13 @@ extension WalletManager {
         // Fresh addresses handed to someone else are exactly what the quantum chain is for
         // (KIP-22): never revealed, never funded, key hidden until they spend. Probe, addresses
         // and the raised chain end all belong to the account active at the start (IOS-109).
-        let base = await verifiedFreshQuantumIndex(owner: owner, chainKey: chainKey) - Self.quantumIndexBase
+        var base = await verifiedFreshQuantumIndex(owner: owner, chainKey: chainKey) - Self.quantumIndexBase
+        // past a slot a send's change holds right now (claimFreshChangeSlot): the chain's end
+        // doesn't cover it until that send is accepted
+        while let address = quantumAddress(at: Self.quantumIndexBase + base, chainKey: chainKey, owner: owner),
+              isFreshChangeInFlight(address) {
+            base += 1
+        }
         var result: [(index: Int, address: String)] = []
         for offset in 0..<count {
             let index = Self.quantumIndexBase + base + offset

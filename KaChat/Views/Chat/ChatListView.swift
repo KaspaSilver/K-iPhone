@@ -1890,7 +1890,9 @@ struct ConversationRow: View {
         }
 
         let mime = mimeType.lowercased()
-        if mime.hasPrefix("image/") {
+        if mime == "image/gif" {
+            result = "GIF"
+        } else if mime.hasPrefix("image/") {
             result = "Photo"
         } else if mime.hasPrefix("audio/") {
             result = "Voice message"

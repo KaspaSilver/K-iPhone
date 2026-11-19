@@ -1549,7 +1549,7 @@ extension ChatService {
                 throw KasiaError.networkError("Audio file is empty")
             }
             contents.append(MediaFileEnvelope.json(
-                name: isPhoto ? "photo-\(tag.index)of\(tag.count).jpg" : tag.fileName,
+                name: isPhoto ? MediaPartName.photo(index: tag.index, count: tag.count, mimeType: resolvedMimeType) : tag.fileName,
                 size: data.count,
                 mimeType: resolvedMimeType,
                 dataUrlContent: "data:\(resolvedMimeType);base64,\(data.base64EncodedString())",
@@ -2040,7 +2040,7 @@ extension ChatService {
                 endpoint = submitted.endpoint
             }
 
-            AppLog.log("%@", "[ChatService] Transaction submitted: \(txId) via \(endpoint)")
+            AppLog.log("%@", "[ChatService] Transaction submitted: \(txId.prefix(12))… via \(endpoint)")
             // The one tagged first message is out - nothing after it to this address is tagged.
             if inboxTag != nil {
                 updateChatRequests { $0.inboxTagged.insert(contact.address.lowercased()) }
@@ -2759,7 +2759,7 @@ extension ChatService {
             // Change always lands on a brand-new quantum-safe slot (KIP-22): never an address
             // used before, and its key stays hidden until IT spends.
             // Slot and address from the account the source was derived from (IOS-109).
-            let slot = await WalletManager.shared.verifiedFreshQuantumSlot()
+            let slot = await WalletManager.shared.claimFreshChangeSlot()
             // A quantum source's spend reveals its key: change back to it would park funds on a
             // revealed key (IOS-104). A legacy source may still fall back to itself.
             if slot == nil, WalletManager.isQuantumIndex(spendingIndex) {
@@ -2778,6 +2778,8 @@ extension ChatService {
             changeAddress = nil
             freshChangeIndex = nil
         }
+        // the change slot stays off payment requests until this send ends
+        defer { WalletManager.shared.releaseFreshChange(freshChangeIndex == nil ? nil : changeAddress) }
         let fromChattingAddress = sourceSpendingIndex == nil
 
         if pendingTxId == nil {
@@ -2930,7 +2932,7 @@ extension ChatService {
             // Submit via RPC manager
             AppLog.log("[ChatService] Submitting payment via RPC manager...")
             let (txId, endpoint) = try await rpcManager.submitTransaction(tx, allowOrphan: false, escalateOrphan: false)
-            AppLog.log("[ChatService] Payment submitted: \(txId) via \(endpoint)")
+            AppLog.log("[ChatService] Payment submitted: \(txId.prefix(12))… via \(endpoint)")
             if fromChattingAddress, let senderScriptPubKey = KaspaAddress.scriptPublicKey(from: sourceAddress) {
                 // Chatting-address-funded payment (privacy OFF) spends from the SAME UTXO set
                 // message sends use - the same outpoint bookkeeping every message send does
@@ -3134,7 +3136,7 @@ extension ChatService {
             try self.checkFeeAgainstReview(tx, spending: spendable, expectedFeeSompi: expectedFeeSompi)
             AppLog.log("[ChatService] Submitting withdrawal via RPC manager...")
             let (txId, endpoint) = try await rpcManager.submitTransaction(tx, allowOrphan: false, escalateOrphan: false)
-            AppLog.log("[ChatService] Withdrawal submitted: \(txId) via \(endpoint)")
+            AppLog.log("[ChatService] Withdrawal submitted: \(txId.prefix(12))… via \(endpoint)")
             // The same bookkeeping a message or a chat payment does: the node lists these coins
             // until the spend is in a block, so without it the next send or message (signed by
             // this same address) picks a coin this one already spent and is refused.
@@ -3332,7 +3334,7 @@ extension ChatService {
             // rotating as before; both rotate onto a fresh quantum slot now. A self-send (Compound)
             // still consolidates into the address itself, shield off.
             if !isSelfSend, WalletManager.isQuantumIndex(index) || isPrimarySource {
-                if let slot = await WalletManager.shared.verifiedFreshQuantumSlot() {
+                if let slot = await WalletManager.shared.claimFreshChangeSlot() {
                     freshChangeIndex = slot.index
                     changeAddress = slot.address
                 } else if WalletManager.isQuantumIndex(index) {
@@ -3340,6 +3342,8 @@ extension ChatService {
                     throw KasiaError.keychainError(AppLocalization.string("Couldn't prepare the next address. Try again."))
                 }
             }
+            // the change slot stays off payment requests until this send ends
+            defer { WalletManager.shared.releaseFreshChange(changeAddress) }
 
             let rpcManager = NodePoolService.shared
             let settings = self.currentSettings
@@ -3415,7 +3419,7 @@ extension ChatService {
                 }
                 throw unknown
             }
-            AppLog.log("[ChatService] Spending-address withdrawal submitted: \(txId) via \(endpoint)")
+            AppLog.log("[ChatService] Spending-address withdrawal submitted: \(txId.prefix(12))… via \(endpoint)")
             // its coins stay out of the next send from this address until the spend is in a block;
             // nothing here is offered to messages, which only spend the chatting address
             self.recordPlainSend(tx, spent: spendable, txId: nil, changeScriptPubKey: nil)
@@ -4110,7 +4114,7 @@ extension ChatService {
             let (txId, endpoint) = try await rpcManager.submitTransaction(transaction, allowOrphan: false)
             // Its coins stay out of the next message until the node shows them spent.
             recordPlainSend(transaction, spent: handshakeUtxos, txId: nil, changeScriptPubKey: nil)
-            AppLog.log("[ChatService] Handshake submitted: \(txId) via \(endpoint)")
+            AppLog.log("[ChatService] Handshake submitted: \(txId.prefix(12))… via \(endpoint)")
             if let activePendingMessageId {
                 _ = updatePendingMessageById(activePendingMessageId, newTxId: txId, contactAddress: contact.address)
             } else {
@@ -4273,6 +4277,10 @@ extension ChatService {
     func deleteMessages(_ txIds: Set<String>, from contact: Contact) {
         guard !txIds.isEmpty,
               let index = conversations.firstIndex(where: { $0.contact.address == contact.address }) else { return }
+
+        // Remembered first: the chain still holds these, and the next sync or the open chat's
+        // poll would fetch them again and put them back.
+        DeletedMessageLog.add(txIds, kind: .chat)
 
         updateConversation(at: index, persist: false) { updated in
             updated.messages.removeAll { txIds.contains($0.txId) }
@@ -4930,7 +4938,7 @@ extension ChatService {
             )
             let txId = try await NodePoolService.shared.submitTransaction(stashTx, allowOrphan: allowOrphan)
             recordPlainSend(stashTx, spent: utxos, txId: nil, changeScriptPubKey: nil)
-            AppLog.log("%@", "[ChatService] Self-stash handshake submitted: \(txId)")
+            AppLog.log("%@", "[ChatService] Self-stash handshake submitted: \(txId.txId.prefix(12))…")
         } catch {
             AppLog.log("%@", "[ChatService] Failed to submit self-stash handshake tx: \(error.localizedDescription)")
             queueSelfStash(contactAddress: contactAddress, ourAlias: ourAlias, theirAlias: theirAlias, isResponse: isResponse)
@@ -5004,7 +5012,7 @@ extension ChatService {
                         )
                     let (txId, endpoint) = try await rpcManager.submitTransaction(stashTx, allowOrphan: false)
                     recordPlainSend(stashTx, spent: first, txId: nil, changeScriptPubKey: nil)
-                    AppLog.log("[ChatService] Self-stash submitted: \(txId) via \(endpoint)")
+                    AppLog.log("[ChatService] Self-stash submitted: \(txId.prefix(12))… via \(endpoint)")
                     succeeded.append(job)
                     // Noted only once it is actually on its way: the queue does not survive a
                     // wallet switch, and a note marked at queue time would never be written.
@@ -5438,3 +5446,60 @@ private struct KaspaAddressTransactionsCountResponse: Decodable {
     let total: Int
 }
 
+/// Messages deleted on this device (Select, then Delete), per account, for 1:1 chats and groups.
+/// Deleting only removes the local copy; the chain still has the message, so every sync, the open
+/// chat's poll and a chat archive import would bring it back without this list. Every way a
+/// message gets added checks it (`ChatService.addMessageToConversation`, the archive import,
+/// `GroupChatService`'s incoming message). Device-local like the delete itself, and removed with
+/// the account (`WalletManager.removeLocalData`).
+@MainActor
+enum DeletedMessageLog {
+    enum Kind: String { case chat, group }
+
+    /// Oldest dropped first past this: a delete thousands of deletes ago may come back.
+    private static let limit = 20_000
+    private static var cache: [String: (order: [String], ids: Set<String>)] = [:]
+
+    private static func key(_ kind: Kind, wallet: String) -> String {
+        "kachat_deleted_\(kind.rawValue)_messages_v1.\(wallet.lowercased())"
+    }
+
+    private static func entry(_ kind: Kind, wallet: String) -> (key: String, order: [String], ids: Set<String>) {
+        let key = key(kind, wallet: wallet)
+        if let cached = cache[key] { return (key, cached.order, cached.ids) }
+        let order = UserDefaults.standard.stringArray(forKey: key) ?? []
+        let ids = Set(order)
+        cache[key] = (order, ids)
+        return (key, order, ids)
+    }
+
+    static func contains(_ txId: String, kind: Kind) -> Bool {
+        guard !txId.isEmpty, let wallet = WalletManager.shared.currentWallet?.publicAddress else { return false }
+        return entry(kind, wallet: wallet).ids.contains(txId)
+    }
+
+    static func add(_ txIds: Set<String>, kind: Kind) {
+        guard let wallet = WalletManager.shared.currentWallet?.publicAddress else { return }
+        var (key, order, ids) = entry(kind, wallet: wallet)
+        for txId in txIds where !txId.isEmpty && !ids.contains(txId) {
+            order.append(txId)
+            ids.insert(txId)
+        }
+        if order.count > limit {
+            let dropped = order.prefix(order.count - limit)
+            ids.subtract(dropped)
+            order.removeFirst(dropped.count)
+        }
+        cache[key] = (order, ids)
+        UserDefaults.standard.set(order, forKey: key)
+    }
+
+    /// Delete Account: the account's lists go with it.
+    static func forget(wallet: String) {
+        for kind in [Kind.chat, .group] {
+            let key = key(kind, wallet: wallet)
+            cache.removeValue(forKey: key)
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+}

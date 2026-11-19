@@ -1531,3 +1531,10 @@
 "Set as Name" = "이름으로 설정";
 "Their Name" = "상대 이름";
 "Get a .kachat name" = ".kachat 이름 받기";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "라이브러리에서 움직이는 GIF를 보냅니다.";
+"Send an animated GIF from your library to the group." = "라이브러리에서 움직이는 GIF를 그룹에 보냅니다.";
+"GIF Quality" = "GIF 화질";
+"That isn't an animated GIF. Please pick another." = "움직이는 GIF가 아닙니다. 다른 것을 선택하세요.";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "이 GIF는 해당 화질에 비해 너무 깁니다. 더 높은 화질이나 더 짧은 GIF를 선택하세요.";

@@ -139,22 +139,23 @@ struct LinkPreviewCardView: View {
     @ViewBuilder
     private func cardBody(_ data: LinkPreviewData) -> some View {
         // A plain tappable view rather than a Button, so a double-tap can open the quick-reaction
-        // menu while a single tap opens the link. `onTapGesture(count: 2)` is listed first so a
-        // double-tap is claimed by that handler instead of also firing the single-tap open. Matches
-        // a normal message bubble's double-tap.
+        // menu while a single tap opens the link. The double-tap (`onDoubleTapIfSet`) is listed first
+        // so a double-tap is claimed by that handler instead of also firing the single-tap open.
+        // Matches a normal message bubble's double-tap. Only installed when there is one: a
+        // waiting double-tap holds every single tap back about 300 ms.
         if data.nextcloudShareRevoked {
             // The server says this share is gone. Showing the dead URL would leave the sender's
             // server address in the transcript for a link nobody can open, which is the opposite
             // of why they shared through their own cloud - so the row says only that it is gone.
             revokedShareTile
-                .onTapGesture(count: 2) { onDoubleTap?() }
+                .onDoubleTapIfSet(onDoubleTap)
                 .messageActions(title: "Shared File") { menuActions(hideLink: true) }
         } else if let kind = data.nextcloudMedia, kind == .image || kind == .video {
             // Nextcloud media renders as a bare photo/video bubble (like a sent photo), not a
             // titled link card — the media IS the message. Tap opens the in-app viewer, which is
             // the only way this app renders the share: it never hands the link to a browser.
             nextcloudMediaBubble(data, kind: kind)
-                .onTapGesture(count: 2) { onDoubleTap?() }
+                .onDoubleTapIfSet(onDoubleTap)
                 .onTapGesture { handleTap(data) }
                 .messageActions(title: "Link", preview: url.absoluteString) { menuActions() }
         } else if data.nextcloudMedia == .audio,
@@ -172,20 +173,20 @@ struct LinkPreviewCardView: View {
                 onReply: nil,
                 onSelect: onSelect
             )
-            .onTapGesture(count: 2) { onDoubleTap?() }
+            .onDoubleTapIfSet(onDoubleTap)
             .messageActions(title: "Link", preview: url.absoluteString) { menuActions() }
         } else if let kind = data.nextcloudMedia {
             // PDF/other files: an attachment card (icon, filename, type · size). PDF opens the
             // in-app viewer; everything else opens Nextcloud's own web viewer, the only thing
             // that can actually render an Office doc.
             nextcloudAttachmentCard(data, kind: kind)
-                .onTapGesture(count: 2) { onDoubleTap?() }
+                .onDoubleTapIfSet(onDoubleTap)
                 .onTapGesture { handleTap(data) }
                 .messageActions(title: "Link", preview: url.absoluteString) { menuActions() }
         } else {
             cardContent(data)
                 .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .onTapGesture(count: 2) { onDoubleTap?() }
+                .onDoubleTapIfSet(onDoubleTap)
                 .onTapGesture { handleTap(data) }
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .frame(maxWidth: 260)
@@ -368,7 +369,7 @@ struct LinkPreviewCardView: View {
             .background(Color(.systemGray5))
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .contentShape(RoundedRectangle(cornerRadius: 16))
-            .onTapGesture(count: 2) { onDoubleTap?() }
+            .onDoubleTapIfSet(onDoubleTap)
             .onTapGesture { openURL(url) }
             .messageActions(title: "Link", preview: url.absoluteString) { menuActions() }
     }
@@ -407,7 +408,7 @@ struct LinkPreviewCardView: View {
                 )
         )
         .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .onTapGesture(count: 2) { onDoubleTap?() }
+        .onDoubleTapIfSet(onDoubleTap)
         .onTapGesture { loadRequested = true }
         .messageActions(title: "Link", preview: url.absoluteString) { menuActions() }
     }
@@ -681,6 +682,19 @@ private struct LinkPreviewImage: View {
                 uiImage = image
             }
             finished = true
+        }
+    }
+}
+
+private extension View {
+    /// The double-tap only when there's something for it to do: installed, it makes every single
+    /// tap on the card wait to see whether a second one follows.
+    @ViewBuilder
+    func onDoubleTapIfSet(_ action: (() -> Void)?) -> some View {
+        if let action {
+            onTapGesture(count: 2, perform: action)
+        } else {
+            self
         }
     }
 }

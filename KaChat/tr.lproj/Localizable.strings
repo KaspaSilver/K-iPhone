@@ -1531,3 +1531,10 @@
 "Set as Name" = "Ad olarak ayarla";
 "Their Name" = "Adı";
 "Get a .kachat name" = ".kachat adı al";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "Arşivinizden hareketli bir GIF gönderin.";
+"Send an animated GIF from your library to the group." = "Arşivinizden gruba hareketli bir GIF gönderin.";
+"GIF Quality" = "GIF Kalitesi";
+"That isn't an animated GIF. Please pick another." = "Bu hareketli bir GIF değil. Lütfen başka birini seçin.";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "Bu GIF bu kalite için çok uzun. Daha yüksek bir kalite ya da daha kısa bir GIF seçin.";

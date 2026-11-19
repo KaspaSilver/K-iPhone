@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import AVFAudio
+import Photos
 import PhotosUI
 import CoreImage.CIFilterBuiltins
 #if canImport(YbridOpus)
@@ -395,6 +396,16 @@ struct ChatDetailView: View {
     /// Everything else (on-chain rows, paste, drop, share extension) goes on chain. Cleared when
     /// the attachment is sent or discarded.
     @State private var nextcloudPhotoRequested = false
+    /// The "+" sheet's GIF: the picker shows only animated images (`GIFPrep`).
+    @State private var gifPickerRequested = false
+    /// The pending photo is an animated GIF going on chain: its tiers are GIFs, not JPEGs.
+    @State private var pendingPhotoIsGIF = false
+
+    /// GIF: only animated images. Videos only go via Nextcloud: no on-chain path fits one.
+    private var photoPickerFilter: PHPickerFilter {
+        if gifPickerRequested { return .playbackStyle(PHAsset.PlaybackStyle.imageAnimated) }
+        return nextcloudPhotoRequested ? .any(of: [.images, .videos]) : .images
+    }
     @State private var nextcloudVoiceRequested = false
     @State private var showNextcloudPicker = false
     /// + > Request Payment: a payment request made for this contact and sent into this chat.
@@ -1100,6 +1111,7 @@ struct ChatDetailView: View {
         }
         .sheet(isPresented: $showPhotoQualitySheet) {
             PhotoQualitySheet(
+                title: pendingPhotoIsGIF ? LocalizedStringKey("GIF Quality") : LocalizedStringKey("Photo Quality"),
                 fees: photoTierFees,
                 onChoose: { tier in
                     showPhotoQualitySheet = false
@@ -2340,8 +2352,10 @@ struct ChatDetailView: View {
         .photosPicker(
             isPresented: $showPhotoPickerFromMenu,
             selection: $photoPickerItem,
-            // Videos only go via Nextcloud - there is no on-chain path that fits one.
-            matching: nextcloudPhotoRequested ? .any(of: [.images, .videos]) : .images
+            // Videos only go via Nextcloud - there is no on-chain path that fits one. GIF shows
+            // only animated images, handed over as they are.
+            matching: photoPickerFilter,
+            preferredItemEncoding: gifPickerRequested ? .current : .automatic
         )
         .sheet(isPresented: $showNextcloudPicker) {
             NextcloudPickerView { url, file in
@@ -2372,11 +2386,17 @@ struct ChatDetailView: View {
                 }
                 guard let data = try? await newItem.loadTransferable(type: Data.self) else {
                     await MainActor.run {
+                        gifPickerRequested = false
                         self.error = "Couldn't load that photo. Please try another."
                     }
                     return
                 }
                 await MainActor.run {
+                    defer { gifPickerRequested = false }
+                    if gifPickerRequested, !GIFPrep.isAnimated(data) {
+                        self.error = "That isn't an animated GIF. Please pick another."
+                        return
+                    }
                     // The route was chosen in the "+" sheet before the picker opened.
                     if !attachImageData(data) { nextcloudPhotoRequested = false }
                 }
@@ -2422,6 +2442,7 @@ struct ChatDetailView: View {
             afterPlusSheet = { takePhoto(viaNextcloud: viaNextcloud) }
         case .photo:
             nextcloudPhotoRequested = viaNextcloud
+            gifPickerRequested = false
             afterPlusSheet = { showPhotoPickerFromMenu = true }
         case .voice:
             if MediaAccess.microphone.isDenied {
@@ -2519,6 +2540,17 @@ struct ChatDetailView: View {
                     ) {
                         chooseMedia(.photo)
                     }
+                    // Always on chain: a GIF from your library, made to fit the quality you pick.
+                    ActionSheetRow(
+                        title: "GIF",
+                        subtitle: "Send an animated GIF from your library.",
+                        systemImage: "play.rectangle.on.rectangle"
+                    ) {
+                        nextcloudPhotoRequested = false
+                        gifPickerRequested = true
+                        afterPlusSheet = { showPhotoPickerFromMenu = true }
+                        showComposerPlusSheet = false
+                    }
                     ActionSheetRow(
                         title: "Voice Message",
                         subtitle: "Record a voice message and send it.",
@@ -2580,10 +2612,10 @@ struct ChatDetailView: View {
         .presentationDragIndicator(.visible)
     }
 
-    /// Fits the tiles: pay, camera, photo, voice, request, chess, plus file and a handshake when they apply.
+    /// Fits the tiles: pay, camera, photo, GIF, voice, request, chess, plus file and a handshake when they apply.
     private var composerPlusSheetHeight: CGFloat {
         if KaChatBot.isBot(contact.address) { return ActionSheetTileMetrics.sheetHeight(tiles: 1) }
-        var tiles = 6
+        var tiles = 7
         if nextcloudService.isConnected { tiles += 1 }
         if canSendRequestToCommunicate && !inboxSupported { tiles += 1 }
         return ActionSheetTileMetrics.sheetHeight(tiles: tiles)
@@ -2952,6 +2984,8 @@ struct ChatDetailView: View {
                             .font(.caption)
                             .foregroundColor(.white)
                             .shadow(radius: 2)
+                    } else if pendingPhotoIsGIF {
+                        GIFBadge()
                     }
                 }
                 .accessibilityHidden(true)
@@ -4602,10 +4636,14 @@ struct ChatDetailView: View {
     }
 
     private func stopRecording() {
+        // read before stop(): a stopped recorder's currentTime is 0
+        let captured = recorder?.isRecording == true ? recorder?.currentTime : nil
         recorder?.stop()
         recordingTimer?.invalidate()
         recordingTimer = nil
-        recordingDuration = recorder?.currentTime ?? recordingDuration
+        if let captured, captured > 0 {
+            recordingDuration = min(captured, effectiveMaxRecordingDuration)
+        }
         isRecording = false
     }
 
@@ -4654,6 +4692,8 @@ struct ChatDetailView: View {
         nextcloudStaged = nil
         pendingPhotoImage = nil
         pendingPhotoOriginalData = nil
+        pendingPhotoIsGIF = false
+        gifPickerRequested = false
         photoPickerItem = nil
         nextcloudPhotoRequested = false
         feeEstimateSompi = nil
@@ -4681,6 +4721,8 @@ struct ChatDetailView: View {
 
         pendingPhotoImage = image
         pendingPhotoOriginalData = data
+        // A GIF (picked, pasted or dropped) goes on chain as a GIF; via Nextcloud it uploads as is.
+        pendingPhotoIsGIF = !photoViaNextcloud && GIFPrep.isAnimated(data)
         isMessageFocused = false
         schedulePhotoFeeEstimate()
         if photoViaNextcloud {
@@ -4733,8 +4775,15 @@ struct ChatDetailView: View {
         photoTierImageID = imageID
         photoTierData = [:]
         let budgets = Dictionary(uniqueKeysWithValues: PhotoTier.allCases.map { ($0, $0.maxBytes(forGroup: false)) })
+        let gifData = pendingPhotoIsGIF ? pendingPhotoOriginalData : nil
         photoTierTask = Task.detached(priority: .userInitiated) {
-            guard let results = try? ImagePrep.prepareJPEGForTiers(image, budgets: Array(budgets.values)) else { return }
+            let prepared: [Int: Data]?
+            if let gifData {
+                prepared = try? GIFPrep.prepareForTiers(gifData, budgets: Array(budgets.values))
+            } else {
+                prepared = try? ImagePrep.prepareJPEGForTiers(image, budgets: Array(budgets.values))
+            }
+            guard let results = prepared else { return }
             await MainActor.run {
                 guard photoTierImageID == imageID, !Task.isCancelled else { return }
                 var byTier: [PhotoTier: Data] = [:]
@@ -4791,8 +4840,20 @@ struct ChatDetailView: View {
             // On chain, the chosen tier's photo: compressed already for the sheet, else now (off
             // the main thread). Bigger than one transaction, it goes as a multi-part photo.
             let imageData: Data
+            let gifData = pendingPhotoIsGIF ? pendingPhotoOriginalData : nil
             if photoTierImageID == ObjectIdentifier(image), let ready = photoTierData[tier] {
                 imageData = ready
+            } else if let gifData {
+                let budget = tier.maxBytes(forGroup: false)
+                guard let fitted = try await Task.detached(priority: .userInitiated, operation: {
+                    try GIFPrep.prepareForTiers(gifData, budgets: [budget])[budget]
+                }).value else {
+                    await MainActor.run {
+                        self.error = AppLocalization.string("This GIF is too long for that quality. Pick a higher one, or a shorter GIF.")
+                    }
+                    return
+                }
+                imageData = fitted
             } else {
                 imageData = try await Task.detached(priority: .userInitiated) {
                     try ImagePrep.prepareForTier(image, tier: tier, forGroup: false).data
@@ -4801,8 +4862,8 @@ struct ChatDetailView: View {
             try await chatService.sendImage(
                 to: contact,
                 imageData: imageData,
-                fileName: "photo.jpg",
-                mimeType: "image/jpeg"
+                fileName: gifData != nil ? "animation.gif" : "photo.jpg",
+                mimeType: gifData != nil ? "image/gif" : "image/jpeg"
             )
             await MainActor.run {
                 cancelPendingPhoto()
@@ -5026,19 +5087,32 @@ struct ChatDetailView: View {
         try session.setActive(true)
     }
 
+    /// Reads the recorder's own clock (`currentTime`: what was captured, so a call or Siri
+    /// pausing capture pauses it too) four times a second, on the run loop's common modes: in
+    /// the default mode the timer stopped while the chat scrolled, and a note ran past its length
+    /// limit with the fee shown too low. The shown time and the fee move once a second.
     private func startRecordingTimer() {
         recordingTimer?.invalidate()
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if let current = recorder?.currentTime {
-                recordingDuration = current
-            } else {
-                recordingDuration += 1
-            }
-            if recordingDuration >= effectiveMaxRecordingDuration {
+        // only without a recorder: count from now, on top of what's already shown
+        let fallbackStart = Date().addingTimeInterval(-recordingDuration)
+        let timer = Timer(timeInterval: 0.25, repeats: true) { _ in
+            // paused by a call or Siri: currentTime reads 0 then, so keep what's shown
+            if let recorder, !recorder.isRecording { return }
+            let current = recorder?.currentTime ?? Date().timeIntervalSince(fallbackStart)
+            if current >= effectiveMaxRecordingDuration {
+                recordingDuration = effectiveMaxRecordingDuration
                 stopRecording()
+                updateRecordingFee()
+                return
             }
-            updateRecordingFee()
+            let whole = current.rounded(.down)
+            if whole != recordingDuration {
+                recordingDuration = whole
+                updateRecordingFee()
+            }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        recordingTimer = timer
     }
 
     /// The WebM size of each part a recording of `duration` makes, worked out from the layout

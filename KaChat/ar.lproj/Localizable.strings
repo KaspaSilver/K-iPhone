@@ -1531,3 +1531,10 @@
 "Set as Name" = "تعيين كاسم";
 "Their Name" = "اسمه";
 "Get a .kachat name" = "احصل على اسم .kachat";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "أرسل صورة GIF متحركة من مكتبتك.";
+"Send an animated GIF from your library to the group." = "أرسل صورة GIF متحركة من مكتبتك إلى المجموعة.";
+"GIF Quality" = "جودة GIF";
+"That isn't an animated GIF. Please pick another." = "هذه ليست صورة GIF متحركة. يُرجى اختيار صورة أخرى.";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "صورة GIF هذه طويلة جدًا لهذه الجودة. اختر جودة أعلى أو صورة GIF أقصر.";

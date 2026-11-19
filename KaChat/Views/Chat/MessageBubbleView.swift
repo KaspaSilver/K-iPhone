@@ -1689,6 +1689,8 @@ struct LazyImageBubble: View {
     let onSelect: (() -> Void)?
 
     @State private var thumbnailState: (txId: String, image: UIImage)?
+    /// A GIF's bytes, once its first frame is in: the bubble plays them (`AnimatedImageView`).
+    @State private var animatedState: (txId: String, data: Data)?
     @State private var previewImage: UIImage?
     @State private var sharePayload: MessageImageSharePayload?
     @State private var isLoadingPreview = false
@@ -1759,9 +1761,13 @@ struct LazyImageBubble: View {
             if let thumbnailState, thumbnailState.txId == txId {
                 // Fill the aspect-sized frame exactly (frame already matches the image ratio), so
                 // there are no gray letterbox bars — the bubble is the shape of the picture.
-                Image(uiImage: thumbnailState.image)
-                    .resizable()
-                    .scaledToFill()
+                if let animatedState, animatedState.txId == txId {
+                    AnimatedImageView(data: animatedState.data)
+                } else {
+                    Image(uiImage: thumbnailState.image)
+                        .resizable()
+                        .scaledToFill()
+                }
             } else {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(.secondarySystemBackground))
@@ -1807,6 +1813,15 @@ struct LazyImageBubble: View {
                 return
             }
             thumbnailState = (txId, loadedThumbnail)
+            // A GIF: its bytes, checked off the main thread, so the bubble plays it.
+            let media = media
+            let cacheKey = imageCacheKey
+            let animated = await Task.detached(priority: .utility) { () -> Data? in
+                guard let data = media.fileData(cacheKey: cacheKey), GIFPrep.isAnimated(data) else { return nil }
+                return data
+            }.value
+            guard !Task.isCancelled else { return }
+            if let animated { animatedState = (txId, animated) }
         }
         .fullScreenCover(isPresented: $showImagePreview) {
             if let previewImage, let sharePayload {
@@ -2522,7 +2537,7 @@ struct PhotoPartsInput {
         var joined = Data()
         joined.reserveCapacity(parts.reduce(0) { $0 + $1.data.count })
         for part in parts { joined.append(part.data) }
-        let media = MediaFile(name: "photo.jpg", mimeType: mimeType, data: joined)
+        let media = MediaFile(name: mimeType.lowercased() == "image/gif" ? "animation.gif" : "photo.jpg", mimeType: mimeType, data: joined)
         Self.joinedCache.setObject(Box(media), forKey: key)
         return media
     }
@@ -3717,6 +3732,10 @@ private struct ImagePreviewView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isZoomed = false
     @State private var dragOffset: CGFloat = 0
+    /// A GIF plays here too.
+    private var animatedData: Data? {
+        GIFPrep.isAnimated(sharePayload.data) ? sharePayload.data : nil
+    }
 
     /// Past this translation (or a fast-enough flick, see `onEnded`), the swipe commits to
     /// dismissing instead of springing back.
@@ -3724,7 +3743,7 @@ private struct ImagePreviewView: View {
 
     var body: some View {
         NavigationStack {
-            ZoomableImageView(image: image, isZoomed: $isZoomed)
+            ZoomableImageView(image: image, isZoomed: $isZoomed, animatedData: animatedData)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -3776,6 +3795,8 @@ private struct ImagePreviewView: View {
 struct ZoomableImageView: UIViewRepresentable {
     let image: UIImage
     @Binding var isZoomed: Bool
+    /// An animated GIF's bytes: played in place of `image` (its first frame).
+    var animatedData: Data? = nil
 
     func makeUIView(context: Context) -> UIScrollView {
         let scrollView = UIScrollView()
@@ -3801,10 +3822,17 @@ struct ZoomableImageView: UIViewRepresentable {
         ])
 
         context.coordinator.imageView = imageView
+        if let animatedData {
+            context.coordinator.player.play(animatedData, in: imageView)
+        }
         return scrollView
     }
 
     func updateUIView(_ uiView: UIScrollView, context: Context) {}
+
+    static func dismantleUIView(_ uiView: UIScrollView, coordinator: Coordinator) {
+        coordinator.player.stop()
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(isZoomed: $isZoomed)
@@ -3812,6 +3840,7 @@ struct ZoomableImageView: UIViewRepresentable {
 
     final class Coordinator: NSObject, UIScrollViewDelegate {
         weak var imageView: UIImageView?
+        let player = ImageAnimationPlayer()
         @Binding var isZoomed: Bool
 
         init(isZoomed: Binding<Bool>) {

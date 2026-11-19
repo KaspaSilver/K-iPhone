@@ -1504,8 +1504,10 @@ final class GroupChatService: ObservableObject {
     /// Deletes the given messages from this device only - purely local (Core Data + in-memory),
     /// never on-chain. Mirrors `ChatService.deleteMessages(_:from:)` - see its doc comment for why
     /// this distinction is surfaced to the user in the confirmation alert.
-    func deleteMessages(_ txIds: Set<String>, groupId: String) {
+    func deleteMessages(_ txIds: Set<String>, groupId: String, remember: Bool = true) {
         guard !txIds.isEmpty else { return }
+        // so a catch-up or a walk of the stream doesn't put them back (DeletedMessageLog)
+        if remember { DeletedMessageLog.add(txIds, kind: .group) }
         groupMessages[groupId]?.removeAll { txIds.contains($0.txId) }
         for txId in txIds {
             store.deleteMessage(txId: txId)
@@ -1535,7 +1537,7 @@ final class GroupChatService: ObservableObject {
     func pruneExpiredSystemMessages(for groupId: String) {
         let expired = (groupMessages[groupId] ?? []).filter { Self.isExpiredSystemMessage($0) }
         guard !expired.isEmpty else { return }
-        deleteMessages(Set(expired.map(\.txId)), groupId: groupId)
+        deleteMessages(Set(expired.map(\.txId)), groupId: groupId, remember: false)
     }
 
     /// Best display name for a membership line: contact alias → roster snapshot → KNS → fallback.
@@ -1977,7 +1979,7 @@ final class GroupChatService: ObservableObject {
                 throw KasiaError.networkError("Audio file is empty")
             }
             contents.append(MediaFileEnvelope.json(
-                name: isPhoto ? "photo-\(tag.index)of\(tag.count).jpg" : tag.fileName,
+                name: isPhoto ? MediaPartName.photo(index: tag.index, count: tag.count, mimeType: mimeType) : tag.fileName,
                 size: data.count,
                 mimeType: mimeType,
                 dataUrlContent: "data:\(mimeType);base64,\(data.base64EncodedString())",
@@ -2895,6 +2897,12 @@ final class GroupChatService: ObservableObject {
             // Past the Message retention setting it isn't kept, even if a walk of the whole
             // stream (a repair, a restore) brings it back.
             if blockTime > 0, let cutoff = ChatService.shared.messageRetentionCutoffMs(), UInt64(blockTime) < cutoff {
+                markGroupTxHandled(txId)
+                return
+            }
+
+            // Deleted on this device: the stream still carries it.
+            if DeletedMessageLog.contains(txId, kind: .group) {
                 markGroupTxHandled(txId)
                 return
             }

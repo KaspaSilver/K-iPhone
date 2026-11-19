@@ -109,6 +109,8 @@ struct ComposerMediaRouteStep: View {
 /// multi-part photos". Each row shows its budget until the photo has been compressed for it,
 /// then the fee that photo will cost. The Nextcloud route never shows this.
 struct PhotoQualitySheet: View {
+    /// "Photo Quality", or "GIF Quality" for an animated GIF (`GIFPrep`).
+    var title: LocalizedStringKey = "Photo Quality"
     /// The fee of each tier's compressed photo, once known.
     let fees: [PhotoTier: UInt64]
     let onChoose: (PhotoTier) -> Void
@@ -118,7 +120,7 @@ struct PhotoQualitySheet: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("Photo Quality")
+            Text(title)
                 .font(.headline)
                 .padding(.top, 20)
                 .padding(.bottom, 4)
@@ -228,5 +230,17 @@ enum VideoThumbnail {
         generator.maximumSize = CGSize(width: 300, height: 300)
         guard let cgImage = try? await generator.image(at: .zero).image else { return nil }
         return UIImage(cgImage: cgImage)
+    }
+}
+
+/// "GIF" on a pending GIF's composer thumbnail.
+struct GIFBadge: View {
+    var body: some View {
+        Text(verbatim: "GIF")
+            .font(.system(size: 10, weight: .heavy, design: .rounded))
+            .foregroundColor(.white)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background(Color.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
     }
 }

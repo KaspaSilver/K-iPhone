@@ -807,6 +807,7 @@ final class WalletManager: ObservableObject {
             for variant in Self.accountAddressVariants(owned) {
                 ChatListSnapshotStore.clear(walletAddress: variant)
                 ChatService.shared.discardDrafts(forWallet: variant)
+                DeletedMessageLog.forget(wallet: variant)
                 ContactsManager.shared.deletePersistedContacts(forWalletAddress: variant)
                 await NextcloudService.shared.revokeAndPurgeStoredState(forWalletAddress: variant)
                 await KachatNameReminders.removeAll(forWallet: variant)

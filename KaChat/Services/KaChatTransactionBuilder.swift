@@ -299,7 +299,7 @@ struct KasiaTransactionBuilder {
         guard amount > 0 else {
             throw KasiaError.networkError("Amount must be greater than zero")
         }
-        let (amountToCover, coverOverflow) = amount.addingReportingOverflow(extraFeeSompi)
+        let (_, coverOverflow) = amount.addingReportingOverflow(extraFeeSompi)
         guard !coverOverflow else {
             throw KasiaError.networkError("Amount plus priority fee overflows")
         }
@@ -337,15 +337,16 @@ struct KasiaTransactionBuilder {
             changeScriptPubKey = senderScriptPubKey
         }
 
-        // Selection covers amount + priority tip; the recipient output below still carries only
-        // `amount`, so the extra stays unclaimed by outputs and becomes miner fee (change is
-        // computed net of it).
+        // The amount and the priority tip go in separately, as in buildPlainTransferTx, so the
+        // storage-mass check and the change-fold rule see the real outputs [amount, change] and
+        // match estimatePaymentFeeEstimate. The tip stays unclaimed by outputs: miner fee.
         let selection = try selectUtxosForPayment(
             utxos: utxos,
-            amount: amountToCover,
+            amount: amount,
             payload: paymentPayload,
             recipientScriptPubKey: recipientScriptPubKey,
-            senderScriptPubKey: changeScriptPubKey
+            senderScriptPubKey: changeScriptPubKey,
+            extraFeeSompi: extraFeeSompi
         )
 
         #if DEBUG

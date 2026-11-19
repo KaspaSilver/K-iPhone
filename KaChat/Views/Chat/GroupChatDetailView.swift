@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 import PhotosUI
 import AVFoundation
 
@@ -182,6 +183,16 @@ struct GroupChatDetailView: View {
     /// The photo / voice note was sent "via Nextcloud" from the "+" sheet; everything else goes
     /// on chain. Mirrors ChatDetailView.
     @State private var nextcloudPhotoRequested = false
+    /// The "+" sheet's GIF: the picker shows only animated images (`GIFPrep`).
+    @State private var gifPickerRequested = false
+    /// The pending photo is an animated GIF going on chain: its tiers are GIFs, not JPEGs.
+    @State private var pendingPhotoIsGIF = false
+
+    /// GIF: only animated images. Videos only go via Nextcloud: no on-chain path fits one.
+    private var photoPickerFilter: PHPickerFilter {
+        if gifPickerRequested { return .playbackStyle(PHAsset.PlaybackStyle.imageAnimated) }
+        return nextcloudPhotoRequested ? .any(of: [.images, .videos]) : .images
+    }
     @State private var nextcloudVoiceRequested = false
     @State private var showPhotoPicker = false
     @State private var showCamera = false
@@ -776,6 +787,7 @@ struct GroupChatDetailView: View {
         // chain pushed the type checker past its budget and it failed the whole expression.
         .sheet(isPresented: $showPhotoQualitySheet) {
             PhotoQualitySheet(
+                title: pendingPhotoIsGIF ? LocalizedStringKey("GIF Quality") : LocalizedStringKey("Photo Quality"),
                 fees: photoTierFees,
                 onChoose: { tier in
                     showPhotoQualitySheet = false
@@ -1184,6 +1196,8 @@ struct GroupChatDetailView: View {
         nextcloudStaged = nil
         pendingPhotoImage = nil
         pendingPhotoOriginalData = nil
+        pendingPhotoIsGIF = false
+        gifPickerRequested = false
         nextcloudPhotoRequested = false
         feeEstimateSompi = nil
     }
@@ -1387,6 +1401,7 @@ struct GroupChatDetailView: View {
         }
         pendingPhotoImage = image
         pendingPhotoOriginalData = data
+        pendingPhotoIsGIF = !photoViaNextcloud && GIFPrep.isAnimated(data)
         isComposerFocused = false
         schedulePhotoFeeEstimate()
         if photoViaNextcloud { startNextcloudPhotoUpload(for: image) }
@@ -1591,6 +1606,17 @@ struct GroupChatDetailView: View {
                 ) {
                     chooseMedia(.photo)
                 }
+                // Always on chain: a GIF from your library, made to fit the quality you pick.
+                ActionSheetRow(
+                    title: "GIF",
+                    subtitle: "Send an animated GIF from your library to the group.",
+                    systemImage: "play.rectangle.on.rectangle"
+                ) {
+                    nextcloudPhotoRequested = false
+                    gifPickerRequested = true
+                    afterPlusSheet = { showPhotoPicker = true }
+                    showPlusSheet = false
+                }
                 ActionSheetRow(
                     title: "Voice Message",
                     subtitle: "Record a voice message and send it to the group.",
@@ -1615,7 +1641,7 @@ struct GroupChatDetailView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .presentationDetents([.height(ActionSheetTileMetrics.sheetHeight(tiles: nextcloudService.isConnected ? 4 : 3))])
+        .presentationDetents([.height(ActionSheetTileMetrics.sheetHeight(tiles: nextcloudService.isConnected ? 5 : 4))])
         .presentationDragIndicator(.visible)
     }
 
@@ -1635,6 +1661,7 @@ struct GroupChatDetailView: View {
             afterPlusSheet = { takePhoto(viaNextcloud: viaNextcloud) }
         case .photo:
             nextcloudPhotoRequested = viaNextcloud
+            gifPickerRequested = false
             afterPlusSheet = { showPhotoPicker = true }
         case .voice:
             if MediaAccess.microphone.isDenied {
@@ -1759,8 +1786,10 @@ struct GroupChatDetailView: View {
         .photosPicker(
             isPresented: $showPhotoPicker,
             selection: $photoPickerItem,
-            // Videos only go via Nextcloud - there is no on-chain path that fits one.
-            matching: nextcloudPhotoRequested ? .any(of: [.images, .videos]) : .images
+            // Videos only go via Nextcloud - there is no on-chain path that fits one. GIF shows
+            // only animated images, handed over as they are.
+            matching: photoPickerFilter,
+            preferredItemEncoding: gifPickerRequested ? .current : .automatic
         )
         .sheet(isPresented: $showNextcloudPicker) {
             NextcloudPickerView { url, _ in
@@ -1786,14 +1815,23 @@ struct GroupChatDetailView: View {
                 }
                 guard let data = try? await newItem.loadTransferable(type: Data.self),
                       let image = UIImage(data: data) else {
-                    await MainActor.run { errorMessage = "Couldn't load that photo. Please try another." }
+                    await MainActor.run {
+                        gifPickerRequested = false
+                        errorMessage = "Couldn't load that photo. Please try another."
+                    }
                     return
                 }
                 await MainActor.run {
+                    defer { gifPickerRequested = false }
+                    if gifPickerRequested, !GIFPrep.isAnimated(data) {
+                        errorMessage = "That isn't an animated GIF. Please pick another."
+                        return
+                    }
                     isComposerFocused = false
                     // The route was chosen in the "+" sheet before the picker opened.
                     pendingPhotoImage = image
                     pendingPhotoOriginalData = data
+                    pendingPhotoIsGIF = !photoViaNextcloud && GIFPrep.isAnimated(data)
                     schedulePhotoFeeEstimate()
                     if photoViaNextcloud { startNextcloudPhotoUpload(for: image) }
                 }
@@ -1814,6 +1852,8 @@ struct GroupChatDetailView: View {
                             .font(.caption)
                             .foregroundColor(.white)
                             .shadow(radius: 2)
+                    } else if pendingPhotoIsGIF {
+                        GIFBadge()
                     }
                 }
 
@@ -2033,8 +2073,15 @@ struct GroupChatDetailView: View {
         photoTierImageID = imageID
         photoTierData = [:]
         let budgets = Dictionary(uniqueKeysWithValues: PhotoTier.allCases.map { ($0, $0.maxBytes(forGroup: true)) })
+        let gifData = pendingPhotoIsGIF ? pendingPhotoOriginalData : nil
         photoTierTask = Task.detached(priority: .userInitiated) {
-            guard let results = try? ImagePrep.prepareJPEGForTiers(image, budgets: Array(budgets.values)) else { return }
+            let prepared: [Int: Data]?
+            if let gifData {
+                prepared = try? GIFPrep.prepareForTiers(gifData, budgets: Array(budgets.values))
+            } else {
+                prepared = try? ImagePrep.prepareJPEGForTiers(image, budgets: Array(budgets.values))
+            }
+            guard let results = prepared else { return }
             await MainActor.run {
                 guard photoTierImageID == imageID, !Task.isCancelled else { return }
                 var byTier: [PhotoTier: Data] = [:]
@@ -2090,15 +2137,33 @@ struct GroupChatDetailView: View {
                 let ready: Data? = await MainActor.run {
                     photoTierImageID == ObjectIdentifier(pendingPhotoImage) ? photoTierData[tier] : nil
                 }
+                let gifData: Data? = await MainActor.run { pendingPhotoIsGIF ? pendingPhotoOriginalData : nil }
                 let imageData: Data
                 if let ready {
                     imageData = ready
+                } else if let gifData {
+                    let budget = tier.maxBytes(forGroup: true)
+                    guard let fitted = try await Task.detached(priority: .userInitiated, operation: {
+                        try GIFPrep.prepareForTiers(gifData, budgets: [budget])[budget]
+                    }).value else {
+                        await MainActor.run {
+                            self.errorMessage = AppLocalization.string("This GIF is too long for that quality. Pick a higher one, or a shorter GIF.")
+                            self.isSendingPhoto = false
+                        }
+                        return
+                    }
+                    imageData = fitted
                 } else {
                     imageData = try await Task.detached(priority: .userInitiated) {
                         try ImagePrep.prepareForTier(pendingPhotoImage, tier: tier, forGroup: true).data
                     }.value
                 }
-                try await groupChatService.sendGroupImage(imageData, to: group.id, fileName: "photo.jpg", mimeType: "image/jpeg")
+                try await groupChatService.sendGroupImage(
+                    imageData,
+                    to: group.id,
+                    fileName: gifData != nil ? "animation.gif" : "photo.jpg",
+                    mimeType: gifData != nil ? "image/gif" : "image/jpeg"
+                )
                 await MainActor.run {
                     self.clearPendingPhoto()
                     self.isSendingPhoto = false

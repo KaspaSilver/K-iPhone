@@ -1531,3 +1531,10 @@
 "Set as Name" = "नाम के रूप में सेट करें";
 "Their Name" = "उनका नाम";
 "Get a .kachat name" = ".kachat नाम पाएँ";
+
+/* GIFs (2026-11-18) */
+"Send an animated GIF from your library." = "अपनी लाइब्रेरी से एक एनिमेटेड GIF भेजें।";
+"Send an animated GIF from your library to the group." = "अपनी लाइब्रेरी से ग्रुप में एक एनिमेटेड GIF भेजें।";
+"GIF Quality" = "GIF क्वालिटी";
+"That isn't an animated GIF. Please pick another." = "यह एनिमेटेड GIF नहीं है। कृपया कोई दूसरा चुनें।";
+"This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "यह GIF उस क्वालिटी के लिए बहुत लंबा है। ऊंची क्वालिटी या छोटा GIF चुनें।";
