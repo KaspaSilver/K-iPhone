@@ -7,8 +7,8 @@ import UIKit
 enum AppTabBadge {
     static func unreadCount(for tab: AppTab) -> Int {
         switch tab {
-        // The whole notification feed: Profile hosts the bell that lists it.
-        case .profile: return GlobalNotificationCenter.shared.unreadCount
+        // The whole notification feed: Wallet lists it (its Notifications card, since 2026-11-20).
+        case .wallet: return GlobalNotificationCenter.shared.unreadCount
         // Unread messages across the chats the list shows (not Message Requests or blocked).
         case .chats: return ChatService.shared.chatListUnreadCount + GroupChatService.shared.totalGroupUnreadCount
         default: return 0
@@ -28,7 +28,7 @@ enum AppTabBadge {
     static func dockLabel(for tab: AppTab) -> String? {
         let count = unreadCount(for: tab)
         guard count > 0 else { return nil }
-        return tab == .profile ? dot : label(count)
+        return tab == .wallet ? dot : label(count)
     }
 
     /// A badge with no number: UIKit draws a small red dot for an empty badge value.

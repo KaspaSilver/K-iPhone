@@ -912,6 +912,13 @@ struct ChatListView: View {
         return "kachat_group_pins_\(address)"
     }
 
+    /// Delete Account: the wallet's pinned circles and groups.
+    static func removeAllData(forWallet wallet: String) {
+        let address = wallet.lowercased()
+        UserDefaults.standard.removeObject(forKey: "kachat_chat_circle_pins_\(address)")
+        UserDefaults.standard.removeObject(forKey: "kachat_group_pins_\(address)")
+    }
+
     /// The first time, the groups pinned in the old circles row (their "g:" ids in
     /// `kachat_chat_circle_pins_`) carry over, in the same order.
     private func loadGroupPins() {

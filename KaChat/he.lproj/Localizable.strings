@@ -1538,3 +1538,166 @@
 "GIF Quality" = "איכות GIF";
 "That isn't an animated GIF. Please pick another." = "זה לא GIF מונפש. נא לבחור אחר.";
 "This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "ה-GIF הזה ארוך מדי לאיכות הזו. בחרו איכות גבוהה יותר או GIF קצר יותר.";
+
+/* kUSDT: hold, receive, send (from KaPay, 2026-11-19) */
+"%@ Actions" = "פעולות %@";
+"%@ Address Visibility" = "הצגת כתובות %@";
+"%@ Balance" = "יתרת %@";
+"%@ History" = "היסטוריית %@";
+"%@ can only go to a regular Kaspa address, not a quantum-safe or other script address." = "אפשר לשלוח %@ רק לכתובת Kaspa רגילה, לא לכתובת עמידה לקוונטים או לכתובת סקריפט אחרת.";
+"%@ held with it" = "%@ מוחזקים איתו";
+"%d Addresses" = "%d כתובות";
+"%d coins into 1" = "%d מטבעות ל-1";
+"%d found so far" = "נמצאו %d עד כה";
+"%d hidden: they still count in the total." = "%d מוסתרות: הן עדיין נספרות בסך הכול.";
+"A brand-new address of yours, never used or handed out: this payment can't be tied to your name." = "כתובת חדשה לגמרי שלכם, שמעולם לא שימשה ולא נמסרה: אי אפשר לקשר את התשלום הזה לשם שלכם.";
+"A quantum-resistant address: its key stays hidden until it spends." = "כתובת עמידה לקוונטים: המפתח שלה נשאר מוסתר עד שמוציאים ממנה.";
+"A regular address, like Receive gives you. Works with everything, kUSDT included." = "כתובת רגילה, כמו זו שקבלה נותנת. עובדת עם הכול, כולל kUSDT.";
+"A spending address of yours: a payment here isn't tied to your name." = "אחת מכתובות ההוצאה שלכם: תשלום לכאן לא מקושר לשם שלכם.";
+"About %@" = "אודות %@";
+"Add %@ More" = "הוספת עוד %@";
+"Add %@ for Fee and Change Coin" = "הוספת %@ לעמלה ולמטבע העודף";
+"Add %@ for the Network Fee" = "הוספת %@ לעמלת הרשת";
+"Adds a brand-new regular address of yours to this list." = "מוסיף לרשימה הזו כתובת רגילה חדשה לגמרי שלכם.";
+"Amount (%@)" = "סכום (%@)";
+"Available: %@" = "זמין: %@";
+"Back to This Address" = "חוזר לכתובת הזו";
+"Bridged In" = "התקבל דרך הגשר";
+"Bridged USDT" = "USDT דרך גשר";
+"Bridged by %@" = "דרך הגשר של %@";
+"Building the transaction…" = "בונים את העסקה…";
+"Check Again" = "בדוק שוב";
+"Check off which addresses holding kUSDT are on the list." = "סמנו אילו כתובות עם kUSDT יופיעו ברשימה.";
+"Checking address #%d" = "בודקים את כתובת #%d";
+"Checking your %@..." = "בודקים את ה-%@ שלכם…";
+"Coins Combined" = "המטבעות אוחדו";
+"Combine Coins" = "איחוד מטבעות";
+"Combined" = "אוחד";
+"Combined Coins" = "מטבעות אוחדו";
+"Couldn't check %@ just now: %@ Pull down to try again." = "לא ניתן היה לבדוק את %1$@ כרגע: %2$@ משכו למטה כדי לנסות שוב.";
+"Discover kUSDT Addresses" = "איתור כתובות kUSDT";
+"Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first." = "אל תשלחו לכתובת הזו USDT מ-Ethereum, מ-BNB Chain או מבורסה: הוא יאבד. גשרו אותו קודם ל-Kaspa ב-Trestly.";
+"Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one." = "אל תשלחו לכאן kUSDT: אי אפשר לסחור בו מכתובת עמידה לקוונטים. לכתובת רגילה השתמשו בקבלה.";
+"Ethereum" = "Ethereum";
+"Every %@ coin holds %@. Combining them into one coin gives the extra KAS back to this address as regular KAS, less the network fee. Your %@ stays the same." = "כל מטבע %@ מחזיק %@. איחודם למטבע אחד מחזיר את ה-KAS העודף לכתובת הזו כ-KAS רגיל, בניכוי עמלת הרשת. ה-%@ שלכם נשאר אותו דבר.";
+"Every %@ coin holds %@. It goes to the recipient with the %@, so the KAS isn't lost." = "כל מטבע %@ מחזיק %@. ה-KAS הזה עובר לנמען יחד עם ה-%@, כך שהוא לא הולך לאיבוד.";
+"Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "כל מטבע kUSDT מחזיק 1.5 KAS. הוא עובר יחד עם ה-kUSDT כששולחים אותו.";
+"Finds your addresses holding kUSDT." = "מאתר את הכתובות שלכם שמחזיקות kUSDT.";
+"Found %d addresses with %@." = "נמצאו %1$d כתובות עם %2$@.";
+"Generate New Address" = "צור כתובת חדשה";
+"Generate Non-Quantum Address" = "יצירת כתובת לא קוונטית";
+"Generate Quantum-Resistant Address" = "יצירת כתובת עמידה לקוונטים";
+"Goes With It" = "נשלח יחד איתו";
+"Held On" = "מוחזק ב";
+"It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "הוא מגיע לחשבון הזה ונכלל בסך ההוצאה. השתמשו בה לכל דבר חוץ משמות ‎.kachat.";
+"KAS Held With It" = "KAS שמוחזק איתו";
+"KAS Paid From" = "KAS שולם מ";
+"KAS for %@ on %@" = "KAS תמורת %@ ב-%@";
+"KAS for a %@ send" = "KAS לשליחת %@";
+"Kaspa" = "Kaspa";
+"Kaspa, and kUSDT on Kaspa, can be sent here." = "אפשר לשלוח לכאן Kaspa, ו-kUSDT ב-Kaspa.";
+"Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it." = "שומרת את המפתח שלה מוסתר עד שמוציאים ממנה. ל-Kaspa בלבד: אי אפשר לסחור בה ב-kUSDT.";
+"Manage %@" = "ניהול %@";
+"Manage %@ starts over with only your Chatting Address. Nothing is lost: bring any address back here, and its %@ still counts in your total." = "ניהול %1$@ יתחיל מחדש רק עם כתובת הצ'אט שלכם. שום דבר לא אובד: החזירו כל כתובת מכאן, וה-%2$@ שלה ימשיך להיספר בסך הכול.";
+"Merges its coins into one and gives the extra KAS back." = "מאחד את המטבעות שלה לאחד ומחזיר את ה-KAS העודף.";
+"More than your %@." = "יותר מיתרת ה-%@ שלכם.";
+"Moves Kaspa from this address to your Chatting Address." = "מעביר Kaspa מהכתובת הזו לכתובת הצ'אט שלכם.";
+"Moves kUSDT from this address to your Chatting Address." = "מעביר kUSDT מהכתובת הזו לכתובת הצ'אט שלכם.";
+"No %@ Yet" = "עדיין אין %@";
+"No %@ activity yet." = "אין עדיין פעילות %@.";
+"No addresses with %@ found." = "לא נמצאו כתובות עם %@.";
+"No addresses with %@ yet" = "עדיין אין כתובות עם %@";
+"Not confirmed: the network didn't answer. It may still go through. Try Again resends the same transaction, so it can't be paid twice." = "לא אושר: הרשת לא ענתה. ייתכן שזה עדיין יעבור. ‏נסו שוב שולח את אותה עסקה, כך שאי אפשר לשלם פעמיים.";
+"Not independently audited yet. Hold only what you can afford to lose." = "עדיין לא עבר ביקורת עצמאית. החזיקו רק סכום שאתם יכולים להרשות לעצמכם להפסיד.";
+"On %d of your addresses" = "ב-%d מהכתובות שלכם";
+"On your %@" = "ב%@ שלכם";
+"Only %@ on Kaspa, or KAS, can be sent here." = "אפשר לשלוח לכאן רק %@ ב-Kaspa, או KAS.";
+"Only Kaspa can be sent here." = "אפשר לשלוח לכאן רק Kaspa.";
+"Pending" = "ממתין";
+"Pick which of your addresses the KAS comes from, swipe up, and you're back here." = "בחרו מאיזו כתובת שלכם יגיע ה-KAS, החליקו למעלה, ותחזרו לכאן.";
+"Receive %@" = "קבלת %@";
+"Received %@" = "התקבלו %@";
+"Removes it from this list. Re-enable it in %@ Address Visibility." = "מסיר אותה מהרשימה הזו. אפשר להחזיר אותה בהצגת כתובות %@.";
+"Sample Data" = "נתוני דוגמה";
+"Send %@" = "שלח %@";
+"Send to Chatting Address" = "שליחה לכתובת צ'אט";
+"Sends, receives and combines on this phone show here from now on." = "מעכשיו, שליחות, קבלות ואיחודים בטלפון הזה יופיעו כאן.";
+"Swapped" = "הוחלף";
+"Swipe up to Combine" = "החליקו למעלה לאיחוד";
+"Tap to Manage" = "הקישו לניהול";
+"That amount is spread over more than 3 kUSDT coins on this address. Send a smaller amount for now." = "הסכום הזה מפוזר על יותר מ-3 מטבעות kUSDT בכתובת הזו. בינתיים שלחו סכום קטן יותר.";
+"The KAS for the fee comes from the same address, so the send doesn't link it to your other addresses." = "ה-KAS לעמלה מגיע מאותה כתובת, כך שהשליחה לא מקשרת אותה לכתובות האחרות שלכם.";
+"The KAS you sent hasn't shown up on this address yet. It usually takes a few seconds." = "ה-KAS ששלחתם עדיין לא הופיע בכתובת הזו. זה לוקח בדרך כלל כמה שניות.";
+"The Trestly API address in Connection Settings isn't a valid https address." = "כתובת ה-API של Trestly בהגדרות החיבור אינה כתובת https תקינה.";
+"The built transaction didn't match what you approved, so nothing was sent." = "העסקה שנבנתה לא תאמה את מה שאישרתם, ולכן לא נשלח דבר.";
+"The transaction couldn't be built. Nothing was sent." = "לא ניתן היה לבנות את העסקה. לא נשלח דבר.";
+"This address doesn't hold that much kUSDT." = "בכתובת הזו אין כל כך הרבה kUSDT.";
+"This address had no KAS, so the network fee came out of the KAS that goes with the kUSDT." = "בכתובת הזו לא היה KAS, ולכן עמלת הרשת נלקחה מה-KAS שהולך עם ה-kUSDT.";
+"This address holds its kUSDT in one coin already." = "הכתובת הזו כבר מחזיקה את ה-kUSDT שלה במטבע אחד.";
+"This address needs a little KAS for the network fee." = "הכתובת הזו צריכה מעט KAS לעמלת הרשת.";
+"This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "הכתובת הזו צריכה מעט KAS: עמלת הרשת, ועוד 1.5 KAS למטבע העודף שלכם (ה-kUSDT שנשאר אצלכם). ה-1.5 KAS האלה נשארים שלכם.";
+"This address on the Kaspa explorer." = "הכתובת הזו בסייר של Kaspa.";
+"This address's key isn't available on this phone." = "המפתח של הכתובת הזו לא זמין בטלפון הזה.";
+"To %@" = "אל %@";
+"Tokens" = "טוקנים";
+"Total KAS" = "סה״כ KAS";
+"Trestly" = "Trestly";
+"Trestly API URL" = "כתובת ה-API של Trestly";
+"Trestly answered HTTP %d." = "Trestly ענה HTTP %d.";
+"Trestly didn't answer." = "Trestly לא ענה.";
+"Trestly's answer couldn't be read." = "לא ניתן היה לקרוא את התשובה של Trestly.";
+"Up to %d coins combine at a time. Combine again for the rest." = "אפשר לאחד עד %d מטבעות בכל פעם. אחדו שוב בשביל השאר.";
+"View the Vault" = "צפייה בכספת";
+"Waiting for your KAS to arrive…" = "ממתינים שה-KAS שלכם יגיע…";
+"What are you sending?" = "מה אתם שולחים?";
+"Your Chatting Address shows your .kachat name and identity: whoever pays here can see it's you." = "כתובת הצ'אט שלכם מציגה את שם ה-‎.kachat והזהות שלכם: מי שמשלם לכאן יכול לראות שזה אתם.";
+"kUSDT Address Visibility" = "הצגת כתובות kUSDT";
+"kUSDT Balances" = "יתרות kUSDT";
+"kUSDT can only go to a regular Kaspa address." = "אפשר לשלוח kUSDT רק לכתובת Kaspa רגילה.";
+"kUSDT is USDT from Ethereum and BNB Chain, held 1:1 in Trestly's vault and issued as a token on Kaspa. It isn't issued by Tether, and only Trestly can turn it back into USDT." = "kUSDT הוא USDT מ-Ethereum ומ-BNB Chain, שמוחזק 1:1 בכספת של Trestly ומונפק כטוקן ב-Kaspa. הוא לא מונפק על ידי Tether, ורק Trestly יכולה להמיר אותו בחזרה ל-USDT.";
+"kUSDT's transaction builder couldn't start." = "בונה העסקאות של kUSDT לא הצליח להתחיל.";
+"kUSDT's transaction builder gave no answer." = "בונה העסקאות של kUSDT לא ענה.";
+"kUSDT's transaction builder isn't the pinned one, so it won't run." = "בונה העסקאות של kUSDT אינו זה שננעץ, ולכן לא יופעל.";
+"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "התבנית של kUSDT חסרה ב-KaChat, ולכן אי אפשר לבדוק kUSDT.";
+"The network fee is above KaChat's safety limit. Nothing was sent." = "עמלת הרשת מעל גבול הבטיחות של KaChat. לא נשלח דבר.";
+"Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "קבל אותו בכתובת חדשה שלך. קנייה והחלפה של kUSDT נעשות ב-KaPay.";
+"Release to Confirm" = "שחרר כדי לאשר";
+"The transaction didn't go out." = "העסקה לא יצאה.";
+"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "המקום שבו KaChat בודק את ה-kUSDT שלך. כל מטבע שמופיע שם נבדק בצומת Kaspa לפני שהוא נספר. השאר ריק לברירת המחדל של הרשת הזו.";
+"Fee %@" = "עמלה %@";
+
+/* Share Profile sheet (2026-11-20) */
+"Copy Share Link" = "העתק קישור לשיתוף";
+"Share link copied." = "הקישור לשיתוף הועתק.";
+
+"Not set" = "לא הוגדר";
+
+/* Address Domains tab (2026-11-20) */
+"1 domain" = "דומיין אחד";
+"Couldn't load" = "לא ניתן לטעון";
+"No %@ names on this address." = "אין שמות %@ בכתובת הזו.";
+
+/* kUSDT-listed addresses stay in Manage Addresses (2026-11-20) */
+"Shown for kUSDT" = "מוצגת בגלל kUSDT";
+"This address is on your kUSDT list, so it stays here. Hide it from Manage kUSDT first." = "הכתובת הזו ברשימת ה-kUSDT שלכם, ולכן היא נשארת כאן. הסתירו אותה קודם בניהול kUSDT.";
+
+/* Send Dollars in a 1:1 chat (2026-11-20) */
+"Send Dollars" = "שליחת דולרים";
+"Send dollars (kUSDT) to this contact." = "שלחו דולרים (kUSDT) לאיש הקשר הזה.";
+"Which stablecoin are you sending?" = "איזה מטבע יציב שולחים?";
+"None of your addresses holds %@ yet." = "אף אחת מהכתובות שלך עדיין לא מחזיקה %@.";
+
+/* Token payment bubbles: amount, then the token symbol (2026-11-20) */
+"Sent %1$@ %2$@" = "נשלחו %1$@ %2$@";
+"Received %1$@ %2$@" = "התקבלו %1$@ %2$@";
+
+/* Send Dollars with no kUSDT: switch to KaPay or its install page (2026-11-20) */
+"Get KaPay" = "להורדת KaPay";
+
+/* Send Dollars: Discover still running (2026-11-20) */
+"Checking your addresses for %@…" = "בודקים אם יש %@ בכתובות שלך…";
+
+/* Audit fixes (2026-11-20) */
+"Unverified %@ payment" = "תשלום %@ שלא אומת";
+"This send changed while the screen was open. Nothing was sent: check it again and swipe." = "השליחה הזו השתנתה בזמן שהמסך היה פתוח. לא נשלח דבר: בדקו שוב והחליקו.";
+"Scanning your addresses for balances…" = "סורקים את הכתובות שלך לאיתור יתרות…";

@@ -918,6 +918,12 @@ struct MessageBubbleView: View {
     struct PaymentCardParts {
         let amountText: String
         let note: String?
+        /// A token payment ("Sent 12.50 kUSDT", Send Dollars): its icon and symbol stand in for
+        /// Kaspa's. Nil for a Kaspa payment.
+        var token: WalletToken? = nil
+
+        /// "12.50 kUSDT" or "2.5 KAS".
+        var amountWithUnit: String { "\(amountText) \(token?.symbol ?? KaspaUnit.symbol)" }
     }
 
     /// nil when the content doesn't look like a standard payment phrase (foreign/legacy data) -
@@ -940,7 +946,9 @@ struct MessageBubbleView: View {
             return nil
         }
         let note = noteRaw?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return PaymentCardParts(amountText: amountToken, note: (note?.isEmpty == false) ? note : nil)
+        let words = head.components(separatedBy: .whitespaces)
+        let token = WalletToken.all.first { words.contains($0.symbol) }
+        return PaymentCardParts(amountText: amountToken, note: (note?.isEmpty == false) ? note : nil, token: token)
     }
 
     /// Apple-Pay-in-iMessage style payment card: KaspaLogo leading, the amount large and bold,
@@ -952,24 +960,30 @@ struct MessageBubbleView: View {
     private func paymentCardBubble(_ parts: PaymentCardParts) -> some View {
         let outgoing = message.isOutgoing
         return HStack(spacing: 12) {
-            Image("KaspaLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 34, height: 34)
-                .padding(6)
-                .background(
-                    // Outgoing rides a teal gradient — a translucent white circle left the teal
-                    // logo nearly invisible (teal on teal). Solid white gives the brand mark its
-                    // natural contrast; incoming keeps the subtle accent tint on neutral glass.
-                    Circle().fill(outgoing ? Color.white : Color.accentColor.opacity(0.12))
-                )
-                .shadow(color: outgoing ? Color.black.opacity(0.12) : .clear, radius: 3, y: 1)
+            Group {
+                if let token = parts.token {
+                    TokenIcon(token: token, size: 46)
+                } else {
+                    Image("KaspaLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 34, height: 34)
+                        .padding(6)
+                        .background(
+                            // Outgoing rides a teal gradient — a translucent white circle left the teal
+                            // logo nearly invisible (teal on teal). Solid white gives the brand mark its
+                            // natural contrast; incoming keeps the subtle accent tint on neutral glass.
+                            Circle().fill(outgoing ? Color.white : Color.accentColor.opacity(0.12))
+                        )
+                }
+            }
+            .shadow(color: outgoing ? Color.black.opacity(0.12) : .clear, radius: 3, y: 1)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(outgoing ? "Sent" : "Received")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(outgoing ? Color.white.opacity(0.85) : .secondary)
-                Text(verbatim: "\(parts.amountText) \(KaspaUnit.symbol)")
+                Text(verbatim: parts.amountWithUnit)
                     .font(.title3.weight(.bold))
                     .foregroundColor(outgoing ? .white : .primary)
                     .lineLimit(1)
@@ -1692,6 +1706,7 @@ struct LazyImageBubble: View {
     /// A GIF's bytes, once its first frame is in: the bubble plays them (`AnimatedImageView`).
     @State private var animatedState: (txId: String, data: Data)?
     @State private var previewImage: UIImage?
+    @State private var previewAnimates = false
     @State private var sharePayload: MessageImageSharePayload?
     @State private var isLoadingPreview = false
     @State private var showImagePreview = false
@@ -1813,11 +1828,12 @@ struct LazyImageBubble: View {
                 return
             }
             thumbnailState = (txId, loadedThumbnail)
-            // A GIF: its bytes, checked off the main thread, so the bubble plays it.
+            // A GIF: its bytes, checked off the main thread, so the bubble plays it. Only a real
+            // GIF within the play limits; anything else keeps the still thumbnail.
             let media = media
             let cacheKey = imageCacheKey
             let animated = await Task.detached(priority: .utility) { () -> Data? in
-                guard let data = media.fileData(cacheKey: cacheKey), GIFPrep.isAnimated(data) else { return nil }
+                guard let data = media.fileData(cacheKey: cacheKey), GIFPrep.isSafeToAnimate(data) else { return nil }
                 return data
             }.value
             guard !Task.isCancelled else { return }
@@ -1828,7 +1844,8 @@ struct LazyImageBubble: View {
                 ImagePreviewView(
                     image: previewImage,
                     title: media.name,
-                    sharePayload: sharePayload
+                    sharePayload: sharePayload,
+                    animates: previewAnimates
                 )
             } else {
                 ProgressView()
@@ -1873,6 +1890,7 @@ struct LazyImageBubble: View {
             isLoadingPreview = false
             guard let loaded else { return }
             previewImage = loaded.image
+            previewAnimates = loaded.animates
             sharePayload = loaded.sharePayload
             setShowImagePreview(true)
         }
@@ -2038,6 +2056,11 @@ struct MediaFile: Codable {
         return decoded
     }
 
+    /// The full-screen preview's long edge: the largest photo sent from here
+    /// (`ImagePrep.tierEdges`), so zooming in still has detail.
+    static let previewMaxPixelSize: CGFloat = 3000
+
+    /// The photo at full-screen size (`previewMaxPixelSize`), never decoded whole.
     func image(cacheKey: String?) -> UIImage? {
         guard isImage else { return nil }
         if let key = Self.cacheKey(from: cacheKey),
@@ -2045,7 +2068,7 @@ struct MediaFile: Codable {
             return cachedImage
         }
         guard let data = fileData(cacheKey: cacheKey),
-              let image = UIImage(data: data) else {
+              let image = Self.downsampledImage(data: data, maxPixelSize: Self.previewMaxPixelSize) else {
             return nil
         }
         if let key = Self.cacheKey(from: cacheKey) {
@@ -2066,7 +2089,7 @@ struct MediaFile: Codable {
 
         return await Task.detached(priority: .userInitiated) {
             guard let data = fileData(cacheKey: cacheKey),
-                  let image = Self.downsampledImage(data: data, maxPixelSize: maxPixelSize) ?? UIImage(data: data) else {
+                  let image = Self.downsampledImage(data: data, maxPixelSize: maxPixelSize) else {
                 return nil
             }
 
@@ -2077,7 +2100,9 @@ struct MediaFile: Codable {
         }.value
     }
 
-    func previewImagePayload(cacheKey: String?) async -> (image: UIImage, sharePayload: MessageImageSharePayload)? {
+    /// `animates`: a GIF small enough to play (`GIFPrep.isSafeToAnimate`), checked here off the
+    /// main thread.
+    func previewImagePayload(cacheKey: String?) async -> (image: UIImage, sharePayload: MessageImageSharePayload, animates: Bool)? {
         guard isImage else { return nil }
         return await Task.detached(priority: .userInitiated) {
             guard let data = fileData(cacheKey: cacheKey),
@@ -2086,7 +2111,8 @@ struct MediaFile: Codable {
             }
             return (
                 image,
-                MessageImageSharePayload(data: data, fileName: name, mimeType: mimeType)
+                MessageImageSharePayload(data: data, fileName: name, mimeType: mimeType),
+                GIFPrep.isSafeToAnimate(data)
             )
         }.value
     }
@@ -2136,11 +2162,23 @@ struct MediaFile: Codable {
         return Data(base64Encoded: String(base64))
     }
 
+    /// Past this a chat photo isn't a real one: photos sent from here are at most 3000 px
+    /// (`ImagePrep.tierEdges`), and a 48 MP camera photo is about the largest there is. Even a
+    /// thumbnail of a bigger one can decode it whole first.
+    private static let maxSourcePixels: Double = 50_000_000
+
+    /// The only way chat photos are decoded: never at full size, and nil (the placeholder) rather
+    /// than `UIImage(data:)` when this fails, since a few KB can declare gigabytes of pixels.
     private static func downsampledImage(data: Data, maxPixelSize: CGFloat) -> UIImage? {
         let sourceOptions = [
             kCGImageSourceShouldCache: false
         ] as CFDictionary
-        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, sourceOptions) as? [CFString: Any],
+              let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+              let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+              width > 0, height > 0,
+              Double(width) * Double(height) <= maxSourcePixels else {
             return nil
         }
 
@@ -3729,12 +3767,14 @@ private struct ImagePreviewView: View {
     let image: UIImage
     let title: String
     let sharePayload: MessageImageSharePayload
+    /// A GIF within the play limits, checked before this opens (`previewImagePayload`).
+    let animates: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var isZoomed = false
     @State private var dragOffset: CGFloat = 0
     /// A GIF plays here too.
     private var animatedData: Data? {
-        GIFPrep.isAnimated(sharePayload.data) ? sharePayload.data : nil
+        animates ? sharePayload.data : nil
     }
 
     /// Past this translation (or a fast-enough flick, see `onEnded`), the swipe commits to

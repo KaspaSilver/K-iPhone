@@ -1301,18 +1301,21 @@ final class CappedResponseReader: NSObject, URLSessionDataDelegate, @unchecked S
 
 /// Decodes an image straight to the size it's shown at, through an ImageIO thumbnail, rather than
 /// materialising a full bitmap: `UIImage(data:)` on a few megabytes of highly compressed pixels
-/// can ask for gigabytes.
+/// can ask for gigabytes. Nil (the caller's placeholder) when it can't, never a full-size decode.
 enum ImageDownsampler {
-    /// Past this the source isn't a photo: a 200-megapixel sensor is about the largest real one.
-    private static let maxSourcePixels: Double = 200_000_000
+    /// Past this the source isn't a real picture: a 48 MP camera photo is about the largest there
+    /// is, and even a thumbnail of a bigger one can decode it whole first. Matches chat photos
+    /// (`MediaFile.downsampledImage`).
+    private static let maxSourcePixels: Double = 50_000_000
 
     static func image(from data: Data, maxPixelSize: Int) -> UIImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
-        if let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, sourceOptions) as? [CFString: Any],
-           let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
-           let height = properties[kCGImagePropertyPixelHeight] as? NSNumber,
-           width.doubleValue * height.doubleValue > maxSourcePixels {
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, sourceOptions) as? [CFString: Any],
+              let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+              let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+              width > 0, height > 0,
+              Double(width) * Double(height) <= maxSourcePixels else {
             return nil
         }
         let options = [
@@ -1322,7 +1325,7 @@ enum ImageDownsampler {
             kCGImageSourceThumbnailMaxPixelSize: max(1, maxPixelSize)
         ] as CFDictionary
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else {
-            return UIImage(data: data)
+            return nil
         }
         return UIImage(cgImage: cgImage)
     }

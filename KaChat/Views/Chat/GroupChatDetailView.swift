@@ -2565,8 +2565,7 @@ struct GroupChatDetailView: View {
             VStack(spacing: -12) {
                 Group {
                     if let hex = groupChatService.groupPhotos[group.id],
-                       let data = Data(hexString: hex),
-                       let img = UIImage(data: data) {
+                       let img = GroupAvatar.decodedGroupPhoto(groupId: group.id, hex: hex, maxPixelSize: 138) {
                         Image(uiImage: img).resizable().scaledToFill()
                     } else {
                         ZStack {
@@ -3315,10 +3314,10 @@ struct GroupChatInfoView: View {
     @State private var showRemovePhotoConfirm = false
     @State private var groupPhotoError: String?
 
-    /// The admin-set group photo decoded to an image, or nil.
+    /// The admin-set group photo, downsampled and cached (3x the 76 pt header), or nil.
     private var groupPhotoImage: UIImage? {
-        guard let hex = groupChatService.groupPhotos[group.id], let data = Data(hexString: hex) else { return nil }
-        return UIImage(data: data)
+        guard let hex = groupChatService.groupPhotos[group.id] else { return nil }
+        return GroupAvatar.decodedGroupPhoto(groupId: group.id, hex: hex, maxPixelSize: 228)
     }
 
     /// Circular group avatar (photo when set, else the name's initial), with an edit badge for admins.
@@ -3426,7 +3425,8 @@ struct GroupChatInfoView: View {
                     .font(.title3).fontWeight(.semibold)
                 Text("\(group.members.count) members")
                     .font(.caption).foregroundColor(.secondary)
-                if group.isAdmin && groupPhotoImage != nil {
+                // On the photo being set, not drawn, so an admin can still remove one that won't decode.
+                if group.isAdmin && groupChatService.groupPhotos[group.id] != nil {
                     Button("Remove photo", role: .destructive) {
                         showRemovePhotoConfirm = true
                     }

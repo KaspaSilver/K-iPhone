@@ -1538,3 +1538,166 @@
 "GIF Quality" = "GIF Kalitesi";
 "That isn't an animated GIF. Please pick another." = "Bu hareketli bir GIF değil. Lütfen başka birini seçin.";
 "This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "Bu GIF bu kalite için çok uzun. Daha yüksek bir kalite ya da daha kısa bir GIF seçin.";
+
+/* kUSDT: hold, receive, send (from KaPay, 2026-11-19) */
+"%@ Actions" = "%@ İşlemleri";
+"%@ Address Visibility" = "%@ Adres Görünürlüğü";
+"%@ Balance" = "%@ Bakiyesi";
+"%@ History" = "%@ Geçmişi";
+"%@ can only go to a regular Kaspa address, not a quantum-safe or other script address." = "%@ yalnızca normal bir Kaspa adresine gidebilir; kuantum güvenli veya başka bir betik adresine gidemez.";
+"%@ held with it" = "Yanında %@ var";
+"%d Addresses" = "%d Adres";
+"%d coins into 1" = "%d coin 1 oldu";
+"%d found so far" = "Şu ana kadar %d bulundu";
+"%d hidden: they still count in the total." = "%d gizli: yine de toplama dahil.";
+"A brand-new address of yours, never used or handed out: this payment can't be tied to your name." = "Hiç kullanılmamış ve kimseye verilmemiş yepyeni bir adresin: bu ödeme adınla ilişkilendirilemez.";
+"A quantum-resistant address: its key stays hidden until it spends." = "Kuantuma dayanıklı bir adres: harcayana kadar anahtarı gizli kalır.";
+"A regular address, like Receive gives you. Works with everything, kUSDT included." = "Al’ın verdiği gibi normal bir adres. kUSDT dahil her şeyle çalışır.";
+"A spending address of yours: a payment here isn't tied to your name." = "Bir harcama adresin: buraya yapılan ödeme adınla ilişkilendirilmez.";
+"About %@" = "%@ Hakkında";
+"Add %@ More" = "%@ Daha Ekle";
+"Add %@ for Fee and Change Coin" = "Ücret ve Para Üstü Coin İçin %@ Ekle";
+"Add %@ for the Network Fee" = "Ağ Ücreti İçin %@ Ekle";
+"Adds a brand-new regular address of yours to this list." = "Bu listeye yepyeni, normal bir adresini ekler.";
+"Amount (%@)" = "Tutar (%@)";
+"Available: %@" = "Kullanılabilir: %@";
+"Back to This Address" = "Bu Adrese Dönen";
+"Bridged In" = "Köprüyle Geldi";
+"Bridged USDT" = "Köprülenmiş USDT";
+"Bridged by %@" = "Köprü: %@";
+"Building the transaction…" = "İşlem oluşturuluyor…";
+"Check Again" = "Tekrar Kontrol Et";
+"Check off which addresses holding kUSDT are on the list." = "kUSDT tutan hangi adreslerin listede olacağını işaretle.";
+"Checking address #%d" = "Adres #%d kontrol ediliyor";
+"Checking your %@..." = "%@ kontrol ediliyor…";
+"Coins Combined" = "Coin’ler Birleştirildi";
+"Combine Coins" = "Coin’leri Birleştir";
+"Combined" = "Birleştirilen";
+"Combined Coins" = "Coin’ler Birleştirildi";
+"Couldn't check %@ just now: %@ Pull down to try again." = "%1$@ şu an kontrol edilemedi: %2$@ Yeniden denemek için aşağı çek.";
+"Discover kUSDT Addresses" = "kUSDT Adreslerini Bul";
+"Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first." = "Bu adrese Ethereum, BNB Chain ya da bir borsadan USDT gönderme: kaybolur. Önce Trestly’de Kaspa’ya köprüle.";
+"Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one." = "Buraya kUSDT gönderme: kuantuma dayanıklı bir adresten işlem yapılamaz. Normal bir adres için Al’ı kullan.";
+"Ethereum" = "Ethereum";
+"Every %@ coin holds %@. Combining them into one coin gives the extra KAS back to this address as regular KAS, less the network fee. Your %@ stays the same." = "Her %@ coin’i %@ tutar. Onları tek coin’de birleştirince fazla KAS, ağ ücreti düşülerek bu adrese normal KAS olarak döner. %@ miktarın aynı kalır.";
+"Every %@ coin holds %@. It goes to the recipient with the %@, so the KAS isn't lost." = "Her %@ coini %@ içerir. Bu KAS, %@ ile birlikte alıcıya gider, böylece kaybolmaz.";
+"Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "Her kUSDT coini 1.5 KAS içerir. Gönderdiğinde kUSDT ile birlikte gider.";
+"Finds your addresses holding kUSDT." = "kUSDT tutan adreslerini bulur.";
+"Found %d addresses with %@." = "%2$@ olan %1$d adres bulundu.";
+"Generate New Address" = "Yeni Adres Olustur";
+"Generate Non-Quantum Address" = "Kuantum Olmayan Adres Oluştur";
+"Generate Quantum-Resistant Address" = "Kuantuma Dayanıklı Adres Oluştur";
+"Goes With It" = "Birlikte Gider";
+"Held On" = "Tutulduğu Yer";
+"It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "Bu hesaba gelir ve harcama toplamında görünür. .kachat adları dışında her şey için kullan.";
+"KAS Held With It" = "İçindeki KAS";
+"KAS Paid From" = "KAS’ın Ödendiği Adres";
+"KAS for %@ on %@" = "KAS ile %@ takası (%@)";
+"KAS for a %@ send" = "Bir %@ gönderimi için KAS";
+"Kaspa" = "Kaspa";
+"Kaspa, and kUSDT on Kaspa, can be sent here." = "Buraya Kaspa ve Kaspa üzerindeki kUSDT gönderilebilir.";
+"Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it." = "Harcayana kadar anahtarını gizli tutar. Yalnızca Kaspa için: buradan kUSDT işlem yapılamaz.";
+"Manage %@" = "%@ Yönet";
+"Manage %@ starts over with only your Chatting Address. Nothing is lost: bring any address back here, and its %@ still counts in your total." = "%1$@ Yönet yalnızca sohbet adresinle yeniden başlar. Hiçbir şey kaybolmaz: istediğin adresi buradan geri getir, %2$@ toplamında sayılmaya devam eder.";
+"Merges its coins into one and gives the extra KAS back." = "Coin’lerini tek bir coin’de birleştirir ve fazla KAS’ı geri verir.";
+"More than your %@." = "%@ bakiyenden fazla.";
+"Moves Kaspa from this address to your Chatting Address." = "Bu adresteki Kaspa’yı Sohbet Adresine taşır.";
+"Moves kUSDT from this address to your Chatting Address." = "Bu adresteki kUSDT’yı Sohbet Adresine taşır.";
+"No %@ Yet" = "Henüz %@ yok";
+"No %@ activity yet." = "Henüz %@ hareketi yok.";
+"No addresses with %@ found." = "%@ olan adres bulunamadı.";
+"No addresses with %@ yet" = "Henüz %@ olan adres yok";
+"Not confirmed: the network didn't answer. It may still go through. Try Again resends the same transaction, so it can't be paid twice." = "Onaylanmadı: ağ yanıt vermedi. Yine de gerçekleşebilir. Tekrar Dene aynı işlemi gönderir, bu yüzden iki kez ödenemez.";
+"Not independently audited yet. Hold only what you can afford to lose." = "Henüz bağımsız olarak denetlenmedi. Yalnızca kaybetmeyi göze alabileceğin kadarını tut.";
+"On %d of your addresses" = "%d adresine";
+"On your %@" = "%@ adresine";
+"Only %@ on Kaspa, or KAS, can be sent here." = "Buraya yalnızca Kaspa üzerindeki %@ veya KAS gönderilebilir.";
+"Only Kaspa can be sent here." = "Buraya yalnızca Kaspa gönderilebilir.";
+"Pending" = "Beklemede";
+"Pick which of your addresses the KAS comes from, swipe up, and you're back here." = "KAS’ın hangi adresinden geleceğini seç, yukarı kaydır, sonra buraya dönersin.";
+"Receive %@" = "%@ Al";
+"Received %@" = "%@ alındı";
+"Removes it from this list. Re-enable it in %@ Address Visibility." = "Bu listeden kaldırır. %@ Adres Görünürlüğü’nden yeniden aç.";
+"Sample Data" = "Örnek Veriler";
+"Send %@" = "%@ Gönder";
+"Send to Chatting Address" = "Sohbet Adresine Gönder";
+"Sends, receives and combines on this phone show here from now on." = "Bu telefondaki gönderimler, alımlar ve birleştirmeler bundan sonra burada görünür.";
+"Swapped" = "Takas Edildi";
+"Swipe up to Combine" = "Birleştirmek için yukarı kaydır";
+"Tap to Manage" = "Yönetmek için dokun";
+"That amount is spread over more than 3 kUSDT coins on this address. Send a smaller amount for now." = "Bu tutar bu adreste 3’ten fazla kUSDT parasına dağılmış. Şimdilik daha küçük bir tutar gönder.";
+"The KAS for the fee comes from the same address, so the send doesn't link it to your other addresses." = "Ücretin KAS’ı aynı adresten gelir, böylece gönderim onu diğer adreslerine bağlamaz.";
+"The KAS you sent hasn't shown up on this address yet. It usually takes a few seconds." = "Gönderdiğin KAS henüz bu adreste görünmüyor. Genellikle birkaç saniye sürer.";
+"The Trestly API address in Connection Settings isn't a valid https address." = "Bağlantı Ayarları’ndaki Trestly API adresi geçerli bir https adresi değil.";
+"The built transaction didn't match what you approved, so nothing was sent." = "Oluşturulan işlem onayladığınla eşleşmedi, bu yüzden hiçbir şey gönderilmedi.";
+"The transaction couldn't be built. Nothing was sent." = "İşlem oluşturulamadı. Hiçbir şey gönderilmedi.";
+"This address doesn't hold that much kUSDT." = "Bu adreste o kadar kUSDT yok.";
+"This address had no KAS, so the network fee came out of the KAS that goes with the kUSDT." = "Bu adreste KAS yoktu, bu yüzden ağ ücreti kUSDT ile giden KAS’tan alındı.";
+"This address holds its kUSDT in one coin already." = "Bu adres kUSDT’sini zaten tek coin’de tutuyor.";
+"This address needs a little KAS for the network fee." = "Bu adresin ağ ücreti için biraz KAS’a ihtiyacı var.";
+"This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "Bu adresin biraz KAS’a ihtiyacı var: ağ ücreti ve para üstü coin’in (sende kalan kUSDT) için 1,5 KAS. O 1,5 KAS senin kalır.";
+"This address on the Kaspa explorer." = "Bu adres Kaspa gezgininde.";
+"This address's key isn't available on this phone." = "Bu adresin anahtarı bu telefonda yok.";
+"To %@" = "Alıcı: %@";
+"Tokens" = "Tokenler";
+"Total KAS" = "Toplam KAS";
+"Trestly" = "Trestly";
+"Trestly API URL" = "Trestly API URL’si";
+"Trestly answered HTTP %d." = "Trestly HTTP %d ile yanıt verdi.";
+"Trestly didn't answer." = "Trestly yanıt vermedi.";
+"Trestly's answer couldn't be read." = "Trestly’nin yanıtı okunamadı.";
+"Up to %d coins combine at a time. Combine again for the rest." = "Bir seferde en fazla %d coin birleşir. Kalanlar için yeniden birleştir.";
+"View the Vault" = "Kasayı Görüntüle";
+"Waiting for your KAS to arrive…" = "KAS’ının gelmesi bekleniyor…";
+"What are you sending?" = "Ne gönderiyorsun?";
+"Your Chatting Address shows your .kachat name and identity: whoever pays here can see it's you." = "Sohbet adresin .kachat adını ve kimliğini gösterir: buraya ödeme yapan kişi senin olduğunu görebilir.";
+"kUSDT Address Visibility" = "kUSDT Adres Görünürlüğü";
+"kUSDT Balances" = "kUSDT Bakiyeleri";
+"kUSDT can only go to a regular Kaspa address." = "kUSDT yalnızca normal bir Kaspa adresine gidebilir.";
+"kUSDT is USDT from Ethereum and BNB Chain, held 1:1 in Trestly's vault and issued as a token on Kaspa. It isn't issued by Tether, and only Trestly can turn it back into USDT." = "kUSDT, Ethereum ve BNB Chain’den gelen, Trestly’nin kasasında 1:1 tutulan ve Kaspa üzerinde token olarak çıkarılan USDT’dir. Tether tarafından çıkarılmaz ve onu yeniden USDT’ye yalnızca Trestly çevirebilir.";
+"kUSDT's transaction builder couldn't start." = "kUSDT işlem oluşturucusu başlatılamadı.";
+"kUSDT's transaction builder gave no answer." = "kUSDT işlem oluşturucusu yanıt vermedi.";
+"kUSDT's transaction builder isn't the pinned one, so it won't run." = "kUSDT işlem oluşturucusu sabitlenen değil, bu yüzden çalıştırılmayacak.";
+"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "KaChat’in kUSDT şablonu eksik, bu yüzden kUSDT kontrol edilemiyor.";
+"The network fee is above KaChat's safety limit. Nothing was sent." = "Ağ ücreti KaChat’in güvenlik sınırının üzerinde. Hiçbir şey gönderilmedi.";
+"Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "Kendi yeni bir adresinde al. kUSDT alıp takas etmek KaPay’de yapılır.";
+"Release to Confirm" = "Onaylamak için bırak";
+"The transaction didn't go out." = "İşlem gönderilemedi.";
+"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "KaChat’in kUSDT’ni sorguladığı yer. Listelediği her coin sayılmadan önce Kaspa düğümünde kontrol edilir. Bu ağın varsayılanı için boş bırak.";
+"Fee %@" = "Ücret %@";
+
+/* Share Profile sheet (2026-11-20) */
+"Copy Share Link" = "Paylaşım Bağlantısını Kopyala";
+"Share link copied." = "Paylaşım bağlantısı kopyalandı.";
+
+"Not set" = "Ayarlanmadı";
+
+/* Address Domains tab (2026-11-20) */
+"1 domain" = "1 alan adı";
+"Couldn't load" = "Yüklenemedi";
+"No %@ names on this address." = "Bu adreste %@ adı yok.";
+
+/* kUSDT-listed addresses stay in Manage Addresses (2026-11-20) */
+"Shown for kUSDT" = "kUSDT için gösteriliyor";
+"This address is on your kUSDT list, so it stays here. Hide it from Manage kUSDT first." = "Bu adres kUSDT listenizde, bu yüzden burada kalır. Önce kUSDT Yönet ekranından gizleyin.";
+
+/* Send Dollars in a 1:1 chat (2026-11-20) */
+"Send Dollars" = "Dolar Gönder";
+"Send dollars (kUSDT) to this contact." = "Bu kişiye dolar (kUSDT) gönderin.";
+"Which stablecoin are you sending?" = "Hangi stablecoin'i gönderiyorsunuz?";
+"None of your addresses holds %@ yet." = "Adreslerinizin hiçbirinde henüz %@ yok.";
+
+/* Token payment bubbles: amount, then the token symbol (2026-11-20) */
+"Sent %1$@ %2$@" = "%1$@ %2$@ gönderildi";
+"Received %1$@ %2$@" = "%1$@ %2$@ alındı";
+
+/* Send Dollars with no kUSDT: switch to KaPay or its install page (2026-11-20) */
+"Get KaPay" = "KaPay'i Edin";
+
+/* Send Dollars: Discover still running (2026-11-20) */
+"Checking your addresses for %@…" = "Adreslerinizde %@ kontrol ediliyor…";
+
+/* Audit fixes (2026-11-20) */
+"Unverified %@ payment" = "Doğrulanmamış %@ ödemesi";
+"This send changed while the screen was open. Nothing was sent: check it again and swipe." = "Ekran açıkken bu gönderim değişti. Hiçbir şey gönderilmedi: tekrar kontrol edip kaydırın.";
+"Scanning your addresses for balances…" = "Adresleriniz bakiye için taranıyor…";

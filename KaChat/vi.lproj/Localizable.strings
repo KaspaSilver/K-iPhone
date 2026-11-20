@@ -1538,3 +1538,166 @@
 "GIF Quality" = "Chất lượng GIF";
 "That isn't an animated GIF. Please pick another." = "Đó không phải là GIF động. Vui lòng chọn ảnh khác.";
 "This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "GIF này quá dài cho mức chất lượng đó. Hãy chọn mức cao hơn hoặc một GIF ngắn hơn.";
+
+/* kUSDT: hold, receive, send (from KaPay, 2026-11-19) */
+"%@ Actions" = "Thao tác %@";
+"%@ Address Visibility" = "Hiển thị địa chỉ %@";
+"%@ Balance" = "Số dư %@";
+"%@ History" = "Lịch sử %@";
+"%@ can only go to a regular Kaspa address, not a quantum-safe or other script address." = "%@ chỉ có thể gửi đến địa chỉ Kaspa thông thường, không phải địa chỉ an toàn lượng tử hay địa chỉ script khác.";
+"%@ held with it" = "%@ giữ kèm";
+"%d Addresses" = "%d địa chỉ";
+"%d coins into 1" = "%d đồng thành 1";
+"%d found so far" = "Đã tìm thấy %d";
+"%d hidden: they still count in the total." = "Đã ẩn %d: vẫn được tính vào tổng.";
+"A brand-new address of yours, never used or handed out: this payment can't be tied to your name." = "Một địa chỉ hoàn toàn mới của bạn, chưa từng dùng hay chia sẻ: khoản thanh toán này không thể gắn với tên bạn.";
+"A quantum-resistant address: its key stays hidden until it spends." = "Địa chỉ chống lượng tử: khóa của nó được giữ kín cho đến khi chi tiêu.";
+"A regular address, like Receive gives you. Works with everything, kUSDT included." = "Một địa chỉ thường, như Nhận cung cấp. Dùng được cho mọi thứ, kể cả kUSDT.";
+"A spending address of yours: a payment here isn't tied to your name." = "Một địa chỉ chi tiêu của bạn: khoản thanh toán vào đây không gắn với tên bạn.";
+"About %@" = "Về %@";
+"Add %@ More" = "Thêm %@ nữa";
+"Add %@ for Fee and Change Coin" = "Thêm %@ cho phí và đồng tiền thối";
+"Add %@ for the Network Fee" = "Thêm %@ cho phí mạng";
+"Adds a brand-new regular address of yours to this list." = "Thêm vào danh sách này một địa chỉ thường hoàn toàn mới của bạn.";
+"Amount (%@)" = "Số tiền (%@)";
+"Available: %@" = "Khả dụng: %@";
+"Back to This Address" = "Trả về địa chỉ này";
+"Bridged In" = "Nhận qua cầu nối";
+"Bridged USDT" = "USDT qua cầu nối";
+"Bridged by %@" = "Cầu nối bởi %@";
+"Building the transaction…" = "Đang tạo giao dịch…";
+"Check Again" = "Kiểm tra lại";
+"Check off which addresses holding kUSDT are on the list." = "Đánh dấu những địa chỉ có kUSDT hiện trong danh sách.";
+"Checking address #%d" = "Đang kiểm tra địa chỉ #%d";
+"Checking your %@..." = "Đang kiểm tra %@ của bạn…";
+"Coins Combined" = "Đã gộp đồng";
+"Combine Coins" = "Gộp đồng";
+"Combined" = "Đã gộp";
+"Combined Coins" = "Đã gộp đồng";
+"Couldn't check %@ just now: %@ Pull down to try again." = "Chưa kiểm tra được %1$@: %2$@ Kéo xuống để thử lại.";
+"Discover kUSDT Addresses" = "Tìm địa chỉ kUSDT";
+"Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first." = "Đừng gửi USDT từ Ethereum, BNB Chain hay sàn giao dịch đến địa chỉ này: sẽ bị mất. Hãy chuyển cầu sang Kaspa trên Trestly trước.";
+"Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one." = "Đừng gửi kUSDT đến đây: không giao dịch được từ địa chỉ chống lượng tử. Dùng Nhận để lấy địa chỉ thường.";
+"Ethereum" = "Ethereum";
+"Every %@ coin holds %@. Combining them into one coin gives the extra KAS back to this address as regular KAS, less the network fee. Your %@ stays the same." = "Mỗi đồng %@ giữ %@. Gộp chúng thành một đồng sẽ trả phần KAS dư về địa chỉ này dưới dạng KAS thường, trừ phí mạng. Số %@ của bạn không đổi.";
+"Every %@ coin holds %@. It goes to the recipient with the %@, so the KAS isn't lost." = "Mỗi đồng %@ giữ %@. Số KAS này đi cùng %@ đến người nhận, nên không bị mất.";
+"Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "Mỗi đồng kUSDT giữ 1.5 KAS. Số KAS này đi cùng kUSDT khi bạn gửi.";
+"Finds your addresses holding kUSDT." = "Tìm các địa chỉ của bạn đang giữ kUSDT.";
+"Found %d addresses with %@." = "Đã tìm thấy %d địa chỉ có %@.";
+"Generate New Address" = "Tạo địa chỉ mới";
+"Generate Non-Quantum Address" = "Tạo địa chỉ không lượng tử";
+"Generate Quantum-Resistant Address" = "Tạo địa chỉ chống lượng tử";
+"Goes With It" = "Đi kèm";
+"Held On" = "Lưu giữ tại";
+"It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "Tiền vào tài khoản này và tính vào tổng chi tiêu. Dùng cho mọi thứ trừ tên .kachat.";
+"KAS Held With It" = "KAS đi kèm";
+"KAS Paid From" = "KAS trả từ";
+"KAS for %@ on %@" = "KAS đổi %@ trên %@";
+"KAS for a %@ send" = "KAS cho một lần gửi %@";
+"Kaspa" = "Kaspa";
+"Kaspa, and kUSDT on Kaspa, can be sent here." = "Có thể gửi Kaspa, và kUSDT trên Kaspa, đến đây.";
+"Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it." = "Giữ kín khóa cho đến khi chi tiêu. Chỉ dành cho Kaspa: không giao dịch kUSDT từ địa chỉ này được.";
+"Manage %@" = "Quản lý %@";
+"Manage %@ starts over with only your Chatting Address. Nothing is lost: bring any address back here, and its %@ still counts in your total." = "Quản lý %1$@ bắt đầu lại chỉ với địa chỉ trò chuyện của bạn. Không mất gì: đưa bất kỳ địa chỉ nào trở lại tại đây, và %2$@ của nó vẫn được tính vào tổng.";
+"Merges its coins into one and gives the extra KAS back." = "Gộp các đồng của nó thành một và trả lại phần KAS dư.";
+"More than your %@." = "Vượt quá số dư %@ của bạn.";
+"Moves Kaspa from this address to your Chatting Address." = "Chuyển Kaspa từ địa chỉ này sang địa chỉ trò chuyện của bạn.";
+"Moves kUSDT from this address to your Chatting Address." = "Chuyển kUSDT từ địa chỉ này sang địa chỉ trò chuyện của bạn.";
+"No %@ Yet" = "Chưa có %@";
+"No %@ activity yet." = "Chưa có hoạt động %@.";
+"No addresses with %@ found." = "Không tìm thấy địa chỉ nào có %@.";
+"No addresses with %@ yet" = "Chưa có địa chỉ nào có %@";
+"Not confirmed: the network didn't answer. It may still go through. Try Again resends the same transaction, so it can't be paid twice." = "Chưa xác nhận: mạng không trả lời. Giao dịch vẫn có thể thành công. Thử lại sẽ gửi đúng giao dịch đó, nên không thể trả hai lần.";
+"Not independently audited yet. Hold only what you can afford to lose." = "Chưa được kiểm toán độc lập. Chỉ giữ số tiền bạn chấp nhận mất.";
+"On %d of your addresses" = "Vào %d địa chỉ của bạn";
+"On your %@" = "Vào %@ của bạn";
+"Only %@ on Kaspa, or KAS, can be sent here." = "Chỉ có thể gửi %@ trên Kaspa, hoặc KAS, đến đây.";
+"Only Kaspa can be sent here." = "Chỉ có thể gửi Kaspa đến đây.";
+"Pending" = "Đang chờ";
+"Pick which of your addresses the KAS comes from, swipe up, and you're back here." = "Chọn địa chỉ của bạn gửi KAS, vuốt lên, rồi bạn quay lại đây.";
+"Receive %@" = "Nhận %@";
+"Received %@" = "Đã nhận %@";
+"Removes it from this list. Re-enable it in %@ Address Visibility." = "Gỡ khỏi danh sách này. Bật lại trong Hiển thị địa chỉ %@.";
+"Sample Data" = "Dữ liệu mẫu";
+"Send %@" = "Gửi %@";
+"Send to Chatting Address" = "Gửi đến địa chỉ trò chuyện";
+"Sends, receives and combines on this phone show here from now on." = "Từ giờ, các lần gửi, nhận và gộp trên điện thoại này sẽ hiện ở đây.";
+"Swapped" = "Đã hoán đổi";
+"Swipe up to Combine" = "Vuốt lên để gộp";
+"Tap to Manage" = "Chạm để quản lý";
+"That amount is spread over more than 3 kUSDT coins on this address. Send a smaller amount for now." = "Số tiền đó nằm rải rác trên hơn 3 đồng kUSDT ở địa chỉ này. Tạm thời hãy gửi số nhỏ hơn.";
+"The KAS for the fee comes from the same address, so the send doesn't link it to your other addresses." = "KAS trả phí lấy từ cùng địa chỉ, nên lần gửi không liên kết nó với các địa chỉ khác của bạn.";
+"The KAS you sent hasn't shown up on this address yet. It usually takes a few seconds." = "KAS bạn gửi chưa xuất hiện ở địa chỉ này. Thường chỉ mất vài giây.";
+"The Trestly API address in Connection Settings isn't a valid https address." = "Địa chỉ API Trestly trong Cài đặt kết nối không phải địa chỉ https hợp lệ.";
+"The built transaction didn't match what you approved, so nothing was sent." = "Giao dịch được tạo không khớp với điều bạn đã duyệt, nên không có gì được gửi.";
+"The transaction couldn't be built. Nothing was sent." = "Không tạo được giao dịch. Không có gì được gửi.";
+"This address doesn't hold that much kUSDT." = "Địa chỉ này không giữ nhiều kUSDT như vậy.";
+"This address had no KAS, so the network fee came out of the KAS that goes with the kUSDT." = "Địa chỉ này không có KAS, nên phí mạng được lấy từ KAS đi kèm kUSDT.";
+"This address holds its kUSDT in one coin already." = "Địa chỉ này đã giữ kUSDT trong một đồng.";
+"This address needs a little KAS for the network fee." = "Địa chỉ này cần một ít KAS cho phí mạng.";
+"This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "Địa chỉ này cần một ít KAS: phí mạng, cộng 1,5 KAS cho đồng tiền thối của bạn (phần kUSDT bạn giữ lại). 1,5 KAS đó vẫn là của bạn.";
+"This address on the Kaspa explorer." = "Địa chỉ này trên trình khám phá Kaspa.";
+"This address's key isn't available on this phone." = "Khóa của địa chỉ này không có trên điện thoại này.";
+"To %@" = "Tới %@";
+"Tokens" = "Token";
+"Total KAS" = "Tổng KAS";
+"Trestly" = "Trestly";
+"Trestly API URL" = "URL API Trestly";
+"Trestly answered HTTP %d." = "Trestly trả lời HTTP %d.";
+"Trestly didn't answer." = "Trestly không trả lời.";
+"Trestly's answer couldn't be read." = "Không đọc được câu trả lời của Trestly.";
+"Up to %d coins combine at a time. Combine again for the rest." = "Mỗi lần gộp tối đa %d đồng. Gộp lại lần nữa cho phần còn lại.";
+"View the Vault" = "Xem kho";
+"Waiting for your KAS to arrive…" = "Đang chờ KAS của bạn đến…";
+"What are you sending?" = "Bạn đang gửi gì?";
+"Your Chatting Address shows your .kachat name and identity: whoever pays here can see it's you." = "Địa chỉ trò chuyện của bạn hiển thị tên .kachat và danh tính: ai trả tiền vào đây đều thấy đó là bạn.";
+"kUSDT Address Visibility" = "Hiển thị địa chỉ kUSDT";
+"kUSDT Balances" = "Số dư kUSDT";
+"kUSDT can only go to a regular Kaspa address." = "kUSDT chỉ có thể gửi đến địa chỉ Kaspa thường.";
+"kUSDT is USDT from Ethereum and BNB Chain, held 1:1 in Trestly's vault and issued as a token on Kaspa. It isn't issued by Tether, and only Trestly can turn it back into USDT." = "kUSDT là USDT từ Ethereum và BNB Chain, được giữ 1:1 trong kho của Trestly và phát hành dưới dạng token trên Kaspa. kUSDT không do Tether phát hành, và chỉ Trestly mới có thể đổi lại thành USDT.";
+"kUSDT's transaction builder couldn't start." = "Trình tạo giao dịch kUSDT không khởi động được.";
+"kUSDT's transaction builder gave no answer." = "Trình tạo giao dịch kUSDT không trả lời.";
+"kUSDT's transaction builder isn't the pinned one, so it won't run." = "Trình tạo giao dịch kUSDT không phải bản đã ghim, nên sẽ không chạy.";
+"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "Thiếu mẫu kUSDT của KaChat, nên không kiểm tra được kUSDT.";
+"The network fee is above KaChat's safety limit. Nothing was sent." = "Phí mạng vượt giới hạn an toàn của KaChat. Không có gì được gửi.";
+"Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "Nhận vào một địa chỉ mới của bạn. Mua và đổi kUSDT được thực hiện trong KaPay.";
+"Release to Confirm" = "Thả để xác nhận";
+"The transaction didn't go out." = "Giao dịch chưa được gửi đi.";
+"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Nơi KaChat tra cứu kUSDT của bạn. Mỗi đồng được liệt kê đều được kiểm tra trên nút Kaspa trước khi tính. Để trống để dùng mặc định của mạng này.";
+"Fee %@" = "Phí %@";
+
+/* Share Profile sheet (2026-11-20) */
+"Copy Share Link" = "Sao chép liên kết chia sẻ";
+"Share link copied." = "Đã sao chép liên kết chia sẻ.";
+
+"Not set" = "Chưa đặt";
+
+/* Address Domains tab (2026-11-20) */
+"1 domain" = "1 tên miền";
+"Couldn't load" = "Không thể tải";
+"No %@ names on this address." = "Địa chỉ này không có tên %@.";
+
+/* kUSDT-listed addresses stay in Manage Addresses (2026-11-20) */
+"Shown for kUSDT" = "Hiển thị vì kUSDT";
+"This address is on your kUSDT list, so it stays here. Hide it from Manage kUSDT first." = "Địa chỉ này nằm trong danh sách kUSDT của bạn nên vẫn ở đây. Hãy ẩn nó trong Quản lý kUSDT trước.";
+
+/* Send Dollars in a 1:1 chat (2026-11-20) */
+"Send Dollars" = "Gửi đô la";
+"Send dollars (kUSDT) to this contact." = "Gửi đô la (kUSDT) cho liên hệ này.";
+"Which stablecoin are you sending?" = "Bạn gửi stablecoin nào?";
+"None of your addresses holds %@ yet." = "Chưa có địa chỉ nào của bạn giữ %@.";
+
+/* Token payment bubbles: amount, then the token symbol (2026-11-20) */
+"Sent %1$@ %2$@" = "Đã gửi %1$@ %2$@";
+"Received %1$@ %2$@" = "Đã nhận %1$@ %2$@";
+
+/* Send Dollars with no kUSDT: switch to KaPay or its install page (2026-11-20) */
+"Get KaPay" = "Tải KaPay";
+
+/* Send Dollars: Discover still running (2026-11-20) */
+"Checking your addresses for %@…" = "Đang kiểm tra %@ trên các địa chỉ của bạn…";
+
+/* Audit fixes (2026-11-20) */
+"Unverified %@ payment" = "Khoản thanh toán %@ chưa xác minh";
+"This send changed while the screen was open. Nothing was sent: check it again and swipe." = "Giao dịch gửi này đã thay đổi khi màn hình đang mở. Chưa gửi gì cả: hãy kiểm tra lại và vuốt.";
+"Scanning your addresses for balances…" = "Đang quét số dư trên các địa chỉ của bạn…";

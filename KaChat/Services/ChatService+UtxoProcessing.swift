@@ -1510,13 +1510,13 @@ extension ChatService {
                 return true
             }
             let expectedPrimary = primaryConversationAlias(for: contactAddress) ?? routingStates[contactAddress]?.deterministicMyAlias ?? "-"
-            AppLog.log("[ChatService] Raw payload: alias mismatch for %@ (expected %@, got %@) - skipping",
-                  String(contactAddress.suffix(10)), expectedPrimary, alias)
+            AppLog.log("[ChatService] Raw payload: alias mismatch for %@ (expected %@…, got %@…) - skipping",
+                  String(contactAddress.suffix(10)), String(expectedPrimary.prefix(4)), String(alias.prefix(4)))
             return false
         }
 
         if aliasBelongsToAnotherContact(alias, excluding: contactAddress) {
-            AppLog.log("[ChatService] Raw payload: alias belongs to another contact (%@) - skipping", alias)
+            AppLog.log("[ChatService] Raw payload: alias belongs to another contact (%@…) - skipping", String(alias.prefix(4)))
             return false
         }
 

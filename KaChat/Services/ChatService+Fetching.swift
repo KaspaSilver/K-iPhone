@@ -608,6 +608,13 @@ extension ChatService {
         UserDefaults.standard.set(held, forKey: heldPaymentsKey(wallet: wallet))
     }
 
+    /// Delete Account: the wallet's held payments and saved-handshake scan marks.
+    func removeFetchingData(forWallet wallet: String) {
+        UserDefaults.standard.removeObject(forKey: heldPaymentsKey(wallet: wallet))
+        UserDefaults.standard.removeObject(forKey: Self.selfStashHighWaterKeyPrefix + wallet)
+        UserDefaults.standard.removeObject(forKey: Self.selfStashFullScanKeyPrefix + wallet)
+    }
+
     func fetchFullTransactionsPaginated(
         for address: String,
         stopAtBlockTime: UInt64 = 0,
@@ -1909,8 +1916,9 @@ extension ChatService {
                 if !contact.isEmpty { notedContacts.insert(contact) }
                 let alias = savedData.ourAlias
                 if !contact.isEmpty && !alias.isEmpty {
-                    AppLog.log("[ChatService] Saved handshake: contact=%@, ourAlias=%@, theirAlias=%@",
-                          String(contact.suffix(10)), alias, savedData.theirAlias ?? "nil")
+                    AppLog.log("[ChatService] Saved handshake: contact=%@, ourAlias=%@…, theirAlias=%@",
+                          String(contact.suffix(10)), String(alias.prefix(4)),
+                          savedData.theirAlias.map { String($0.prefix(4)) + "…" } ?? "nil")
                     addOurAlias(alias, for: contact, blockTime: stash.blockTime)
                     if let theirAlias = savedData.theirAlias, !theirAlias.isEmpty {
                         addConversationAlias(theirAlias, for: contact, blockTime: stash.blockTime)
@@ -2373,8 +2381,8 @@ extension ChatService {
                 // we sent to one person into the thread of another.
                 if existingMessage == nil,
                    outgoingAliasBelongsToAnotherContact(ourAlias, excluding: contactAddress) {
-                    AppLog.log("[ChatService] Outgoing %@: alias %@ is registered to more than one contact - not attributing to %@",
-                          String(contextMsg.txId.prefix(12)), ourAlias, String(contactAddress.suffix(10)))
+                    AppLog.log("[ChatService] Outgoing %@: alias %@… is registered to more than one contact - not attributing to %@",
+                          String(contextMsg.txId.prefix(12)), String(ourAlias.prefix(4)), String(contactAddress.suffix(10)))
                     continue
                 }
                 // Held here with its text, or read back with the seed (`decryptSentMessage`). What
@@ -2592,8 +2600,8 @@ extension ChatService {
                     // produce a placeholder in a conversation it may not belong to.
                     if existingMessage == nil,
                        outgoingAliasBelongsToAnotherContact(ourAlias, excluding: contactAddress) {
-                        AppLog.log("[ChatService] Outgoing %@: alias %@ is registered to more than one contact - not attributing to %@",
-                              String(contextMsg.txId.prefix(12)), ourAlias, String(contactAddress.suffix(10)))
+                        AppLog.log("[ChatService] Outgoing %@: alias %@… is registered to more than one contact - not attributing to %@",
+                              String(contextMsg.txId.prefix(12)), String(ourAlias.prefix(4)), String(contactAddress.suffix(10)))
                         continue
                     }
                     // Same as the sibling loop in `fetchOutgoingContextualMessages`.
@@ -2897,7 +2905,7 @@ extension ChatService {
                             : "[Request to communicate]"
                         if let alias = decrypted.alias {
                             addConversationAlias(alias, for: contactAddress, blockTime: payment.blockTime)
-                            AppLog.log("[ChatService] Extracted alias '%@' from payment-handshake by %@", alias, String(contactAddress.suffix(10)))
+                            AppLog.log("[ChatService] Extracted alias %@… from payment-handshake by %@", String(alias.prefix(4)), String(contactAddress.suffix(10)))
                         } else {
                             AppLog.log("[ChatService] Received deterministic (alias-less) payment-handshake from %@", String(contactAddress.suffix(10)))
                         }
@@ -3159,7 +3167,7 @@ extension ChatService {
         }
 
         guard let contactAddress = contactAddressForOutgoingAlias(alias) else {
-            AppLog.log("[ChatService] Outgoing push: no contact for alias %@ (tx=%@)", alias, txId)
+            AppLog.log("[ChatService] Outgoing push: no contact for alias %@… (tx=%@)", String(alias.prefix(4)), txId)
             return false
         }
 
@@ -3351,6 +3359,8 @@ extension ChatService {
         if let envelope = PaymentPoolCodec.parse(message.content) {
             if case .notice(let notice) = envelope {
                 handlePaymentNotice(notice, message: message, contactAddress: contactAddress)
+            } else if case .tokenNotice(let notice) = envelope {
+                handleTokenPaymentNotice(notice, message: message, contactAddress: contactAddress)
             }
             return
         }

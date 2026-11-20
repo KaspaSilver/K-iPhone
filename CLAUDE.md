@@ -20,10 +20,15 @@ Keychain) and you aren't in the group until you accept. Your answer goes on chai
 your other devices, a restore of your words and the group all know (MESSAGING.md, "Group invites");
 member rows show Invited or Declined. Chats'
 floating + opens a half sheet: New Chat or New Group Chat. Wallet (`WalletView`, since 2026-11-04)
-holds the account's money: the total balance, split into chatting and spending, then Send, Receive
-and Request, Backup Hygiene when due, and the Manage Addresses and Chatting Address squares;
-own-address receipts land there. Profile is only your profile: Your Domains, Notifications, Chatting
-Address (its QR code), Share Profile and Log Out, with Help at its top right.
+holds the account's money, laid out as KaPay's Wallet tab (2026-11-19): the balance card (swipes
+Kaspa ⇄ kUSDT; Tap to Manage opens Manage Addresses or Manage kUSDT), then Send, Receive and
+Request, Backup Hygiene when due, and the Chatting Address, Your Domains
+(`YourDomainsCard`, which owns the domain list, Set as Primary and the .kas profile editor) and
+Notifications cards (the dock's red dot sits on Wallet); own-address receipts land there.
+Pulling Wallet down always scans every address for balances (2026-11-20, `scanAndRefresh`): Kaspa's
+`discoverSpendingAddresses` and kUSDT's `discoverHoldings` side by side, then the balances. Profile
+is only your profile: Share Profile (a QR sheet with Copy Share Link) and Log Out, with Help at
+its top right.
 Removed from the app: KaPosts, Public Chats, Chess Online (the `#chess-arena` tournaments), KaChat
 Stats, Portfolio, Cold Storage (KasSigner), Kaspa Websites, Swap, the `.kachat` market (claim, buy,
 sell, offers, name notifications), the home-screen widget and Simple Mode (with the onboarding's
@@ -103,12 +108,13 @@ The app uses MVVM architecture with global singleton services injected via Swift
 
 ### Connection Settings
 
-Network endpoints are in Settings > Connection Settings, all configurable but KNS:
+Network endpoints are in Settings > Connection Settings: a card per connection (Indexer, Node, Domains, Explorer, Trestly), each opening its own screen with Save (Node saves as you pick), as KaPay has it. All configurable but KNS:
 - **Network**: mainnet / testnet toggle
 - **Indexer URL**: Kasia message indexer endpoint
 - **KaChat Names Indexer URL** (Domains tab, `AppSettings.kachatNamesIndexerURL`): where `.kachat` names and profiles are read. Separate from the message indexer so a user can run their own names indexer; same KaChat indexer by default (`indexer.kachat.app`, `AppSettings.defaultIndexerURL`; saved `kachat.duckdns.org` defaults migrate forward as settings decode; testnet has no default indexer, so its chat, push and names fields start blank and the retired `tnkachat.duckdns.org` is cleared), and settings saved before it existed copy the message indexer. Falls back to the chain walker when it can't serve the registry.
 - **KNS URL**: Kaspa Name Service API endpoint. Shown read-only: it follows the network (`AppSettings.knsBaseURL`)
 - **Kaspa REST API URL**: Block explorer API for transaction lookups
+- **Trestly API URL** (Trestly card, `AppSettings.trestlyAPIURL`, kept per network in `ConnectionProfile`): where kUSDT balances are looked up (`GET /tokens?owner=`). Blank means the network's default (api.trestly.io / testnet.trestly.io). KaChat has no Trestly site URL: the site opens only in KaPay.
 
 Settings are stored in `AppSettings` struct with network-specific defaults and loaded via `AppSettings.load()` static method (safe to call from any context).
 
@@ -322,8 +328,15 @@ Companion targets at the repo root: `KaChatNotificationService/` (push decryptio
 
 The input bubble is the text field only. Everything else is in the "+" sheet:
 
-- **1:1 order:** Send Kaspa, Camera, Photo, GIF, Voice Message, File (Nextcloud only), Request
+- **1:1 order:** Send Kaspa, Send Dollars, Camera, Photo, GIF, Voice Message, File (Nextcloud only), Request
   Payment, Play Chess, and Send Handshake where needed (only where first contact still needs one).
+- **Send Dollars** (2026-11-20): a step of the + sheet asks "Which stablecoin are you sending?" (`DollarTokenChooser`, every
+  `isDollarStable` token: kUSDT today, so other stablecoins join the list later), then `TokenSendView`
+  with the chat as the recipient (`init(token:chatRecipient:name:)`): no To step, From with a "To
+  <name>" chip, How much, the review and swipe up, like the chat's Send KAS sheet. It sends to the
+  contact's chatting address; then `ChatService.recordTokenPayment` adds the "Sent 12.50 kUSDT" bubble
+  and sends a `token_payment_notice`, which the contact's app checks on chain before showing
+  "Received" (MESSAGING.md, "Token Payments in a Chat"). No memo.
 - **Groups:** Camera, Photo, GIF, Voice Message, File. A group has no single recipient for pay or chess.
 - **GIF** (since 2026-11-18) opens Photos showing only animated images and always goes on chain:
   Send asks GIF Quality (the photo tiers), `GIFPrep` re-encodes it to fit, and it goes as an
@@ -560,6 +573,16 @@ first, then the spending addresses.
 | `SwipeUpToSendScrollView` | Wallet's Send Kaspa and a spending address's Send (as in KaChat Wallet): swipe the bottom bar up about a third of the way and the whole screen rises into a full-screen BlockDAG (`BlockDAGAnimationView`) while sending, then Sent with the transaction, or Failed with the error and Try Again. Draws its own header (`SendStepHeader`; with `onBack`, Back and Cancel - the Review step). Debug builds launched with `KACHAT_FAIL_SEND=1` fail every send (`SendFailureSimulation`). Also the chat's Send KAS sheet. `dismissSystemKeyboard()` puts any keyboard away |
 
 Change these pieces rather than one screen, so the screens stay matched.
+
+### Tokens (kUSDT)
+
+Ported from KaPay on 2026-11-19 (KaPay's CLAUDE.md "Tokens (kUSDT)" is the full reference; keep the two in step). KaPay is the trading hub: KaChat holds, receives, sends and manages kUSDT on the same words, and has nothing that opens Trestly's site (no Open Trestly, swaps, pool or in-app browser).
+- `Services/Tokens/`: `Kusdt` (deployment ids, the pinned KCC20 template `Resources/kusdt-kcc20-template.json` checked by SHA-256, the 112-byte state and its P2SH script), `KusdtBalances` (Trestly's API, each coin believed only once the node holds that outpoint at the recomputed script with kUSDT's covenant id; `Expected` coins a send just made), `KusdtCore` (Trestly's WebAssembly builder in a hidden, offline `WKWebView`, files in `Resources/KusdtCore/` hash-pinned), `KusdtTransfer` (sends of at most 3 coins, KAS for the fee and change coin from the same address, fee from the token's own KAS on a whole send, every output checked before submit; Combine Coins). A send marks itself with `AddressActivityNotifier.markOwnTransaction`, so its KAS change is never "Received KAS".
+- `Views/Tokens/`: `TokenWallet` (refresh, Discover, visibility, fresh addresses, pending coins, Received notifications polled every 90 s from `MainTabView`, history kept on the phone, cleared with the account), `TokenBalanceCard` + `SlidingCardPager` + `BalancePagePills` (the Wallet tab's card swipes Kaspa ⇄ kUSDT; each says Tap to Manage: Kaspa opens Manage Addresses, kUSDT opens `TokenManageView`), `TokenManageView` / `TokenAddressView` / `TokenAddressVisibilityView`, `TokenSendView` (with Fund This Address), `TokenCombineView`, `SendAssetChooser` (Wallet's Send asks "What are you sending?"), `TokenSupport.swift` (`fittedSheetDetents`, `lowercasedKaspaAddress`, `SwipeUpLabels.transaction`).
+- A tapped "Received kUSDT" notification (thread `token-received`) sets `TokenRoute.pending` and opens Manage kUSDT on the Wallet tab; the Notifications list has the `.token` source.
+- Tokens live only on the Chatting Address and regular (legacy P2PK) spending addresses, never quantum ones, and never go to a script address. So Receive hands out a fresh REGULAR address (`WalletManager.freshReceiveAddress`, `lowestUnusedRegularAddress`), and Manage Addresses' Address Actions has Generate Non-Quantum Address and Generate Quantum-Resistant Address. Each address row's ⋮ has Send to Chatting Address. Every receive screen is `Views/Shared/AddressReceiveView.swift` (QR on white, privacy note, tap anywhere to copy).
+- Each Manage kUSDT row carries Manage Addresses' Used / Unused tag (owner's call, 2026-11-20, as KaPay has it; `TokenManageView.isUsed`): orange Used, green Unused. The Chatting Address is always Used; another address is Used once it holds kUSDT (units or coins), has kUSDT history on this phone (`TokenWallet.activity(of:at:)`), or Manage Addresses knows it as used (a `SpendingAddressEntry` with `everUsed` or a balance: the cached list first, then the live one). No "Checking" state: it shows what's known now.
+- Every address Manage kUSDT lists also shows in Manage Addresses (owner's call, 2026-11-20, as KaPay has it). **One way only, never a two-way sync:** an address using kUSDT needs KAS on it (the network fee, and the 1.5 KAS every kUSDT coin carries), so it must always be visible on the Kaspa side; a Kaspa address doesn't need kUSDT, so Manage kUSDT never has to list Kaspa addresses. `TokenWallet.listedSpendingIndices(of:)` is that set. Manage Addresses shows any of them that's hidden again once its list loads (`showKusdtListedAddresses`). Its row ⋮ Hide refuses with a toast. Address Visibility shows them locked and dimmed, and a tap gives the "Shown for kUSDT" alert. Hide All leaves them shown. Once one is hidden from Manage kUSDT, it hides here as usual.
 
 ## Documentation
 

@@ -177,7 +177,11 @@ struct ChatDetailView: View {
         case options
         case chess
         case media(ComposerMediaKind)
+        /// Send Dollars: which dollar token (kUSDT today)
+        case dollars
     }
+    /// Send Dollars' pick: the token's send sheet, to this chat
+    @State private var dollarSendToken: WalletToken?
     @State private var previousMessagesCount = 0
     @State private var lastMessageSnapshotDigest: Int?
     @State private var snapshotRebuildTask: Task<Void, Never>?
@@ -1106,6 +1110,13 @@ struct ChatDetailView: View {
         }) {
             paymentSheet
         }
+        .sheet(item: $dollarSendToken) { token in
+            TokenSendView(token: token, chatRecipient: contact.address,
+                          name: contactsManager.displayName(for: contact)) { txId, index, amount in
+                // the bubble here, and the notice that puts it in their chat too
+                chatService.recordTokenPayment(to: contact, token: token, txId: txId, index: index, amount: amount)
+            }
+        }
         .sheet(item: $paymentDetailMessage) { message in
             paymentDetailSheet(for: message)
         }
@@ -1615,6 +1626,17 @@ struct ChatDetailView: View {
             }
             hasLoadedCurrentTopPage = false
             initialViewportPositioned = true
+            // The chat is at its newest message now: seed the tail trackers here, so the next
+            // message to arrive is new and scrolls in (or counts on the badge). They were only
+            // seeded by the first tail change, so the first message after opening a chat with
+            // history was taken for the initial load and landed below the screen unseen - the
+            // tapped notification's own message, which arrives a moment after the chat opens.
+            if !didInitialScroll {
+                let tail = messages.last
+                lastSeenTailMessageKey = tail.map { $0.txId.isEmpty ? $0.id.uuidString : $0.txId }
+                lastHandledTailCount = messages.count
+                didInitialScroll = true
+            }
         }
     }
 
@@ -2421,6 +2443,14 @@ struct ChatDetailView: View {
             }, onBack: { composerSheetStep = .options })
             .presentationDetents([.height(330)])
             .presentationDragIndicator(.visible)
+        case .dollars:
+            DollarTokenChooser(onPick: { token in
+                // Opens once this sheet is gone (see the sheet's onDismiss).
+                afterPlusSheet = { dollarSendToken = token }
+                showComposerPlusSheet = false
+            }, onBack: { composerSheetStep = .options })
+            .presentationDetents([.height(260)])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -2523,6 +2553,14 @@ struct ChatDetailView: View {
                 }
                 // A bot only takes text and Kaspa.
                 if !KaChatBot.isBot(contact.address) {
+                    // Dollars (stablecoins): picks which one (kUSDT today), then Send Kaspa's steps.
+                    ActionSheetRow(
+                        title: "Send Dollars",
+                        subtitle: "Send dollars (kUSDT) to this contact.",
+                        systemImage: "dollarsign.circle"
+                    ) {
+                        composerSheetStep = .dollars
+                    }
                     // Camera, Photo and Voice Message each ask on chain or via Nextcloud when a server is
                     // connected (that choice replaced the "Send Media via Nextcloud" setting), and go
                     // straight on chain when none is.
@@ -2612,10 +2650,10 @@ struct ChatDetailView: View {
         .presentationDragIndicator(.visible)
     }
 
-    /// Fits the tiles: pay, camera, photo, GIF, voice, request, chess, plus file and a handshake when they apply.
+    /// Fits the tiles: Kaspa, dollars, camera, photo, GIF, voice, request, chess, plus file and a handshake when they apply.
     private var composerPlusSheetHeight: CGFloat {
         if KaChatBot.isBot(contact.address) { return ActionSheetTileMetrics.sheetHeight(tiles: 1) }
-        var tiles = 7
+        var tiles = 8
         if nextcloudService.isConnected { tiles += 1 }
         if canSendRequestToCommunicate && !inboxSupported { tiles += 1 }
         return ActionSheetTileMetrics.sheetHeight(tiles: tiles)
@@ -3076,15 +3114,19 @@ struct ChatDetailView: View {
         let explorerURL = isOnChain ? settingsViewModel.settings.kaspaExplorer.txURL(for: message.txId) : nil
         return VStack(spacing: 12) {
             VStack(spacing: 6) {
-                Image("KaspaLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 40, height: 40)
+                if let token = parts?.token {
+                    TokenIcon(token: token, size: 40)
+                } else {
+                    Image("KaspaLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 40, height: 40)
+                }
                 Text(message.isOutgoing ? "Sent" : "Received")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(.secondary)
                 if let parts {
-                    Text(verbatim: "\(parts.amountText) \(KaspaUnit.symbol)")
+                    Text(verbatim: parts.amountWithUnit)
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)

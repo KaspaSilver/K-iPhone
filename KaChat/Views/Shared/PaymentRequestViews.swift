@@ -491,6 +491,16 @@ enum KaPayHandoff {
             if !opened { UIApplication.shared.open(installURL) }
         }
     }
+
+    /// Get KaPay (where kUSDT is bought): switches to KaPay when it's on the phone, else opens the
+    /// install page.
+    @MainActor
+    static func openOrInstall() {
+        guard let url = URL(string: "\(scheme)://open") else { return }
+        UIApplication.shared.open(url) { opened in
+            if !opened { UIApplication.shared.open(installURL) }
+        }
+    }
 }
 
 /// A KaPost post link (`KaChatInternalLink.kaPost`), tapped in a chat or opened from outside the

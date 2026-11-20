@@ -54,7 +54,8 @@ extension ChatService {
                 // usually an empty chatting address: kept, and sent once it has KAS (IOS-086)
                 AppLog.log("[ChatService] payment_notice send failed for %@, kept for later: %@",
                            String(txId.prefix(12)), error.localizedDescription)
-                self.keepUnsentNotice(UnsentPaymentNotice(contactAddress: contact.address, payload: payload, txId: txId))
+                self.keepUnsentNotice(UnsentPaymentNotice(contactAddress: contact.address, payload: payload, txId: txId),
+                                      owner: owner)
             }
         }
     }
@@ -68,7 +69,11 @@ extension ChatService {
     }
 
     private var unsentNoticesKey: String? {
-        WalletManager.shared.currentWallet.map { "kachat_unsent_payment_notices.\($0.publicAddress.lowercased())" }
+        WalletManager.shared.currentWallet.map { Self.unsentNoticesKey(owner: $0.publicAddress) }
+    }
+
+    private static func unsentNoticesKey(owner: String) -> String {
+        "kachat_unsent_payment_notices.\(owner.lowercased())"
     }
 
     private var unsentNotices: [UnsentPaymentNotice] {
@@ -86,11 +91,19 @@ extension ChatService {
         }
     }
 
-    private func keepUnsentNotice(_ notice: UnsentPaymentNotice) {
-        var list = unsentNotices
+    /// Kept under the account that made the payment (`owner`), never the one active when the send
+    /// failed: after a switch, sending it from the other account's chatting address would link the
+    /// two accounts on chain.
+    private func keepUnsentNotice(_ notice: UnsentPaymentNotice, owner: String?) {
+        guard let owner else { return }
+        let key = Self.unsentNoticesKey(owner: owner)
+        var list = UserDefaults.standard.data(forKey: key)
+            .flatMap { try? JSONDecoder().decode([UnsentPaymentNotice].self, from: $0) } ?? []
         guard !list.contains(where: { $0.txId == notice.txId }) else { return }
         list.append(notice)
-        unsentNotices = Array(list.suffix(50))
+        if let data = try? JSONEncoder().encode(Array(list.suffix(50))) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
     }
 
     /// Sends the notices that failed for want of KAS on the chatting address - called when its
@@ -358,6 +371,261 @@ extension ChatService {
             }
         }
         return .valid
+    }
+
+    // MARK: - Token payments in a chat (Send Dollars, 2026-11-20)
+    //
+    // A token transfer (kUSDT) is a covenant transaction with no chat payload, so the payee can't
+    // tell which chat it belongs to. Right after it goes out, the payer's chatting address sends a
+    // `token_payment_notice` in the 1:1 chat; the payer's bubble is made here, the payee's once the
+    // notice checks out on chain (MESSAGING.md, "Token Payments in a Chat").
+
+    /// A dollar send from a chat went out: the payer's bubble now, and the notice for the payee.
+    /// If the notice can't go (an empty chatting address), it is kept and sent once there's KAS.
+    func recordTokenPayment(to contact: Contact, token: WalletToken, txId: String, index: UInt32, amount: UInt64) {
+        guard let wallet = WalletManager.shared.currentWallet else { return }
+        let txId = txId.lowercased()
+        // once per payment: a send whose outcome was unknown can report in twice
+        guard !(conversations.first(where: { $0.contact.address == contact.address })?.messages
+            .contains(where: { $0.txId == txId }) ?? false) else { return }
+        let now = Date()
+        let bubble = ChatMessage(
+            txId: txId,
+            senderAddress: wallet.publicAddress,
+            receiverAddress: contact.address,
+            content: tokenPaymentText(amount: amount, token: token, isOutgoing: true),
+            timestamp: now,
+            blockTime: UInt64(now.timeIntervalSince1970 * 1000),
+            acceptingBlock: nil,
+            isOutgoing: true,
+            messageType: .payment,
+            deliveryStatus: .sent
+        )
+        insertOwnTokenBubble(bubble, contactAddress: contact.address)
+
+        let payload = PaymentPoolCodec.encode(
+            TokenPaymentNoticeContent(token: token.id, txId: txId, index: index, amount: amount, address: contact.address)
+        )
+        guard !payload.isEmpty else { return }
+        let owner = wallet.publicAddress
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await self.enqueueOutgoingTxOperation {
+                    try await self.sendEnvelopeInternal(to: contact, payload: payload, owner: owner)
+                }
+                AppLog.log("[ChatService] Sent token_payment_notice for %@", String(txId.prefix(12)))
+            } catch {
+                AppLog.log("[ChatService] token_payment_notice send failed for %@, kept for later: %@",
+                           String(txId.prefix(12)), error.localizedDescription)
+                self.keepUnsentNotice(UnsentPaymentNotice(contactAddress: contact.address, payload: payload, txId: txId),
+                                      owner: owner)
+            }
+        }
+    }
+
+    /// Our own token payment bubble, straight into the chat: not through
+    /// `addMessageToConversation`, whose outgoing path would take it as the answer to a Kaspa
+    /// payment still pending in this chat.
+    private func insertOwnTokenBubble(_ bubble: ChatMessage, contactAddress: String) {
+        // deleted stays deleted, when our own notice is read back
+        guard !DeletedMessageLog.contains(bubble.txId, kind: .chat) else { return }
+        if let index = conversations.firstIndex(where: { $0.contact.address == contactAddress }) {
+            guard !conversations[index].messages.contains(where: { $0.txId == bubble.txId }) else { return }
+            updateConversation(at: index) { $0.messages.append(bubble) }
+        } else {
+            addMessageToConversation(bubble, contactAddress: contactAddress)
+        }
+        saveMessages()
+    }
+
+    /// A `token_payment_notice` in a 1:1 chat: theirs (they sent us dollars) or our own read back
+    /// on another device. Like `handlePaymentNotice`: it must name the receiving side's chatting
+    /// address, a received one is checked on chain before it shows, an unchecked one shows marked
+    /// unverified, and nothing already stored under that txid is moved or overwritten.
+    func handleTokenPaymentNotice(_ notice: TokenPaymentNoticeContent, message: ChatMessage, contactAddress: String) {
+        guard let wallet = WalletManager.shared.currentWallet,
+              let token = WalletToken.all.first(where: { $0.id == notice.token }) else { return }
+        let walletAddress = wallet.publicAddress
+        let txId = notice.txId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard txId.count == 64, txId.allSatisfy(\.isHexDigit), notice.amount > 0 else { return }
+        let paidAddress = message.isOutgoing ? contactAddress : walletAddress
+        guard notice.address.lowercased() == paidAddress.lowercased() else {
+            AppLog.log("[ChatService] Dropped token_payment_notice %@ - not a payment to the chatting address",
+                       String(txId.prefix(12)))
+            return
+        }
+        let isOutgoing = message.isOutgoing
+        let text = tokenPaymentText(amount: notice.amount, token: token, isOutgoing: isOutgoing)
+
+        Task { @MainActor [weak self] in
+            guard let self, self.isActiveWallet(walletAddress) else { return }
+            if let existing = await self.findLocalMessage(txId: txId) {
+                // only this notice's own unverified bubble is checked again; anything else stays
+                guard !isOutgoing, !existing.isOutgoing, existing.messageType == .payment,
+                      existing.deliveryStatus == .warning,
+                      existing.senderAddress.lowercased() == contactAddress.lowercased() else { return }
+                switch await self.checkTokenNoticeOnChain(notice, token: token, txId: txId, paidAddress: walletAddress, payer: contactAddress) {
+                case .valid:
+                    _ = self.updateIncomingPaymentStatus(txId: txId, deliveryStatus: .sent, content: text)
+                    self.saveMessages()
+                case .invalid(let reason):
+                    // still this notice's unverified bubble after the await?
+                    guard self.isActiveWallet(walletAddress),
+                          let current = await self.findLocalMessage(txId: txId),
+                          !current.isOutgoing, current.deliveryStatus == .warning,
+                          current.senderAddress.lowercased() == contactAddress.lowercased() else { return }
+                    self.unmarkNoticeBubble(txId)
+                    self.removeMessage(txId: txId)
+                    self.messageStore.deleteMessage(txId: txId)
+                    self.saveMessages()
+                    AppLog.log("[ChatService] Removed unverified token_payment_notice bubble %@ - %@", String(txId.prefix(12)), reason)
+                case .unknown:
+                    break
+                }
+                return
+            }
+            // An unchecked claim shows without its amount: anyone can make a look-alike coin, and
+            // only the token's covenant id (checked once the chain answers) tells them apart.
+            let bubble = { (status: ChatMessage.DeliveryStatus) in
+                ChatMessage(
+                    txId: txId,
+                    senderAddress: isOutgoing ? walletAddress : contactAddress,
+                    receiverAddress: notice.address,
+                    content: status == .warning
+                        ? String(format: AppLocalization.string("Unverified %@ payment"), token.symbol)
+                        : text,
+                    timestamp: message.timestamp,
+                    blockTime: message.blockTime,
+                    acceptingBlock: nil,
+                    isOutgoing: isOutgoing,
+                    messageType: .payment,
+                    deliveryStatus: status
+                )
+            }
+            if isOutgoing {
+                // our own notice on another device: the bubble this device doesn't have
+                self.insertOwnTokenBubble(bubble(.sent), contactAddress: contactAddress)
+                return
+            }
+            let check = await self.checkTokenNoticeOnChain(notice, token: token, txId: txId, paidAddress: walletAddress, payer: contactAddress)
+            // after the await: still this wallet, and still nothing stored under that txid
+            guard self.isActiveWallet(walletAddress), await self.findLocalMessage(txId: txId) == nil else { return }
+            let status: ChatMessage.DeliveryStatus
+            switch check {
+            case .valid: status = .sent
+            case .unknown: status = .warning
+            case .invalid(let reason):
+                AppLog.log("[ChatService] Dropped token_payment_notice %@ - %@", String(txId.prefix(12)), reason)
+                return
+            }
+            // the generic payment code leaves it to this notice to confirm
+            self.markNoticeBubble(txId, wallet: walletAddress)
+            self.addMessageToConversation(bubble(status), contactAddress: contactAddress)
+            self.saveMessages()
+            AppLog.log("[ChatService] Token payment %@ filed in its chat from a token_payment_notice (%@)",
+                       String(txId.prefix(12)), status.rawValue)
+        }
+    }
+
+    /// What the chain says about a received token notice:
+    /// - output `index` of the transaction is the coin of exactly `amount` owned by `paidAddress`
+    ///   (its script worked out here from the pinned template), carrying the token's covenant id
+    ///   (from the explorer, else from the node while the coin is unspent);
+    /// - no input is ours or another contact's: by address, and for a token coin being spent, by
+    ///   the owner key in its state (a coin's input address is its P2SH, which matches nobody, so a
+    ///   contact could otherwise claim our own Combine Coins or another contact's whole send).
+    /// A coin spent since still shows in the transaction, so this works for history too.
+    private func checkTokenNoticeOnChain(_ notice: TokenPaymentNoticeContent, token: WalletToken, txId: String,
+                                         paidAddress: String, payer: String) async -> NoticeCheck {
+        guard token == .kusdt else { return .invalid("not a token this app can check") }
+        guard let template = Kusdt.template else { return .unknown }
+        guard let owner = Kusdt.schnorrOwner(of: paidAddress) else { return .invalid("the chatting address can't hold tokens") }
+        let script = Kusdt.lockingScript(.plain(owner: owner, amount: notice.amount), template: template)
+        guard let coinAddress = Kusdt.address(ofLockingScript: script) else { return .unknown }
+        guard let url = kaspaRestURL(path: "/transactions/\(txId)",
+                                     queryItems: [URLQueryItem(name: "resolve_previous_outpoints", value: "light")]),
+              let (data, response) = try? await URLSession.shared.data(for: Self.timedRequest(url)),
+              let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode),
+              let fullTx = try? JSONDecoder().decode(KaspaFullTransactionResponse.self, from: data) else {
+            return .unknown
+        }
+        let position = Int(notice.index)
+        let output = fullTx.outputs.first(where: { $0.index == position })
+            ?? (fullTx.outputs.indices.contains(position) && fullTx.outputs[position].index == nil ? fullTx.outputs[position] : nil)
+        guard let output else { return .invalid("it has no output \(notice.index)") }
+        guard output.scriptPublicKeyAddress?.lowercased() == coinAddress.lowercased() else {
+            return .invalid("output \(notice.index) isn't a coin of that amount for this address")
+        }
+
+        // who paid
+        let rawInputs = fullTx.inputs ?? []
+        guard !rawInputs.isEmpty, rawInputs.allSatisfy({ $0.previousOutpointAddress != nil }) else { return .unknown }
+        let own = ownAddressesForNotices(walletAddress: paidAddress)
+        let payerAddress = payer.lowercased()
+        let ownKeys = Set(own.compactMap { Kusdt.schnorrOwner(of: $0) })
+        let payerKey = Kusdt.schnorrOwner(of: payer)
+        let otherContactKeys = Set(contactsManager.contacts
+            .filter { $0.address.lowercased() != payerAddress }
+            .compactMap { Kusdt.schnorrOwner(of: $0.address) })
+        let prefixHex = Kusdt.hex(template.prefix)
+        for input in rawInputs {
+            guard let address = input.previousOutpointAddress?.lowercased() else { return .unknown }
+            if own.contains(address) { return .invalid("paid by one of our own addresses") }
+            if address != payerAddress, contactsManager.getContact(byAddress: address) != nil {
+                return .invalid("paid by another contact")
+            }
+            // a script input: if it spends a token coin, its owner is in the coin's state
+            guard Kusdt.schnorrOwner(of: address) == nil else { continue }
+            guard let sigScript = input.signatureScript?.lowercased() else { return .unknown }
+            guard let coinOwner = Self.tokenCoinOwner(signatureScriptHex: sigScript, templatePrefixHex: prefixHex) else { continue }
+            if ownKeys.contains(coinOwner) { return .invalid("it spends one of our own coins") }
+            if coinOwner != payerKey, otherContactKeys.contains(coinOwner) { return .invalid("it spends another contact's coin") }
+        }
+
+        // the real token: its covenant id, from the explorer or else the node
+        if let covenant = output.covenantId?.lowercased(), !covenant.isEmpty {
+            return covenant == Kusdt.hex(Kusdt.current.covenantId) ? .valid : .invalid("the coin isn't \(token.symbol)")
+        }
+        guard let utxos = try? await NodePoolService.shared.getUtxosByAddresses([coinAddress], allowRestFallback: false),
+              let coin = utxos.first(where: { $0.outpoint.transactionId.lowercased() == txId && $0.outpoint.index == notice.index }) else {
+            // spent since, or no node answer: can't tell it from a look-alike
+            return .unknown
+        }
+        guard coin.scriptPublicKey == script, coin.covenantId?.lowercased() == Kusdt.hex(Kusdt.current.covenantId) else {
+            return .invalid("the coin isn't \(token.symbol)")
+        }
+        return .valid
+    }
+
+    /// The owner key of a token coin an input spends: the redeem script, the last push of a P2SH
+    /// input's signature script, is `prefix ‖ 112-byte state ‖ suffix`, and the state's bytes 10-41
+    /// are the owner (`Kusdt.State.encoded`). Nil when the input doesn't spend a token coin.
+    nonisolated static func tokenCoinOwner(signatureScriptHex hex: String, templatePrefixHex prefix: String) -> Data? {
+        var searchStart = hex.startIndex
+        while let found = hex.range(of: prefix, range: searchStart..<hex.endIndex) {
+            let offset = hex.distance(from: hex.startIndex, to: found.lowerBound)
+            // byte-aligned only
+            if offset % 2 == 0 {
+                let stateHex = hex[found.upperBound...].prefix(224)
+                if stateHex.count == 224, stateHex.hasPrefix("08") {
+                    let ownerHex = stateHex.dropFirst(20).prefix(64)
+                    if stateHex.dropFirst(18).hasPrefix("20"), let owner = Kusdt.unhexOrNil(String(ownerHex)) {
+                        return owner
+                    }
+                }
+            }
+            searchStart = hex.index(after: found.lowerBound)
+        }
+        return nil
+    }
+
+    /// "Sent 12.50 kUSDT" / "Received 12.50 kUSDT": the amount with a dot and no grouping, so the
+    /// payment bubble reads it back (`MessageBubbleView.paymentCardParts`).
+    func tokenPaymentText(amount: UInt64, token: WalletToken, isOutgoing: Bool) -> String {
+        String(format: AppLocalization.string(isOutgoing ? "Sent %1$@ %2$@" : "Received %1$@ %2$@"),
+               token.plainAmount(amount), token.symbol)
     }
 
     private func paymentNoticeText(amountSompi: UInt64, memo: String, isOutgoing: Bool) -> String {

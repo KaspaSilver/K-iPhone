@@ -1460,9 +1460,11 @@ struct NotificationsHubPage: View {
 }
 
 /// Settings > Notifications > Wallet: the own-address receive-activity toggle (see
-/// AddressActivityNotifier).
+/// AddressActivityNotifier), and this account's switch for its spending addresses' receives
+/// (moved here from Manage Addresses, owner's call 2026-11-20).
 struct WalletNotificationSettingsView: View {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
+    @ObservedObject private var activityNotifier = AddressActivityNotifier.shared
 
     var body: some View {
         Form {
@@ -1471,8 +1473,20 @@ struct WalletNotificationSettingsView: View {
                     .onChange(of: settingsViewModel.settings.addressActivityNotificationsEnabled) { _ in
                         settingsViewModel.saveSettings()
                     }
+                // This account's own switch: the spending addresses' receives, not every
+                // address the wallet watches.
+                Toggle(isOn: $activityNotifier.spendingReceiveNotificationsEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Notify on receive")
+                        Text("When a spending address receives Kaspa from someone else.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .disabled(!settingsViewModel.settings.addressActivityNotificationsEnabled)
             }
         }
+        .onAppear { activityNotifier.reloadSpendingSwitchForCurrentWallet() }
         .navigationTitle("Wallet")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1965,6 +1979,8 @@ struct KaspaExplorerSettingsView: View {
 }
 
 struct ConnectionSettingsView: View {
+    /// Nil: the cards. Set: that connection's own screen.
+    var page: Page? = nil
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -1972,6 +1988,7 @@ struct ConnectionSettingsView: View {
     @State private var pushIndexerURL: String = ""
     @State private var kachatNamesIndexerURL: String = ""
     @State private var kaspaRestAPIURL: String = ""
+    @State private var trestlyAPIURL: String = ""
     @State private var trustedNodeValidationError: String?
 
     @State private var newSavedNodeLabel: String = ""
@@ -2231,59 +2248,181 @@ struct ConnectionSettingsView: View {
 
     }
 
+    /// Trestly's API: where kUSDT balances are looked up, each answer checked on the node.
+    /// KaChat only reads balances here; buying and swapping kUSDT happen in KaPay.
+    @ViewBuilder
+    private var trestlySections: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Trestly API URL")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                TextField(AppSettings.defaultTrestlyAPIURL(for: settingsViewModel.settings.networkType), text: $trestlyAPIURL)
+                    .font(.system(.body, design: .monospaced))
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                httpsInlineError(for: trestlyAPIURL)
+            }
+        } header: {
+            Text("kUSDT Balances")
+        } footer: {
+            Text("Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default.")
+        }
+    }
+
     /// The field hint: the network's default (testnet has none, so just the scheme).
     private func indexerPlaceholder(_ mainnetDefault: String) -> String {
         settingsViewModel.settings.networkType == .mainnet ? mainnetDefault : "https://"
     }
 
-    /// One tab per kind of connection, so the page stays short as the app talks to more
-    /// services: indexers, the Kaspa node, name services, the block explorer.
-    private enum ConnectionTab: String, CaseIterable {
-        case indexer, node, domains, explorer
+    /// A card per connection, each opening its own screen with Save (Node saves as you pick), as
+    /// KaPay has it (2026-11-20): Indexer, Node, Domains, Explorer and Trestly.
+    enum Page: String, CaseIterable, Identifiable {
+        case indexer, node, domains, explorer, trestly
 
-        var title: String {
+        var id: String { rawValue }
+
+        var title: LocalizedStringKey {
             switch self {
             case .indexer: return "Indexer"
             case .node: return "Node"
             case .domains: return "Domains"
             case .explorer: return "Explorer"
+            case .trestly: return "Trestly"
             }
         }
+
+        var icon: String {
+            switch self {
+            case .indexer: return "bell.badge"
+            case .node: return "server.rack"
+            case .domains: return "at"
+            case .explorer: return "safari"
+            case .trestly: return "dollarsign.circle"
+            }
+        }
+
+        /// Only the node screen saves as you pick (the picker and the address book).
+        var hasSave: Bool { self != .node }
     }
 
-    @State private var selectedTab: ConnectionTab = .indexer
-
     var body: some View {
-        VStack(spacing: 0) {
-            UnderlineTabBar(
-                tabs: ConnectionTab.allCases.map { (tab: $0, title: $0.title) },
-                selection: $selectedTab
-            )
-            // Save covers every tab: the fields keep their edits while you switch between them.
-            Form {
-                switch selectedTab {
-                case .indexer: indexerSections
-                case .node: nodeSections
-                case .domains: domainsSections
-                case .explorer: explorerSections
-                }
-            }
-        }
-        .navigationTitle("Connection Settings")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
-                    if saveSettings() {
-                        dismiss()
-                    }
-                }
+        Group {
+            if let page {
+                pageScreen(page)
+            } else {
+                cards
             }
         }
         .onAppear {
             loadCurrentSettings()
         }
         .toast(message: toastMessage, style: toastStyle)
+    }
+
+    /// The cards, each opening its connection's screen.
+    private var cards: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(Page.allCases) { page in
+                    NavigationLink {
+                        ConnectionSettingsView(page: page)
+                    } label: {
+                        connectionCard(page)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Connection Settings")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func connectionCard(_ page: Page) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: page.icon)
+                .font(.body.weight(.semibold))
+                .foregroundColor(.accentColor)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(Color.accentColor.opacity(0.15)))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(page.title)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Text(verbatim: cardSummary(page))
+                    .font(.caption.monospaced())
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.regularMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                )
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    /// What each card is set to right now: the server's host, or the node in use.
+    private func cardSummary(_ page: Page) -> String {
+        let settings = settingsViewModel.settings
+        func host(_ url: String) -> String {
+            let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return AppLocalization.string("Not set") }
+            return URLComponents(string: trimmed)?.host ?? trimmed
+        }
+        switch page {
+        case .indexer: return host(settings.indexerURL)
+        case .node:
+            let trusted = settings.trustedNodeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trusted.isEmpty { return AppLocalization.string("Automatic Scan") }
+            if let saved = settings.savedNodeAddresses.first(where: { $0.address == trusted }),
+               !saved.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return saved.label
+            }
+            return trusted
+        case .domains: return host(settings.kachatNamesIndexerURL)
+        case .explorer: return host(settings.kaspaRestAPIURL)
+        case .trestly: return host(settings.trestlyAPIURL)
+        }
+    }
+
+    /// One connection's own screen; Save keeps it and goes back to the cards.
+    private func pageScreen(_ page: Page) -> some View {
+        Form {
+            switch page {
+            case .indexer: indexerSections
+            case .node: nodeSections
+            case .domains: domainsSections
+            case .explorer: explorerSections
+            case .trestly: trestlySections
+            }
+        }
+        .navigationTitle(page.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if page.hasSave {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if saveSettings() {
+                            dismiss()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func showToast(_ message: String, style: ToastStyle = .success) {
@@ -2341,6 +2480,7 @@ struct ConnectionSettingsView: View {
         pushIndexerURL = settingsViewModel.settings.pushIndexerURL
         kachatNamesIndexerURL = settingsViewModel.settings.kachatNamesIndexerURL
         kaspaRestAPIURL = settingsViewModel.settings.kaspaRestAPIURL
+        trestlyAPIURL = settingsViewModel.settings.trestlyAPIURL
     }
 
     /// Persists the endpoint fields, or returns false without saving anything when any field
@@ -2355,7 +2495,7 @@ struct ConnectionSettingsView: View {
     /// https:// (Decision 3A).
     @discardableResult
     private func saveSettings() -> Bool {
-        let allFields = [indexerURL, pushIndexerURL, kachatNamesIndexerURL, kaspaRestAPIURL]
+        let allFields = [indexerURL, pushIndexerURL, kachatNamesIndexerURL, kaspaRestAPIURL, trestlyAPIURL]
         guard !allFields.contains(where: isCleartextHTTP) else {
             showToast(Self.httpsRequiredError, style: .error)
             return false
@@ -2373,6 +2513,7 @@ struct ConnectionSettingsView: View {
         let previousNamesIndexer = settingsViewModel.settings.kachatNamesIndexerURL
         settingsViewModel.settings.kachatNamesIndexerURL = normalizedOrDefault(kachatNamesIndexerURL, defaults.kachatNamesIndexerURL)
         settingsViewModel.settings.kaspaRestAPIURL = normalizedOrDefault(kaspaRestAPIURL, defaults.kaspaRestAPIURL)
+        settingsViewModel.settings.trestlyAPIURL = normalizedOrDefault(trestlyAPIURL, AppSettings.defaultTrestlyAPIURL(for: settingsViewModel.settings.networkType))
         settingsViewModel.saveSettings()
         // A new names indexer is checked right away (the refresh re-picks indexer or chain)
         // instead of at the next stale refresh, so names show from it as soon as Save is tapped.

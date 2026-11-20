@@ -490,6 +490,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Task { await RetiredFeatureCleanup.runOnceV2() }
         RetiredFeatureCleanup.runOnceV3()
         RetiredFeatureCleanup.runOnceV4()
+        RetiredFeatureCleanup.runOnceV5()
         // Set notification delegate to handle foreground notifications
         UNUserNotificationCenter.current().delegate = self
         registerNotificationCategories()
@@ -816,6 +817,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // contact-address branch below (it would stage a bogus pendingChatNavigation). A receipt
         // lands on Wallet, which shows the addresses and balances. `PendingTabRoute`
         // covers the cold start, where the post below has no observer yet.
+        // A "Received kUSDT" notification: that token's Manage screen, on the Wallet tab.
+        // `TokenRoute` and `PendingTabRoute` cover the cold start, where the posts have no
+        // observer yet.
+        if threadIdentifier == TokenWallet.notificationThread {
+            let token = response.notification.request.content.userInfo["token"] as? String
+            Task { @MainActor in
+                TokenRoute.pending = token ?? WalletToken.kusdt.id
+                PendingTabRoute.pending = .wallet
+                NotificationCenter.default.post(name: .openProfile, object: nil)
+                NotificationCenter.default.post(name: .openToken, object: nil)
+            }
+            completionHandler()
+            return
+        }
+
         if threadIdentifier == AddressActivityNotifier.notificationThreadIdentifier {
             if let address = response.notification.request.content.userInfo["address"] as? String, !address.isEmpty {
                 // One address got the Kaspa: open that address's history (chatting or spending -
@@ -917,6 +933,12 @@ enum PendingTabRoute {
     static var pending: AppTab?
 }
 
+/// The token a tapped "Received" token notification opens (`TokenManageView`), for the Wallet tab
+/// to take. Survives a cold start, where the post has no observer yet.
+enum TokenRoute {
+    static var pending: String?
+}
+
 /// Public Chats and KaPosts left the app on 2026-10-24 (`runOnce`), then the wallet features
 /// (`runOnceV2`). What Public Chats and KaPosts kept on this phone - each
 /// account's public room history (its own SQLite file) and the KaPosts drafts, follows, mutes and
@@ -946,7 +968,7 @@ enum RetiredFeatureCleanup {
     /// Portfolio, Cold Storage, Swap, the .kachat market and the customizable dock left on
     /// 2026-10-24 (the wallet pieces live in the KaChat wallet app). Their data on this phone goes
     /// once too. Kept: the last KAS price (`kachat_kas_price_`, the Send screens) and coin labels
-    /// (`kachat_cold_storage_utxo_labels_`, Coin Control).
+    /// (`kachat_cold_storage_utxo_labels_`, merged into the spending coin labels by `runOnceV5`).
     private static let defaultsPrefixesV2 = [
         "kachat_portfolio", "kachat_active_portfolio_", "kachat_price_history_", "kachat_daily_price_cache_",
         "kachat_pair_history_", "kachat_cold_storage_accounts", "kachat_cold_storage_hidden_",
@@ -997,6 +1019,30 @@ enum RetiredFeatureCleanup {
             defaults.removeObject(forKey: key)
         }
         defaults.set(true, forKey: doneKeyV4)
+    }
+
+    private static let doneKeyV5 = "kachat_retired_features_cleaned_v5"
+
+    /// Coin labels Cold Storage kept (`kachat_cold_storage_utxo_labels_`) move once into the store
+    /// Rename UTXO writes and Coin Control reads (`WalletManager.spendingUtxoLabelsKey`). Same
+    /// format, a JSON `"txId:index"` -> name map per address; a name given since wins.
+    static func runOnceV5() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: doneKeyV5) else { return }
+        let prefix = "kachat_cold_storage_utxo_labels_"
+        for (key, value) in defaults.dictionaryRepresentation() where key.hasPrefix(prefix) {
+            let target = WalletManager.spendingUtxoLabelsKey(for: String(key.dropFirst(prefix.count)))
+            if let data = value as? Data,
+               let old = try? JSONDecoder().decode([String: String].self, from: data) {
+                var merged = defaults.data(forKey: target)
+                    .flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+                merged.merge(old.filter { !$0.value.isEmpty }) { current, _ in current }
+                guard let encoded = try? JSONEncoder().encode(merged) else { continue }
+                defaults.set(encoded, forKey: target)
+            }
+            defaults.removeObject(forKey: key)
+        }
+        defaults.set(true, forKey: doneKeyV5)
     }
 }
 
@@ -1109,5 +1155,7 @@ extension Notification.Name {
     static let openProfile = Notification.Name("openProfile")
     /// A "Received" notification for one of your addresses was tapped: `OwnAddressRoute.pending`.
     static let openOwnAddress = Notification.Name("openOwnAddress")
+    /// A token's Manage screen (a "Received kUSDT" notification): `TokenRoute.pending` names it.
+    static let openToken = Notification.Name("openToken")
     static let openGroup = Notification.Name("openGroup")
 }

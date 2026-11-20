@@ -2109,11 +2109,12 @@ final class PushNotificationManager: ObservableObject {
         if let amount = userInfo["amount"] as? UInt64 {
             return amount
         }
+        // a negative amount is no amount (UInt64(_:) would trap; uint64Value would wrap)
         if let amount = userInfo["amount"] as? Int {
-            return UInt64(amount)
+            return amount >= 0 ? UInt64(amount) : nil
         }
         if let amount = userInfo["amount"] as? NSNumber {
-            return amount.uint64Value
+            return amount.doubleValue >= 0 ? amount.uint64Value : nil
         }
         if let amount = userInfo["amount"] as? String, let value = UInt64(amount) {
             return value

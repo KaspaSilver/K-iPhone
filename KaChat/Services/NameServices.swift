@@ -203,6 +203,7 @@ final class NameServicesClient: ObservableObject {
     func refresh(for address: String) async {
         let address = address.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !address.isEmpty else { return }
+        lastRefreshed = (address, Date())
         if ownerAddress != address {
             ownerAddress = address
             owned = [:]
@@ -217,6 +218,18 @@ final class NameServicesClient: ObservableObject {
         apply(k, for: .k)
         apply(kaspa, for: .kaspa)
         loading.subtract([.k, .kaspa])
+    }
+
+    /// When `address` was last asked about.
+    private var lastRefreshed: (address: String, at: Date)?
+
+    /// `refresh`, unless this address was asked about in the last `maxAge` seconds (the Wallet tab
+    /// shows Your Domains on every visit).
+    func refreshIfStale(for address: String, maxAge: TimeInterval = 300) async {
+        let key = address.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let lastRefreshed, lastRefreshed.address == key, failed.isEmpty,
+           Date().timeIntervalSince(lastRefreshed.at) < maxAge { return }
+        await refresh(for: address)
     }
 
     /// How many names the address owns across these services (for the "Your Domains" count).
@@ -259,6 +272,21 @@ final class NameServicesClient: ObservableObject {
                   let held = try? await KachatNamesRegistry.shared.heldNames(owner: key), !held.isEmpty else { continue }
             result[address] = held.map { OwnedServiceName(name: $0.name, display: KachatNameLabel.display($0.name), tld: .kachat, isProvisional: false) }
         }
+        return result
+    }
+
+    /// `address`'s names on .k and .kaspa by service, for one address's Domains tab - it leaves
+    /// `owned` alone. A service whose lookup failed is missing from the result.
+    func ownedNamesByService(of address: String) async -> [NameServiceTLD: [OwnedServiceName]] {
+        let address = address.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !address.isEmpty else { return [:] }
+        let network = AppSettings.load().networkType
+        async let dotk = fetchDotk(address: address, network: network)
+        async let kaspaNames = fetchKaspaNames(address: address, network: network)
+        let (k, kaspa) = await (dotk, kaspaNames)
+        var result: [NameServiceTLD: [OwnedServiceName]] = [:]
+        if let k { result[.k] = k }
+        if let kaspa { result[.kaspa] = kaspa }
         return result
     }
 

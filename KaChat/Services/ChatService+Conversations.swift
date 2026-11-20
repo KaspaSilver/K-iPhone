@@ -829,7 +829,8 @@ extension ChatService {
 
         // Now fetch contextual messages for all known aliases
         // A summary, not the maps: the full dump wrote every contact's address into the device
-        // log on every sync. It stays available behind Settings > Diagnostics > Verbose API Logging.
+        // log on every sync. Verbose API Logging adds a shortened map: never a whole alias paired
+        // with a whole address.
         func aliasSummary(_ map: [String: Set<String>]) -> String {
             let tags = map.values.reduce(0) { $0 + $1.count }
             let withExtras = map.values.filter { $0.count > 1 }.count
@@ -837,8 +838,15 @@ extension ChatService {
         }
         AppLog.log("%@", "[ChatService] Aliases - incoming: \(aliasSummary(conversationAliases)); ours: \(aliasSummary(ourAliases)); routing states: \(routingStates.count)")
         if currentSettings.verboseAPILogging {
-            AppLog.log("%@", "[ChatService] Current aliases: \(conversationAliases)")
-            AppLog.log("%@", "[ChatService] Our aliases: \(ourAliases)")
+            func shortened(_ map: [String: Set<String>]) -> String {
+                map.map { entry -> String in
+                    let tags = entry.value.map { String($0.prefix(4)) + "…" }.sorted()
+                    return "…\(entry.key.suffix(8)): \(tags)"
+                }
+                .sorted().joined(separator: ", ")
+            }
+            AppLog.log("%@", "[ChatService] Current aliases: \(shortened(conversationAliases))")
+            AppLog.log("%@", "[ChatService] Our aliases: \(shortened(ourAliases))")
         }
         if let active = activeAddress {
             let completed = await fetchContextualMessagesForActive(
@@ -2466,6 +2474,25 @@ extension ChatService {
             reservedMessageOutpoints[key] = expiration
         }
         return held
+    }
+
+    /// Every "txid:index" a send from this app is holding right now (kUSDT's coins aren't `UTXO`s,
+    /// so they're filtered by key: `TokenWallet.apply`, `KusdtTransfer.prepare`).
+    func heldOutpointKeys() -> Set<String> {
+        let now = Date()
+        return Set(reservedMessageOutpoints.filter { $0.value > now }.keys)
+    }
+
+    /// A submit whose answer was lost: its coins are remembered for as long as a hold lasts.
+    func markUnknownOutcome(_ outpoints: [UTXO.Outpoint]) {
+        let expiration = Date().addingTimeInterval(reservedOutpointTTL)
+        for outpoint in outpoints { unknownOutcomeOutpoints[outpointKey(outpoint)] = expiration }
+    }
+
+    /// Every "txid:index" a "Not confirmed" send spent and that may still land.
+    func unknownOutcomeKeys() -> Set<String> {
+        let now = Date()
+        return Set(unknownOutcomeOutpoints.filter { $0.value > now }.keys)
     }
 
     /// A submit that failed, or whose outcome is unknown: its coins go back to what they were, so
@@ -4914,6 +4941,22 @@ extension ChatService {
     private func saveContactStashState(wallet: String) {
         userDefaults.set(Array(contactStashKnownAddresses), forKey: "kachat_contact_stash_known_\(wallet)")
         userDefaults.set(contactStashIndexComplete, forKey: "kachat_contact_stash_complete_\(wallet)")
+    }
+
+    /// Delete Account: the wallet's Message Requests and blocked list, its contact-note index
+    /// (with their copies in memory), held payments, scan marks and import baseline.
+    func removeAllData(forWallet wallet: String) {
+        userDefaults.removeObject(forKey: chatRequestsKey(wallet))
+        chatRequestCache.removeValue(forKey: wallet.lowercased())
+        userDefaults.removeObject(forKey: "kachat_contact_stash_known_\(wallet)")
+        userDefaults.removeObject(forKey: "kachat_contact_stash_complete_\(wallet)")
+        if contactStashStateWallet == wallet {
+            contactStashStateWallet = nil
+            contactStashKnownAddresses = []
+            contactStashIndexComplete = false
+        }
+        removeFetchingData(forWallet: wallet)
+        removeWalletImportBaseline(forWallet: wallet)
     }
 
     func submitSelfStashTx(

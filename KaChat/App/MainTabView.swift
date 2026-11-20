@@ -72,6 +72,8 @@ struct MainTabView: View {
                 chatService.releaseSyncForOnboarding()
             }
             chatService.startPolling()
+            // kUSDT is checked while the app is open, so a token that arrives is announced
+            TokenWallet.shared.startPolling()
             preloadProfileResources()
             // A notification tapped from a cold start routed before this view existed - replay
             // its tab switch now that there's something to switch.

@@ -212,18 +212,20 @@ extension WalletManager {
             labels[outpointKey] = trimmed
         }
         guard let data = try? JSONEncoder().encode(labels) else { return }
-        UserDefaults.standard.set(data, forKey: spendingUtxoLabelsKey(for: address))
+        UserDefaults.standard.set(data, forKey: Self.spendingUtxoLabelsKey(for: address))
     }
 
     func loadSpendingUtxoLabels(address: String) -> [String: String] {
-        guard let data = UserDefaults.standard.data(forKey: spendingUtxoLabelsKey(for: address)),
+        guard let data = UserDefaults.standard.data(forKey: Self.spendingUtxoLabelsKey(for: address)),
               let decoded = try? JSONDecoder().decode([String: String].self, from: data) else {
             return [:]
         }
         return decoded
     }
 
-    private func spendingUtxoLabelsKey(for address: String) -> String {
+    /// The one coin-label store: renaming a coin and Coin Control both use it (Cold Storage's
+    /// labels were merged in by `RetiredFeatureCleanup.runOnceV5`).
+    nonisolated static func spendingUtxoLabelsKey(for address: String) -> String {
         "kachat_spending_utxo_labels_" + address
     }
 
@@ -404,6 +406,13 @@ extension WalletManager {
         }
     }
 
+    /// Reveals a new, never-used regular spending address slot (extends `maxSpendingAddressIndex`
+    /// by one) without changing which address is currently primary: Manage Addresses' Generate
+    /// Non-Quantum Address, and a fresh kUSDT address.
+    func generateNextSpendingAddress() async {
+        await updateSpendingBounds(maxIndex: maxSpendingAddressIndex + 1)
+    }
+
     /// Reveals a brand-new quantum-safe slot (KIP-22) and returns its public index - what
     /// "Generate New Address" makes from now on. Always extends the chain: a never-spent-from
     /// address is the whole point, so nothing is ever recycled here.
@@ -563,21 +572,20 @@ extension WalletManager {
         // belongs to the other account and is dropped, nothing written (IOS-109).
         guard let owner = currentWallet?.publicAddress else { return nil }
         let chosen: (index: Int, address: String)
-        // Rule 1: the pointer from last time, while it is still untouched - and quantum. A
-        // legacy pointer, even unused, carries its key in the address itself (P2PK), so the QR
-        // moves to the quantum chain the first time it is opened after the upgrade.
-        if let index = receiveAddressIndex, Self.isQuantumIndex(index), let address = spendingAddress(at: index),
-           !isQuantumAddressSpentLocally(address),
-           await ChatService.shared.spendingAddressUsedState(address) != true,
-           !Self.quantumSlotsHandedOut.contains(Self.handedOutKey(owner: owner, index: index)) {
+        // Receive hands out REGULAR addresses (owner's call, 2026-11-19, as in KaPay): a regular
+        // address takes kUSDT as well as Kaspa, and a quantum-resistant one can't trade it, so
+        // nobody ends up with tokens on one by mistake. Quantum-resistant addresses are made on
+        // purpose, in Manage Addresses' Address Actions. (Before, the QR moved to the quantum
+        // chain.) Change only ever goes to quantum slots, so a regular one is never a send's change.
+        // Rule 1: the pointer from last time, while it is still untouched - and regular.
+        if let index = receiveAddressIndex, !Self.isQuantumIndex(index), let address = spendingAddress(at: index),
+           await ChatService.shared.spendingAddressUsedState(address) != true {
             chosen = (index, address)
         } else {
-            // Rule 2: the lowest quantum slot never used (recycling a hidden unused one), else a
+            // Rule 2: the lowest regular slot never used (recycling a hidden unused one), else a
             // brand-new slot past the chain's end.
-            var index = await lowestUnusedQuantumAddress()
+            let index = await lowestUnusedRegularAddress()
             guard currentWallet?.publicAddress == owner else { return nil }
-            // a send picked this same slot while the probe above was out
-            while Self.quantumSlotsHandedOut.contains(Self.handedOutKey(owner: owner, index: index)) { index += 1 }
             guard let address = spendingAddress(at: index) else { return currentSpendingAddress() }
             receiveAddressIndex = index
             chosen = (index, address)
@@ -587,6 +595,21 @@ extension WalletManager {
             await revealSpendingAddress(at: chosen.index, owner: owner)
         }
         return chosen.address
+    }
+
+    /// On the regular (legacy, P2PK) chain: the lowest hidden regular slot confirmed unused
+    /// (recycling un-hides it), else one past the chain's end.
+    func lowestUnusedRegularAddress() async -> Int {
+        let entries = await getSpendingAddressList().filter { !$0.isQuantum }.sorted { $0.index < $1.index }
+        for entry in entries {
+            guard entry.hidden else { continue }
+            if entry.isCurrent { continue }
+            if entry.balanceSompi > 0 { continue }
+            if await ChatService.shared.spendingAddressUsedState(entry.address) == false {
+                return entry.index
+            }
+        }
+        return maxSpendingAddressIndex + 1
     }
 
     /// On the quantum chain: the lowest hidden quantum slot that
@@ -858,7 +881,7 @@ extension WalletManager {
         let derived = cachedSpendingAddresses(ofAccount: address)
         let defaults = UserDefaults.standard
         for owned in derived + variants {
-            defaults.removeObject(forKey: spendingUtxoLabelsKey(for: owned))
+            defaults.removeObject(forKey: Self.spendingUtxoLabelsKey(for: owned))
             defaults.removeObject(forKey: "kachat_cold_storage_utxo_labels_" + owned)
         }
         let suffixes = variants.flatMap { ["_" + $0, "_" + $0.replacingOccurrences(of: ":", with: "_")] }
@@ -873,12 +896,44 @@ extension WalletManager {
         }
     }
 
+    /// One chain's addresses over `range` (all legacy or all quantum), for the current account:
+    /// served from `DerivedAddressStore`, so the seed (Keychain read, Secure Enclave unwrap,
+    /// PBKDF2) is decrypted only when some index isn't cached yet, and then once. nil when a miss
+    /// needs the seed and it can't be read this instant - what a failed chain key always gave.
+    private func cachedOrDerivedChainAddresses(in range: Range<Int>, quantum: Bool) -> [Int: String]? {
+        var result: [Int: String] = [:]
+        var missing: [Int] = []
+        let cached = spendingAddressCacheKey().map { DerivedAddressStore.addresses($0) } ?? [:]
+        for index in range {
+            if let address = cached[String(index)] {
+                result[index] = address
+            } else {
+                missing.append(index)
+            }
+        }
+        guard !missing.isEmpty else { return result }
+        if quantum {
+            guard let chainKey = quantumChainKey() else { return nil }
+            for index in missing {
+                if let address = quantumAddress(at: index, chainKey: chainKey) { result[index] = address }
+            }
+        } else {
+            guard let changeKey = spendingChangeKey() else { return nil }
+            for index in missing {
+                if let address = spendingAddress(at: index, changeKey: changeKey) { result[index] = address }
+            }
+        }
+        return result
+    }
+
     func allSpendingAddresses() -> [String] {
-        guard let changeKey = spendingChangeKey() else { return [] }
-        var out = (0...maxSpendingAddressIndex).compactMap { spendingAddress(at: $0, changeKey: changeKey) }
+        // cache first: this runs on every Wallet tab appear and own-address UTXO event
+        guard let legacy = cachedOrDerivedChainAddresses(in: 0..<(maxSpendingAddressIndex + 1), quantum: false) else { return [] }
+        var out = legacy.keys.sorted().compactMap { legacy[$0] }
         let quantumMax = maxQuantumAddressIndex
-        if quantumMax >= 0, let chainKey = quantumChainKey() {
-            out += (0...quantumMax).compactMap { quantumAddress(at: Self.quantumIndexBase + $0, chainKey: chainKey) }
+        if quantumMax >= 0,
+           let quantum = cachedOrDerivedChainAddresses(in: Self.quantumIndexBase..<(Self.quantumIndexBase + quantumMax + 1), quantum: true) {
+            out += quantum.keys.sorted().compactMap { quantum[$0] }
         }
         return out
     }
@@ -953,22 +1008,13 @@ extension WalletManager {
         let hidden = hiddenSpendingIndices
         let labels = spendingLabels
 
-        var addressesByIndex: [Int: String] = [:]
-        if let changeKey = spendingChangeKey() {
-            for index in 0...maxIndex {
-                if let address = spendingAddress(at: index, changeKey: changeKey) {
-                    addressesByIndex[index] = address
-                }
-            }
-        }
+        // from the derived-address cache, the seed only for misses; all before the first await,
+        // so every address is the account this load started for
+        var addressesByIndex = cachedOrDerivedChainAddresses(in: 0..<(maxIndex + 1), quantum: false) ?? [:]
         let quantumMax = maxQuantumAddressIndex
-        if quantumMax >= 0, let chainKey = quantumChainKey() {
-            for quantumIndex in 0...quantumMax {
-                let index = Self.quantumIndexBase + quantumIndex
-                if let address = quantumAddress(at: index, chainKey: chainKey) {
-                    addressesByIndex[index] = address
-                }
-            }
+        if quantumMax >= 0,
+           let quantum = cachedOrDerivedChainAddresses(in: Self.quantumIndexBase..<(Self.quantumIndexBase + quantumMax + 1), quantum: true) {
+            addressesByIndex.merge(quantum) { current, _ in current }
         }
 
         var balanceByAddress: [String: UInt64] = [:]

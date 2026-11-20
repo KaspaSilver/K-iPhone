@@ -1538,3 +1538,166 @@
 "GIF Quality" = "Kualitas GIF";
 "That isn't an animated GIF. Please pick another." = "Itu bukan GIF animasi. Silakan pilih yang lain.";
 "This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "GIF ini terlalu panjang untuk kualitas itu. Pilih yang lebih tinggi, atau GIF yang lebih pendek.";
+
+/* kUSDT: hold, receive, send (from KaPay, 2026-11-19) */
+"%@ Actions" = "Tindakan %@";
+"%@ Address Visibility" = "Visibilitas Alamat %@";
+"%@ Balance" = "Saldo %@";
+"%@ History" = "Riwayat %@";
+"%@ can only go to a regular Kaspa address, not a quantum-safe or other script address." = "%@ hanya bisa dikirim ke alamat Kaspa biasa, bukan ke alamat aman-kuantum atau alamat skrip lain.";
+"%@ held with it" = "%@ tersimpan bersamanya";
+"%d Addresses" = "%d Alamat";
+"%d coins into 1" = "%d koin jadi 1";
+"%d found so far" = "%d ditemukan sejauh ini";
+"%d hidden: they still count in the total." = "%d disembunyikan: tetap dihitung dalam total.";
+"A brand-new address of yours, never used or handed out: this payment can't be tied to your name." = "Alamat baru milikmu, belum pernah dipakai atau dibagikan: pembayaran ini tak bisa dikaitkan dengan namamu.";
+"A quantum-resistant address: its key stays hidden until it spends." = "Alamat tahan kuantum: kuncinya tetap tersembunyi sampai membelanjakan.";
+"A regular address, like Receive gives you. Works with everything, kUSDT included." = "Alamat biasa, seperti yang diberikan Terima. Bisa untuk semuanya, termasuk kUSDT.";
+"A spending address of yours: a payment here isn't tied to your name." = "Alamat belanja milikmu: pembayaran ke sini tak terkait dengan namamu.";
+"About %@" = "Tentang %@";
+"Add %@ More" = "Tambah %@ Lagi";
+"Add %@ for Fee and Change Coin" = "Tambah %@ untuk Biaya dan Koin Kembalian";
+"Add %@ for the Network Fee" = "Tambah %@ untuk Biaya Jaringan";
+"Adds a brand-new regular address of yours to this list." = "Menambahkan alamat biasa milikmu yang baru ke daftar ini.";
+"Amount (%@)" = "Jumlah (%@)";
+"Available: %@" = "Tersedia: %@";
+"Back to This Address" = "Kembali ke Alamat Ini";
+"Bridged In" = "Masuk via Bridge";
+"Bridged USDT" = "USDT via Bridge";
+"Bridged by %@" = "Di-bridge oleh %@";
+"Building the transaction…" = "Membuat transaksi…";
+"Check Again" = "Periksa Lagi";
+"Check off which addresses holding kUSDT are on the list." = "Centang alamat ber-kUSDT mana yang tampil di daftar.";
+"Checking address #%d" = "Memeriksa alamat #%d";
+"Checking your %@..." = "Memeriksa %@ kamu…";
+"Coins Combined" = "Koin Digabungkan";
+"Combine Coins" = "Gabungkan Koin";
+"Combined" = "Digabungkan";
+"Combined Coins" = "Koin Digabungkan";
+"Couldn't check %@ just now: %@ Pull down to try again." = "Tidak bisa memeriksa %1$@ sekarang: %2$@ Tarik ke bawah untuk mencoba lagi.";
+"Discover kUSDT Addresses" = "Temukan Alamat kUSDT";
+"Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first." = "Jangan kirim USDT dari Ethereum, BNB Chain, atau bursa ke alamat ini: akan hilang. Bridge dulu ke Kaspa di Trestly.";
+"Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one." = "Jangan kirim kUSDT ke sini: tidak bisa diperdagangkan dari alamat tahan kuantum. Pakai Terima untuk alamat biasa.";
+"Ethereum" = "Ethereum";
+"Every %@ coin holds %@. Combining them into one coin gives the extra KAS back to this address as regular KAS, less the network fee. Your %@ stays the same." = "Setiap koin %@ menyimpan %@. Jika digabung jadi satu koin, sisa KAS kembali ke alamat ini sebagai KAS biasa, dikurangi biaya jaringan. %@ milikmu tetap sama.";
+"Every %@ coin holds %@. It goes to the recipient with the %@, so the KAS isn't lost." = "Setiap koin %@ menyimpan %@. KAS itu ikut ke penerima bersama %@, jadi tidak hilang.";
+"Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "Setiap koin kUSDT menyimpan 1.5 KAS. KAS itu ikut terkirim bersama kUSDT saat kamu mengirimnya.";
+"Finds your addresses holding kUSDT." = "Menemukan alamatmu yang menyimpan kUSDT.";
+"Found %d addresses with %@." = "Ditemukan %d alamat dengan %@.";
+"Generate New Address" = "Buat Alamat Baru";
+"Generate Non-Quantum Address" = "Buat Alamat Non-Kuantum";
+"Generate Quantum-Resistant Address" = "Buat Alamat Tahan Kuantum";
+"Goes With It" = "Ikut Terkirim";
+"Held On" = "Disimpan di";
+"It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "Masuk ke akun ini dan terhitung di total belanjamu. Pakai untuk semua hal kecuali nama .kachat.";
+"KAS Held With It" = "KAS yang Disimpan";
+"KAS Paid From" = "KAS Dibayar Dari";
+"KAS for %@ on %@" = "KAS untuk %@ di %@";
+"KAS for a %@ send" = "KAS untuk pengiriman %@";
+"Kaspa" = "Kaspa";
+"Kaspa, and kUSDT on Kaspa, can be sent here." = "Kaspa, dan kUSDT di Kaspa, bisa dikirim ke sini.";
+"Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it." = "Menyembunyikan kuncinya sampai membelanjakan. Hanya untuk Kaspa: kUSDT tidak bisa diperdagangkan dari sini.";
+"Manage %@" = "Kelola %@";
+"Manage %@ starts over with only your Chatting Address. Nothing is lost: bring any address back here, and its %@ still counts in your total." = "Kelola %1$@ dimulai ulang hanya dengan alamat chat kamu. Tak ada yang hilang: kembalikan alamat mana pun di sini, dan %2$@-nya tetap dihitung dalam totalmu.";
+"Merges its coins into one and gives the extra KAS back." = "Menggabungkan koinnya jadi satu dan mengembalikan sisa KAS.";
+"More than your %@." = "Melebihi saldo %@ milikmu.";
+"Moves Kaspa from this address to your Chatting Address." = "Memindahkan Kaspa dari alamat ini ke Alamat Obrolanmu.";
+"Moves kUSDT from this address to your Chatting Address." = "Memindahkan kUSDT dari alamat ini ke Alamat Obrolanmu.";
+"No %@ Yet" = "Belum ada %@";
+"No %@ activity yet." = "Belum ada aktivitas %@.";
+"No addresses with %@ found." = "Tidak ada alamat dengan %@ yang ditemukan.";
+"No addresses with %@ yet" = "Belum ada alamat dengan %@";
+"Not confirmed: the network didn't answer. It may still go through. Try Again resends the same transaction, so it can't be paid twice." = "Belum dikonfirmasi: jaringan tidak menjawab. Mungkin masih berhasil. Coba Lagi mengirim transaksi yang sama, jadi tidak bisa terbayar dua kali.";
+"Not independently audited yet. Hold only what you can afford to lose." = "Belum diaudit secara independen. Simpan hanya jumlah yang sanggup kamu relakan hilang.";
+"On %d of your addresses" = "Di %d alamatmu";
+"On your %@" = "Di %@ kamu";
+"Only %@ on Kaspa, or KAS, can be sent here." = "Hanya %@ di Kaspa, atau KAS, yang bisa dikirim ke sini.";
+"Only Kaspa can be sent here." = "Hanya Kaspa yang bisa dikirim ke sini.";
+"Pending" = "Tertunda";
+"Pick which of your addresses the KAS comes from, swipe up, and you're back here." = "Pilih dari alamatmu yang mana KAS-nya, geser ke atas, lalu kamu kembali ke sini.";
+"Receive %@" = "Terima %@";
+"Received %@" = "Diterima %@";
+"Removes it from this list. Re-enable it in %@ Address Visibility." = "Menghapusnya dari daftar ini. Aktifkan lagi di Visibilitas Alamat %@.";
+"Sample Data" = "Data Contoh";
+"Send %@" = "Kirim %@";
+"Send to Chatting Address" = "Kirim ke Alamat Obrolan";
+"Sends, receives and combines on this phone show here from now on." = "Kiriman, penerimaan, dan penggabungan di ponsel ini akan tampil di sini mulai sekarang.";
+"Swapped" = "Di-swap";
+"Swipe up to Combine" = "Geser ke atas untuk menggabungkan";
+"Tap to Manage" = "Ketuk untuk mengelola";
+"That amount is spread over more than 3 kUSDT coins on this address. Send a smaller amount for now." = "Jumlah itu tersebar di lebih dari 3 koin kUSDT di alamat ini. Untuk sekarang kirim jumlah yang lebih kecil.";
+"The KAS for the fee comes from the same address, so the send doesn't link it to your other addresses." = "KAS untuk biaya diambil dari alamat yang sama, jadi pengiriman ini tidak mengaitkannya dengan alamatmu yang lain.";
+"The KAS you sent hasn't shown up on this address yet. It usually takes a few seconds." = "KAS yang kamu kirim belum muncul di alamat ini. Biasanya hanya butuh beberapa detik.";
+"The Trestly API address in Connection Settings isn't a valid https address." = "Alamat API Trestly di Pengaturan Koneksi bukan alamat https yang valid.";
+"The built transaction didn't match what you approved, so nothing was sent." = "Transaksi yang dibuat tidak sesuai dengan yang kamu setujui, jadi tidak ada yang dikirim.";
+"The transaction couldn't be built. Nothing was sent." = "Transaksi tidak bisa dibuat. Tidak ada yang dikirim.";
+"This address doesn't hold that much kUSDT." = "Alamat ini tidak menyimpan kUSDT sebanyak itu.";
+"This address had no KAS, so the network fee came out of the KAS that goes with the kUSDT." = "Alamat ini tidak punya KAS, jadi biaya jaringan diambil dari KAS yang ikut bersama kUSDT.";
+"This address holds its kUSDT in one coin already." = "Alamat ini sudah menyimpan kUSDT-nya dalam satu koin.";
+"This address needs a little KAS for the network fee." = "Alamat ini butuh sedikit KAS untuk biaya jaringan.";
+"This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "Alamat ini butuh sedikit KAS: biaya jaringan, ditambah 1,5 KAS untuk koin kembalianmu (kUSDT yang kamu simpan). 1,5 KAS itu tetap milikmu.";
+"This address on the Kaspa explorer." = "Alamat ini di penjelajah Kaspa.";
+"This address's key isn't available on this phone." = "Kunci alamat ini tidak tersedia di ponsel ini.";
+"To %@" = "Ke %@";
+"Tokens" = "Token";
+"Total KAS" = "Total KAS";
+"Trestly" = "Trestly";
+"Trestly API URL" = "URL API Trestly";
+"Trestly answered HTTP %d." = "Trestly menjawab HTTP %d.";
+"Trestly didn't answer." = "Trestly tidak menjawab.";
+"Trestly's answer couldn't be read." = "Jawaban Trestly tidak bisa dibaca.";
+"Up to %d coins combine at a time. Combine again for the rest." = "Paling banyak %d koin digabung sekaligus. Gabungkan lagi untuk sisanya.";
+"View the Vault" = "Lihat Brankas";
+"Waiting for your KAS to arrive…" = "Menunggu KAS-mu tiba…";
+"What are you sending?" = "Apa yang kamu kirim?";
+"Your Chatting Address shows your .kachat name and identity: whoever pays here can see it's you." = "Alamat chat kamu menampilkan nama .kachat dan identitasmu: siapa pun yang membayar di sini bisa tahu itu kamu.";
+"kUSDT Address Visibility" = "Visibilitas Alamat kUSDT";
+"kUSDT Balances" = "Saldo kUSDT";
+"kUSDT can only go to a regular Kaspa address." = "kUSDT hanya bisa dikirim ke alamat Kaspa biasa.";
+"kUSDT is USDT from Ethereum and BNB Chain, held 1:1 in Trestly's vault and issued as a token on Kaspa. It isn't issued by Tether, and only Trestly can turn it back into USDT." = "kUSDT adalah USDT dari Ethereum dan BNB Chain, disimpan 1:1 di brankas Trestly dan diterbitkan sebagai token di Kaspa. kUSDT tidak diterbitkan oleh Tether, dan hanya Trestly yang bisa mengubahnya kembali menjadi USDT.";
+"kUSDT's transaction builder couldn't start." = "Pembuat transaksi kUSDT tidak bisa dimulai.";
+"kUSDT's transaction builder gave no answer." = "Pembuat transaksi kUSDT tidak memberi jawaban.";
+"kUSDT's transaction builder isn't the pinned one, so it won't run." = "Pembuat transaksi kUSDT bukan yang dipatok, jadi tidak akan dijalankan.";
+"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "Template kUSDT KaChat hilang, jadi kUSDT tidak bisa diperiksa.";
+"The network fee is above KaChat's safety limit. Nothing was sent." = "Biaya jaringan melebihi batas keamanan KaChat. Tidak ada yang dikirim.";
+"Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "Terima di alamat baru milikmu. Membeli dan menukar kUSDT dilakukan di KaPay.";
+"Release to Confirm" = "Lepaskan untuk konfirmasi";
+"The transaction didn't go out." = "Transaksi tidak terkirim.";
+"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Tempat KaChat mencari kUSDT-mu. Setiap koin yang dicantumkan diperiksa di node Kaspa sebelum dihitung. Biarkan kosong untuk bawaan jaringan ini.";
+"Fee %@" = "Biaya %@";
+
+/* Share Profile sheet (2026-11-20) */
+"Copy Share Link" = "Salin Tautan Bagikan";
+"Share link copied." = "Tautan bagikan disalin.";
+
+"Not set" = "Belum diatur";
+
+/* Address Domains tab (2026-11-20) */
+"1 domain" = "1 domain";
+"Couldn't load" = "Tidak bisa dimuat";
+"No %@ names on this address." = "Tidak ada nama %@ di alamat ini.";
+
+/* kUSDT-listed addresses stay in Manage Addresses (2026-11-20) */
+"Shown for kUSDT" = "Ditampilkan untuk kUSDT";
+"This address is on your kUSDT list, so it stays here. Hide it from Manage kUSDT first." = "Alamat ini ada di daftar kUSDT Anda, jadi tetap di sini. Sembunyikan dulu dari Kelola kUSDT.";
+
+/* Send Dollars in a 1:1 chat (2026-11-20) */
+"Send Dollars" = "Kirim Dolar";
+"Send dollars (kUSDT) to this contact." = "Kirim dolar (kUSDT) ke kontak ini.";
+"Which stablecoin are you sending?" = "Stablecoin mana yang Anda kirim?";
+"None of your addresses holds %@ yet." = "Belum ada alamat Anda yang menyimpan %@.";
+
+/* Token payment bubbles: amount, then the token symbol (2026-11-20) */
+"Sent %1$@ %2$@" = "Terkirim %1$@ %2$@";
+"Received %1$@ %2$@" = "Diterima %1$@ %2$@";
+
+/* Send Dollars with no kUSDT: switch to KaPay or its install page (2026-11-20) */
+"Get KaPay" = "Dapatkan KaPay";
+
+/* Send Dollars: Discover still running (2026-11-20) */
+"Checking your addresses for %@…" = "Memeriksa %@ di alamat Anda…";
+
+/* Audit fixes (2026-11-20) */
+"Unverified %@ payment" = "Pembayaran %@ belum terverifikasi";
+"This send changed while the screen was open. Nothing was sent: check it again and swipe." = "Pengiriman ini berubah saat layar terbuka. Tidak ada yang dikirim: periksa lagi lalu geser.";
+"Scanning your addresses for balances…" = "Memindai alamat Anda untuk mencari saldo…";

@@ -166,7 +166,7 @@ struct GroupAvatar: View {
     let size: CGFloat
     @EnvironmentObject var groupChatService: GroupChatService
 
-    /// Decoded group photos, keyed on the group id, the hex length and the payload's tail:
+    /// Decoded group photos, keyed on the group id, the pixel size, the hex length and the payload's tail:
     /// hex-decoding and then JPEG-decoding the photo on every body pass made each row pay for
     /// the whole image on every list refresh. A photo change always changes the hex payload
     /// (and almost always its length), so a stale entry could only survive a same-length
@@ -178,15 +178,30 @@ struct GroupAvatar: View {
         return cache
     }()
 
-    private var groupPhotoImage: UIImage? {
-        guard let hex = groupChatService.groupPhotos[group.id] else { return nil }
-        let cacheKey = "\(group.id)|\(hex.count)|\(hex.suffix(256).hashValue)" as NSString
-        if let cached = Self.groupPhotoCache.object(forKey: cacheKey) {
+    /// Group ids whose photo didn't decode, under the same key, so a bad one isn't retried per pass.
+    private static let failedGroupPhotos = NSCache<NSString, NSNumber>()
+
+    /// An admin-set group photo (`gctl_photo`, anyone in the group can set the bytes), decoded
+    /// through `ImageDownsampler` at `maxPixelSize`, never at full size: a few KB can declare a
+    /// gigabyte of pixels. Shared with the group's title chip and info header.
+    static func decodedGroupPhoto(groupId: String, hex: String, maxPixelSize: Int) -> UIImage? {
+        let cacheKey = "\(groupId)|\(maxPixelSize)|\(hex.count)|\(hex.suffix(256).hashValue)" as NSString
+        if let cached = groupPhotoCache.object(forKey: cacheKey) {
             return cached
         }
-        guard let data = Data(hexString: hex), let image = UIImage(data: data) else { return nil }
-        Self.groupPhotoCache.setObject(image, forKey: cacheKey)
+        guard failedGroupPhotos.object(forKey: cacheKey) == nil else { return nil }
+        guard let data = Data(hexString: hex),
+              let image = ImageDownsampler.image(from: data, maxPixelSize: maxPixelSize) else {
+            failedGroupPhotos.setObject(NSNumber(value: true), forKey: cacheKey)
+            return nil
+        }
+        groupPhotoCache.setObject(image, forKey: cacheKey)
         return image
+    }
+
+    private var groupPhotoImage: UIImage? {
+        guard let hex = groupChatService.groupPhotos[group.id] else { return nil }
+        return Self.decodedGroupPhoto(groupId: group.id, hex: hex, maxPixelSize: Int((size * 3).rounded(.up)))
     }
 
     var body: some View {

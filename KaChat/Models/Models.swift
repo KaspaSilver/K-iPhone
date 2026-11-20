@@ -1088,7 +1088,28 @@ enum MessageReactionCodec {
         guard trimmed.first == "{", let data = trimmed.data(using: .utf8) else { return nil }
         guard let parsed = try? JSONDecoder().decode(MessageReactionContent.self, from: data),
               parsed.type == "reaction" else { return nil }
+        // Anything but one emoji is never shown (pill or banner). It still parses, so it never
+        // becomes a JSON bubble: it reads as a removal (empty emoji), since an add replaces the
+        // reactor's earlier reaction anyway.
+        guard isReactionEmoji(parsed.emoji) else {
+            return MessageReactionContent(targetTxId: parsed.targetTxId, emoji: "", action: "remove")
+        }
         return parsed
+    }
+
+    /// One grapheme cluster that is an emoji: an emoji-presentation scalar, or one made an emoji
+    /// by more scalars (U+FE0F, a skin tone, a ZWJ sequence, a keycap, a flag's tags). Mirrored in
+    /// the notification extension (`NotificationService.isReactionEmoji`).
+    static func isReactionEmoji(_ text: String) -> Bool {
+        guard text.count == 1, text.utf8.count <= 48,
+              let first = text.unicodeScalars.first, first.properties.isEmoji else { return false }
+        let scalars = text.unicodeScalars
+        let allEmojiParts = scalars.allSatisfy { scalar in
+            scalar.properties.isEmoji || scalar.properties.isEmojiModifier
+                || scalar.value == 0xFE0F || scalar.value == 0x200D || scalar.value == 0x20E3
+                || (0xE0020...0xE007F).contains(scalar.value)
+        }
+        return allEmojiParts && (first.properties.isEmojiPresentation || scalars.count > 1)
     }
 }
 
@@ -1211,12 +1232,31 @@ struct PaymentNoticeContent: Codable, Equatable {
     static let maxMemoLength = 500
 }
 
+/// A token payment in a 1:1 chat (Send Dollars, 2026-11-20; MESSAGING.md "Token Payments in a
+/// Chat"). A token transfer is a covenant transaction with no chat payload, so right after it the
+/// payer's chatting address sends this in the chat, and both sides show it as a payment bubble.
+/// The payee checks it on chain first: output `index` of `txId` must be the coin of exactly
+/// `amount` owned by `address`, carrying the token's covenant id.
+struct TokenPaymentNoticeContent: Codable, Equatable {
+    var type: String = "token_payment_notice"
+    /// Which token: `WalletToken.id` ("kusdt").
+    let token: String
+    let txId: String
+    /// The output holding the payee's new coin (0 for a kUSDT send).
+    let index: UInt32
+    /// In the token's base units (kUSDT has 6 decimals).
+    let amount: UInt64
+    /// The address paid: the payee's chatting address.
+    let address: String
+}
+
 /// Any one of the three payment-pool envelope shapes, parsed generically - mirrors
 /// `ChessEnvelope`'s type-dispatch approach.
 enum PaymentPoolEnvelope {
     case pool(AddressPoolContent)
     case request(AddressPoolRequestContent)
     case notice(PaymentNoticeContent)
+    case tokenNotice(TokenPaymentNoticeContent)
 }
 
 /// Same conventions as `MessageReactionCodec`: plain JSON embedded directly as encrypted message
@@ -1226,6 +1266,7 @@ enum PaymentPoolCodec {
     static func encode(_ content: AddressPoolContent) -> String { encodeAny(content) }
     static func encode(_ content: AddressPoolRequestContent) -> String { encodeAny(content) }
     static func encode(_ content: PaymentNoticeContent) -> String { encodeAny(content) }
+    static func encode(_ content: TokenPaymentNoticeContent) -> String { encodeAny(content) }
 
     private static func encodeAny<T: Encodable>(_ content: T) -> String {
         guard let data = try? JSONEncoder().encode(content),
@@ -1250,6 +1291,9 @@ enum PaymentPoolCodec {
         case "payment_notice":
             guard let content = try? JSONDecoder().decode(PaymentNoticeContent.self, from: data) else { return nil }
             return .notice(content)
+        case "token_payment_notice":
+            guard let content = try? JSONDecoder().decode(TokenPaymentNoticeContent.self, from: data) else { return nil }
+            return .tokenNotice(content)
         default:
             return nil
         }
@@ -2603,6 +2647,10 @@ struct AppSettings: Codable {
     var knsBaseURL: String { Self.defaultKNSURL(for: networkType) }
 
     var kaspaRestAPIURL: String
+    /// Trestly's API (kusdt-open's coordinator): where kUSDT balances are looked up
+    /// (`/tokens?owner=`), each answer checked on the node. KaChat only reads it; buying and
+    /// swapping happen in KaPay.
+    var trestlyAPIURL: String
     var kaspaExplorer: KaspaExplorer
     /// A user-pinned "host:port" gRPC node - when non-blank, NodePoolService stops discovery
     /// (DNS seeds/peer-gossip/scoring) entirely and only ever connects to this address,
@@ -2677,6 +2725,11 @@ struct AppSettings: Codable {
     /// instead) - TLS-secured, hence the `grpcs://` scheme (see Endpoint.secure/Endpoint(url:)).
     static let defaultTrustedNodeAddress = "grpcs://toccata.kaspium.io"
 
+    /// Trestly's own deployments (kusdt-open `wallet/extension/src/config/defaults.ts`).
+    static func defaultTrestlyAPIURL(for network: NetworkType) -> String {
+        network == .mainnet ? "https://api.trestly.io/api/v1" : "https://testnet.trestly.io/api/v1"
+    }
+
     /// Fixed tapback-style default set - matches Android's `QUICK_REACTION_EMOJIS`'s default.
     static let defaultQuickReactionEmojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
 
@@ -2699,7 +2752,8 @@ struct AppSettings: Codable {
             kachatNamesIndexerURL: kachatNamesIndexerURL,
             kaspaRestAPIURL: kaspaRestAPIURL,
             trustedNodeAddress: trustedNodeAddress,
-            savedNodeAddresses: savedNodeAddresses
+            savedNodeAddresses: savedNodeAddresses,
+            trestlyAPIURL: trestlyAPIURL
         )
     }
 
@@ -2717,6 +2771,7 @@ struct AppSettings: Codable {
         kaspaRestAPIURL = next.kaspaRestAPIURL
         trustedNodeAddress = next.trustedNodeAddress
         savedNodeAddresses = next.savedNodeAddresses
+        trestlyAPIURL = next.trestlyAPIURL ?? Self.defaultTrestlyAPIURL(for: network)
         networkType = network
     }
 
@@ -2783,6 +2838,7 @@ struct AppSettings: Codable {
         case pushIndexerURL
         case kachatNamesIndexerURL
         case kaspaRestAPIURL
+        case trestlyAPIURL
         case kaspaExplorer
         case trustedNodeAddress
         case savedNodeAddresses
@@ -2823,6 +2879,7 @@ struct AppSettings: Codable {
         pushIndexerURL: String,
         kachatNamesIndexerURL: String? = nil,
         kaspaRestAPIURL: String,
+        trestlyAPIURL: String? = nil,
         kaspaExplorer: KaspaExplorer = .default,
         trustedNodeAddress: String = AppSettings.defaultTrustedNodeAddress,
         savedNodeAddresses: [SavedNodeAddress] = [],
@@ -2851,6 +2908,7 @@ struct AppSettings: Codable {
         self.pushIndexerURL = pushIndexerURL
         self.kachatNamesIndexerURL = kachatNamesIndexerURL ?? indexerURL
         self.kaspaRestAPIURL = kaspaRestAPIURL
+        self.trestlyAPIURL = trestlyAPIURL ?? Self.defaultTrestlyAPIURL(for: networkType)
         self.kaspaExplorer = kaspaExplorer
         self.trustedNodeAddress = trustedNodeAddress
         self.savedNodeAddresses = savedNodeAddresses
@@ -2923,6 +2981,10 @@ struct AppSettings: Codable {
         // knsBaseURL is computed from networkType now, so any value in an existing blob - including
         // the empty string that broke it - is simply ignored.
         kaspaRestAPIURL = try container.decodeIfPresent(String.self, forKey: .kaspaRestAPIURL) ?? AppSettings.defaultKaspaRestURL(for: networkType)
+        // blank or missing (settings from before kUSDT): this network's default
+        let storedTrestly = (try container.decodeIfPresent(String.self, forKey: .trestlyAPIURL) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        trestlyAPIURL = storedTrestly.isEmpty ? AppSettings.defaultTrestlyAPIURL(for: networkType) : storedTrestly
         connectionProfiles = try container.decodeIfPresent([String: ConnectionProfile].self, forKey: .connectionProfiles) ?? [:]
         // Testnet moved from the retired testnet-11 to testnet-10: carry the old default forward,
         // both live and in the stashed testnet profile. A custom URL is left alone.
@@ -2990,6 +3052,7 @@ struct AppSettings: Codable {
         try container.encode(pushIndexerURL, forKey: .pushIndexerURL)
         try container.encode(kachatNamesIndexerURL, forKey: .kachatNamesIndexerURL)
         try container.encode(kaspaRestAPIURL, forKey: .kaspaRestAPIURL)
+        try container.encode(trestlyAPIURL, forKey: .trestlyAPIURL)
         try container.encode(kaspaExplorer, forKey: .kaspaExplorer)
         try container.encode(trustedNodeAddress, forKey: .trustedNodeAddress)
         try container.encode(savedNodeAddresses, forKey: .savedNodeAddresses)
@@ -3193,6 +3256,8 @@ struct ConnectionProfile: Codable, Equatable {
     var kaspaRestAPIURL: String
     var trustedNodeAddress: String
     var savedNodeAddresses: [SavedNodeAddress]
+    /// Optional, so profiles stashed by builds before kUSDT still decode (nil = the default).
+    var trestlyAPIURL: String?
 
     init(
         indexerURL: String,
@@ -3200,7 +3265,8 @@ struct ConnectionProfile: Codable, Equatable {
         kachatNamesIndexerURL: String,
         kaspaRestAPIURL: String,
         trustedNodeAddress: String,
-        savedNodeAddresses: [SavedNodeAddress]
+        savedNodeAddresses: [SavedNodeAddress],
+        trestlyAPIURL: String? = nil
     ) {
         self.indexerURL = indexerURL
         self.pushIndexerURL = pushIndexerURL
@@ -3208,10 +3274,12 @@ struct ConnectionProfile: Codable, Equatable {
         self.kaspaRestAPIURL = kaspaRestAPIURL
         self.trustedNodeAddress = trustedNodeAddress
         self.savedNodeAddresses = savedNodeAddresses
+        self.trestlyAPIURL = trestlyAPIURL
     }
 
     private enum CodingKeys: String, CodingKey {
         case indexerURL, pushIndexerURL, kachatNamesIndexerURL, kaspaRestAPIURL, trustedNodeAddress, savedNodeAddresses
+        case trestlyAPIURL
     }
 
     /// A profile stashed before `.kachat` names had their own indexer field read names from its
@@ -3227,6 +3295,7 @@ struct ConnectionProfile: Codable, Equatable {
         kaspaRestAPIURL = try container.decode(String.self, forKey: .kaspaRestAPIURL)
         trustedNodeAddress = try container.decode(String.self, forKey: .trustedNodeAddress)
         savedNodeAddresses = try container.decode([SavedNodeAddress].self, forKey: .savedNodeAddresses)
+        trestlyAPIURL = try container.decodeIfPresent(String.self, forKey: .trestlyAPIURL)
     }
 
     /// What a network starts with. Testnet: the public testnet REST API, automatic node
@@ -3240,7 +3309,8 @@ struct ConnectionProfile: Codable, Equatable {
                 kachatNamesIndexerURL: AppSettings.defaultIndexerURL,
                 kaspaRestAPIURL: AppSettings.defaultKaspaMainnetURL,
                 trustedNodeAddress: AppSettings.defaultTrustedNodeAddress,
-                savedNodeAddresses: []
+                savedNodeAddresses: [],
+                trestlyAPIURL: AppSettings.defaultTrestlyAPIURL(for: .mainnet)
             )
         case .testnet:
             return ConnectionProfile(
@@ -3249,7 +3319,8 @@ struct ConnectionProfile: Codable, Equatable {
                 kachatNamesIndexerURL: AppSettings.defaultTestnetIndexerURL,
                 kaspaRestAPIURL: AppSettings.defaultKaspaTestnetURL,
                 trustedNodeAddress: "",
-                savedNodeAddresses: []
+                savedNodeAddresses: [],
+                trestlyAPIURL: AppSettings.defaultTrestlyAPIURL(for: .testnet)
             )
         }
     }

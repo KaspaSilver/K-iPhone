@@ -11,7 +11,6 @@ struct ManageAddressesView: View {
     @EnvironmentObject var walletManager: WalletManager
     @EnvironmentObject var chatService: ChatService
     @EnvironmentObject var settingsViewModel: SettingsViewModel
-    @ObservedObject private var activityNotifier = AddressActivityNotifier.shared
 
     @State private var entries: [SpendingAddressEntry] = []
     @State private var isLoading = false
@@ -19,6 +18,9 @@ struct ManageAddressesView: View {
     @State private var isDiscovering = false
     @State private var errorMessage: String?
     @State private var qrTarget: SpendingAddressEntry?
+    /// A row's ⋮ > Send to Chatting Address: Send Kaspa from that address, the Chatting Address
+    /// filled in as the recipient.
+    @State private var sendToChattingTarget: SpendingAddressEntry?
     @State private var renameTarget: SpendingAddressEntry?
     @State private var renameText = ""
     @State private var toastMessage: String?
@@ -103,7 +105,7 @@ struct ManageAddressesView: View {
             next?()
         }) {
             addressActionsSheet
-                .presentationDetents([.height(440)])
+                .presentationDetents([.height(510)])
                 .presentationDragIndicator(.visible)
         }
         .sheet(item: $addressActionsTarget) { entry in
@@ -155,6 +157,16 @@ struct ManageAddressesView: View {
         .sheet(item: $qrTarget) { entry in
             SpendingAddressQRView(entry: entry)
         }
+        .sheet(item: $sendToChattingTarget) { entry in
+            if let wallet = WalletManager.shared.currentWallet {
+                WithdrawKaspaView(fromAddress: wallet.publicAddress, availableBalanceSompi: entry.balanceSompi,
+                                  prefillAddress: wallet.publicAddress,
+                                  lockedSource: .spending(index: entry.index, address: entry.address,
+                                                          label: entry.displayLabel)) {
+                    Task { await loadEntries() }
+                }
+            }
+        }
         .alert(
             "Rename Address",
             isPresented: Binding(
@@ -185,21 +197,6 @@ struct ManageAddressesView: View {
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
-
-        // This account's own switch: the
-        // spending addresses' receives, not every address the wallet watches.
-        Toggle(isOn: $activityNotifier.spendingReceiveNotificationsEnabled) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Notify on receive")
-                    .font(.subheadline.weight(.semibold))
-                Text("When a spending address receives Kaspa from someone else.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .tint(.accentColor)
-        .listRowSeparator(.hidden)
-        .onAppear { activityNotifier.reloadSpendingSwitchForCurrentWallet() }
 
         if let wallet = walletManager.currentWallet {
             chattingAddressRow(wallet)
@@ -388,20 +385,15 @@ struct ManageAddressesView: View {
         return chatting + entries.reduce(0) { $0 + $1.balanceSompi }
     }
 
+    /// The total in the same card as an address's own page (`AddressBalanceCard`, as KaPay has
+    /// it), with its worth in your currency on mainnet; a dash until it's known.
+    @ViewBuilder
     private var accountSummary: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Total Balance")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(verbatim: "\(totalBalanceSompi.map { formatKasExact($0) } ?? "--") \(KaspaUnit.symbol)")
-                    .font(.title2)
-                    .fontWeight(.bold)
-            }
+        if let totalBalanceSompi {
+            KaspaAddressBalanceCard(label: AppLocalization.string("Total Balance"), sompi: totalBalanceSompi)
+        } else {
+            AddressBalanceCard(label: AppLocalization.string("Total Balance"), amount: "-- \(KaspaUnit.symbol)", detail: nil)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
     }
 
     /// The floating glass button behind "Address Actions", like Profile's send / receive one.
@@ -486,13 +478,23 @@ struct ManageAddressesView: View {
             } else {
                 VStack(spacing: 12) {
                     ActionSheetRow(
-                        title: "Generate New Spending Address",
-                        subtitle: "Reveals the next unused address in this wallet.",
+                        title: "Generate Non-Quantum Address",
+                        subtitle: "A regular address, like Receive gives you. Works with everything, kUSDT included.",
                         systemImage: "plus.circle",
                         isBusy: isGenerating,
                         isDisabled: isDiscovering
                     ) {
-                        generateNew()
+                        generateNew(quantum: false)
+                        showAddressActions = false
+                    }
+                    ActionSheetRow(
+                        title: "Generate Quantum-Resistant Address",
+                        subtitle: "Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it.",
+                        systemImage: "shield",
+                        isBusy: isGenerating,
+                        isDisabled: isDiscovering
+                    ) {
+                        generateNew(quantum: true)
                         showAddressActions = false
                     }
                     ActionSheetRow(
@@ -534,7 +536,7 @@ struct ManageAddressesView: View {
 
     /// Rows vary by address, so the detent has to as well - see `addressRowActionsSheet`.
     private func rowActionsSheetHeight(_ entry: SpendingAddressEntry) -> CGFloat {
-        let rows = 4
+        let rows = 5
         return CGFloat(120 + rows * 62)
     }
 
@@ -580,6 +582,16 @@ struct ManageAddressesView: View {
                 addressActionsTarget = nil
                 DispatchQueue.main.async { qrTarget = entry }
             }
+            // Send Kaspa from this address with the Chatting Address already the recipient
+            ActionSheetRow(
+                title: "Send to Chatting Address",
+                subtitle: "Moves Kaspa from this address to your Chatting Address.",
+                systemImage: "arrow.up.circle",
+                isDisabled: entry.balanceSompi == 0
+            ) {
+                addressActionsTarget = nil
+                DispatchQueue.main.async { sendToChattingTarget = entry }
+            }
             // Hide straight from the row - same effect as unchecking it in Address Visibility,
             // without opening that screen. Any address, funded too: it comes back from there.
             ActionSheetRow(
@@ -603,6 +615,10 @@ struct ManageAddressesView: View {
     /// the persisted snapshot. setSpendingAddressHidden re-verifies primary/zero-balance
     /// server-side and returns false if the address can't be hidden.
     private func hideAddress(_ entry: SpendingAddressEntry) {
+        if TokenWallet.shared.listedSpendingIndices().contains(entry.index) {
+            showToast(AppLocalization.string("This address is on your kUSDT list, so it stays here. Hide it from Manage kUSDT first."))
+            return
+        }
         Task {
             let ok = await walletManager.setSpendingAddressHidden(index: entry.index, hidden: true)
             guard ok else {
@@ -649,6 +665,21 @@ struct ManageAddressesView: View {
         entries = updated.sorted { $0.index < $1.index }
     }
 
+    /// Every address Manage kUSDT lists is shown here too (owner's call, 2026-11-20): one hidden
+    /// here (Hide, Hide All, an older choice) is shown again, and stays checked in Address Visibility.
+    private func showKusdtListedAddresses() async {
+        let tokens = TokenWallet.shared
+        await tokens.refreshIfStale()
+        let listed = tokens.listedSpendingIndices()
+        var changed = false
+        for (i, entry) in entries.enumerated() where entry.hidden && listed.contains(entry.index) {
+            guard await walletManager.setSpendingAddressHidden(index: entry.index, hidden: false) else { continue }
+            if i < entries.count, entries[i].index == entry.index { entries[i].hidden = false }
+            changed = true
+        }
+        if changed { walletManager.storeSpendingAddressListCache(entries) }
+    }
+
     private func loadEntries() async {
         // Instant paint from the persisted snapshot of the last full load — the screen shows
         // rows immediately (even with the network down) while the live refresh below replaces
@@ -687,6 +718,8 @@ struct ManageAddressesView: View {
         // moment its OWN probe lands below - not when the whole sweep ends.
         unknownUsedAddresses = Set(toProbe.map(\.address))
         isLoading = false
+        // its own task: the Used / Unused probes below don't wait on Trestly
+        Task { await showKusdtListedAddresses() }
 
         // Quantum shields: local spend marks at once, then the chain's word per row for spends
         // made on another device or before a restore (a spent mark is permanent - a revealed
@@ -755,7 +788,10 @@ struct ManageAddressesView: View {
         domainOwningAddresses = owners
     }
 
-    private func generateNew() {
+    /// Address Actions' two Generate rows (owner's call, 2026-11-19, as in KaPay): a regular
+    /// address (Receive's kind, the one that takes kUSDT too) or a quantum-resistant one, each
+    /// chosen on purpose.
+    private func generateNew(quantum: Bool) {
         guard !isGenerating else { return }
         isGenerating = true
         Task {
@@ -774,13 +810,12 @@ struct ManageAddressesView: View {
             // the all-time max, which is provably fresh by construction and needs no network
             // at all. A background reload reconciles afterwards.
             let primaryIndex = walletManager.currentSpendingAddressIndex
-            // Generate makes quantum-safe (KIP-22) slots from now on: recycling considers only
-            // hidden unused QUANTUM rows, and the fresh path extends the quantum chain - the
-            // legacy chain is never grown again from here.
+            // One chain per row: recycling considers only hidden unused rows of the chain asked
+            // for, and the fresh path extends that chain.
             let candidates = entries
                 .sorted { $0.index < $1.index }
                 .filter { entry in
-                    entry.isQuantum
+                    entry.isQuantum == quantum
                         && entry.hidden
                         && entry.index != primaryIndex
                         && entry.balanceSompi == 0
@@ -821,7 +856,13 @@ struct ManageAddressesView: View {
                     entries[i].hidden = false
                 }
             } else {
-                index = await walletManager.generateNextQuantumAddress()
+                if quantum {
+                    index = await walletManager.generateNextQuantumAddress()
+                } else {
+                    // past the regular chain's all-time end: never revealed, funded or handed out
+                    await walletManager.generateNextSpendingAddress()
+                    index = walletManager.maxSpendingAddressIndex
+                }
                 if let address = walletManager.spendingAddress(at: index) {
                     entries.append(SpendingAddressEntry(
                         index: index,
@@ -1608,103 +1649,32 @@ struct SpendingSourcePicker: View {
     }
 }
 
+/// One spending address's receive page, on the shared receive screen (`AddressReceiveView`). A
+/// quantum-resistant one says it's for Kaspa only: kUSDT can't be traded from it.
 private struct SpendingAddressQRView: View {
     let entry: SpendingAddressEntry
     @Environment(\.dismiss) private var dismiss
-    @State private var qrImage: UIImage?
-    @State private var toastMessage: String?
-    @State private var toastToken = UUID()
 
     var body: some View {
         NavigationStack {
-            Color.white
-                .ignoresSafeArea()
-                .overlay(
-                    VStack(spacing: 20) {
-                        Spacer()
-                        Group {
-                            if let qrImage {
-                                Image(uiImage: qrImage)
-                                    .interpolation(.none)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 240, height: 240)
-                            } else {
-                                ProgressView()
-                                    .frame(width: 240, height: 240)
-                            }
-                        }
-                        .padding(20)
-                        .background(Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.accentColor, lineWidth: 3)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-
-                        Text(entry.address)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(Color.black.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-
-                        Text("Tap anywhere to copy")
-                            .font(.footnote)
-                            .foregroundColor(Color.black.opacity(0.4))
-
-                        Spacer()
-                        Spacer()
-                    }
-                )
-                .contentShape(Rectangle())
-                .onTapGesture { copyAddress() }
-                .navigationTitle(entry.displayTitle)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Close") { dismiss() }
-                    }
-                }
-                .onAppear { generateQR() }
-                .toast(message: toastMessage)
-        }
-    }
-
-    private func copyAddress() {
-        UIPasteboard.general.string = entry.address
-        Haptics.success()
-        showToast(entry.address.addressCopiedToastText)
-    }
-
-    private func showToast(_ message: String) {
-        let token = UUID()
-        toastToken = token
-        withAnimation(.easeOut(duration: 0.2)) {
-            toastMessage = message
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-            if toastToken == token {
-                withAnimation(.easeIn(duration: 0.2)) {
-                    toastMessage = nil
+            AddressReceiveView(
+                title: AppLocalization.string("Receive Kaspa"),
+                address: entry.address,
+                addressLabel: entry.displayLabel,
+                balanceLine: KaspaUnit.groupedAmount(entry.balanceSompi),
+                privacyNote: entry.isQuantum ? ReceiveNotes.quantumAddress : ReceiveNotes.spendingAddress,
+                notes: entry.isQuantum
+                    ? [ReceiveNotes.kaspaOnly, ReceiveNotes.noKusdtOnQuantum]
+                    : [ReceiveNotes.kaspaAndKusdt],
+                icon: { KaspaLogoIcon() }
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") { dismiss() }
                 }
             }
         }
-    }
-
-    private func generateQR() {
-        let trimmed = entry.address.trimmingCharacters(in: .whitespacesAndNewlines)
-        let uri = trimmed.hasPrefix("kaspa:") ? trimmed : "kaspa:\(trimmed)"
-        guard let data = uri.data(using: .utf8) else { return }
-
-        let filter = CIFilter.qrCodeGenerator()
-        filter.setValue(data, forKey: "inputMessage")
-        filter.setValue("M", forKey: "inputCorrectionLevel")
-
-        guard let outputImage = filter.outputImage else { return }
-        let scaled = outputImage.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return }
-        qrImage = UIImage(cgImage: cgImage)
     }
 }
 
@@ -1852,6 +1822,7 @@ struct SpendingAddressTransactionHistoryView: View {
     private enum Tab: String, CaseIterable {
         case transactions = "History"
         case utxos = "UTXOs"
+        case kachatDomains = "Domains"
     }
 
     @State private var selectedTab: Tab = .transactions
@@ -1884,27 +1855,21 @@ struct SpendingAddressTransactionHistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 2) {
-                Text("Balance")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(verbatim: "\(formatKasExact(entry.balanceSompi)) \(KaspaUnit.symbol)")
-                    .font(.title3.weight(.semibold))
-            }
-            .padding(.top, 12)
+            KaspaAddressBalanceCard(label: entry.displayLabel, sompi: entry.balanceSompi)
 
             // The app's tab look, not a segmented control.
             UnderlineTabBar(
                 tabs: Tab.allCases.map { (tab: $0, title: tabLabel($0)) },
                 selection: $selectedTab
             )
-            .padding(.top, 4)
 
             switch selectedTab {
             case .transactions:
                 transactionsList
             case .utxos:
                 utxosList
+            case .kachatDomains:
+                AddressDomainsTab(address: entry.address)
             }
         }
         .navigationTitle(entry.displayLabel)
@@ -2266,8 +2231,9 @@ struct SpendingAddressTransactionHistoryView: View {
 
 // MARK: - Bulk address visibility (toolbar checklist on Manage Addresses)
 
-/// Address Visibility: first a card per chain - Quantum Addresses and Non-Quantum Addresses -
-/// then that chain's checklist (owner's design, 2026-10-21). One pager over raw indices could
+/// Address Visibility: first a card per chain - Quantum Addresses and Non-Quantum Addresses, drawn
+/// like Connection Settings' cards (2026-11-20) - then that chain's checklist (owner's design,
+/// 2026-10-21). One pager over raw indices could
 /// never reach the quantum chain, which starts at `quantumIndexBase`. Hide All covers both.
 private struct SpendingAddressVisibilityView: View {
     @EnvironmentObject var walletManager: WalletManager
@@ -2280,12 +2246,11 @@ private struct SpendingAddressVisibilityView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                VStack(spacing: 12) {
                     chainCard(quantum: true)
                     chainCard(quantum: false)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding()
             }
             .navigationTitle("Address Visibility")
             .navigationBarTitleDisplayMode(.inline)
@@ -2308,7 +2273,9 @@ private struct SpendingAddressVisibilityView: View {
         }
     }
 
-    /// A square: the chain, and how many of its addresses Manage Addresses shows.
+    /// A card like Connection Settings' (2026-11-20): the chain's icon in its circle, its name
+    /// with how many of its addresses Manage Addresses shows and what they hold under it, and the
+    /// chevron.
     private func chainCard(quantum: Bool) -> some View {
         let chain = entries.filter { $0.isQuantum == quantum }
         // The Chatting Address is the legacy list's always-shown #0.
@@ -2319,44 +2286,47 @@ private struct SpendingAddressVisibilityView: View {
         return NavigationLink {
             AddressVisibilityChainList(quantum: quantum, entries: $entries, isLoading: isLoading)
         } label: {
-            Color.clear
-                .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .overlay {
-                    VStack(spacing: 8) {
-                        Image(systemName: quantum ? "shield.fill" : "circle.grid.2x2.fill")
-                            .font(.scaled(size: 26, weight: .medium))
-                            .foregroundStyle(Color.accentColor)
-                        Text(quantum ? "Quantum Addresses" : "Non-Quantum Addresses")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.8)
-                        if isLoading {
-                            ProgressView().controlSize(.small)
-                        } else {
+            HStack(spacing: 14) {
+                Image(systemName: quantum ? "shield.fill" : "circle.grid.2x2.fill")
+                    .font(.body.weight(.semibold))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Color.accentColor.opacity(0.15)))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(quantum ? "Quantum Addresses" : "Non-Quantum Addresses")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    if isLoading {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        HStack(spacing: 6) {
                             Text("\(shown) of \(chain.count + chattingRows) shown")
-                                .font(.caption)
                                 .foregroundColor(.secondary)
                             Text(verbatim: KaspaUnit.amount(balance))
-                                .font(.caption.weight(.semibold))
+                                .fontWeight(.semibold)
                                 .foregroundColor(balance > 0 ? .accentColor : .secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
                         }
+                        .font(.caption.monospaced())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     }
-                    .padding(.horizontal, 8)
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.regularMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.white.opacity(0.15), lineWidth: 0.8)
-                        )
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(.regularMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 18))
         }
         .buttonStyle(.plain)
     }
@@ -2369,7 +2339,12 @@ private struct SpendingAddressVisibilityView: View {
     /// Every revealed address hidden, both chains: the list starts from nothing.
     private func hideAll() {
         walletManager.hideAllSpendingAddresses()
-        entries = entries.map { var e = $0; e.hidden = true; return e }
+        // what Manage kUSDT lists stays shown here too
+        let listed = TokenWallet.shared.listedSpendingIndices()
+        entries = entries.map { var e = $0; e.hidden = !listed.contains(e.index); return e }
+        Task {
+            for index in listed { _ = await walletManager.setSpendingAddressHidden(index: index, hidden: false) }
+        }
     }
 }
 
@@ -2396,6 +2371,10 @@ private struct AddressVisibilityChainList: View {
     /// labeled "Chat privacy address" - so the user sees the full picture, but they can't be
     /// unchecked while the offer is live. They still stay out of the MAIN Addresses list (the
     /// Chat Privacy tab owns them); this is checklist-only visibility.
+    /// "This address is on your kUSDT list", after a tap on such a row.
+    @State private var showKusdtNote = false
+    /// The slots Manage kUSDT lists, worked out once per page rather than per row.
+    @State private var kusdtListed: Set<Int> = []
     /// Lazily-filled history results for zero-balance addresses (address -> ever used).
     @State private var usedByAddress: [String: Bool] = [:]
     /// Pager: 50 addresses per page, endless - pages past the revealed set derive future
@@ -2441,8 +2420,17 @@ private struct AddressVisibilityChainList: View {
                 pagerBar
             }
             .navigationTitle(quantum ? "Quantum Addresses" : "Non-Quantum Addresses")
+            .alert("Shown for kUSDT", isPresented: $showKusdtNote) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This address is on your kUSDT list, so it stays here. Hide it from Manage kUSDT first.")
+            }
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear { rebuildPage() }
+            .onAppear {
+                kusdtListed = TokenWallet.shared.listedSpendingIndices()
+                rebuildPage()
+            }
+            .onReceive(TokenWallet.shared.$holdings) { _ in kusdtListed = TokenWallet.shared.listedSpendingIndices() }
             .onChange(of: page) { _ in rebuildPage() }
             .onChange(of: entries) { _ in rebuildPage() }
     }
@@ -2540,7 +2528,8 @@ private struct AddressVisibilityChainList: View {
         let funded = entry.balanceSompi > 0
         // Every row toggles both ways - funded ones too (Hide All starts the list over).
         let visible = !entry.hidden
-        let locked = false
+        // on Manage kUSDT's list: it stays shown here
+        let locked = visible && kusdtListed.contains(entry.index)
         return HStack(spacing: 10) {
             Image(systemName: visible ? "checkmark.circle.fill" : "circle")
                 .font(.scaled(size: 20))
@@ -2607,6 +2596,11 @@ private struct AddressVisibilityChainList: View {
     }
 
     private func toggle(_ entry: SpendingAddressEntry) {
+        if !entry.hidden, kusdtListed.contains(entry.index) {
+            Haptics.impact(.light)
+            showKusdtNote = true
+            return
+        }
         Task {
             // Per chain: a quantum slot (1,000,000+) must not hide that a legacy row lies past the
             // legacy bound - the row would only be unhidden and the bound never extended.
@@ -2627,5 +2621,149 @@ private struct AddressVisibilityChainList: View {
                 }
             }
         }
+    }
+}
+
+/// An address's Domains tab (its own page in Manage Addresses, or the Chatting Address's), as
+/// KaPay has it: a card per name service with how many names this address holds there, each
+/// opening the names. Read-only: .kachat names are bought, renewed and sold in KaPay
+/// (`KachatOwnedNamesList` ends with the link to the names page).
+struct AddressDomainsTab: View {
+    let address: String
+
+    /// nil while that service's answer is on the way; a failed lookup is `failed`.
+    @State private var counts: [NameServiceTLD: Int] = [:]
+    @State private var names: [NameServiceTLD: [String]] = [:]
+    @State private var failed: Set<NameServiceTLD> = []
+
+    /// The order the cards are listed in.
+    static let order: [NameServiceTLD] = [.kachat, .k, .kaspa, .kas]
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(Self.order, id: \.self) { tld in
+                    NavigationLink {
+                        destination(tld)
+                    } label: {
+                        card(tld)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding()
+        }
+        .refreshable { await load() }
+        .task(id: address) { await load() }
+    }
+
+    private func card(_ tld: NameServiceTLD) -> some View {
+        HStack(spacing: 14) {
+            // the same globe on every card: the suffix beside it says which service it is
+            Image(systemName: "globe")
+                .font(.scaled(size: 22, weight: .semibold))
+                .foregroundColor(.accentColor)
+                .frame(width: 48, height: 48)
+                .background(Circle().fill(Color.accentColor.opacity(0.15)))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(verbatim: tld.suffix)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Text(verbatim: tld.serviceName)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            Spacer(minLength: 0)
+            countLabel(tld)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func countLabel(_ tld: NameServiceTLD) -> some View {
+        if let count = counts[tld] {
+            Text(verbatim: "\(count)")
+                .font(.subheadline.weight(.bold))
+                .foregroundColor(count > 0 ? .black : .secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(count > 0 ? Color.accentColor : Color.secondary.opacity(0.15)))
+                .accessibilityLabel(Text(count == 1 ? "1 domain" : "\(count) domains"))
+        } else if failed.contains(tld) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundColor(.orange)
+                .accessibilityLabel(Text("Couldn't load"))
+        } else {
+            ProgressView().controlSize(.small)
+        }
+    }
+
+    @ViewBuilder
+    private func destination(_ tld: NameServiceTLD) -> some View {
+        if tld == .kachat {
+            // the read-only .kachat list Your Domains shows, for this address
+            KachatOwnedNamesList(walletAddress: address)
+                .navigationTitle(".kachat")
+                .navigationBarTitleDisplayMode(.inline)
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    let list = names[tld] ?? []
+                    if list.isEmpty {
+                        Text(failed.contains(tld)
+                             ? "Couldn't reach \(tld.serviceName). Pull down to try again."
+                             : "No \(tld.suffix) names on this address.")
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                    } else {
+                        ForEach(list, id: \.self) { name in
+                            DomainNameCardView(title: name)
+                        }
+                    }
+                }
+                .padding()
+            }
+            .refreshable { await load() }
+            .navigationTitle(Text(verbatim: tld.suffix))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    /// Every service at once, for this address.
+    private func load() async {
+        let address = address.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let network = AppSettings.load().networkType
+        async let kachat = NameServicesClient.shared.kachatNames(of: [address])
+        async let services = NameServicesClient.shared.ownedNamesByService(of: address)
+        async let kns = KNSService.shared.fetchInfo(for: address, network: network)
+
+        let kachatNames = (await kachat)[address] ?? []
+        set(.kachat, kachatNames.map(\.display))
+
+        let byService = await services
+        for tld in [NameServiceTLD.k, .kaspa] {
+            if let list = byService[tld] { set(tld, list.map(\.display)) } else { failed.insert(tld) }
+        }
+
+        if let info = await kns {
+            set(.kas, info.allDomains.map(\.fullName))
+        } else {
+            failed.insert(.kas)
+        }
+    }
+
+    private func set(_ tld: NameServiceTLD, _ list: [String]) {
+        names[tld] = list
+        counts[tld] = list.count
+        failed.remove(tld)
     }
 }

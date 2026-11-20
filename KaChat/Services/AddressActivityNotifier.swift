@@ -556,6 +556,18 @@ final class AddressActivityNotifier: ObservableObject {
         "kachat_addr_activity_handled_txids_\(wallet)"
     }
 
+    /// Delete Account: the wallet's catch-up floor, baselines and handled transactions.
+    func removeAllData(forWallet wallet: String) {
+        UserDefaults.standard.removeObject(forKey: chattingCatchUpFloorKey(wallet))
+        UserDefaults.standard.removeObject(forKey: baselinesKey(wallet: wallet))
+        UserDefaults.standard.removeObject(forKey: handledTxIdsKey(wallet: wallet))
+        if handledLoadedForWallet == wallet {
+            handledLoadedForWallet = nil
+            handledTxIdOrder = []
+            handledTxIds = []
+        }
+    }
+
     private func loadBaselines(wallet: String) -> [String: UInt64] {
         guard let data = UserDefaults.standard.data(forKey: baselinesKey(wallet: wallet)),
               let decoded = try? JSONDecoder().decode([String: UInt64].self, from: data) else {
@@ -585,6 +597,14 @@ final class AddressActivityNotifier: ObservableObject {
             baselines[address] = balance
         }
         saveBaselines(baselines, wallet: wallet)
+    }
+
+    /// A transaction this phone sends whose KAS change lands on one of your addresses with no input
+    /// from one of them (a kUSDT send or Combine Coins: its inputs are token coins at their own
+    /// contract addresses), so the own-funds check can't tell it's yours: never "Received".
+    func markOwnTransaction(_ txId: String) {
+        guard let wallet = WalletManager.shared.currentWallet?.publicAddress else { return }
+        markHandled(txId: txId.lowercased(), wallet: wallet)
     }
 
     // MARK: - Handled-tx persistence

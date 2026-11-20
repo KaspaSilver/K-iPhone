@@ -808,13 +808,30 @@ final class WalletManager: ObservableObject {
                 ChatListSnapshotStore.clear(walletAddress: variant)
                 ChatService.shared.discardDrafts(forWallet: variant)
                 DeletedMessageLog.forget(wallet: variant)
+                TokenWallet.shared.forgetLocalData(account: variant)
                 ContactsManager.shared.deletePersistedContacts(forWalletAddress: variant)
                 await NextcloudService.shared.revokeAndPurgeStoredState(forWalletAddress: variant)
                 await KachatNameReminders.removeAll(forWallet: variant)
                 AddressBookManager.shared.removeAllData(forWalletAddress: variant)
                 GlobalNotificationCenter.removeAllData(forWalletAddress: variant)
+                ChatService.shared.removeAllData(forWallet: variant)
+                AddressActivityNotifier.shared.removeAllData(forWallet: variant)
+                ChatListView.removeAllData(forWallet: variant)
                 UserDefaults.standard.removeObject(forKey: balanceCacheKey(for: variant))
                 UserDefaults.standard.removeObject(forKey: accountAddedDateKey(for: variant))
+                // Filed by types that have no remover of their own, in their exact formats.
+                let lowered = variant.lowercased()
+                for key in [
+                    "kachat_notice_bubbles_\(lowered)",
+                    "kachat_unsent_payment_notices.\(lowered)",
+                    "kachat_group_photos_\(variant)",
+                    "kachat_group_photo_bt_\(variant)",
+                    "kachat_group_tombstones_\(variant)",
+                    "kachat_address_book_migrated_v1_wallet_\(lowered)",
+                    "kachat_tn10_faucet_claimed_\(lowered)"
+                ] {
+                    UserDefaults.standard.removeObject(forKey: key)
+                }
             }
         }
         // The same words as the account going, so nothing is lost with them. Its own snapshots
@@ -824,6 +841,9 @@ final class WalletManager: ObservableObject {
                 try? keychainService.deleteAccountSnapshot(publicAddress: variant)
             }
         }
+        // Profile images, profile records and URLCache hold who this account looked at. Only
+        // caches (other accounts fetch theirs again), so all of it goes.
+        await CacheManager.shared.clearAll()
     }
 
     /// Last in a removal, once the keys are gone: until then these are what re-derive the

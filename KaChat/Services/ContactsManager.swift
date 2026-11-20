@@ -279,10 +279,18 @@ final class ContactsManager: ObservableObject {
         let key = contactsKey(forNormalizedWalletAddress: normalizedAddress)
         userDefaults.removeObject(forKey: key)
         userDefaults.removeObject(forKey: deletedAddressesKey(forNormalizedWalletAddress: normalizedAddress))
+        userDefaults.removeObject(forKey: deletedAtKey(forNormalizedWalletAddress: normalizedAddress))
+        userDefaults.removeObject(forKey: deletedTxIdsKey(forNormalizedWalletAddress: normalizedAddress))
+        // `profileRescanKey` files it under the address as the wallet holds it
+        for address in Set([walletAddress, normalizedAddress]) {
+            userDefaults.removeObject(forKey: "kachat_contact_profile_rescan_\(address)")
+        }
 
         if activeWalletAddress == normalizedAddress {
             clearInMemoryContacts(syncShared: true, updatePush: false)
             deletedAddresses = []
+            deletedAtByAddress = [:]
+            deletedTxIdsByAddress = [:]
         }
     }
 

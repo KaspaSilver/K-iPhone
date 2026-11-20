@@ -955,6 +955,14 @@ extension ChatService {
         cachedWalletImportBaseline = (address, nowMs)
     }
 
+    /// Delete Account: the baseline goes with the account; importing it again stamps a new one.
+    func removeWalletImportBaseline(forWallet address: String) {
+        userDefaults.removeObject(forKey: walletImportBaselineKey(for: address))
+        if cachedWalletImportBaseline?.address.lowercased() == address.lowercased() {
+            cachedWalletImportBaseline = nil
+        }
+    }
+
     /// The import baseline (ms) for `address`, or 0 when none was ever recorded - wallets that
     /// predate the baseline get 0, which disables the backfill gating entirely.
     func walletImportBaselineMs(for address: String?) -> Int64 {

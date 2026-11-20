@@ -286,6 +286,41 @@ enum GIFPrep {
         return CGImageSourceGetCount(source) > 1
     }
 
+    /// The largest GIF a chat plays. Playing decodes every frame at full size, so a file of a
+    /// few KB declaring huge frames could ask for gigabytes. GIFs sent from here are at most
+    /// `edges[0]` (480 px) and `maxFrames`, well inside.
+    static let maxPlayEdge = 1024
+    static let maxPlayFrames = maxFrames
+
+    /// A real GIF (whatever MIME type the message claims), animated and within `maxPlayEdge` and
+    /// `maxPlayFrames`. Reads only headers, but call it off the main thread where possible.
+    /// Anything else shows its still picture.
+    static func isSafeToAnimate(_ data: Data) -> Bool {
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, options),
+              CGImageSourceGetType(source) as String? == "com.compuserve.gif" else {
+            return false
+        }
+        let count = CGImageSourceGetCount(source)
+        guard count > 1, count <= maxPlayFrames else { return false }
+        // The canvas, where the file gives it, and every frame: any one too big refuses it.
+        if let file = CGImageSourceCopyProperties(source, options) as? [CFString: Any],
+           let gif = file[kCGImagePropertyGIFDictionary] as? [CFString: Any] {
+            let width = (gif[kCGImagePropertyGIFCanvasPixelWidth] as? NSNumber)?.intValue ?? 0
+            let height = (gif[kCGImagePropertyGIFCanvasPixelHeight] as? NSNumber)?.intValue ?? 0
+            guard max(width, height) <= maxPlayEdge else { return false }
+        }
+        for index in 0..<count {
+            guard let properties = CGImageSourceCopyPropertiesAtIndex(source, index, options) as? [CFString: Any],
+                  let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+                  let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+                  width > 0, height > 0, max(width, height) <= maxPlayEdge else {
+                return false
+            }
+        }
+        return true
+    }
+
     /// How long frame `index` shows, as browsers read it: a delay under 20 ms means 100 ms.
     static func frameDelay(_ source: CGImageSource, at index: Int) -> Double {
         let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any] ?? [:]
@@ -394,9 +429,10 @@ enum GIFPrep {
     }
 }
 
-/// Plays an animated GIF, WebP or PNG from its bytes (SwiftUI's `Image` shows only the first
-/// frame). ImageIO decodes one frame at a time, at the file's own timing
-/// (`CGAnimateImageDataWithBlock`), so a long GIF costs one frame of memory, not all of them.
+/// Plays an animated GIF from its bytes (SwiftUI's `Image` shows only the first frame). ImageIO
+/// decodes one frame at a time, at the file's own timing (`CGAnimateImageDataWithBlock`), so a
+/// long GIF costs one frame of memory, not all of them. Only what `GIFPrep.isSafeToAnimate`
+/// allows plays; anything else leaves the view empty, so callers check first and show the still.
 /// Stops when the view leaves the screen.
 struct AnimatedImageView: UIViewRepresentable {
     let data: Data
@@ -438,6 +474,9 @@ final class ImageAnimationPlayer {
         guard playing != data else { return }
         stop()
         playing = data
+        // Callers check this off the main thread already; checked again here because one frame
+        // of an unchecked file can be gigabytes. `playing` is set first so it's checked once.
+        guard GIFPrep.isSafeToAnimate(data) else { return }
         let current = generation
         _ = CGAnimateImageDataWithBlock(data as CFData, nil) { [weak self, weak view] _, image, stop in
             guard let self, let view, self.generation == current else {

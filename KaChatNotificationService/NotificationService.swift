@@ -310,9 +310,9 @@ class NotificationService: UNNotificationServiceExtension {
                 // "Received payment".
                 // An edit envelope changes an earlier bubble in place - nothing to announce.
                 // KaChat has no calls: another client's call message is dropped silently, as
-                // the app does.
+                // the app does. Nor is a reaction whose emoji isn't one emoji.
                 if isSilentPoolEnvelope(decrypted) || isEditEnvelope(decrypted)
-                    || isCallSignal(decrypted) {
+                    || isCallSignal(decrypted) || isInvalidReaction(decrypted) {
                     content.title = ""
                     content.body = ""
                     content.sound = nil
@@ -676,9 +676,9 @@ class NotificationService: UNNotificationServiceExtension {
             // targets MY message, use the 1:1 "to your message" wording instead of the neutral
             // "a message" fallback.
             // An edit changes an earlier bubble in place - nothing to announce. Nor does a
-            // call message: KaChat has no calls.
+            // call message: KaChat has no calls. Nor a reaction whose emoji isn't one emoji.
             if isEditEnvelope(match.plaintext) || isMemberStatusEnvelope(match.plaintext)
-                || isCallSignal(match.plaintext) {
+                || isCallSignal(match.plaintext) || isInvalidReaction(match.plaintext) {
                 suppressGroupNotification(content)
                 return
             }
@@ -1430,10 +1430,34 @@ class NotificationService: UNNotificationServiceExtension {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.first == "{", let data = trimmed.data(using: .utf8),
               let parsed = try? JSONDecoder().decode(PushReactionEnvelope.self, from: data),
-              parsed.type == "reaction" else { return nil }
+              parsed.type == "reaction", Self.isReactionEmoji(parsed.emoji) else { return nil }
         return parsed.action == "remove"
             ? "Removed their \(parsed.emoji) reaction"
             : (inGroup ? "Reacted \(parsed.emoji) to a message" : "Reacted \(parsed.emoji) to your message")
+    }
+
+    /// A reaction whose emoji isn't one emoji: the app reads it as a removal and shows nothing,
+    /// so it says nothing here either.
+    private func isInvalidReaction(_ content: String) -> Bool {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.first == "{", let data = trimmed.data(using: .utf8),
+              let parsed = try? JSONDecoder().decode(PushReactionEnvelope.self, from: data),
+              parsed.type == "reaction" else { return false }
+        return !Self.isReactionEmoji(parsed.emoji)
+    }
+
+    /// Mirror of the main app's `MessageReactionCodec.isReactionEmoji` (Models.swift): one
+    /// grapheme cluster that is an emoji.
+    private static func isReactionEmoji(_ text: String) -> Bool {
+        guard text.count == 1, text.utf8.count <= 48,
+              let first = text.unicodeScalars.first, first.properties.isEmoji else { return false }
+        let scalars = text.unicodeScalars
+        let allEmojiParts = scalars.allSatisfy { scalar in
+            scalar.properties.isEmoji || scalar.properties.isEmojiModifier
+                || scalar.value == 0xFE0F || scalar.value == 0x200D || scalar.value == 0x20E3
+                || (0xE0020...0xE007F).contains(scalar.value)
+        }
+        return allEmojiParts && (first.properties.isEmojiPresentation || scalars.count > 1)
     }
 
     /// An edit envelope (`{"type":"edit","targetTxId":...,"text":...}`, see MESSAGING.md
@@ -1491,7 +1515,7 @@ class NotificationService: UNNotificationServiceExtension {
         guard trimmed.first == "{", let data = trimmed.data(using: .utf8),
               let parsed = try? JSONDecoder().decode(PushPoolEnvelope.self, from: data) else { return nil }
         switch parsed.type {
-        case "addr_pool", "addr_pool_request", "payment_notice":
+        case "addr_pool", "addr_pool_request", "payment_notice", "token_payment_notice":
             return parsed
         default:
             return nil
@@ -1500,7 +1524,10 @@ class NotificationService: UNNotificationServiceExtension {
 
     private func isSilentPoolEnvelope(_ content: String) -> Bool {
         guard let parsed = parsePoolEnvelope(content) else { return false }
-        if parsed.type == "payment_notice" { return !isNoticeForOurChattingAddress(parsed) }
+        // a token payment's notice (Send Dollars) is announced the same way
+        if parsed.type == "payment_notice" || parsed.type == "token_payment_notice" {
+            return !isNoticeForOurChattingAddress(parsed)
+        }
         return true
     }
 
@@ -1512,7 +1539,8 @@ class NotificationService: UNNotificationServiceExtension {
     /// No amount: it is only what the sender claims, and the app checks it against the chain
     /// before the chat shows one (IOS-080).
     private func paymentNoticePreviewText(for content: String) -> String? {
-        guard let parsed = parsePoolEnvelope(content), parsed.type == "payment_notice" else { return nil }
+        guard let parsed = parsePoolEnvelope(content),
+              parsed.type == "payment_notice" || parsed.type == "token_payment_notice" else { return nil }
         return NSLocalizedString("Received payment", comment: "Push body for incoming payment")
     }
 
@@ -1648,8 +1676,13 @@ class NotificationService: UNNotificationServiceExtension {
                 completion(read)
                 return
             }
-            // A call message says nothing, as on the payload-carrying path.
-            if self.isCallSignal(decrypted) {
+            // Silent as on the payload-carrying path: pool envelopes (a payment_notice to our
+            // chatting address still reads "Received payment"), edits (a long one arrives
+            // txId-only), call messages and unshowable reactions. Still queued, so the app
+            // processes it; the caller blanks the banner on `.notForThisAccount`.
+            if self.isSilentPoolEnvelope(decrypted) || self.isEditEnvelope(decrypted)
+                || self.isCallSignal(decrypted) || self.isInvalidReaction(decrypted) {
+                self.addPendingMessage(txId: txId, sender: sender, type: "contextual")
                 completion(.notForThisAccount)
                 return
             }

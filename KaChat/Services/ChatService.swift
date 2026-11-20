@@ -561,6 +561,9 @@ final class ChatService: ObservableObject {
     // Serialize all outgoing tx sends to avoid UTXO contention/orphan errors.
     var outgoingTxTail: Task<Void, Never>?
     var reservedMessageOutpoints: [String: Date] = [:]
+    /// Coins a "Not confirmed" send spent ("txid:index" → until): the next send from the same
+    /// coins must spend one of them too, so the two conflict and at most one can land.
+    var unknownOutcomeOutpoints: [String: Date] = [:]
     /// Parts of a 1:1 long voice note whose Retry is running: a second tap while it runs does
     /// nothing, so no part goes twice or out of order.
     var retryingVoicePartIds: Set<UUID> = []

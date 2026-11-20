@@ -675,6 +675,69 @@ iOS: `ChatService+PaymentPools.swift` (`sendSpendingPaymentNotice`, `handlePayme
 `sendPaymentInternal`, `PaymentPoolCodec` (Models.swift), the notification extension's
 `isSilentPoolEnvelope`.
 
+## Token Payments in a Chat (`token_payment_notice`)
+
+Since 2026-11-20 a 1:1 chat can send dollars (iOS: the + sheet's **Send Dollars**, which asks
+which dollar token, kUSDT today). A token transfer is a KCC-20 covenant transaction built by the
+token's own builder: it carries no chat payload, and the payee's coin sits at a P2SH script, not
+at their chatting address, so nothing on their side can place it in the chat. So:
+
+1. **Payer.** The transfer sends the token to the contact's **chatting address** (output 0 is the
+   recipient's coin). Right after it is accepted, the payer's chatting address sends a
+   `token_payment_notice` in the 1:1 chat (an invisible envelope in the normal encrypted
+   contextual content, like `payment_notice`):
+
+   ```json
+   {"type":"token_payment_notice","token":"kusdt","txId":"a1b2...","index":0,"amount":12500000,"address":"kaspa:qq..."}
+   ```
+
+   | Field | Type | Required | Meaning |
+   |-------|------|----------|---------|
+   | `type` | string | yes | Always `"token_payment_notice"` |
+   | `token` | string | yes | The token: `"kusdt"` (kUSDT on the active network's deployment). A client drops a token it doesn't know |
+   | `txId` | string | yes | The transfer's transaction id (64 lowercase hex) |
+   | `index` | integer | yes | The output holding the payee's new coin |
+   | `amount` | integer | yes | Amount in the token's base units (kUSDT: 6 decimals, so 12500000 is 12.50) |
+   | `address` | string | yes | The address paid: the **payee's chatting address** |
+
+   No memo. The payer's own bubble ("Sent 12.50 kUSDT") is made by the send flow. A notice
+   that can't go (the chatting address has no KAS) is kept and sent once it has some.
+
+2. **Payee.** On a `token_payment_notice` in a 1:1 chat:
+   - If `address` is not this wallet's chatting address, or the token is unknown, drop it
+     silently.
+   - Otherwise **check the chain first** (REST `GET /transactions/{txId}`): output `index` must
+     be exactly the coin of `amount` owned by the chatting address's key, i.e. its address is
+     the P2SH of the token template with the state `plain(owner: chatting key, amount)` worked
+     out locally from the pinned template, and its covenant id must be the token's (the
+     explorer's `covenant_id`, else the node's, while the coin is unspent). None of the inputs may
+     be any address the person owns or another contact's (same rule as `payment_notice`), and for
+     an input that spends a token coin, the owner key in that coin's state (read from the redeem
+     script in its `signature_script`: template prefix, then the 112-byte state, owner at bytes
+     10-41) may not be the person's own or another contact's either. Without that, a contact could
+     claim the person's own Combine Coins, or another contact's send, whose only inputs are coin
+     P2SH addresses. A coin spent since still shows in the transaction, so this works when
+     history is read again.
+   - It passes: an incoming payment bubble in that chat, "Received 12.50 kUSDT", transaction id
+     = `txId`. Deduplicate by `txId`; never move or overwrite anything already stored under it.
+   - No chain answer (not indexed yet, an unresolved input, or no covenant id from either the
+     explorer or the node): show the bubble marked unverified and WITHOUT the claimed amount
+     ("Unverified kUSDT payment"), since anyone can make a look-alike coin with plain KAS; a later
+     read of the notice checks again, then shows the amount or removes the bubble.
+   - Notification: "Received payment", without the amount. The wallet's own "Received kUSDT"
+     banner stays quiet for a transfer a notice already filed.
+
+3. **Payer's other devices.** An outgoing `token_payment_notice` read back makes the outgoing
+   bubble in that chat if no message with `txId` exists.
+
+The bubble text is "Sent %1$@ %2$@" / "Received %1$@ %2$@" with the amount written with a dot and
+no grouping ("12.50") and the token's symbol, so the payment card shows the token's icon and
+symbol in place of Kaspa's. Clients older than this show the notice as text until updated.
+
+iOS: `recordTokenPayment`, `handleTokenPaymentNotice`, `checkTokenNoticeOnChain`
+(`ChatService+PaymentPools.swift`), `TokenPaymentNoticeContent` (Models.swift), the
+notification extension's `isSilentPoolEnvelope`.
+
 ### Retired: Fresh-Address Payment Pools (until 5.2)
 
 Up to 5.2 the apps offered contacts fresh spending addresses (`addr_pool`, `addr_pool_request`)

@@ -18,6 +18,8 @@ final class GlobalNotificationCenter: ObservableObject {
             case publicChat = "broadcast"
             /// RETIRED with the .kachat market (2026-10-24): a .kachat name event.
             case kachat
+            /// A token received (kUSDT); `targetId` is the token's id.
+            case token
 
             var label: String {
                 switch self {
@@ -26,6 +28,7 @@ final class GlobalNotificationCenter: ObservableObject {
                 case .publicChat: return "Public Chat"
                 case .wallet: return "Wallet"
                 case .kachat: return ".kachat"
+                case .token: return "Tokens"
                 }
             }
 
@@ -36,11 +39,12 @@ final class GlobalNotificationCenter: ObservableObject {
                 case .publicChat: return "dot.radiowaves.left.and.right"
                 case .wallet: return "arrow.down.circle"
                 case .kachat: return "at"
+                case .token: return "dollarsign.circle"
                 }
             }
 
             /// What the Profile bell lists.
-            static let inBell: Set<Source> = [.wallet]
+            static let inBell: Set<Source> = [.wallet, .token]
         }
 
         let id: String
@@ -130,14 +134,24 @@ final class GlobalNotificationCenter: ObservableObject {
     func recordGroupMentionIfNeeded(groupId: String, groupName: String, senderAddress: String, text: String, txId: String?, timestampMs: Int64) {}
 }
 
-/// The bell's sheet: newest-first feed of all sources, source-tagged rows, Clear all.
-/// Opening it marks everything seen (clears the bell badge).
+/// Notifications: newest-first feed of all sources, source-tagged rows, Clear all.
+/// Opening it marks everything seen (clears the Wallet tab's dot). The Wallet tab pushes it as
+/// its own screen (`isPushed`, a large "Notifications" title, as KaPay has it, 2026-11-20);
+/// elsewhere it's a sheet with Done.
 struct GlobalNotificationListView: View {
+    var isPushed = false
     @ObservedObject private var center = GlobalNotificationCenter.shared
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        if isPushed {
+            list
+        } else {
+            NavigationStack { list }
+        }
+    }
+
+    private var list: some View {
             Group {
                 if center.entries.isEmpty {
                     VStack(spacing: 12) {
@@ -188,10 +202,12 @@ struct GlobalNotificationListView: View {
                 }
             }
             .navigationTitle("Notifications")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(isPushed ? .large : .inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                if !isPushed {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Clear All") { center.clearAll() }
@@ -199,7 +215,6 @@ struct GlobalNotificationListView: View {
                 }
             }
             .onAppear { center.markAllSeen() }
-        }
     }
 
     /// Routes a tapped row to its subject. The sheet has to close first (only one sheet presents
@@ -234,6 +249,14 @@ struct GlobalNotificationListView: View {
                 } else {
                     NotificationCenter.default.post(name: .openProfile, object: nil)
                 }
+            }
+        case .token:
+            // the token's Manage screen, on the Wallet tab
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                TokenRoute.pending = target.isEmpty ? WalletToken.kusdt.id : target
+                NotificationCenter.default.post(name: .openProfile, object: nil)
+                NotificationCenter.default.post(name: .openToken, object: nil)
             }
         }
     }

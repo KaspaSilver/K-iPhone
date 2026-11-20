@@ -2116,7 +2116,8 @@ struct CoinControlView: View {
                 .padding(.bottom, 16)
             }
             .task {
-                utxoLabels = UtxoLabelStore.load(address: fromAddress)
+                // the names Rename UTXO gives coins (one store, WalletManager's)
+                utxoLabels = WalletManager.shared.loadSpendingUtxoLabels(address: fromAddress)
                 await loadUtxos()
                 if let initialSelection {
                     // only coins still in the list and spendable: a pick that's gone isn't kept
@@ -2129,17 +2130,5 @@ struct CoinControlView: View {
 
     private func formatKas(_ sompi: UInt64) -> String {
         String(format: "%.8f", Double(sompi) / 100_000_000.0)
-    }
-}
-
-/// Names a person gave individual coins (UTXOs), shown in Coin Control. Kept under the key Cold
-/// Storage used, so labels set there before it left the app still show.
-enum UtxoLabelStore {
-    static func load(address: String) -> [String: String] {
-        guard let data = UserDefaults.standard.data(forKey: "kachat_cold_storage_utxo_labels_" + address),
-              let decoded = try? JSONDecoder().decode([String: String].self, from: data) else {
-            return [:]
-        }
-        return decoded
     }
 }

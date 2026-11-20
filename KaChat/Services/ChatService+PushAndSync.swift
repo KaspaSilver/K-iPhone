@@ -243,7 +243,7 @@ extension ChatService {
             // a chat reopened after a deletion keeps what came before it deleted (its floor)
             var importedMessages = archivedConversation.messages.filter {
                 !$0.txId.isEmpty
-                    && !contactsManager.isDeletedAsOf(contactAddress, txId: $0.txId, blockTime: Int64($0.blockTime))
+                    && !contactsManager.isDeletedAsOf(contactAddress, txId: $0.txId, blockTime: Int64(clamping: $0.blockTime))
                     && !DeletedMessageLog.contains($0.txId, kind: .chat)
             }
             guard !importedMessages.isEmpty else { continue }
@@ -986,7 +986,8 @@ extension ChatService {
             receiverAddress: wallet.publicAddress,
             content: content,
             timestamp: Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000),
-            blockTime: UInt64(timestamp),
+            // the push or indexer supplies it: a negative one must not trap
+            blockTime: UInt64(clamping: timestamp),
             acceptingBlock: nil,
             isOutgoing: false,
             messageType: msgType
@@ -1308,12 +1309,12 @@ extension ChatService {
                     sender: sender,
                     amount: nil,
                     payload: payload,
-                    timestamp: Int64(ts)
+                    timestamp: Int64(clamping: ts)
                 )
             }
             if let decrypted = await decryptContextualMessageFromRawPayload(payload, privateKey: privateKey) {
                 let ts = fullTx.blockTime ?? fullTx.acceptingBlockTime ?? UInt64(Date().timeIntervalSince1970 * 1000)
-                await addMessageFromPush(txId: txId, sender: sender, content: decrypted, timestamp: Int64(ts))
+                await addMessageFromPush(txId: txId, sender: sender, content: decrypted, timestamp: Int64(clamping: ts))
                 return true
             } else {
                 AppLog.log("[ChatService] Kaspa payload decrypt failed: %@", txId)

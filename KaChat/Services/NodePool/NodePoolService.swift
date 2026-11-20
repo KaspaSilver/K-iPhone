@@ -687,8 +687,10 @@ final class NodePoolService: ObservableObject {
             ChatService.shared.reserveSpentOutpoints(spent)
             return sent
         } catch let unknown as SendOutcomeUnknownError {
-            // not held, for the reason in `submitTransaction`
+            // not held, for the reason in `submitTransaction`; remembered, so the next kUSDT send
+            // from these coins spends one of them again (`KusdtTransfer.prepare`)
             ChatService.shared.releaseSubmitHold(hold)
+            ChatService.shared.markUnknownOutcome(spent)
             ChatService.shared.invalidateUtxoCache()
             throw unknown
         } catch {
