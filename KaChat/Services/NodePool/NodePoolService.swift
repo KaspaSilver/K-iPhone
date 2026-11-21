@@ -677,6 +677,25 @@ final class NodePoolService: ObservableObject {
     /// `submitRpcTransaction` with the same lookup as `submitTransaction`: a failed submit of a
     /// transaction the network already has (by its locally computed `expectedTxId`) is a send.
     /// For the version-1 builders (`.kachat`), whose transactions aren't `KaspaRpcTransaction`s.
+    /// The node's own fee estimate (sompi per gram, and how many seconds it expects a transaction
+    /// paying that to wait): the priority bucket, and the first normal bucket (KaPay's).
+    func feeEstimate() async throws -> (priority: (feerate: Double, seconds: Double), normal: (feerate: Double, seconds: Double)) {
+        try await executeHedged(op: .getUtxosByAddress) { conn in
+            var msg = Protowire_KaspadMessage()
+            msg.getFeeEstimateRequest = Protowire_GetFeeEstimateRequestMessage()
+            let response = try await conn.sendRequest(msg, type: .getFeeEstimate, timeout: 10.0)
+            guard case .getFeeEstimateResponse(let r) = response.payload else {
+                throw KasiaError.networkError("Unexpected response")
+            }
+            if r.hasError && !r.error.message.isEmpty {
+                throw KasiaError.networkError(r.error.message)
+            }
+            let priority = r.estimate.priorityBucket
+            let normal = r.estimate.normalBuckets.first ?? priority
+            return ((priority.feerate, priority.estimatedSeconds), (normal.feerate, normal.estimatedSeconds))
+        }
+    }
+
     func submitRpcTransaction(_ rpcTransaction: Protowire_RpcTransaction, expectedTxId: String) async throws -> (txId: String, endpoint: String) {
         let spent = rpcTransaction.inputs.map {
             UTXO.Outpoint(transactionId: $0.previousOutpoint.transactionID, index: $0.previousOutpoint.index)
@@ -967,7 +986,7 @@ final class NodePoolService: ObservableObject {
     /// hedged nodes every time a doomed transaction was retried, until the pool had no
     /// eligible node left and every send met "No suitable endpoints" for the next 30s.
     /// Callers see the same `KasiaError.networkError(message)` they always did.
-    private struct NodeRejectedTransactionError: LocalizedError {
+    struct NodeRejectedTransactionError: LocalizedError {
         let message: String
         var errorDescription: String? { message }
     }

@@ -140,6 +140,8 @@ struct KaChatApp: App {
             ChatService.shared.stopActiveChatPollForBackground()
             GroupChatService.shared.stopLivePolling()
             ContactsManager.shared.stopProfileRescans()
+            // KaPosts' in-app activity poller runs only while the app is active.
+            KaPostsNotificationService.shared.stop()
             // Schedule background fetch when app goes to background
             if settingsViewModel.settings.backgroundFetchEnabled {
                 BackgroundTaskManager.shared.scheduleBackgroundFetch()
@@ -182,6 +184,8 @@ struct KaChatApp: App {
             // Group traffic from the indexer while the app is open (block stream as fallback).
             GroupChatService.shared.startLivePolling()
             ContactsManager.shared.startProfileRescans()
+            // KaPosts activity (likes, replies, quotes on your posts), while the app is active.
+            KaPostsNotificationService.shared.start()
 
             // Keep the Share Extension's data sources fresh on activation too - previously
             // contacts synced only on .background, so a fresh install that had never
@@ -290,6 +294,27 @@ struct KaChatApp: App {
             } else {
                 KaChatLinkRouter.open(link)
             }
+            return
+        }
+
+        // KaPost's and KaPay's other links (their schemes are registered here since they retired,
+        // 2026-11-21): a pre-written post opens the KaPosts composer, the market the .kachat tab's
+        // Marketplace page.
+        if let text = KaChatInternalLink.composeText(from: url) {
+            KaPostsDeepLink.pendingComposeText = text
+            NotificationCenter.default.post(name: .openKaPost, object: nil, userInfo: [:])
+            return
+        }
+        if KaChatInternalLink.isMarketLink(url) {
+            KachatDeepLink.pendingMarketplace = true
+            NotificationCenter.default.post(name: .openKachatName, object: nil)
+            return
+        }
+
+        // A KaPlay bot challenge (`kachatchess://bot/...`, registered here since KaPlay retired):
+        // the game opens here, in KaPlay.
+        if ChessBotLinks.challenge(from: url) != nil {
+            ChessBotLinks.open(url)
             return
         }
 
@@ -630,11 +655,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let activeAddress = ChatService.shared.activeConversationAddress
             let threadId = notification.request.content.threadIdentifier
             let settings = AppSettings.load()
-            // KaPosts and Public Chats are gone from the app (2026-10-24). The app no longer
-            // registers for their pushes, but one can still race the re-registration - never
-            // show it.
+            // KaPosts and Public Chats (back since 2026-11-21, as in KaPost).
             if threadId.hasPrefix("kaposts") || threadId.hasPrefix("broadcast:") {
-                completionHandler([])
+                completionHandler(Self.kaPostsOrRoomPresentation(notification, settings: settings))
                 return
             }
             let contactAddress = sender ?? (!threadId.isEmpty ? threadId : nil)
@@ -682,6 +705,143 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         Task {
             _ = await PushNotificationManager.shared.handleRemoteNotification(userInfo)
+        }
+    }
+
+    // MARK: KaPosts and Public Chats pushes (from KaPost, 2026-11-21)
+
+    /// How a KaPosts or room push shows while the app is open: the per-kind switches, nothing
+    /// while KaPosts' Notifications screen or that room is on screen, nothing from someone
+    /// muted or blocked, and a long voice note's later parts listed quietly.
+    @MainActor
+    private static func kaPostsOrRoomPresentation(_ notification: UNNotification, settings: AppSettings) -> UNNotificationPresentationOptions {
+        let userInfo = notification.request.content.userInfo
+        let threadId = notification.request.content.threadIdentifier
+        let body = notification.request.content.body
+        var options: UNNotificationPresentationOptions = [.banner, .badge]
+        if settings.incomingNotificationSoundEnabled {
+            options.insert(.sound)
+        }
+        if threadId == "kaposts" {
+            // Nothing from someone you blocked or muted, as in the in-app count, when the push
+            // names who acted (`actor_pubkey`).
+            let actorHidden = (userInfo["actor_pubkey"] as? String)
+                .flatMap { KaPostsAPIClient.kaspaAddress(fromPubkey: $0) }
+                .map { KaPostsModerationStore.shared.isHidden($0) } ?? false
+            if actorHidden
+                || !kaPostsPushAllowed(userInfo: userInfo, body: body, settings: settings)
+                || (UIApplication.shared.applicationState == .active
+                    && KaPostsNotificationService.shared.isNotificationsScreenVisible) {
+                return []
+            }
+        } else if threadId.hasPrefix("broadcast:") {
+            // No banner for the room you are reading.
+            let channel = String(threadId.dropFirst("broadcast:".count))
+            if UIApplication.shared.applicationState == .active,
+               PublicChatService.shared.isViewing(channel: channel) {
+                return []
+            }
+            // Nothing for a room that was deleted, muted or switched off: the push service
+            // can still send for it until the registration update lands.
+            guard let room = KaChatInternalLink.normalizeAndValidateChannel(channel),
+                  PublicChatService.shared.wantsRoomPush(channel: room) else {
+                return []
+            }
+            // A long voice note's later parts: listed, no banner or sound.
+            if RoomVoicePushBursts.isLaterPart(
+                threadId: threadId,
+                sender: notification.request.content.subtitle,
+                body: body,
+                identifier: notification.request.identifier
+            ) {
+                return [.list]
+            }
+        }
+        if !options.contains(.sound), settings.incomingNotificationVibrationEnabled {
+            Haptics.impact(.light)
+        }
+        return options
+    }
+
+    /// Which KaPosts pushes the reader still wants shown, by the Settings switches.
+    ///
+    /// `kaposts_kind` is the field the server should send; failing that the body is matched
+    /// against the exact English phrases PUSH_EXTENSIONS.md §3 specifies - server-generated and
+    /// unlocalized, so a fixed set. An unrecognised push is shown rather than swallowed.
+    static func kaPostsPushAllowed(userInfo: [AnyHashable: Any], body: String, settings: AppSettings) -> Bool {
+        let key: String
+        if let explicit = userInfo["kaposts_kind"] as? String {
+            switch explicit {
+            case "vote_up": key = "likes"
+            case "vote_down": key = "dislikes"
+            case "reply": key = "comments"
+            case "quote", "repost": key = "reposts"
+            case "follow": key = "follows"
+            case "mention": key = "mentions"
+            default: return true
+            }
+        } else {
+            let lowered = body.lowercased()
+            if lowered.contains("disliked your") { key = "dislikes" }
+            else if lowered.contains("liked your") { key = "likes" }
+            else if lowered.contains("replied to your") { key = "comments" }
+            else if lowered.contains("quoted your") || lowered.contains("reposted your") { key = "reposts" }
+            else if lowered.contains("followed you") { key = "follows" }
+            else if lowered.contains("mentioned you") { key = "mentions" }
+            else { return true }
+        }
+        switch key {
+        case "likes": return settings.kaPostsNotifyLikes
+        case "dislikes": return settings.kaPostsNotifyDislikes
+        case "comments": return settings.kaPostsNotifyComments
+        case "reposts": return settings.kaPostsNotifyReposts
+        case "follows": return settings.kaPostsNotifyFollows
+        case "mentions": return settings.kaPostsNotifyMentions
+        default: return true
+        }
+    }
+
+    /// A reply or quote push opens the reply or quote itself - the same target the in-app banners
+    /// use. The push's `postId` is the post it was made ON (PUSH_EXTENSIONS.md), and opening that
+    /// left you on your own post waiting for the indexer to list the new reply. The action's txid
+    /// is the push's `apns-collapse-id`, which iOS gives us as the request identifier; the thread
+    /// opens on its parent with the reply already in it (`openResolvedPost`).
+    static func kaPostsPushOpensAction(userInfo: [AnyHashable: Any], body: String) -> Bool {
+        if let explicit = userInfo["kaposts_kind"] as? String {
+            return explicit == "reply" || explicit == "quote"
+        }
+        let lowered = body.lowercased()
+        return lowered.contains("replied to your") || lowered.contains("quoted your")
+    }
+
+    private static func isTxId(_ value: String) -> Bool {
+        value.count == 64 && value.allSatisfy(\.isHexDigit)
+    }
+
+    /// A tapped room push opens the room only while it is in the list: a room deleted since (or
+    /// never joined here) is not joined back by a tap. On a cold start the account's rooms are
+    /// still loading, so this waits for them (up to 10 s) before deciding.
+    @MainActor
+    private static func openRoomFromPush(_ channel: String, attemptsLeft: Int = 20) {
+        let service = PublicChatService.shared
+        guard service.isStoreReady else {
+            guard attemptsLeft > 0 else { return }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                openRoomFromPush(channel, attemptsLeft: attemptsLeft - 1)
+            }
+            return
+        }
+        guard service.channels.contains(where: { $0.channelName == channel }) else {
+            AppLog.log("%@", "[Push] Ignored a tap on a push for a room that isn't joined")
+            return
+        }
+        // Pending for a cold start, and the room's newest rows asked for right away: the
+        // announced message is not in the store yet.
+        service.pendingPublicChatNavigation = channel
+        NotificationCenter.default.post(name: .openPublicChat, object: nil, userInfo: ["channel": channel])
+        Task { @MainActor in
+            await service.refreshFromIndexerNow(channel: channel)
         }
     }
 
@@ -796,10 +956,55 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // chat notification.
         let threadIdentifier = response.notification.request.content.threadIdentifier
 
-        // KaPosts and Public Chats are gone from the app: a stray tap on one of their old
-        // notifications lands on the main Chats screen.
-        if threadIdentifier.hasPrefix("kaposts") || threadIdentifier.hasPrefix("broadcast:") {
-            NotificationCenter.default.post(name: .openChat, object: nil, userInfo: [:])
+        // The scheduled-post reminder (local fallback): into KaPosts, which sends what is due
+        // and shows the Scheduled screen.
+        if threadIdentifier == "kaposts-scheduled" {
+            KaPostsDeepLink.pendingOpenScheduled = true
+            NotificationCenter.default.post(name: .openKaPost, object: nil, userInfo: [:])
+            completionHandler()
+            return
+        }
+
+        // KaPosts push (thread-id "kaposts"): straight to the post when the payload names one,
+        // else the Notifications screen (from KaPost).
+        if threadIdentifier == "kaposts" {
+            let userInfo = response.notification.request.content.userInfo
+            // A tapped push leaves Notification Center, so the poller can no longer see it:
+            // record its action id so the next poll doesn't banner it again.
+            if response.notification.request.trigger is UNPushNotificationTrigger {
+                let actionId = response.notification.request.identifier
+                Task { @MainActor in
+                    KaPostsNotificationService.shared.recordDisplayed(actionId: actionId)
+                }
+            }
+            let body = response.notification.request.content.body
+            let actionId = response.notification.request.identifier
+            if Self.kaPostsPushOpensAction(userInfo: userInfo, body: body), Self.isTxId(actionId) {
+                // A reply or a quote: open it, not the post it was made on.
+                KaPostsDeepLink.pendingPostTxId = actionId.lowercased()
+            } else if let postId = userInfo["postId"] as? String, Self.isTxId(postId) {
+                // Only a transaction id: the payload is the push service's word, not ours.
+                KaPostsDeepLink.pendingPostTxId = postId.lowercased()
+            } else {
+                // naming no post: the Notifications screen, behind Profile's bell
+                NotificationsRoute.pending = true
+                NotificationCenter.default.post(name: .openAllNotifications, object: nil)
+                completionHandler()
+                return
+            }
+            NotificationCenter.default.post(name: .openKaPost, object: nil, userInfo: [:])
+            completionHandler()
+            return
+        }
+
+        // A room push: the room, while it is in the list.
+        if threadIdentifier.hasPrefix("broadcast:") {
+            // Through the same gate as a room link's name, before it can open anything.
+            if let channel = KaChatInternalLink.normalizeAndValidateChannel(
+                String(threadIdentifier.dropFirst("broadcast:".count))
+            ) {
+                Task { @MainActor in Self.openRoomFromPush(channel) }
+            }
             completionHandler()
             return
         }
@@ -945,35 +1150,22 @@ enum TokenRoute {
 /// read markers in UserDefaults - is deleted once, so nothing of them lingers on disk.
 enum RetiredFeatureCleanup {
     private static let doneKey = "kachat_retired_features_cleaned_v1"
-    private static let defaultsPrefixes = [
-        "kachat_broadcast_", "kachat_kaposts_", "kapostsNotifCenter.", "kaposts_",
-        "globalNotifCenter.kapostsLastSeen.",
-    ]
 
+    /// Once deleted what Public Chats and KaPosts kept on the phone (they left on 2026-10-24).
+    /// Since 2026-11-21 KaChat is the all-in-one app again and both are coming back, so it deletes
+    /// nothing: their settings and each account's public room store (`KaChatBroadcasts-*.sqlite`,
+    /// possibly already open by then) are theirs to use. It only marks itself done.
     static func runOnce() {
-        let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: doneKey) else { return }
-        for key in defaults.dictionaryRepresentation().keys where defaultsPrefixes.contains(where: { key.hasPrefix($0) }) {
-            defaults.removeObject(forKey: key)
-        }
-        let directory = NSPersistentContainer.defaultDirectoryURL()
-        let files = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
-        for name in files where name.hasPrefix("KaChatBroadcasts-") {
-            try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
-        }
-        defaults.set(true, forKey: doneKey)
+        UserDefaults.standard.set(true, forKey: doneKey)
     }
 
     private static let doneKeyV2 = "kachat_retired_features_cleaned_v2"
-    /// Portfolio, Cold Storage, Swap, the .kachat market and the customizable dock left on
-    /// 2026-10-24 (the wallet pieces live in the KaChat wallet app). Their data on this phone goes
-    /// once too. Kept: the last KAS price (`kachat_kas_price_`, the Send screens) and coin labels
-    /// (`kachat_cold_storage_utxo_labels_`, merged into the spending coin labels by `runOnceV5`).
-    private static let defaultsPrefixesV2 = [
-        "kachat_portfolio", "kachat_active_portfolio_", "kachat_price_history_", "kachat_daily_price_cache_",
-        "kachat_pair_history_", "kachat_cold_storage_accounts", "kachat_cold_storage_hidden_",
-        "kachat_cold_storage_labels_", "kachat_swap_", "kachat_dock_",
-    ]
+    /// Once deleted the data of Portfolio, Cold Storage, Swap, the .kachat market and the old
+    /// customizable dock (they left on 2026-10-24). Since 2026-11-21 KaChat is the all-in-one app
+    /// again and those features are back, so it deletes only what stays retired: Swap's settings
+    /// and the old Home Screen widget's snapshot. (The old dock keys were `kachat_dock_*`, which the
+    /// new `DockLayout` keys would also match, so they're left alone too.)
+    private static let defaultsPrefixesV2 = ["kachat_swap_"]
 
     static func runOnceV2() async {
         let defaults = UserDefaults.standard
@@ -981,13 +1173,7 @@ enum RetiredFeatureCleanup {
         for key in defaults.dictionaryRepresentation().keys where defaultsPrefixesV2.contains(where: { key.hasPrefix($0) }) {
             defaults.removeObject(forKey: key)
         }
-        // Portfolio's price-history files and the Home Screen widget's snapshot.
-        if let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-            try? FileManager.default.removeItem(at: support.appendingPathComponent("PriceHistory", isDirectory: true))
-        }
         UserDefaults(suiteName: SharedDataManager.appGroupIdentifier)?.removeObject(forKey: "kachat_portfolio_widget_store")
-        // Renewal reminders for .kachat names still scheduled on this phone.
-        await KachatNameReminders.removeEverything()
         defaults.set(true, forKey: doneKeyV2)
     }
 
@@ -1089,22 +1275,22 @@ enum KaChatLinkRouter {
         case .paymentRequest(let request):
             openPaymentRequest(request, fromChat: fromChat)
         case .kaPost(let txId):
-            KaPostHandoff.open(txId: txId)
+            // KaPosts is back in KaChat (2026-11-21): the post opens in the feed.
+            guard !txId.isEmpty else { return }
+            KaPostsDeepLink.pendingPostTxId = txId
+            NotificationCenter.default.post(name: .openKaPost, object: nil, userInfo: ["txId": txId])
+        case .publicChatRoom(let channel):
+            openPublicChatRoom(channel: channel)
         }
     }
 
-    /// A payment request tapped in a chat is paid right here, on Send Kaspa with it filled in.
-    /// From anywhere else, someone else's is paid in KaPay (`KaPayHandoff`; the App Store when it
-    /// isn't installed), except a chat-payment one. Your own shows it (amount, memo, the address
-    /// it pays into) with its link to copy or share again (`PaymentRequestSheetPresenter`, in
+    /// A payment request, from a chat or anywhere else, is paid right here (since 2026-11-21: KaPay
+    /// is retired): Send Kaspa with it filled in. Your own shows it (amount, memo, the address it
+    /// pays into) with its link to copy or share again (`PaymentRequestSheetPresenter`, in
     /// `MainTabView`).
     @MainActor
     static func openPaymentRequest(_ request: PaymentRequest, fromChat: Bool = false) {
-        guard !fromChat else {
-            PaymentRequestRouter.shared.pending = request
-            return
-        }
-        KaPayHandoff.pay(request, inApp: { PaymentRequestRouter.shared.pending = request })
+        PaymentRequestRouter.shared.pending = request
     }
 
     /// A profile link carrying `chat=1` (KaPosts' Chat button).
@@ -1147,6 +1333,114 @@ enum KaChatLinkRouter {
         NotificationCenter.default.post(name: .openChat, object: nil, userInfo: [:])
     }
 
+    // MARK: Public Chats rooms (from KaPost, 2026-11-21)
+
+    @MainActor
+    private static func openPublicChatRoom(channel: String, attemptsLeft: Int = 20) {
+        // Re-validated here, the last gate before a name from a pasted link can create a row.
+        guard let normalized = KaChatInternalLink.normalizeAndValidateChannel(channel) else { return }
+        let service = PublicChatService.shared
+        // Curated rooms always exist, and one already on the list needs nothing. Anything else
+        // joins the user's own list first, as if typed into "Join or Create a Channel", once
+        // they say so: any app or post can hand over a link, and the name is whatever it likes.
+        let curated = PublicChatService.curatedChannels.contains(normalized)
+        // On a cold start `channels` is empty until the account's store opens, so a room already
+        // joined would be offered again: wait for the store (up to 10 s, as `openRoomFromPush`).
+        if !curated, !service.isStoreReady, attemptsLeft > 0 {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                openPublicChatRoom(channel: normalized, attemptsLeft: attemptsLeft - 1)
+            }
+            return
+        }
+        let listed = curated || service.channels.contains { $0.channelName == normalized }
+        guard listed else {
+            confirmJoin(normalized) {
+                // The store may have opened while the alert was up.
+                if !PublicChatService.shared.channels.contains(where: { $0.channelName == normalized }) {
+                    PublicChatService.shared.joinChannel(normalized)
+                }
+                navigateToPublicChatRoom(normalized)
+            }
+            return
+        }
+        navigateToPublicChatRoom(normalized)
+    }
+
+    @MainActor
+    private static func navigateToPublicChatRoom(_ normalized: String) {
+        PublicChatService.shared.pendingPublicChatNavigation = normalized
+        NotificationCenter.default.post(name: .openPublicChat, object: nil, userInfo: ["channel": normalized])
+    }
+
+    /// Asks before a link adds a room. Waits a few seconds for a window on a cold start.
+    @MainActor
+    private static func confirmJoin(_ normalized: String, attemptsLeft: Int = 10, onJoin: @escaping @MainActor () -> Void) {
+        guard let presenter = topViewController() else {
+            guard attemptsLeft > 0 else { return }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                confirmJoin(normalized, attemptsLeft: attemptsLeft - 1, onJoin: onJoin)
+            }
+            return
+        }
+        let title = String(format: AppLocalization.string("Join #%@?"), normalized)
+        var message = AppLocalization.string("A link wants to add this room to your Public Chats.")
+        if hasMixedScripts(normalized) {
+            message += "\n\n" + AppLocalization.string("This name mixes letters from different alphabets, so it may be imitating another room.")
+        }
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: AppLocalization.string("Cancel"), style: .cancel))
+        alert.addAction(UIAlertAction(title: AppLocalization.string("Join"), style: .default) { _ in
+            Task { @MainActor in onJoin() }
+        })
+        presenter.present(alert, animated: true)
+    }
+
+    @MainActor
+    private static func topViewController() -> UIViewController? {
+        let scene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
+        let window = scene?.windows.first(where: \.isKeyWindow)
+            ?? scene?.windows.first { !$0.isHidden && $0.windowLevel == .normal }
+        var top = window?.rootViewController
+        while let presented = top?.presentedViewController, !presented.isBeingDismissed {
+            top = presented
+        }
+        return top
+    }
+
+    /// Letters from more than one of the alphabets that share look-alike shapes, the way a
+    /// Cyrillic "а" passes for a Latin "a" in a well-known room's name.
+    private static func hasMixedScripts(_ name: String) -> Bool {
+        var seen = Set<String>()
+        for scalar in name.unicodeScalars where scalar.properties.isAlphabetic {
+            switch scalar.value {
+            case 0x41...0x5A, 0x61...0x7A, 0xC0...0x24F: seen.insert("latin")
+            case 0x370...0x3FF, 0x1F00...0x1FFF: seen.insert("greek")
+            case 0x400...0x52F, 0x2DE0...0x2DFF, 0xA640...0xA69F: seen.insert("cyrillic")
+            case 0x530...0x58F: seen.insert("armenian")
+            case 0x13A0...0x13FF, 0xAB70...0xABBF: seen.insert("cherokee")
+            default: break
+            }
+        }
+        return seen.count > 1
+    }
+}
+
+/// Cold-start handoff for KaPosts links and notification taps - the notification alone is lost
+/// if KaPostsView isn't mounted yet.
+enum KaPostsDeepLink {
+    static var pendingPostTxId: String?
+    /// KaPosts push tapped without a specific post - open the Notifications screen on mount.
+    static var pendingOpenNotifications = false
+    /// The scheduled-post reminder tapped - open the Scheduled screen on mount.
+    static var pendingOpenScheduled = false
+    /// Someone's KaPosts profile, asked for from another tab (a Public Chats member, a link).
+    static var pendingProfileAddress: String?
+    /// A pre-written post from another app, for the new-post composer.
+    static var pendingComposeText: String?
 }
 
 extension Notification.Name {
@@ -1158,4 +1452,57 @@ extension Notification.Name {
     /// A token's Manage screen (a "Received kUSDT" notification): `TokenRoute.pending` names it.
     static let openToken = Notification.Name("openToken")
     static let openGroup = Notification.Name("openGroup")
+    /// A KaPosts post or notification: the KaPosts tab (`KaPostsDeepLink` says what to open).
+    static let openKaPost = Notification.Name("openKaPost")
+    /// Someone's KaPosts profile: `KaPostsDeepLink.pendingProfileAddress`.
+    static let openKaPostsProfile = Notification.Name("openKaPostsProfile")
+    /// A Public Chats room: `PublicChatService.pendingPublicChatNavigation`.
+    static let openPublicChat = Notification.Name("openBroadcast")
+}
+
+/// KaChat's burst rule for parts of a long voice note or a multi-part photo, for room pushes (KaChat CLAUDE.md, "Parts
+/// arrive as bare txIds"). The indexer pushes every part of a long voice note as its own
+/// "Voice message", and the extension can't read a room push's part tag. So a voice
+/// push from the same sender in the same room within 60 seconds of the last one is a later part:
+/// it is listed without a banner, sound or badge, and the quiet entry before it is removed,
+/// leaving the first banner and one quiet entry per note. Two separate voice messages from one
+/// sender within a minute ring once; the room still shows both.
+///
+/// This only runs while KaChat is open (`willPresent`). With the app in the background or
+/// closed, iOS shows every part's push as it arrives.
+@MainActor
+enum RoomVoicePushBursts {
+    /// Parts go out one after another, a few seconds apart.
+    private static let window: TimeInterval = 60
+    /// The indexer's previews for a media envelope: "Voice message" for any file or audio today
+    /// (a photo too), "Photo" once it tells photos apart (kachat-indexer
+    /// docs/ROOM_VOICE_PART_PUSHES.md). Multi-part photos (`mediaPart`) burst the same way.
+    private static let mediaPreviews: Set<String> = ["Voice message", "Photo"]
+
+    private struct Burst {
+        var lastPush: Date
+        /// The quiet notification the last later part left, to remove when the next arrives.
+        var quietId: String?
+    }
+
+    private static var bursts: [String: Burst] = [:]
+
+    /// True when this room push is a later part of a voice burst that already rang. Records
+    /// the push either way.
+    static func isLaterPart(threadId: String, sender: String, body: String, identifier: String) -> Bool {
+        guard threadId.hasPrefix("broadcast:"),
+              mediaPreviews.contains(body.trimmingCharacters(in: .whitespacesAndNewlines)) else { return false }
+        let now = Date()
+        bursts = bursts.filter { now.timeIntervalSince($0.value.lastPush) < window }
+        let owner = "\(threadId)|\(sender.lowercased())"
+        guard let earlier = bursts[owner] else {
+            bursts[owner] = Burst(lastPush: now, quietId: nil)
+            return false
+        }
+        if let quietId = earlier.quietId {
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [quietId])
+        }
+        bursts[owner] = Burst(lastPush: now, quietId: identifier)
+        return true
+    }
 }

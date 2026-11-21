@@ -208,6 +208,41 @@ final class KeychainService {
     // name before the registration reveals it. Device-only, per wallet, one entry per pending
     // registration (`id` is the registration's UUID).
 
+    func saveKachatCommitSalt(_ salt: Data, id: String, walletAddress: String) throws {
+        try saveSensitiveDataRaw(salt, keyName: Self.kachatSaltKeyName(id: id, walletAddress: walletAddress))
+    }
+
+    func loadKachatCommitSalt(id: String, walletAddress: String) throws -> Data? {
+        try loadSensitiveDataRaw(keyName: Self.kachatSaltKeyName(id: id, walletAddress: walletAddress))
+    }
+
+    func deleteKachatCommitSalt(id: String, walletAddress: String) throws {
+        try deleteSensitiveDataRaw(keyName: Self.kachatSaltKeyName(id: id, walletAddress: walletAddress))
+    }
+
+    /// Every pending .kachat commit salt of a wallet: its account is being removed.
+    func deleteAllKachatCommitSalts(walletAddress: String) {
+        let prefix = "kachat_names_commit_salt_\(Self.walletHashSuffix(walletAddress.lowercased()))_"
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+            kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let items = result as? [[String: Any]] else { return }
+        for item in items {
+            guard let account = item[kSecAttrAccount as String] as? String, account.hasPrefix(prefix) else { continue }
+            try? deleteSensitiveDataRaw(keyName: account)
+        }
+    }
+
+    private static func kachatSaltKeyName(id: String, walletAddress: String) -> String {
+        "kachat_names_commit_salt_\(walletHashSuffix(walletAddress.lowercased()))_\(id)"
+    }
+
     // MARK: - Retired Simple Mode password record
     //
     // Simple Mode left the app on 2026-10-24. Its salted-hash password record is only ever

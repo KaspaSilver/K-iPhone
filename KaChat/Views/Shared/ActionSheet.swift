@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The app's frosted card. Every other place that draws one has its own file-private copy of
 /// this; this file needs one too because it is not in any of them.
-private func glassBackground(cornerRadius: CGFloat) -> some View {
+func glassBackground(cornerRadius: CGFloat) -> some View {
     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         .fill(.regularMaterial)
         .overlay(
@@ -257,14 +257,20 @@ struct AddressOptionsButton: View {
 /// sheet first and opens it from `onDismiss`, as a sheet presented while another is still
 /// closing can be dropped.
 struct AddressActionsSheet: View {
+    /// A quantum address keeps its key hidden until it spends, so it has none to show.
     var showsPublicKey = true
     let explorerURL: URL?
-    let onViewPrivateKey: () -> Void
+    /// Nil where the app doesn't hold the key (Cold Storage).
+    var onViewPrivateKey: (() -> Void)? = nil
     let onViewPublicKey: () -> Void
     let onViewInExplorer: (URL) -> Void
 
-    /// Fits however many rows are showing.
-    var height: CGFloat { (showsPublicKey ? 250 : 170) + (explorerURL == nil ? 0 : 80) }
+    /// Fits however many rows are showing. Present with `fittedSheetDetents(height)`, so the
+    /// rows aren't cut off at large text sizes.
+    var height: CGFloat {
+        let rows = (onViewPrivateKey == nil ? 0 : 1) + (showsPublicKey ? 1 : 0) + (explorerURL == nil ? 0 : 1)
+        return 90 + CGFloat(rows) * 80
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -274,12 +280,14 @@ struct AddressActionsSheet: View {
                 .padding(.bottom, 16)
 
             VStack(spacing: 12) {
-                ActionSheetRow(
-                    title: "View Private Key",
-                    subtitle: "The key that spends this address. Never share it.",
-                    systemImage: "key.fill",
-                    action: onViewPrivateKey
-                )
+                if let onViewPrivateKey {
+                    ActionSheetRow(
+                        title: "View Private Key",
+                        subtitle: "The key that spends this address. Never share it.",
+                        systemImage: "key.fill",
+                        action: onViewPrivateKey
+                    )
+                }
                 if showsPublicKey {
                     ActionSheetRow(
                         title: "View Public Key",
@@ -318,39 +326,24 @@ extension KaspaFullTransactionResponse: Identifiable {
     var id: String { transactionId }
 }
 
-/// What to do with a transaction you tapped in an address history: look at it on the explorer.
+/// What to do with a transaction you tapped in an address history: look at it, or record it.
 ///
-/// Shared by the spending-address histories and the chatting address, both of which used to
-/// raise their own identical confirmation dialog.
+/// Shared by cold storage history, the spending-address histories and the chatting address, all
+/// three of which used to raise their own identical confirmation dialog.
 struct TransactionActionsSheet: View {
     let transaction: KaspaFullTransactionResponse
     /// The address the history was viewed under, which is what decides whether this reads as
     /// money in or money out.
     let address: String
     let onOpenExplorer: () -> Void
+    /// Nil candidate means the transaction has no side involving `address` we can price, so
+    /// there is nothing to record and the option is not offered.
+    var onAddToPortfolio: ((PortfolioCandidateTransaction) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
-    private static let kasFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.usesGroupingSeparator = true
-        formatter.groupingSeparator = ","
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 4
-        formatter.locale = Locale(identifier: "en_US")
-        return formatter
-    }()
-
-    /// "Received 12.5 KAS on 3 Oct 2026 at 14:02", or nil when the transaction has no side
-    /// involving `address` (a pure internal move).
-    private var summary: String? {
-        guard let info = transaction.direction(for: address) else { return nil }
-        let kas = Double(info.amountSompi) / 100_000_000.0
-        let amount = (Self.kasFormatter.string(from: NSNumber(value: kas)) ?? String(format: "%.4f", kas)) + " " + KaspaUnit.symbol
-        // A transaction with no block time yet is still in the mempool; "now" is the stand-in.
-        let date = transaction.blockTime.map { Date(timeIntervalSince1970: Double($0) / 1000) } ?? Date()
-        return "\(info.isOutgoing ? "Sent" : "Received") \(amount) on " + date.formatted(date: .abbreviated, time: .shortened)
+    private var candidate: PortfolioCandidateTransaction? {
+        PortfolioCandidateTransaction(transaction: transaction, address: address)
     }
 
     var body: some View {
@@ -358,8 +351,8 @@ struct TransactionActionsSheet: View {
             VStack(spacing: 4) {
                 Text("Transaction")
                     .font(.headline)
-                if let summary {
-                    Text(summary)
+                if let candidate {
+                    Text(summary(candidate))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -381,12 +374,33 @@ struct TransactionActionsSheet: View {
                 onOpenExplorer()
             }
 
+            if let candidate, let onAddToPortfolio {
+                ActionSheetRow(
+                    title: "Add to Portfolio",
+                    subtitle: "Records it as a buy or a sell in a portfolio of your choosing.",
+                    systemImage: "chart.pie.fill"
+                ) {
+                    dismiss()
+                    onAddToPortfolio(candidate)
+                }
+            }
+
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 24)
-        .presentationDetents([.height(250)])
+        .fittedSheetDetents(candidate == nil || onAddToPortfolio == nil ? 250 : 320)
         .presentationDragIndicator(.visible)
+    }
+
+    private func summary(_ candidate: PortfolioCandidateTransaction) -> String {
+        let format = AppLocalization.string(candidate.isOutgoing ? "Sent %@ on %@" : "Received %@ on %@")
+        return String(
+            format: format,
+            locale: AppLocalization.locale,
+            PortfolioFormat.kas(candidate.amountKas),
+            candidate.timestamp.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(AppLocalization.locale))
+        )
     }
 }
 
@@ -452,6 +466,82 @@ struct LinkActionsSheet: View {
     }
 }
 
+
+/// Repost as-is, or quote it with your own words - the half-sheet form of the old dialog.
+struct RepostActionsSheet: View {
+    let onRepost: () -> Void
+    let onQuote: () -> Void
+    /// Set when the post is already reposted, so the first row offers to take it back.
+    var isReposted: Bool = false
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(isReposted ? "Reposted" : "Repost")
+                .font(.headline)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+
+            ActionSheetRow(
+                title: isReposted ? "Undo Repost" : "Repost",
+                subtitle: isReposted
+                    ? "Removes it from your profile."
+                    : "Shares it to your followers as-is.",
+                systemImage: isReposted ? "arrow.uturn.backward" : "arrow.2.squarepath",
+                tint: isReposted ? .red : .accentColor
+            ) { dismiss(); onRepost() }
+
+            ActionSheetRow(
+                title: "Quote",
+                subtitle: "Adds your own words above it.",
+                systemImage: "quote.bubble"
+            ) { dismiss(); onQuote() }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        .presentationDetents([.height(280)])
+    }
+}
+
+
+/// Closing the composer with something written: keep it, or throw it away.
+///
+/// A sheet rather than a confirmation dialog so each choice can say what happens to the post -
+/// "Save Draft" and "Discard" as bare verbs leave you to work out where a saved one goes.
+struct ComposerCloseOptionsSheet: View {
+    let onSaveDraft: () -> Void
+    let onDiscard: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Save this post?")
+                .font(.headline)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+
+            ActionSheetRow(
+                title: "Save Draft",
+                subtitle: "Keep it in Drafts to finish later.",
+                systemImage: "square.and.arrow.down"
+            ) { dismiss(); onSaveDraft() }
+
+            ActionSheetRow(
+                title: "Discard",
+                subtitle: "Throw this away.",
+                systemImage: "trash",
+                tint: .red
+            ) { dismiss(); onDiscard() }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        .presentationDetents([.height(280)])
+    }
+}
 
 /// A yes/no confirmation, in a half sheet.
 ///
@@ -762,6 +852,22 @@ struct MessageAction: Identifiable {
     }
     static func select(_ action: @escaping () -> Void) -> MessageAction {
         MessageAction(title: "Select", subtitle: "Pick several messages at once.", systemImage: "checkmark.circle", action: action)
+    }
+    // KaPosts and Public Chats rooms (from KaPost, 2026-11-21)
+    static func report(_ action: @escaping () -> Void) -> MessageAction {
+        MessageAction(title: "Report", subtitle: "Report abusive or objectionable content. Opens an email with this message attached.", systemImage: "flag", action: action)
+    }
+    static func openLink(_ action: @escaping () -> Void) -> MessageAction {
+        MessageAction(title: "Open Link", subtitle: "Opens it in your browser.", systemImage: "safari", action: action)
+    }
+    static func translate(into language: String, _ action: @escaping () -> Void) -> MessageAction {
+        MessageAction(title: "Translate", subtitle: "Shows this message in \(language).", systemImage: "character.bubble", action: action)
+    }
+    static func showOriginal(_ action: @escaping () -> Void) -> MessageAction {
+        MessageAction(title: "Show Original", subtitle: "Back to the text as it was sent.", systemImage: "arrow.uturn.backward", action: action)
+    }
+    static func showTranslation(_ action: @escaping () -> Void) -> MessageAction {
+        MessageAction(title: "Show Translation", subtitle: "The translated text again.", systemImage: "character.bubble", action: action)
     }
 }
 
@@ -1202,5 +1308,87 @@ struct UnderlineTabBar<Tab: Hashable>: View {
             }
             Divider()
         }
+    }
+}
+
+/// Renaming something, in a half sheet.
+///
+/// A system alert with a text field is the platform's default for this, and it is the wrong
+/// shape: it steals the whole screen for one word, and its field is a cramped afterthought. This
+/// is the same sheet every other cold-storage action already uses.
+struct RenameSheet: View {
+    let title: String
+    var subtitle: String?
+    var fieldLabel: String = "Name"
+    @Binding var text: String
+    let onSave: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focused: Bool
+
+    private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 4) {
+                Text(LocalizedStringKey(title))
+                    .font(.headline)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 4)
+
+            TextField(LocalizedStringKey(fieldLabel), text: $text)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .focused($focused)
+                .onSubmit(save)
+                .padding(14)
+                .background(glassBackground(cornerRadius: 16))
+
+            HStack(spacing: 12) {
+                Button("Cancel") { dismiss() }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.primary)
+                    .background(glassBackground(cornerRadius: 16))
+
+                Button("Save", action: save)
+                    .font(.subheadline.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.black)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.accentColor.opacity(trimmed.isEmpty ? 0.4 : 1))
+                    )
+                    .disabled(trimmed.isEmpty)
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .fittedSheetDetents(260)
+        .presentationDragIndicator(.visible)
+        // A turn later: the field does not exist yet on the tap that presented this.
+        .onAppear { DispatchQueue.main.async { focused = true } }
+    }
+
+    private func save() {
+        guard !trimmed.isEmpty else { return }
+        onSave(trimmed)
+        Haptics.success()
+        dismiss()
     }
 }

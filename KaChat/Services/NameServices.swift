@@ -140,6 +140,12 @@ struct NameResolution: Identifiable, Equatable {
         self.failed = failed
         self.notLive = notLive
     }
+
+    /// The name with its ending always, for text other people read later (a KaPosts @mention):
+    /// a bare name there wouldn't say which service it means, whatever this phone shows.
+    var fullName: String {
+        tld == .kachat && !display.hasSuffix(tld.suffix) ? display + tld.suffix : display
+    }
 }
 
 extension NameServiceTLD {

@@ -40,30 +40,60 @@ struct MainTabView: View {
     // Red dot on the Profile tab while the bell (which lives on the Profile screen)
     // holds unread notifications.
     @ObservedObject private var notifCenter = GlobalNotificationCenter.shared
+    /// The dock's tabs, as Customize Dock arranged them (Kaspa Hub always among them).
+    @ObservedObject private var layout = DockLayout.shared
+    @State private var showCustomizeDock = false
 
-    /// The dock's TabView on its own, so `body` stays small enough for the type checker. The
-    /// dock is the fixed `AppTab.dock`: Contacts, Wallet, Chats, Profile, Settings.
+    /// The dock's TabView on its own, so `body` stays small enough for the type checker.
     private var dockTabView: some View {
         TabView(selection: tabSelection) {
-            ForEach(AppTab.dock) { tab in
-                tabContent(for: tab)
+            ForEach(layout.dock) { tab in
+                AppTabContent(tab: tab)
                     .tabItem {
-                        Label(LocalizedStringKey(tab.label), systemImage: tab.icon)
+                        // one Label whose image varies (no structural if): conditional tab item
+                        // content churns the tab bar's identity
+                        Label {
+                            Text(LocalizedStringKey(tab.label))
+                        } icon: {
+                            if tab == .hub, let logo = KaspaDockIcon.image {
+                                logo
+                            } else {
+                                Image(systemName: tab.icon)
+                            }
+                        }
                     }
-                    // Profile hosts the notification bell and shows a dot while it holds
-                    // anything unread; Chats shows its unread message count.
+                    // Wallet shows a dot for unread notifications, Chats its unread count, Kaspa
+                    // Hub what the tabs inside it hold.
                     .badge(dockBadge(for: tab))
                     .tag(tab.tag)
             }
         }
         .tint(.accentColor)
+        // a new arrangement gets a fresh tab bar, so every icon matches its tab
+        .id(layout.dock)
     }
 
     var body: some View {
         dockTabView
-        // The dock badges (Profile's dot, the Chats count), from whichever tab is showing. Its
-        // own modifier: inline, these pushed the body past what the type checker can solve.
-        .modifier(DockBadgeSync(selectedTab: selectedTab, dockTabs: AppTab.dock))
+        // The dock badges, from whichever tab is showing. Its own modifier: inline, these pushed
+        // the body past what the type checker can solve.
+        .modifier(DockBadgeSync(selectedTab: selectedTab, dockTabs: layout.dock))
+        // KaPosts and Public Chats links, pushes and the KaPosts dock copy (its own modifier, for
+        // the type checker).
+        .modifier(KaPostsRoutes(show: show))
+        .onReceive(NotificationCenter.default.publisher(for: .openCustomizeDock)) { _ in
+            showCustomizeDock = true
+        }
+        .sheet(isPresented: $showCustomizeDock) {
+            CustomizeDockView()
+        }
+        // the tab on screen left the dock: Kaspa Hub, where it now lives
+        .onChange(of: layout.dock) { dock in
+            if !dock.contains(where: { $0.tag == selectedTab }) {
+                selectedTab = AppTab.hub.tag
+                KaPostsDockRouter.shared.selectedTab = .hub
+            }
+        }
         .onAppear {
             LaunchTrace.mark("main tabs on screen")
             // A hold with no guide to release it would strand the account: the branches below
@@ -74,6 +104,8 @@ struct MainTabView: View {
             chatService.startPolling()
             // kUSDT is checked while the app is open, so a token that arrives is announced
             TokenWallet.shared.startPolling()
+            // The rooms' stored messages, so the Public Chats badge counts before the list opens.
+            PublicChatService.shared.primeChannelSummaries()
             preloadProfileResources()
             // A notification tapped from a cold start routed before this view existed - replay
             // its tab switch now that there's something to switch.
@@ -129,21 +161,30 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openChat)) { _ in
             PendingTabRoute.pending = nil
-            handleTabSelectionChange(AppTab.chats.tag)
+            show(.chats)
         }
         .onReceive(NotificationCenter.default.publisher(for: .openProfile)) { _ in
             // Spending-address receipts: Wallet, which shows the addresses and balances.
             PendingTabRoute.pending = nil
-            handleTabSelectionChange(AppTab.wallet.tag)
+            show(.wallet)
         }
         // Its own modifier: added to this chain inline, it pushed the body past what the type
         // checker can solve in reasonable time.
         .modifier(OwnAddressSheetPresenter(target: $ownAddressSheet, onRequest: takeOwnAddressRoute))
         // A payment request tapped or pasted anywhere: Send Kaspa with it filled in.
         .modifier(PaymentRequestSheetPresenter())
+        // a .kachat name (Claim a Name, a name notification): the names tab, wherever it lives
+        .onReceive(NotificationCenter.default.publisher(for: .openKachatName)) { _ in
+            PendingTabRoute.pending = nil
+            show(.kachatNames)
+        }
+        // a notification naming no post: Profile, whose bell opens the Notifications screen
+        .onReceive(NotificationCenter.default.publisher(for: .openAllNotifications)) { _ in
+            show(.profile)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openGroup)) { _ in
             PendingTabRoute.pending = nil
-            handleTabSelectionChange(AppTab.chats.tag)
+            show(.chats)
         }
         .onReceive(NotificationCenter.default.publisher(for: .localStoreLoadFailed)) { note in
             storeLoadFailure = Self.storeFailureMessage(from: note)
@@ -165,21 +206,13 @@ struct MainTabView: View {
     }
 
 
-    @ViewBuilder
-    private func tabContent(for tab: AppTab) -> some View {
-        switch tab {
-        case .chats:
-            // Bare ChatListView, no ZStack, no wrappers - a permanent compositing wrapper on the
-            // app's main screen was the 4.0 "lag everywhere" regression.
-            ChatListView()
-        case .addressBook:
-            AddressBookView()
-        case .wallet:
-            WalletView()
-        case .profile:
-            ProfileView()
-        case .settings:
-            SettingsView()
+    /// Puts `tab` on screen: its dock slot, or Kaspa Hub with it open there.
+    private func show(_ tab: AppTab) {
+        if layout.dock.contains(tab) {
+            handleTabSelectionChange(tab.tag)
+        } else {
+            HubRouter.shared.open(tab)
+            handleTabSelectionChange(AppTab.hub.tag)
         }
     }
 
@@ -193,7 +226,14 @@ struct MainTabView: View {
     }
 
     private func handleTabSelectionChange(_ newValue: Int) {
+        // Kaspa Hub tapped again: back to its grid, the way out of a section opened there
+        if newValue == selectedTab, newValue == AppTab.hub.tag { HubRouter.shared.close() }
+        // KaPosts tapped again (or after another tab): the feed back to its top, as in KaPost
+        if newValue == AppTab.kaposts.tag {
+            NotificationCenter.default.post(name: .kaPostsScrollFeedToTop, object: nil)
+        }
         selectedTab = newValue
+        KaPostsDockRouter.shared.selectedTab = AppTab.allCases.first { $0.tag == newValue } ?? .hub
 
         // Off-chat-tab power saving, DEBOUNCED so rapidly flipping tabs can't thrash start/stop
         // (which was restarting the initial sync and freezing the UI). Only the settled tab - after
@@ -204,8 +244,10 @@ struct MainTabView: View {
         tabWorkTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000)
             if Task.isCancelled { return }
-            // Chats wants live traffic.
-            if newValue == AppTab.chats.tag {
+            // Chats wants live traffic (in its dock slot, or open in Kaspa Hub).
+            let chatsOnScreen = newValue == AppTab.chats.tag
+                || (newValue == AppTab.hub.tag && HubRouter.shared.openSection == .chats)
+            if chatsOnScreen {
                 await NodePoolService.shared.resumeDiscovery()
                 chatService.startPolling()
             } else {
@@ -235,15 +277,36 @@ struct MainTabView: View {
         }
         if let tab = PendingTabRoute.pending {
             PendingTabRoute.pending = nil
-            handleTabSelectionChange(tab.tag)
+            show(tab)
+            return
+        }
+        // A KaPosts or room push or link from a cold start: KaPostsView and PublicChatListView
+        // consume what is pending once they mount.
+        if KaPostsDeepLink.pendingPostTxId != nil || KaPostsDeepLink.pendingOpenNotifications
+            || KaPostsDeepLink.pendingOpenScheduled || KaPostsDeepLink.pendingComposeText != nil
+            || KaPostsDeepLink.pendingProfileAddress != nil {
+            show(.kaposts)
+            return
+        }
+        if PublicChatService.shared.pendingPublicChatNavigation != nil {
+            show(.chats)
+            return
+        }
+        // A bot challenge tapped before the tabs were up: GamesView takes it once it mounts.
+        if ChessBotLinkRouter.shared.challenge != nil {
+            show(.games)
+            return
+        }
+        if NotificationsRoute.pending {
+            show(.profile)
             return
         }
         if GroupChatService.shared.pendingGroupNavigation != nil ||
             GroupChatService.shared.pendingGroupListNavigation {
-            selectedTab = AppTab.chats.tag
+            show(.chats)
         } else if chatService.pendingChatNavigation != nil ||
             chatService.pendingProfileAddress != nil {
-            selectedTab = AppTab.chats.tag
+            show(.chats)
         }
     }
 
@@ -441,6 +504,41 @@ private struct OwnAddressSheetPresenter: ViewModifier {
     }
 }
 
+/// KaPosts and Public Chats routes (from KaPost's dock, 2026-11-21): a post, profile or
+/// notification opens the KaPosts tab, a room the Public Chats tab, a bot challenge Games,
+/// wherever they live; and a
+/// tab tapped on the dock copy over KaPosts' full-screen screens (`KaPostsDockCopy`) is shown
+/// as a tap on the real dock.
+private struct KaPostsRoutes: ViewModifier {
+    let show: (AppTab) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .openKaPost)) { _ in
+                show(.kaposts)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openKaPostsProfile)) { _ in
+                show(.kaposts)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openPublicChat)) { _ in
+                // A thread or profile open over KaPosts would sit on top of the room: they close
+                // first, as for a tap on the dock copy.
+                NotificationCenter.default.post(name: .kaPostsCloseCovers, object: nil)
+                show(.chats)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .kaPostsSelectDockTab)) { note in
+                guard let tab = note.object as? AppTab else { return }
+                show(tab)
+            }
+            // A bot challenge from a post's card (`ChessBotLinks.open`): KaPlay, which opens Chess
+            // and the bot (`ChessBotLinkRouter`). Covers over KaPosts close first, as for a room.
+            .onReceive(NotificationCenter.default.publisher(for: .openGames)) { _ in
+                NotificationCenter.default.post(name: .kaPostsCloseCovers, object: nil)
+                show(.games)
+            }
+    }
+}
+
 /// Keeps the dock badges in step (`AppTabBadge.syncDockBadges`): Profile's dot when the bell's
 /// feed changes (new messages sync them from `ChatService.updateAppBadge`), the tab changes, and on appear - set after the render that
 /// triggered it, so it lands on the bar SwiftUI just updated.
@@ -452,6 +550,9 @@ private struct DockBadgeSync: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onReceive(notifCenter.objectWillChange) { _ in sync() }
+            // KaPosts' unseen activity and the rooms' unread count
+            .onReceive(KaPostsNotificationCenter.shared.$unseenCount) { _ in sync() }
+            .onReceive(PublicChatUnreadBadge.shared.$count) { _ in sync() }
             .onChange(of: selectedTab) { _ in sync() }
             .onChange(of: dockTabs) { _ in sync() }
             .onAppear { sync() }
@@ -459,6 +560,10 @@ private struct DockBadgeSync: ViewModifier {
 
     private func sync() {
         let tabs = dockTabs
-        DispatchQueue.main.async { AppTabBadge.syncDockBadges(dockTabs: tabs) }
+        DispatchQueue.main.async {
+            AppTabBadge.syncDockBadges(dockTabs: tabs)
+            // the app icon too: KaPosts' and the rooms' counts change without a chat sync
+            ChatService.shared.updateAppBadge()
+        }
     }
 }

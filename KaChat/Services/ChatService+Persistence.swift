@@ -1223,10 +1223,12 @@ extension ChatService {
         }
     }
 
-    /// The app icon's count, and the dock badges (`AppTabBadge`).
+    /// The app icon's count, and the dock badges (`AppTabBadge`). The icon counts what the Chats
+    /// tab does (chats, groups, and public rooms with their bell on) plus KaPosts' unseen activity,
+    /// as KaPost's icon did (since 2026-11-21, with KaPosts and rooms back).
     func updateAppBadge() {
-        AppTabBadge.syncDockBadges(dockTabs: AppTab.dock)
-        let totalUnread = chatListUnreadCount + GroupChatService.shared.totalGroupUnreadCount
+        AppTabBadge.syncDockBadges(dockTabs: DockLayout.shared.dock)
+        let totalUnread = AppTabBadge.unreadCount(for: .chats) + max(0, KaPostsNotificationCenter.shared.unseenCount)
         SharedDataManager.setUnreadCount(totalUnread)
         if #available(iOS 16.0, *) {
             UNUserNotificationCenter.current().setBadgeCount(totalUnread)

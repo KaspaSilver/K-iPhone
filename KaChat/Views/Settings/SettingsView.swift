@@ -54,11 +54,16 @@ struct SettingsView: View {
     @State private var isPreparingChatHistoryExport = false
 
     @AppStorage(MessageStore.syncTroubleKey) private var syncTroubleActive = false
+    /// Help's Welcome Guide, replayed over Settings.
+    @State private var showWelcomeGuideReplay = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 PinnedListHeader(title: "Settings")
+                    .fullScreenCover(isPresented: $showWelcomeGuideReplay) {
+                        WelcomeGuideView(onFinished: { showWelcomeGuideReplay = false })
+                    }
                 Form {
                     // Alphabetical, down to the wipe row. Delete Account stays apart below.
                     settingsCategoryRow("About", icon: "info.circle", tint: .accentColor) {
@@ -81,6 +86,16 @@ struct SettingsView: View {
                     }
                     settingsCategoryRow("Diagnostics", icon: "stethoscope", tint: .accentColor) {
                         diagnosticsPage
+                    }
+                    // moved here from the old Profile screen, which became your KaPosts profile
+                    // (2026-11-21)
+                    // KaPosts' own settings (tips, cooldown, notifications), here since 2026-11-21
+                    // rather than in the feed's menu
+                    settingsCategoryRow("KaPost", icon: "square.text.square", tint: .accentColor) {
+                        KaPostsSettingsView(onClose: {}, embedded: true)
+                    }
+                    settingsCategoryRow("Help", icon: "questionmark.circle", tint: .accentColor) {
+                        ProfileHelpView(onWelcomeGuide: { showWelcomeGuideReplay = true })
                     }
                     settingsCategoryRow("Notifications", icon: "bell.badge", tint: .accentColor) {
                         NotificationsHubPage()
@@ -240,6 +255,17 @@ struct SettingsView: View {
                 } footer: {
                     Text("Turn off to show names like alice instead of alice.kachat. A name you gave someone yourself never has the ending.")
                 }
+            // the dock and Kaspa Hub: a sheet over the tabs (`.openCustomizeDock`), since each
+            // move rebuilds the tab bar this page sits in
+            Section {
+                Button {
+                    NotificationCenter.default.post(name: .openCustomizeDock, object: nil)
+                } label: {
+                    Label("Customize Dock", systemImage: "dock.rectangle")
+                }
+            } footer: {
+                Text("Pick what's in your dock. Everything else is in Kaspa Hub.")
+            }
         }
         .navigationTitle("Customization")
         .navigationBarTitleDisplayMode(.inline)
@@ -723,6 +749,12 @@ private struct AccountAboutPage: View {
                         Text(verbatim: "kaspasilver@gmail.com")
                             .foregroundColor(.secondary)
                     }
+                }
+                NavigationLink {
+                    TermsOfUseView()
+                } label: {
+                    Text("Terms of Use")
+                        .foregroundColor(.primary)
                 }
                 Link(destination: Self.privacyPolicyURL) {
                     HStack {
@@ -1326,6 +1358,74 @@ private struct QuickReactionSlotSelection: Identifiable {
     var id: Int { index }
 }
 
+/// Settings > Notifications > KaPosts: per-event-type gates for KaPosts pings, mapped from
+/// the K notifications API's action kinds (see AppSettings.shouldNotifyKaPostsAction).
+/// Disabled types are silently skipped - never queued for later (from KaPost, 2026-11-21).
+struct KaPostsNotificationSettingsView: View {
+    @EnvironmentObject var settingsViewModel: SettingsViewModel
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Likes", isOn: $settingsViewModel.settings.kaPostsNotifyLikes)
+                    .onChange(of: settingsViewModel.settings.kaPostsNotifyLikes) { _ in
+                        settingsViewModel.saveSettings()
+                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
+                        // §3). KaPosts pushes carry no mutable-content, so the extension never
+                        // runs for them and nothing on the device can stop a background push;
+                        // only a re-registration carrying the new switch does.
+                        Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
+                    }
+                Toggle("Reposts", isOn: $settingsViewModel.settings.kaPostsNotifyReposts)
+                    .onChange(of: settingsViewModel.settings.kaPostsNotifyReposts) { _ in
+                        settingsViewModel.saveSettings()
+                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
+                        // §3). KaPosts pushes carry no mutable-content, so the extension never
+                        // runs for them and nothing on the device can stop a background push;
+                        // only a re-registration carrying the new switch does.
+                        Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
+                    }
+                Toggle("Follows", isOn: $settingsViewModel.settings.kaPostsNotifyFollows)
+                    .onChange(of: settingsViewModel.settings.kaPostsNotifyFollows) { _ in
+                        settingsViewModel.saveSettings()
+                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
+                        // §3). KaPosts pushes carry no mutable-content, so the extension never
+                        // runs for them and nothing on the device can stop a background push;
+                        // only a re-registration carrying the new switch does.
+                        Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
+                    }
+                Toggle("Dislikes", isOn: $settingsViewModel.settings.kaPostsNotifyDislikes)
+                    .onChange(of: settingsViewModel.settings.kaPostsNotifyDislikes) { _ in
+                        settingsViewModel.saveSettings()
+                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
+                        // §3). KaPosts pushes carry no mutable-content, so the extension never
+                        // runs for them and nothing on the device can stop a background push;
+                        // only a re-registration carrying the new switch does.
+                        Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
+                    }
+                Toggle("Comments", isOn: $settingsViewModel.settings.kaPostsNotifyComments)
+                    .onChange(of: settingsViewModel.settings.kaPostsNotifyComments) { _ in
+                        settingsViewModel.saveSettings()
+                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
+                        // §3). KaPosts pushes carry no mutable-content, so the extension never
+                        // runs for them and nothing on the device can stop a background push;
+                        // only a re-registration carrying the new switch does.
+                        Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
+                    }
+                Toggle("Mentions", isOn: $settingsViewModel.settings.kaPostsNotifyMentions)
+                    .onChange(of: settingsViewModel.settings.kaPostsNotifyMentions) { _ in
+                        settingsViewModel.saveSettings()
+                        // Sent with the other kinds (`kaposts_notify_mentions`), so the push
+                        // service can skip mention pushes while it's off, as for the rest.
+                        Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
+                    }
+            }
+        }
+        .navigationTitle("KaPost")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 /// Top-level Settings > Notifications hub: a category list (same row style as the main
 /// Settings screen) splitting notification prefs by feature - Chats (the pre-existing
 /// mode/sound/vibration page, moved here intact from Settings > Chats) and Wallet (own-address
@@ -1377,6 +1477,10 @@ struct NotificationsHubPage: View {
                 }
                 settingsCategoryRow("Wallet", icon: "banknote", tint: .accentColor) {
                     WalletNotificationSettingsView()
+                }
+                // KaPosts' kinds; Public Chats rooms keep their own bells, in each room.
+                settingsCategoryRow("KaPost", icon: AppTab.kaposts.icon, tint: .accentColor) {
+                    KaPostsNotificationSettingsView()
                 }
             }
         }
@@ -1989,6 +2093,7 @@ struct ConnectionSettingsView: View {
     @State private var kachatNamesIndexerURL: String = ""
     @State private var kaspaRestAPIURL: String = ""
     @State private var trestlyAPIURL: String = ""
+    @State private var trestlySiteURL: String = ""
     @State private var trustedNodeValidationError: String?
 
     @State private var newSavedNodeLabel: String = ""
@@ -2046,6 +2151,10 @@ struct ConnectionSettingsView: View {
             }
         } header: {
             Text("Message Indexer")
+        } footer: {
+            // KaPlay had its own Chess card for the arena's indexer; here the arena is a public
+            // room, and every room follows this indexer (`AppSettings.publicChatIndexerURL`).
+            Text("KaPost, Public Chats and Chess are read from this indexer too.")
         }
 
         Section {
@@ -2269,6 +2378,23 @@ struct ConnectionSettingsView: View {
         } footer: {
             Text("Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default.")
         }
+        Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Trestly Site URL")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                TextField(AppSettings.defaultTrestlySiteURL(for: settingsViewModel.settings.networkType), text: $trestlySiteURL)
+                    .font(.system(.body, design: .monospaced))
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                httpsInlineError(for: trestlySiteURL)
+            }
+        } header: {
+            Text("Trestly Site")
+        } footer: {
+            Text("The site Swap Stablecoins shows inside KaChat, connected to the address you choose. Leave it blank for this network's default.")
+        }
     }
 
     /// The field hint: the network's default (testnet has none, so just the scheme).
@@ -2481,6 +2607,7 @@ struct ConnectionSettingsView: View {
         kachatNamesIndexerURL = settingsViewModel.settings.kachatNamesIndexerURL
         kaspaRestAPIURL = settingsViewModel.settings.kaspaRestAPIURL
         trestlyAPIURL = settingsViewModel.settings.trestlyAPIURL
+        trestlySiteURL = settingsViewModel.settings.trestlySiteURL
     }
 
     /// Persists the endpoint fields, or returns false without saving anything when any field
@@ -2495,7 +2622,7 @@ struct ConnectionSettingsView: View {
     /// https:// (Decision 3A).
     @discardableResult
     private func saveSettings() -> Bool {
-        let allFields = [indexerURL, pushIndexerURL, kachatNamesIndexerURL, kaspaRestAPIURL, trestlyAPIURL]
+        let allFields = [indexerURL, pushIndexerURL, kachatNamesIndexerURL, kaspaRestAPIURL, trestlyAPIURL, trestlySiteURL]
         guard !allFields.contains(where: isCleartextHTTP) else {
             showToast(Self.httpsRequiredError, style: .error)
             return false
@@ -2514,6 +2641,7 @@ struct ConnectionSettingsView: View {
         settingsViewModel.settings.kachatNamesIndexerURL = normalizedOrDefault(kachatNamesIndexerURL, defaults.kachatNamesIndexerURL)
         settingsViewModel.settings.kaspaRestAPIURL = normalizedOrDefault(kaspaRestAPIURL, defaults.kaspaRestAPIURL)
         settingsViewModel.settings.trestlyAPIURL = normalizedOrDefault(trestlyAPIURL, AppSettings.defaultTrestlyAPIURL(for: settingsViewModel.settings.networkType))
+        settingsViewModel.settings.trestlySiteURL = normalizedOrDefault(trestlySiteURL, AppSettings.defaultTrestlySiteURL(for: settingsViewModel.settings.networkType))
         settingsViewModel.saveSettings()
         // A new names indexer is checked right away (the refresh re-picks indexer or chain)
         // instead of at the next stale refresh, so names show from it as soon as Save is tapped.

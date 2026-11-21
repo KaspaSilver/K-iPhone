@@ -281,7 +281,7 @@ struct CreatePaymentRequestView: View {
                         .disabled(!canMake || isWorking)
                     }
 
-                    Text("Anyone who opens it in KaPay or KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key).")
+                    Text("Anyone who opens it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key).")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -385,17 +385,16 @@ struct CreatePaymentRequestView: View {
     }
 }
 
-/// A payment request as a QR. Scanned with an iPhone's camera it opens KaPay on Send, filled in
-/// (`kapay://pay/...`, the link KaChat hands requests to KaPay with - `KaPayHandoff`). A request
-/// to your chatting address is paid as a chat payment, which only KaChat can make, so that one
-/// holds the kachat.app link instead, which opens KaChat.
+/// A payment request as a QR: its kachat.app link, so an iPhone's camera opens KaChat on Send,
+/// filled in. (Until 2026-11-21 a request to a spending address held a `kapay://pay/` link for
+/// KaPay; KaPay is retired and KaChat pays every request itself, and still opens those links.)
 private struct PaymentRequestQRSheet: View {
     let request: PaymentRequest
     @Environment(\.dismiss) private var dismiss
     @State private var image: UIImage?
 
     private var payload: String {
-        request.toChattingAddress ? request.shareURLString : "\(KaPayHandoff.scheme)://pay/\(request.linkTail)"
+        request.shareURLString
     }
 
     var body: some View {
@@ -433,9 +432,7 @@ private struct PaymentRequestQRSheet: View {
                     // white, with a quiet zone, so every camera reads it in dark mode too
                     .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.white))
 
-                    Text(request.toChattingAddress
-                         ? "Scan it with an iPhone's camera to pay in KaChat, with everything filled in."
-                         : "Scan it with an iPhone's camera to pay in KaPay, with everything filled in.")
+                    Text("Scan it with an iPhone's camera to pay in KaChat, with everything filled in.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -468,51 +465,16 @@ private struct PaymentRequestShareSheet: UIViewControllerRepresentable {
 
 // MARK: - Paying one
 
-/// Payment requests from outside a chat are paid in KaPay, KaChat's wallet app (one tapped in a
-/// chat stays here - `KaChatLinkRouter.openPaymentRequest`): someone else's request opens there
-/// on Send, filled in, through KaPay's own scheme (`kapay://pay/...`, the same tail as
-/// `kachat://pay/`). Two stay here: your own (nothing to pay - `OwnPaymentRequestView`), and one
-/// asking for a chat payment (`toChattingAddress`, made from a 1:1 chat), which KaChat pays as an
-/// encrypted chat payment so it lands in your chat with them - KaPay can't; `inApp` opens those.
-/// Without KaPay installed, KaChat's install page opens to get it.
-enum KaPayHandoff {
-    static let scheme = "kapay"
-    /// Where a request goes when KaPay isn't installed: the install page all the apps share.
-    static let installURL = URL(string: "https://home.kachat.app/install/")!
+// Every payment request is paid here since 2026-11-21 (KaPay is retired): someone else's opens
+// Send Kaspa filled in, your own shows itself (`PaymentRequestSheetPresenter`). `kapay://pay/...`
+// links an older KaPay or KaChat made still open, in KaChat (`KaChatApp.handleIncomingURL`).
 
-    @MainActor
-    static func pay(_ request: PaymentRequest, inApp: @escaping () -> Void) {
-        guard !request.isOwn, !request.toChattingAddress,
-              let url = URL(string: "\(scheme)://pay/\(request.linkTail)") else {
-            inApp()
-            return
-        }
-        UIApplication.shared.open(url) { opened in
-            if !opened { UIApplication.shared.open(installURL) }
-        }
-    }
-
-    /// Get KaPay (where kUSDT is bought): switches to KaPay when it's on the phone, else opens the
-    /// install page.
-    @MainActor
-    static func openOrInstall() {
-        guard let url = URL(string: "\(scheme)://open") else { return }
-        UIApplication.shared.open(url) { opened in
-            if !opened { UIApplication.shared.open(installURL) }
-        }
-    }
-}
-
-/// A KaPost post link (`KaChatInternalLink.kaPost`), tapped in a chat or opened from outside the
-/// app, goes straight to that post in KaPost through its own scheme. Without KaPost installed,
-/// the install page all the apps share opens to get it.
-enum KaPostHandoff {
-    @MainActor
-    static func open(txId: String) {
-        guard let url = URL(string: "kaposts://kapost/\(txId)") else { return }
-        UIApplication.shared.open(url) { opened in
-            if !opened { UIApplication.shared.open(KaPayHandoff.installURL) }
-        }
+/// A text view where pasting someone's payment request opens Send Kaspa (the KaPosts composer;
+/// the chat composers' `ComposerUITextView` does the same).
+final class PaymentRequestAwareTextView: UITextView {
+    override func paste(_ sender: Any?) {
+        if PaymentRequestPaste.openIfRequest(UIPasteboard.general.string) { return }
+        super.paste(sender)
     }
 }
 
@@ -737,6 +699,144 @@ struct OwnPaymentRequestView: View {
             }
         }
         .presentationDetents([.large])
+    }
+}
+
+/// A payment request link in a KaPost, drawn as a card instead of the link's long text: the
+/// amount (and what it comes to in the app's currency), the memo, who signed it, and a Pay
+/// button. A tap opens it from the card itself (Send Kaspa filled in, or your own request), so it
+/// works inside threads and profiles (full-screen covers the dock's sheet can't show over) too.
+struct KaPostPaymentRequestCard: View {
+    let request: PaymentRequest
+
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
+    @ObservedObject private var priceService = KasPriceModel.shared
+    @State private var presented: PaymentRequest?
+
+    private var fiatText: String? {
+        let currency = settingsViewModel.settings.currency
+        guard let price = priceService.price(in: currency), price > 0 else { return nil }
+        return "\u{2248} " + formatFiatAmount(Double(request.amountSompi) / 100_000_000 * price, currency: currency)
+    }
+
+    private var creatorName: String? {
+        guard let creator = request.creator else { return nil }
+        if let name = KachatLive.identityName(creator) { return name }
+        return ContactsManager.shared.displayName(for: creator)
+    }
+
+    var body: some View {
+        let isOwn = request.isOwn
+        Button {
+            Haptics.impact(.light)
+            presented = request
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image("KaspaLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 40, height: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Payment Request")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundColor(.accentColor)
+                            .textCase(.uppercase)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(verbatim: "\(request.amountText) \(KaspaUnit.symbol)")
+                                .font(.system(.title2, design: .rounded).weight(.bold))
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                            if let fiatText {
+                                Text(verbatim: fiatText)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        if !request.memo.isEmpty {
+                            Text(verbatim: request.memo)
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                                .lineLimit(3)
+                                .multilineTextAlignment(.leading)
+                                .padding(.top, 2)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                HStack(spacing: 8) {
+                    if let creatorName {
+                        Label {
+                            Text(verbatim: creatorName)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        } icon: {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundColor(.green)
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.secondary)
+                    } else {
+                        Label("Not signed", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.orange)
+                    }
+                    Spacer(minLength: 8)
+                    HStack(spacing: 5) {
+                        Image(systemName: isOwn ? "eye" : "arrow.up.circle.fill")
+                        Text(isOwn ? "View" : "Pay")
+                    }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundColor(isOwn ? .accentColor : .white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(isOwn ? Color.accentColor.opacity(0.15) : Color.accentColor))
+                    .fixedSize()
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.accentColor.opacity(0.35), lineWidth: 1)
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(Text(isOwn ? "Shows your payment request." : "Opens Send Kaspa to pay it."))
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = request.shareURLString
+                Haptics.success()
+            } label: {
+                Label("Copy Link", systemImage: "doc.on.doc")
+            }
+        }
+        // what `PaymentRequestSheetPresenter` shows
+        .sheet(item: $presented) { request in
+            if request.isOwn {
+                OwnPaymentRequestView(request: request)
+                    .environmentObject(settingsViewModel)
+            } else if let wallet = WalletManager.shared.currentWallet {
+                WithdrawKaspaView(
+                    fromAddress: wallet.publicAddress,
+                    availableBalanceSompi: wallet.balanceSompi,
+                    paymentRequest: request
+                )
+                .environmentObject(ChatService.shared)
+                .environmentObject(ContactsManager.shared)
+                .environmentObject(WalletManager.shared)
+                .environmentObject(settingsViewModel)
+            }
+        }
     }
 }
 

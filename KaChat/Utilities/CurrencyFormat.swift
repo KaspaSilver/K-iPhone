@@ -19,6 +19,12 @@ func formatFiatAmount(_ value: Double, currency: AppCurrency, decimals: Int = 2)
     return "\(sign)\(currencySymbol(for: currency))\(String(format: "%.\(decimals)f", abs(value)))"
 }
 
+/// A plain amount in `currency` with its decimals (2, or 8 for bitcoin), no symbol: what a
+/// currency-mode amount field shows and parses back (KaPosts' default tip, from KaPost).
+func formatCurrencyAmountPlain(_ value: Double, currency: AppCurrency) -> String {
+    String(format: "%.\(currency == .bitcoin ? 8 : 2)f", value)
+}
+
 /// Trimmed 8-decimal KAS amount (e.g. "12.5" rather than "12.50000000").
 /// Exact plain KAS text for a sompi amount, by integer math (no Double rounding at large
 /// balances): "12.5", "0.00000001", "90000000.12345678".

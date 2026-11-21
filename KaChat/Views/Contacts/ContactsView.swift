@@ -2162,7 +2162,7 @@ private struct KNSDomainsListView: View {
             case .k, .kaspa:
                 serviceNameList(tld)
             case .kachat:
-                KachatOwnedNamesList(walletAddress: walletAddress)
+                KachatLiveDomainsTab(walletAddress: walletAddress)
             }
         }
         .navigationTitle(tld.suffix)
@@ -4655,11 +4655,12 @@ enum ProfileQRCodeCache {
 // MARK: - Profile Help screen
 
 /// All the app's guides in one place, reached from Profile > Help: the first-run Welcome
-/// Guide, replayed through ProfileView's own cover (callback). The .kachat names guide left with
-/// the .kachat market on 2026-10-24.
+/// Guide, replayed through ProfileView's own cover (callback), and KaPay's .kachat Names and kUSDT
+/// guides (back 2026-11-21).
 struct ProfileHelpView: View {
     let onWelcomeGuide: () -> Void
-
+    /// KaPay's .kachat Names Guide (back 2026-11-21 with the .kachat market), full screen.
+    @State private var showKachatSetupGuide = false
 
     var body: some View {
         List {
@@ -4671,10 +4672,28 @@ struct ProfileHelpView: View {
                 ) {
                     onWelcomeGuide()
                 }
+                // KaPay's two guides (2026-11-21, all-in-one)
+                helpRow(
+                    icon: "person.text.rectangle",
+                    title: ".kachat Names Guide",
+                    subtitle: "Claim a .kachat name, make it your name, and keep it."
+                ) {
+                    showKachatSetupGuide = true
+                }
+                NavigationLink {
+                    TokenGuideView()
+                } label: {
+                    helpRowLabel(icon: "dollarsign.circle", title: "kUSDT Guide",
+                                 subtitle: "What kUSDT is, where it lives, and how sending and swapping work.",
+                                 showsChevron: false)
+                }
             }
         }
         .navigationTitle("Help")
         .navigationBarTitleDisplayMode(.large)
+        .fullScreenCover(isPresented: $showKachatSetupGuide) {
+            KachatSetupGuideView { showKachatSetupGuide = false }
+        }
     }
 
     private func helpRow(
@@ -4684,6 +4703,13 @@ struct ProfileHelpView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
+            helpRowLabel(icon: icon, title: title, subtitle: subtitle, showsChevron: true)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// A row's icon, title and line; a NavigationLink draws its own chevron.
+    private func helpRowLabel(icon: String, title: String, subtitle: String, showsChevron: Bool) -> some View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.scaled(size: 20, weight: .semibold))
@@ -4698,14 +4724,14 @@ struct ProfileHelpView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if showsChevron {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             .padding(.vertical, 6)
             .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 

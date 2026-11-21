@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 // Managing a token, the way Manage Addresses manages Kaspa (owner's design, 2026-11-19, ported
 // from KaPay): the addresses holding it, each with its own page (its history of just that token,
@@ -116,7 +117,11 @@ struct TokenManageView: View {
         }
         .sheet(item: $rowActionsTarget) { holding in
             rowActionsSheet(holding)
-                .fittedSheetDetents(holding.coins > 1 ? 520 : 440)
+                // the Chatting Address has only Copy, QR and Combine (it can't be renamed, sent
+                // to itself or hidden)
+                .fittedSheetDetents(holding.isChatting
+                                    ? (holding.coins > 1 ? 340 : 260)
+                                    : (holding.coins > 1 ? 520 : 440))
                 .presentationDragIndicator(.visible)
         }
         .sheet(item: $qrTarget) { holding in
@@ -202,7 +207,7 @@ struct TokenManageView: View {
             TokenIcon(token: token, size: 48)
             Text(verbatim: String(format: AppLocalization.string("No %@ Yet"), token.symbol))
                 .font(.headline)
-            Text("Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay.")
+            Text("Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -265,25 +270,19 @@ struct TokenManageView: View {
                         .foregroundColor(used ? .orange : .green)
                 }
                 Spacer()
-                if holding.isChatting {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
+                // every row has its own actions (owner's call, 2026-11-21: the Chatting Address too)
+                Button {
+                    rowActionsTarget = holding
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.scaled(size: 18, weight: .bold))
+                        .rotationEffect(.degrees(90))
                         .foregroundColor(.secondary)
-                } else {
-                    // its own actions, as Manage Addresses has on each spending address
-                    Button {
-                        rowActionsTarget = holding
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.scaled(size: 18, weight: .bold))
-                            .rotationEffect(.degrees(90))
-                            .foregroundColor(.secondary)
-                            .frame(width: 24, height: 24)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text("Address Actions"))
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Address Actions"))
             }
             .padding(16)
         }
@@ -310,6 +309,7 @@ struct TokenManageView: View {
             .padding(.top, 20)
             .padding(.bottom, 4)
 
+            if !holding.isChatting {
             ActionSheetRow(
                 title: "Rename Address",
                 subtitle: "Gives this address a label of your own.",
@@ -322,6 +322,7 @@ struct TokenManageView: View {
                     renameText = current.hasPrefix("Address #") ? "" : current
                     renameTarget = holding
                 }
+            }
             }
             ActionSheetRow(
                 title: "Copy Address",
@@ -342,6 +343,7 @@ struct TokenManageView: View {
                 DispatchQueue.main.async { qrTarget = holding }
             }
             // as Kaspa's Manage Addresses: this address's kUSDT, the Chatting Address filled in
+            if !holding.isChatting {
             ActionSheetRow(
                 title: "Send to Chatting Address",
                 subtitle: "Moves kUSDT from this address to your Chatting Address.",
@@ -350,6 +352,7 @@ struct TokenManageView: View {
             ) {
                 rowActionsTarget = nil
                 DispatchQueue.main.async { sendToChattingTarget = holding }
+            }
             }
             // more than one coin: each holds 1.5 KAS, merging them gives the extra back
             if holding.coins > 1 {
@@ -363,6 +366,7 @@ struct TokenManageView: View {
                 }
             }
             // as unchecking it in kUSDT Address Visibility; it still counts in the total
+            if !holding.isChatting {
             ActionSheetRow(
                 title: "Hide Address",
                 subtitle: String(format: AppLocalization.string("Removes it from this list. Re-enable it in %@ Address Visibility."), token.symbol),
@@ -371,6 +375,7 @@ struct TokenManageView: View {
             ) {
                 rowActionsTarget = nil
                 if tokens.isListed(holding, of: token) { tokens.toggleListed(holding, of: token) }
+            }
             }
 
             Spacer(minLength: 0)
@@ -941,4 +946,374 @@ struct TokenAboutCard: View {
                 .background(Capsule().fill(Color.accentColor.opacity(0.15)))
         }
     }
+}
+
+// MARK: - Trestly, inside KaChat (from KaPay, 2026-11-21)
+
+/// The address Trestly's site works with while it's open.
+struct TrestlyTarget: Identifiable, Equatable {
+    let label: String
+    let address: String
+    /// nil: the Chatting Address; else the regular spending slot, whose key signs the site's trades.
+    let spendingIndex: Int?
+    /// The token on it, shown on its row in the address picker (`TrestlyConnectSheet`).
+    var units: UInt64 = 0
+    var id: String { address }
+
+    @MainActor init(holding: TokenHolding) {
+        label = holding.label
+        address = holding.address
+        spendingIndex = holding.spendingIndex
+        units = holding.units
+    }
+
+    init(label: String, address: String, spendingIndex: Int?, units: UInt64 = 0) {
+        self.label = label
+        self.address = address
+        self.spendingIndex = spendingIndex
+        self.units = units
+    }
+}
+
+/// Swap Stablecoins' kUSDT (`BuyStablecoinsSheet`, the only way in): which address the site works
+/// with (the Chatting Address, every address holding the token, regular addresses holding KAS,
+/// or a fresh one), then the site itself inside KaPay.
+struct TrestlyConnectSheet: View {
+    let token: WalletToken
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var walletManager: WalletManager
+    @ObservedObject private var tokens = TokenWallet.shared
+    @State private var pickedID: String?
+    @State private var fresh: (index: Int, address: String)?
+    @State private var openTarget: TrestlyTarget?
+    /// Each spending address's KAS (Manage Addresses' list), shown under its kUSDT; nil until read.
+    @State private var kasByAddress: [String: UInt64]?
+    /// Regular spending addresses holding KAS (hidden ones too), offered beside those holding kUSDT
+    /// (owner's call, 2026-11-20: every address with a balance of either). Never a quantum one:
+    /// Trestly's code trades only from plain Schnorr addresses.
+    @State private var kasAddresses: [SpendingAddressEntry] = []
+
+    /// An address's KAS: the wallet's own balance for the Chatting Address, the spending list's
+    /// for the rest (a fresh address has none yet).
+    private func kasBalance(_ address: String) -> UInt64? {
+        if let wallet = walletManager.currentWallet, wallet.publicAddress == address {
+            return wallet.balanceSompi
+        }
+        guard let kasByAddress else { return nil }
+        return kasByAddress[address] ?? 0
+    }
+
+    private var choices: [TrestlyTarget] {
+        var list: [TrestlyTarget] = []
+        let held = tokens.holdings(of: token)
+        if let chatting = walletManager.currentWallet?.publicAddress {
+            list.append(TrestlyTarget(label: AppLocalization.string("Chatting Address"), address: chatting, spendingIndex: nil,
+                                      units: held.first(where: \.isChatting)?.units ?? 0))
+        }
+        for holding in held where !holding.isChatting {
+            list.append(TrestlyTarget(holding: holding))
+        }
+        // and every regular address holding KAS, in address order
+        for entry in kasAddresses where !list.contains(where: { $0.address == entry.address }) {
+            list.append(TrestlyTarget(label: entry.displayLabel, address: entry.address, spendingIndex: entry.index))
+        }
+        // one row per address: a fresh one that somehow matched a listed address isn't offered twice
+        if let fresh, !list.contains(where: { $0.address == fresh.address }) {
+            list.append(TrestlyTarget(label: AppLocalization.string("Fresh Address"), address: fresh.address, spendingIndex: fresh.index))
+        }
+        return list
+    }
+
+    private var picked: TrestlyTarget? { choices.first(where: { $0.id == pickedID }) }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    SendStepQuestion(text: "Which address should Trestly use?")
+                    Text("Everything you do on Trestly's site, swapping or adding to the pool, happens on this address. Only it is shown to the site.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(choices) { choice in
+                        choiceRow(choice)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+            }
+            .navigationTitle("Open Trestly")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    guard let picked else { return }
+                    if picked.address == fresh?.address, let fresh {
+                        Task { await TokenWallet.shared.revealFreshReceiveAddress(fresh.index) }
+                    }
+                    openTarget = picked
+                } label: {
+                    Text("Open Trestly")
+                        .font(.headline)
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Capsule().fill(Color.accentColor.opacity(picked == nil ? 0.4 : 1)))
+                }
+                .buttonStyle(.plain)
+                .disabled(picked == nil)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .background(.bar)
+            }
+        }
+        .onAppear {
+            if fresh == nil { fresh = TokenWallet.shared.freshReceiveAddress() }
+        }
+        .task {
+            let entries = await walletManager.getSpendingAddressList()
+            kasByAddress = Dictionary(entries.map { ($0.address, $0.balanceSompi) }, uniquingKeysWith: { first, _ in first })
+            kasAddresses = entries.filter { !$0.isQuantum && $0.balanceSompi > 0 }.sorted { $0.index < $1.index }
+        }
+        .fullScreenCover(item: $openTarget) { target in
+            TrestlyBrowserView(target: target)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .trestlyDone)) { _ in dismiss() }
+    }
+
+    private func choiceRow(_ choice: TrestlyTarget) -> some View {
+        let selected = pickedID == choice.id
+        let isChatting = choice.address == walletManager.currentWallet?.publicAddress
+        return Button {
+            Haptics.impact(.light)
+            pickedID = choice.id
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundColor(selected ? .accentColor : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(verbatim: choice.label)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.primary)
+                        Image(systemName: isChatting ? "person.crop.circle.fill" : "eye.slash.fill")
+                            .font(.caption2)
+                            .foregroundColor(isChatting ? .orange : .green)
+                    }
+                    Text(verbatim: choice.address)
+                        .font(.caption.monospaced())
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer(minLength: 8)
+                // both balances: the kUSDT to trade, and the KAS to swap or pay the fee with
+                let kas = kasBalance(choice.address)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(verbatim: TokenAmount.amount(choice.units, token: token))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(choice.units > 0 ? .primary : .secondary)
+                    Text(verbatim: kas.map { KaspaUnit.amount($0) } ?? "\u{2013} \(KaspaUnit.symbol)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor((kas ?? 0) > 0 ? .primary : .secondary)
+                }
+                .monospacedDigit()
+                .lineLimit(1)
+                .layoutPriority(1)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(.regularMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(selected ? Color.accentColor : Color.white.opacity(0.18), lineWidth: selected ? 1.5 : 0.8)
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Trestly's site inside KaPay, full screen, working with one address: Done, the site, and a
+/// strip saying which address it's connected to.
+///
+/// The page gets KaPay's wallet provider (`TrestlyProvider`, kusdt-open SPEC section 14) for `target`
+/// only: it connects, reads the network and that address's balances, and swaps or moves liquidity
+/// through Trestly's own code after KaPay's Approve. Send and redeem are answered 4200. The page
+/// can't leave Trestly's site (`TrestlyWebView.Coordinator`).
+struct TrestlyBrowserView: View {
+    let target: TrestlyTarget
+    @Environment(\.dismiss) private var dismiss
+    @State private var isLoading = true
+    /// The page's wallet provider, kept for as long as the browser is open; its `approval` is the
+    /// trade waiting for an answer.
+    @StateObject private var provider: TrestlyProvider
+
+    init(target: TrestlyTarget) {
+        self.target = target
+        _provider = StateObject(wrappedValue: TrestlyProvider(target: target, siteURL: Self.siteURL))
+    }
+
+    /// Settings > Connection Settings > Trestly (this network's own by default).
+    static var siteURL: URL {
+        URL(string: AppSettings.load().trestlySiteURL) ?? URL(string: AppSettings.defaultTrestlySiteURL(for: .mainnet))!
+    }
+
+    /// Where the site opens: its Swap page (KAS ⇄ kUSDT), what most people come for first (owner's
+    /// call, 2026-11-19). The site's menu has Bridge, Swap, Pool, Portfolio, Reserves and Activity.
+    static var startURL: URL { siteURL.appendingPathComponent("swap") }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Button("Done") {
+                    dismiss()
+                    // straight back to the Wallet tab, not the screen Trestly was opened from
+                    NotificationCenter.default.post(name: .trestlyDone, object: nil)
+                }
+                    .font(.headline)
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.caption2)
+                    Text(verbatim: Self.siteURL.host ?? "trestly.io")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundColor(.secondary)
+                Spacer(minLength: 0)
+                if isLoading {
+                    ProgressView()
+                        .frame(width: 44)
+                } else {
+                    Color.clear.frame(width: 44, height: 1)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.bar)
+
+            HStack(spacing: 8) {
+                Image(systemName: "link")
+                    .font(.caption.weight(.bold))
+                    .foregroundColor(.accentColor)
+                Text(verbatim: String(format: AppLocalization.string("Connected: %@"), target.label))
+                    .font(.caption.weight(.semibold))
+                Text(verbatim: "\(target.address.prefix(14))...\(target.address.suffix(6))")
+                    .font(.caption.monospaced())
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                TokenSampleBadge()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.accentColor.opacity(0.12))
+
+            TrestlyWebView(url: Self.startURL, provider: provider, isLoading: $isLoading)
+        }
+        .background(Color(.systemBackground))
+        // a completed swap, over the page (`TrestlyProvider.announceSwap`)
+        .toast(message: provider.banner)
+        .sheet(item: $provider.approval) { request in
+            TrestlyApprovalSheet(request: request) { approved in
+                provider.approval = nil
+                request.respond(approved)
+            }
+            .interactiveDismissDisabled(false)
+            .onDisappear { request.respond(false) }
+        }
+        // Done or any other way out: a sheet still up is declined and the page can't ask again
+        .onDisappear { provider.close() }
+    }
+}
+
+/// The page itself: a `WKWebView` with its own data store (nothing shared with the app) and KaPay's
+/// wallet provider (`TrestlyProvider`) for `target`, on the Trestly site only.
+private struct TrestlyWebView: UIViewRepresentable {
+    let url: URL
+    let provider: TrestlyProvider
+    @Binding var isLoading: Bool
+
+    func makeCoordinator() -> Coordinator { Coordinator(isLoading: $isLoading, siteURL: url) }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        provider.install(in: configuration)
+        let view = WKWebView(frame: .zero, configuration: configuration)
+        view.navigationDelegate = context.coordinator
+        view.uiDelegate = context.coordinator
+        view.allowsBackForwardNavigationGestures = true
+        view.load(URLRequest(url: url))
+        return view
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        @Binding var isLoading: Bool
+        /// The only origin the page may be: the bar above it says this site, and the wallet
+        /// provider answers only here.
+        let host: String
+        let port: Int
+        init(isLoading: Binding<Bool>, siteURL: URL) {
+            _isLoading = isLoading
+            host = siteURL.host?.lowercased() ?? ""
+            port = siteURL.port ?? 443
+        }
+
+        private func isTrestly(_ url: URL?) -> Bool {
+            guard let url, url.scheme == "https", url.host?.lowercased() == host else { return false }
+            return (url.port ?? 443) == port
+        }
+
+        /// The page stays on Trestly's site (audit, 2026-11-20): a link or redirect anywhere else
+        /// would show another site under the "trestly.io" bar, inside the wallet. A link the user
+        /// tapped opens in Safari instead; anything else off the site is stopped. Frames inside the
+        /// page may load (they can't reach the wallet provider).
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            let url = navigationAction.request.url
+            let mainFrame = navigationAction.targetFrame?.isMainFrame ?? true
+            if !mainFrame || isTrestly(url) || url?.scheme == "about" {
+                decisionHandler(.allow)
+                return
+            }
+            decisionHandler(.cancel)
+            if navigationAction.navigationType == .linkActivated, let url, url.scheme == "https" {
+                UIApplication.shared.open(url)
+            }
+        }
+
+        /// A link meant for a new window: Trestly's own pages load here, others open in Safari.
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = navigationAction.request.url {
+                if isTrestly(url) {
+                    webView.load(URLRequest(url: url))
+                } else if url.scheme == "https" {
+                    UIApplication.shared.open(url)
+                }
+            }
+            return nil
+        }
+
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { isLoading = true }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { isLoading = false }
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { isLoading = false }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { isLoading = false }
+    }
+}
+
+extension Notification.Name {
+    /// Trestly's site closed (Done): back to the Wallet tab, not the screen it was opened from.
+    static let trestlyDone = Notification.Name("trestlyDone")
 }

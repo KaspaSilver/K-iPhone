@@ -1,7 +1,7 @@
 # KaChat Stats - indexer handoff
 
-> **2026-10-24:** the iPhone screen described below was removed from the app; KaChat Stats now lives on
-> home.kachat.app, which reads this same `GET /stats` endpoint. The contract is unchanged.
+> **2026-11-21:** the iPhone screen described below is back in the app (Kaspa Hub > Stats); it left
+> on 2026-10-24, and home.kachat.app reads this same `GET /stats` endpoint too. The contract is unchanged.
 
 Kaspa Hub > **KaChat Stats** (5.2, `KaChat/Views/Ecosystem/KaChatStatsView.swift`) shows how many
 transactions KaChat has put on Kaspa, split by kind. The app never counts anything itself: it

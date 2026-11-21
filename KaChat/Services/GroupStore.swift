@@ -935,3 +935,7 @@ final class CDGroupMessageEdit: NSManagedObject {
     @NSManaged var blockTime: Int64
     @NSManaged var deliveryStatus: String?
 }
+
+/// The room views' name for a reaction row's snapshot (`PublicChatStore.fetchReactions`,
+/// `PublicChatService.reactionsByChannel`): the same shape as a group reaction's.
+typealias PublicChatReactionSnapshot = GroupStore.ReactionSnapshot

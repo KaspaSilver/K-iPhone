@@ -1,0 +1,743 @@
+import SwiftUI
+
+/// Play > 1v1 or Tournaments: one kind of game per screen, chosen on ChessHomeView. Tabs in
+/// the app's underline style: the play tab (a public room that pairs the next joiners or fills
+/// to eight, plus private games by code), Active and Finished. Every row reads from
+/// `ChessTournamentService`, which reduces the arena the moment a screen here is up.
+struct ChessTournamentsView: View {
+    /// Which game: also the name of the play tab.
+    enum Mode: String, CaseIterable, Identifiable {
+        case duel = "1v1"
+        case tournament = "Tournaments"
+        var id: String { rawValue }
+        /// The raw value is the English key; this is what people read.
+        var title: LocalizedStringKey { LocalizedStringKey(rawValue) }
+    }
+    enum Tab: CaseIterable { case play, activeGames, finished }
+    /// Both screens: play, Active (watch-only), Finished. The leaderboards have a tab of their
+    /// own in the dock (`ChessLeaderboardTabView`).
+    private var tabs: [Tab] { [.play, .activeGames, .finished] }
+
+    /// Fixed for the screen's life: this is the 1v1 screen or the Tournaments screen.
+    let mode: Mode
+
+    @ObservedObject private var service = ChessTournamentService.shared
+    @ObservedObject private var knsService = KNSService.shared
+    @EnvironmentObject private var walletManager: WalletManager
+    @State private var tab: Tab = .play
+    @State private var showCreate = false
+    @State private var creatorCode = ""
+    @State private var isCreating = false
+    @State private var showJoinPrivate = false
+    @State private var privateCode = ""
+    @State private var isJoining = false
+    @State private var openTournamentId: String?
+    /// A game opened straight from Active games, to watch.
+    @State private var watchGame: (tournament: String, game: String)?
+    /// The waiting room on screen (full-screen, nothing else reachable) - see ChessWaitingRoomView.
+    @State private var waitingRoomId: String?
+    /// The note after the waiting room closed without a game; cleared by itself after a few
+    /// seconds, the same as the service's errors (`noticeToken` keeps a clear from wiping a
+    /// newer note).
+    @State private var waitingNotice: String?
+    @State private var noticeToken = 0
+
+    private var me: String? { walletManager.currentWallet?.publicAddress }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // The same underline tab bar the Chats screen uses (see chatsTopTabBar there),
+            // so a tab is a tab wherever it appears in the app.
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    ForEach(tabs, id: \.self) { tabButton($0) }
+                }
+                Divider()
+            }
+            .contentShape(Rectangle())
+            .gesture(tabSwipe())
+            List {
+                if service.arenaServerDown {
+                    Section { ChessServerDownNote() }
+                }
+                switch tab {
+                case .play:
+                    if mode == .duel { duelSections } else { tournamentSections }
+                case .activeGames:
+                    activeGamesSection
+                case .finished:
+                    finishedSection
+                }
+            }
+            .listStyle(.insetGrouped)
+            .gesture(tabSwipe())
+        }
+        .fixedScreenTitle(Text(mode.title))
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(Text(mode.title))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { BalanceToolbarLabel() }
+        }
+        .navigationDestination(isPresented: Binding(
+            get: { openTournamentId != nil },
+            set: { if !$0 { openTournamentId = nil } }
+        )) {
+            if let id = openTournamentId {
+                ChessTournamentView(tournamentId: id)
+            }
+        }
+        .navigationDestination(isPresented: Binding(
+            get: { watchGame != nil },
+            set: { if !$0 { watchGame = nil } }
+        )) {
+            if let watchGame {
+                ChessTournamentGameView(tournamentId: watchGame.tournament, gameId: watchGame.game)
+            }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { waitingRoomId != nil },
+            set: { if !$0 { waitingRoomId = nil } }
+        )) {
+            if let id = waitingRoomId {
+                ChessWaitingRoomView(
+                    tournamentId: id,
+                    onStarted: { started in
+                        waitingRoomId = nil
+                        // Straight onto the board (the bracket is a tap away from it).
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            if let me, let game = service.tournaments[started]?.currentGame(for: me), !game.isOver {
+                                watchGame = (started, game.id)
+                            } else {
+                                openTournamentId = started
+                            }
+                        }
+                    },
+                    onFinished: { exit in
+                        waitingRoomId = nil
+                        switch exit {
+                        case .quiet: break
+                        case .seatExpired: showNotice("No one joined in time. You're out of the queue - join again whenever you like.")
+                        case .joinNotLanded: showNotice(ChessTournamentService.joinNotLandedMessage)
+                        }
+                    }
+                )
+                .environmentObject(walletManager)
+            }
+        }
+        // Back on this screen with a live seat (a relaunch, a tap on a public room card):
+        // the waiting room is the only place to be.
+        // Its status too: a room that fills keeps its id, and a player whose leave lost the race
+        // to the last join must still be taken to the board.
+        .onChange(of: service.myActiveTournament.map { "\($0.id)|\($0.status)" }) { _ in showWaitingRoomIfSeated() }
+        .onAppear { showWaitingRoomIfSeated() }
+        // The result screen's Done lands here, not on the board.
+        .onChange(of: service.popToLobbyRequest) { _ in
+            openTournamentId = nil
+            watchGame = nil
+        }
+        // Advanced in a tournament: the board pops to this screen, then the bracket opens.
+        .onChange(of: service.openBracketRequest?.serial) { _ in
+            guard let request = service.openBracketRequest else { return }
+            watchGame = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { openTournamentId = request.id }
+        }
+        .alert(mode == .duel ? "Create a private 1v1" : "Create a private tournament", isPresented: $showCreate) {
+            if mode == .tournament {
+                TextField("Creator code", text: $creatorCode)
+            }
+            Button("Cancel", role: .cancel) {}
+            Button(isCreating ? "Creating…" : "Create") {
+                guard !isCreating else { return }
+                isCreating = true
+                let asDuel = mode == .duel
+                Task {
+                    let id = asDuel
+                        ? await service.createPrivateDuel()
+                        : await service.createPrivateTournament(code: creatorCode)
+                    // The creator holds the first seat: straight into the waiting room.
+                    if let id { waitingRoomId = id }
+                    isCreating = false
+                }
+            }
+        } message: {
+            Text(mode == .duel
+                 ? "You get a code to share with the person you want to play. The game starts when they join. Creating it is one transaction."
+                 : "You take the first seat and get a code to share. It starts when eight players have joined. Creating it is one transaction.")
+        }
+        .alert("Join with a code", isPresented: $showJoinPrivate) {
+            TextField("Code", text: $privateCode)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Cancel", role: .cancel) {}
+            Button(isJoining ? "Joining…" : "Join") {
+                guard !isJoining else { return }
+                isJoining = true
+                Task {
+                    if await service.joinPrivate(code: privateCode) {
+                        waitingRoomId = privateCode.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    }
+                    isJoining = false
+                }
+            }
+        } message: {
+            Text("The eight-character code the creator shared. Joining is one transaction (fee: \(service.feeText(for: ChessTournamentCodec.join(id: "abcdefgh")) ?? "--")).")
+        }
+        // One toast at a time: the waiting room's note first, then the service's error.
+        .toast(message: waitingNotice ?? service.lastError, style: .error)
+        .onAppear { service.acquire() }
+        .onDisappear { service.release() }
+    }
+
+    private func showNotice(_ notice: String) {
+        noticeToken += 1
+        let token = noticeToken
+        waitingNotice = notice
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if noticeToken == token { waitingNotice = nil }
+        }
+    }
+
+    private func tabTitle(_ tab: Tab) -> LocalizedStringKey {
+        switch tab {
+        case .play: return mode.title
+        case .activeGames: return "Active"
+        case .finished: return "Finished"
+        }
+    }
+
+    private func tabButton(_ tab: Tab) -> some View {
+        let isSelected = self.tab == tab
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) { self.tab = tab }
+        } label: {
+            VStack(spacing: 8) {
+                Text(tabTitle(tab))
+                    .font(.subheadline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .foregroundColor(isSelected ? .accentColor : .accentColor.opacity(0.5))
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
+                Rectangle()
+                    .fill(isSelected ? Color.accentColor : Color.clear)
+                    .frame(height: 2.5)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Swipe between the two tabs, as on the Chats screen.
+    private func tabSwipe() -> some Gesture {
+        DragGesture(minimumDistance: 25, coordinateSpace: .global)
+            .onEnded { value in
+                let dx = value.translation.width, dy = value.translation.height
+                guard abs(dx) > 50, abs(dx) > abs(dy) * 1.5 else { return }
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    guard let index = tabs.firstIndex(of: tab) else { return }
+                    if dx < 0, index + 1 < tabs.count { tab = tabs[index + 1] }
+                    else if dx > 0, index > 0 { tab = tabs[index - 1] }
+                }
+            }
+    }
+
+    /// Wherever the player's room stands, the screen that goes with it: waiting for players ->
+    /// the waiting room; just filled -> the waiting room's match-found countdown (a join that
+    /// filled the room lands here directly - the room is live before the screen ever sees it
+    /// open); in play -> the board.
+    private func showWaitingRoomIfSeated() {
+        guard let mine = service.myActiveTournament, let me else { return }
+        switch mine.status {
+        case .open:
+            guard mine.isSeated(me, at: service.now) else { return }
+            if waitingRoomId != mine.id { waitingRoomId = mine.id }
+        case .live:
+            let started = mine.startedAt ?? 0
+            if service.now < started + ChessTournamentCodec.matchFoundDelayMs {
+                if waitingRoomId != mine.id { waitingRoomId = mine.id }
+            } else if waitingRoomId == nil, openTournamentId == nil, watchGame == nil,
+                      let game = mine.currentGame(for: me), !game.isOver {
+                watchGame = (mine.id, game.id)
+            }
+        default:
+            break
+        }
+    }
+
+    // MARK: - 1v1
+
+    @ViewBuilder
+    private var duelSections: some View {
+        Section {
+            publicRoomCard(room: service.currentDuelRoom, id: service.currentDuelRoomId,
+                           title: ChessText.format("Public 1v1 #%lld", ChessTournamentCodec.duelNumber(of: service.currentDuelRoomId) ?? 1),
+                           capacity: 2) { await service.joinPublicDuelQueue() }
+        } header: {
+            Text("Public")
+        } footer: {
+            KaspaUnit.text("Join and you are paired with the next person who joins. When a room fills, the game starts and the next room opens. Five minutes a side; every move is a Kaspa transaction (about 0.0017 KAS each). Games here count on the leaderboard.")
+        }
+        Section {
+            ForEach(service.myPrivateDuels) { duel in
+                tournamentRow(duel, action: ChessText.string(duel.status == .open ? "Waiting" : (service.hasUnclaimedWin(duel) ? "Claim win" : "In play")))
+            }
+            Button {
+                privateCode = ""
+                showJoinPrivate = true
+            } label: {
+                Label("Join with a code", systemImage: "key")
+            }
+            Button {
+                showCreate = true
+            } label: {
+                Label("Create a private 1v1", systemImage: "plus.circle")
+            }
+        } header: {
+            Text("Private")
+        } footer: {
+            Text("Play a friend: create a 1v1, share its code. Private 1v1s count on the leaderboard too.")
+        }
+    }
+
+    // MARK: - Finished
+
+    /// Every public game of this kind that has ended, newest first - the result on the row,
+    /// the board a tap away.
+    @ViewBuilder
+    private var finishedSection: some View {
+        let done = Array(service.finishedTournaments.filter { $0.isDuel == (mode == .duel) && $0.isPublic }.prefix(100))
+        if done.isEmpty {
+            Section {
+                Text(mode == .duel ? "No finished 1v1 games yet." : "No finished tournaments yet.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text(mode == .duel ? "Finished 1v1 games" : "Finished tournaments")
+            }
+        } else if mode == .duel {
+            // A finished 1v1 is one game: tap it and the board is there as it ended.
+            Section {
+                ForEach(done) { duel in
+                    if let game = duel.games.values.first {
+                        finishedGameRow(game, in: duel)
+                    }
+                }
+            } header: {
+                Text("Finished 1v1 games")
+            }
+        } else {
+            // Finished tournaments as a list; each opens its bracket - the champion at the end
+            // of it, every game a tap away to see the board as it was left.
+            Section {
+                ForEach(done) { tournament in
+                    tournamentRow(tournament, action: tournament.champion.map { ChessText.format("Won by %@", name(for: $0)) } ?? ChessText.string("Finished"))
+                }
+            } header: {
+                Text("Finished tournaments")
+            }
+        }
+    }
+
+    private func finishedGameRow(_ game: ChessTournamentGame, in tournament: ChessTournament) -> some View {
+        Button {
+            watchGame = (tournament.id, game.id)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "trophy.fill")
+                    .font(.title3)
+                    .foregroundColor(.yellow)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(name(for: game.white)).fontWeight(game.decidedWinner(at: service.now) == game.white ? .bold : .regular)
+                        Text("vs").foregroundColor(.secondary)
+                        Text(name(for: game.black)).fontWeight(game.decidedWinner(at: service.now) == game.black ? .bold : .regular)
+                    }
+                    .font(.subheadline)
+                    .lineLimit(1)
+                    Text(verbatim: (tournament.isDuel ? tournament.displayName : ChessText.roundTitle(game.round, isDuel: false))
+                         + " · " + ChessText.resultSummary(game, now: service.now, name: name(for:)))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Active games (watch only)
+
+    /// Every public game of this kind being played right now, for anyone to watch - board and
+    /// clocks live, no moves.
+    /// 1v1: one row per game. Tournaments: a section per tournament, a row per game in play,
+    /// and the bracket a tap away.
+    @ViewBuilder
+    private var activeGamesSection: some View {
+        let live = service.liveTournaments.filter { $0.isDuel == (mode == .duel) && $0.isPublic }
+        if live.isEmpty {
+            Section {
+                Text(mode == .duel
+                     ? "No 1v1 games are being played right now. When one starts, it shows up here to watch."
+                     : "No tournament is being played right now. When one starts, its games show up here to watch.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("Live now")
+            }
+        } else if mode == .duel {
+            Section {
+                ForEach(live) { duel in
+                    if let game = duel.games.values.first {
+                        liveGameRow(game, in: duel)
+                    }
+                }
+            } header: {
+                Text("Live now")
+            } footer: {
+                Text("Watching is free - nothing is sent. Only the two players can move.")
+            }
+        } else {
+            ForEach(live) { tournament in
+                Section {
+                    let games = tournament.games.values.filter { !$0.isDecided(at: service.now) }.sorted { ($0.round, $0.id) < ($1.round, $1.id) }
+                    ForEach(games) { game in
+                        liveGameRow(game, in: tournament)
+                    }
+                    tournamentRow(tournament, action: ChessText.string("Bracket"))
+                } header: {
+                    Text(verbatim: tournament.displayName)
+                }
+            }
+        }
+    }
+
+    private func liveGameRow(_ game: ChessTournamentGame, in tournament: ChessTournament) -> some View {
+        Button {
+            watchGame = (tournament.id, game.id)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "eye.fill")
+                    .font(.title3)
+                    .foregroundColor(.accentColor)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(name(for: game.white)).fontWeight(.semibold)
+                        Text("vs").foregroundColor(.secondary)
+                        Text(name(for: game.black)).fontWeight(.semibold)
+                    }
+                    .font(.subheadline)
+                    .lineLimit(1)
+                    Text(verbatim: (tournament.isDuel ? tournament.displayName : ChessText.roundTitle(game.round, isDuel: false))
+                         + " · " + ChessText.moveLine(game))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                ChessLiveClockText(game: game)
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundColor(.secondary)
+                Text("Watch")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.accentColor)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Tournaments
+
+    @ViewBuilder
+    private var tournamentSections: some View {
+        Section {
+            publicRoomCard(room: service.currentPublicRoom, id: service.currentPublicRoomId,
+                           title: ChessText.format("Public tournament #%lld", ChessTournamentCodec.publicNumber(of: service.currentPublicRoomId) ?? 1),
+                           capacity: ChessTournamentCodec.playerCount) { await service.joinPublicQueue() }
+        } header: {
+            Text("Public")
+        } footer: {
+            KaspaUnit.text("There is always a public room waiting for players. When it fills, it starts and the next one opens. Eight players, single elimination, five minutes a side. Every move is a Kaspa transaction (about 0.0017 KAS each).")
+        }
+        Section {
+            ForEach(service.myPrivateTournaments) { tournament in
+                tournamentRow(tournament, action: tournament.status == .open
+                              ? ChessText.seatsLeft(tournament.seatsLeft)
+                              : ChessText.string(service.hasUnclaimedWin(tournament) ? "Claim win" : "In play"))
+            }
+            Button {
+                privateCode = ""
+                showJoinPrivate = true
+            } label: {
+                Label("Join with a code", systemImage: "key")
+            }
+            Button {
+                creatorCode = ""
+                showCreate = true
+            } label: {
+                Label("Create a private tournament", systemImage: "plus.circle")
+            }
+        } header: {
+            Text("Private")
+        } footer: {
+            Text("A private tournament is for friends: the creator shares its eight-character code. Creating one needs the creator code.")
+        }
+    }
+
+    // MARK: - Shared pieces
+
+    /// The one public room taking players: its seats, and Join - or where you already are.
+    private func publicRoomCard(room: ChessTournament?, id: String, title: String, capacity: Int, join: @escaping () async -> Void) -> some View {
+        let seated = room?.seatedPlayers(at: service.now) ?? []
+        let count = seated.count
+        let inThisRoom = me.map { seated.contains($0) } ?? false
+        let busyElsewhere = service.myActiveTournament != nil && !inThisRoom
+        // Without the chess server this phone can't know the room's number or its seats.
+        let unconfirmed = service.arenaServerDown && !inThisRoom
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: capacity == 2 ? "person.2.fill" : "person.3.fill")
+                    .font(.title3)
+                    .foregroundColor(.accentColor)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    if unconfirmed {
+                        Text(capacity == 2 ? "Public 1v1" : "Public tournament").font(.headline)
+                        Text("Seats can't be checked right now").font(.caption).foregroundColor(.secondary)
+                    } else {
+                        Text(verbatim: title).font(.headline)
+                        Text(verbatim: ChessText.playersWaiting(count, of: capacity)).font(.caption).foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            if !unconfirmed {
+                HStack(spacing: 6) {
+                    ForEach(0..<capacity, id: \.self) { seat in
+                        Circle()
+                            .fill(seat < count ? Color.accentColor : Color.secondary.opacity(0.25))
+                            .frame(width: 12, height: 12)
+                    }
+                }
+            }
+            if inThisRoom, let room {
+                let more = max(0, capacity - count)
+                pill(more == 1 ? ChessText.string("You're in. Waiting for 1 more…") : ChessText.format("You're in. Waiting for %lld more…", more), filled: false) { waitingRoomId = room.id }
+            } else if let mine = service.myActiveTournament, busyElsewhere {
+                pill(ChessText.whereYouAre(mine), filled: false) {
+                    if mine.status == .open { waitingRoomId = mine.id } else { openTournamentId = mine.id }
+                }
+            } else if unconfirmed {
+                pill(ChessText.string("Waiting for the chess server"), filled: false) {}
+            } else {
+                pill(isJoining ? ChessText.string("Joining…") : (service.historyReady ? service.joinLabel(roomId: id) : ChessText.string("Loading rooms…")), filled: service.historyReady) {
+                    guard !isJoining, service.historyReady else { return }
+                    Haptics.impact(.light)
+                    isJoining = true
+                    Task {
+                        await join()
+                        isJoining = false
+                        // Into the waiting room as soon as the seat is ours on chain.
+                        showWaitingRoomIfSeated()
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// `text` is already in the app's language (`ChessText`).
+    private func pill(_ text: String, filled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(verbatim: text)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(filled ? Color.accentColor : Color.accentColor.opacity(0.15))
+                .foregroundColor(filled ? .white : .accentColor)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Contact name, then KNS domain, then the shortened address - for the player too.
+    private func name(for address: String) -> String {
+        ContactsManager.shared.displayName(for: address)
+    }
+
+    private func tournamentRow(_ tournament: ChessTournament, action: String) -> some View {
+        Button {
+            openTournamentId = tournament.id
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: tournament.status == .finished ? "trophy.fill" : (tournament.isPublic ? (tournament.isDuel ? "person.2.fill" : "person.3.fill") : "lock.fill"))
+                    .font(.title3)
+                    .foregroundColor(.accentColor)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: tournament.displayName)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(verbatim: ChessText.playerCount(tournament))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Text(verbatim: action)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.accentColor)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// One kind's leaderboard, as rows inside the screen's list: 1v1 (wins and losses in 1v1
+/// games) or Tournaments (tournaments won, then the wins and losses inside them), for this
+/// UTC month or all time. The indexer's boards (ONLINE_CHESS.md §6) merged with what the
+/// phone has read; both count from `ChessTournamentEngine.leaderboardFreshFromMs`.
+struct ChessLeaderboardRows: View {
+    let mode: ChessTournamentsView.Mode
+    @ObservedObject private var service = ChessTournamentService.shared
+    @EnvironmentObject private var walletManager: WalletManager
+    /// The address whose row was tapped, for their card (`ChessPlayerView`), which
+    /// saves nothing for it.
+    @State private var profileAddress: String?
+    @State private var period: ChessLeaderboardPeriod = .month
+    /// The board sorted for this kind, worked out when the board or the period changes - not on
+    /// every re-render of the service. nil until the first sort.
+    @State private var sortedRows: [ChessLeaderboardRow]?
+
+    private var rows: [ChessLeaderboardRow] { sortedRows ?? [] }
+
+    private func sortRows() {
+        let board = service.board(for: period)
+        sortedRows = mode == .duel
+            ? ChessTournamentEngine.duelLeaderboard(board)
+            : ChessTournamentEngine.tournamentLeaderboard(board)
+    }
+
+    private var emptyText: LocalizedStringKey {
+        switch (mode, period) {
+        case (.duel, .month): return "No finished 1v1 games this month yet."
+        case (.duel, .allTime): return "No finished 1v1 games yet."
+        case (.tournament, .month): return "No finished tournaments this month yet."
+        case (.tournament, .allTime): return "No finished tournaments yet."
+        }
+    }
+
+    private var periodNote: String {
+        switch period {
+        case .month:
+            return AppLocalization.string("Resets on the 1st of every month (UTC).")
+        case .allTime:
+            let since = Date(timeIntervalSince1970: TimeInterval(ChessTournamentEngine.leaderboardFreshFromMs) / 1000)
+            let day = since.formatted(.dateTime.year().month(.wide).day().locale(AppLocalization.locale))
+            return ChessText.format("Counted from %@.", day)
+        }
+    }
+
+    var body: some View {
+        if service.arenaServerDown {
+            Section { ChessServerDownNote(text: "Chess server unreachable. Showing what this phone has, which can be less than the full board.") }
+        }
+        Section {
+            Picker("Leaderboard period", selection: $period) {
+                Text("This month").tag(ChessLeaderboardPeriod.month)
+                Text("All time").tag(ChessLeaderboardPeriod.allTime)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+        } footer: {
+            Text(verbatim: periodNote)
+        }
+        .onAppear { service.refreshIndexerLeaderboards() }
+        .onChange(of: period) { _ in service.refreshIndexerLeaderboards() }
+        Section {
+            if sortedRows?.isEmpty == true {
+                Text(emptyText)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                Button {
+                    profileAddress = row.address
+                } label: {
+                HStack(spacing: 12) {
+                    Text(verbatim: "\(index + 1)")
+                        .font(.subheadline.monospacedDigit().weight(.semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 28, alignment: .trailing)
+                    KNSAvatarView(
+                        avatarURLString: KNSService.shared.profileCache[row.address]?.avatarURL,
+                        fallbackText: ContactsManager.shared.displayName(for: row.address),
+                        size: 36,
+                        contactAddress: row.address
+                    )
+                    Text(ContactsManager.shared.displayName(for: row.address))
+                        .font(.subheadline.weight(row.address == walletManager.currentWallet?.publicAddress ? .bold : .semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 8)
+                    // The numbers keep their full width; a long name gives way, not the score.
+                    if mode == .duel {
+                        HStack(spacing: 10) {
+                            Text("\(row.wins) W").foregroundColor(.green)
+                            Text("\(row.losses) L").foregroundColor(.red)
+                        }
+                        .font(.subheadline.monospacedDigit().weight(.semibold))
+                        .fixedSize()
+                        .layoutPriority(1)
+                    } else {
+                        HStack(spacing: 10) {
+                            HStack(spacing: 4) {
+                                // Orange, not yellow: yellow can't be read on a light row.
+                                Image(systemName: "trophy.fill").foregroundColor(.orange)
+                                Text(verbatim: "\(row.tournamentsWon)").foregroundColor(.orange)
+                            }
+                            Text("\(row.tournamentsLost) L").foregroundColor(.red)
+                        }
+                        .font(.subheadline.monospacedDigit().weight(.semibold))
+                        .fixedSize()
+                        .layoutPriority(1)
+                    }
+                }
+                .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(row.address == walletManager.currentWallet?.publicAddress ? Color.accentColor.opacity(0.12) : nil)
+            }
+        } header: {
+            Text(mode == .duel ? "Games won and lost - 1v1s and tournament games alike" : "Tournaments won and lost")
+        }
+        .onAppear { sortRows() }
+        .onChange(of: service.boardsRevision) { _ in sortRows() }
+        .onChange(of: period) { _ in sortRows() }
+        .sheet(isPresented: Binding(
+            get: { profileAddress != nil },
+            set: { if !$0 { profileAddress = nil } }
+        )) {
+            if let address = profileAddress {
+                NavigationStack {
+                    ChessPlayerView(address: address)
+                }
+            }
+        }
+    }
+}

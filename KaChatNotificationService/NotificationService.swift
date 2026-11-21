@@ -115,16 +115,32 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        // Public Chats (thread-id `broadcast:<channel>`) and KaPosts (`kaposts`) left the app on
-        // 2026-10-24 and it no longer registers for them, but a push can still race that
-        // re-registration: deliver it silently rather than announce a feature that is gone.
-        if request.content.threadIdentifier.hasPrefix("broadcast:") || request.content.threadIdentifier.hasPrefix("kaposts") {
-            content.title = ""
-            content.subtitle = ""
-            content.body = ""
-            content.sound = nil
-            content.badge = nil
-            content.interruptionLevel = .passive
+        // Public Chats room pushes (thread-id `broadcast:<channel>`, PUSH_EXTENSIONS.md §2; back
+        // in the app since 2026-11-21). They carry none of the tx_id/sender/type keys the 1:1
+        // pipeline below needs. Room content is public and unencrypted, but it IS the raw on-chain
+        // body, which for a reply/voice/photo/reaction is a JSON envelope: it gets the same
+        // friendly preview rules 1:1 bodies get. An edit changes an earlier message in place -
+        // nothing to announce.
+        if request.content.threadIdentifier.hasPrefix("broadcast:") {
+            if isEditEnvelope(content.body) {
+                content.title = ""
+                content.subtitle = ""
+                content.body = ""
+                content.sound = nil
+                content.badge = nil
+                content.interruptionLevel = .passive
+                contentHandler(content)
+                return
+            }
+            content.body = publicChatPreviewText(for: content.body)
+            contentHandler(content)
+            return
+        }
+
+        // KaPosts pushes (thread-id `kaposts`, PUSH_EXTENSIONS.md §3) pass through as sent: the
+        // push service skips the kinds switched off (the registration carries the switches), and
+        // the app filters again while it is open.
+        if request.content.threadIdentifier.hasPrefix("kaposts") {
             contentHandler(content)
             return
         }

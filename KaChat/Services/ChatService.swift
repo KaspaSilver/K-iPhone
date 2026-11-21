@@ -579,6 +579,8 @@ final class ChatService: ObservableObject {
     let outgoingAttemptTTL: TimeInterval = 900
     var scheduledSendRetries = Set<String>()
     var noInputRetryCounts: [String: Int] = [:]
+    /// KaPosts tips by pending id, so a retried tip is still a tip (`sendPaymentInternal`).
+    var pendingTips: [String: KaPostTip] = [:]
     let spendableFundsRetryAttempts = 5
     let spendableFundsRetryBaseDelay: TimeInterval = 0.1
     var lastMessageCompactionAt: Date = .distantPast

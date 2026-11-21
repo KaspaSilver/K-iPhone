@@ -1,0 +1,615 @@
+import SwiftUI
+
+/// One tournament game: the board with both clocks and the controls. Players tap to move;
+/// everyone else watches the same board live.
+struct ChessTournamentGameView: View {
+    let tournamentId: String
+    let gameId: String
+    @ObservedObject private var service = ChessTournamentService.shared
+    @EnvironmentObject private var walletManager: WalletManager
+    @State private var selectedSquare: ChessSquare?
+    @State private var pendingPromotion: ChessMove?
+    @State private var showResignConfirm = false
+    /// The back button while a player's game is on: leaving means resigning, and it asks.
+    @State private var showLeaveWarning = false
+    /// Bumped when the result screen's Done wants the stack popped to the 1v1 / Tournaments
+    /// screen - done through the navigation controller (see ChessNavigationPopper), which
+    /// pops every level at once where SwiftUI's nested isPresented bindings would pop one.
+    @State private var popRequest = 0
+    @Environment(\.dismiss) private var dismiss
+    /// End-of-game flow: the overlay over the board, then the result screen (players only).
+    @State private var showEndOverlay = false
+    @State private var showResult = false
+    @State private var endHandledForGame: String?
+    /// The player's record as it stood while the game was on - the result screen counts up from it.
+    @State private var recordBeforeEnd: ChessLeaderboardRow?
+
+    private var tournament: ChessTournament? { service.tournaments[tournamentId] }
+    private var game: ChessTournamentGame? { tournament?.games[gameId] }
+    private var me: String? { walletManager.currentWallet?.publicAddress }
+    private var myColor: ChessColor? { me.flatMap { game?.color(of: $0) } }
+    /// Not once the clock has decided the game: a move after the flag is void on chain. The
+    /// player's own clock at zero is enough - `isDecided`'s margin is for the opponent's flag.
+    private var isMyTurn: Bool {
+        guard let game, let myColor, !game.isDecided(at: service.now),
+              game.remainingMs(myColor, at: service.now) > 0 else { return false }
+        return game.sideToMove == myColor && !service.pendingMoveGames.contains("\(tournamentId)|\(gameId)")
+    }
+    /// The board is drawn from the viewer's side: black players see black at the bottom.
+    private var flipped: Bool { myColor == .black }
+    /// A player in a game that is still on: no wandering off - the back button asks, the
+    /// swipe-back is off, the dock is hidden. A spectator, or a game that is over, is free -
+    /// and so is a game decided on the clock with the claim still to come: its winner must not
+    /// have only Resign, which would hand the opponent the win.
+    private var isLockedIn: Bool {
+        guard myColor != nil, let game else { return false }
+        return !game.isDecided(at: service.now)
+    }
+    /// Won on time, the claim not on chain yet (the app posts it by itself; this is the button
+    /// for when it has not taken).
+    private var canClaimWin: Bool {
+        guard let game, let me, !game.isOver else { return false }
+        return game.decidedWinner(at: service.now) == me
+    }
+
+    private var isClaiming: Bool {
+        guard let tournament, let game else { return false }
+        return service.isClaiming(tournament, game: game)
+    }
+
+    var body: some View {
+        Group {
+            if let tournament, let game {
+                content(tournament, game)
+            } else {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .navigationTitle(titleText)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { ScreenTitleToolbarLabel(title: titleText) }
+            if isLockedIn {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showLeaveWarning = true
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.body.weight(.semibold))
+                    }
+                    .accessibilityLabel("Back")
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showResignConfirm = true
+                    } label: {
+                        Text("Resign")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            if canClaimWin {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        if let tournament, let game { service.claimWin(tournament, game: game) }
+                    } label: {
+                        Text(isClaiming ? "Claiming…" : "Claim win")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .disabled(isClaiming)
+                }
+            }
+        }
+        .navigationBarBackButtonHidden(isLockedIn)
+        .toolbar(isLockedIn ? .hidden : .visible, for: .tabBar)
+        .sheet(isPresented: $showLeaveWarning) {
+            if let tournament, let game {
+                resignSheet(tournament, game, leaving: true)
+                    .fittedSheetDetent(estimate: 300)
+                    .presentationDragIndicator(.visible)
+            }
+        }
+        .background(ChessNavigationPopper(request: popRequest))
+        .onAppear { service.acquire(); rememberRecord() }
+        .onDisappear { service.release() }
+        .onChange(of: game?.isOver) { _ in gameEndedIfNeeded() }
+        .onChange(of: tournament?.games.count) { _ in switchToMyGameIfNeeded() }
+        // Keep the "before" record fresh while the game is on (the arena may still be loading
+        // when the screen opens); once the game is over it is left alone.
+        .onChange(of: service.leaderboard) { _ in rememberRecord() }
+        .onAppear { gameEndedIfNeeded() }
+        .fullScreenCover(isPresented: $showResult) {
+            ChessGameResultView(tournamentId: tournamentId, gameId: gameId, before: recordBeforeEnd) {
+                // Done: not back to the board - back to the 1v1 / Tournaments screen. The cover
+                // goes first; popping the stack underneath a presented cover misbehaves.
+                showResult = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    popRequest += 1
+                    service.requestPopToLobby()
+                }
+            }
+            .environmentObject(walletManager)
+        }
+    }
+
+    /// The record before the end lands, so the result screen can count up from it.
+    private func rememberRecord() {
+        guard let me, let game, !game.isOver else { return }
+        recordBeforeEnd = service.leaderboard.first { $0.address == me } ?? ChessLeaderboardRow(address: me)
+    }
+
+    /// The game just ended: the burst over the board for a couple of seconds, then - for the
+    /// two players, not for someone watching - the result screen with the record.
+    private func gameEndedIfNeeded() {
+        guard let game, game.isOver, game.winner != nil, endHandledForGame != game.id else { return }
+        // Opened on a game that was already over (watching a finished bracket): nothing to show.
+        let justEnded = (game.endedAt ?? 0) > service.now - 60_000
+        endHandledForGame = game.id
+        guard justEnded else { return }
+        withAnimation(.easeOut(duration: 0.25)) { showEndOverlay = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+            withAnimation { showEndOverlay = false }
+            guard myColor != nil, let tournament else { return }
+            if !tournament.isDuel, game.winner == me, tournament.status != .finished {
+                // Advanced: nothing to score yet (only the whole tournament counts) - to the
+                // bracket, where the other games can be watched and the next one opens by
+                // itself when the opponent is decided.
+                popRequest += 1
+                service.requestOpenBracket(tournament.id)
+            } else {
+                showResult = true
+            }
+        }
+    }
+
+    /// Watching another game while waiting for the next round: the moment the player's own
+    /// next game exists, the bracket takes over and opens it.
+    private func switchToMyGameIfNeeded() {
+        guard let tournament, !tournament.isDuel, let me, myColor == nil,
+              let mine = tournament.currentGame(for: me), !mine.isOver, mine.id != gameId else { return }
+        popRequest += 1
+        service.requestOpenBracket(tournament.id)
+    }
+
+    /// "1v1", "Round 1", "Semifinal" or "Final", in the app's language.
+    private var titleText: Text {
+        guard let game else { return Text("Game") }
+        return Text(verbatim: ChessText.roundTitle(game.round, isDuel: tournament?.isDuel == true))
+    }
+
+    /// Contact name, then KNS domain, then the shortened address - the app's rule, and the
+    /// same for the player themselves (their own domain or address, never "You").
+    private func name(for address: String) -> String {
+        ContactsManager.shared.displayName(for: address)
+    }
+
+    @ViewBuilder
+    private func content(_ tournament: ChessTournament, _ game: ChessTournamentGame) -> some View {
+        // Header, the other side's clock chip, the board as large as the screen allows, our
+        // clock chip.
+        VStack(spacing: 10) {
+            if service.arenaServerDown {
+                ChessServerDownNote(text: "Chess server unreachable. Moves are coming from the network, and the board may be a moment behind.")
+                    .padding(.horizontal)
+            }
+            header(game)
+            clockChip(game, color: flipped ? .white : .black)
+                .padding(.horizontal)
+            board(game)
+                .equatable()
+                .padding(.horizontal)
+                .layoutPriority(1)
+            clockChip(game, color: flipped ? .black : .white)
+                .padding(.horizontal)
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 8)
+        .sheet(isPresented: $showResignConfirm) {
+            resignSheet(tournament, game, leaving: false)
+                .fittedSheetDetent(estimate: 300)
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $pendingPromotion) { move in
+            promotionSheet(move, tournament: tournament, game: game)
+        }
+        .toast(message: service.lastError, style: .error)
+    }
+
+    // MARK: - Resign
+
+    /// The half sheet behind Resign - and behind the back button while the game is on, where
+    /// leaving means resigning: what it means, then Resign (and leave) or stay.
+    private func resignSheet(_ tournament: ChessTournament, _ game: ChessTournamentGame, leaving: Bool) -> some View {
+        let opponent = name(for: game.address(of: myColor == .white ? .black : .white))
+        // One whole text per case, so a translation can order it as its language needs.
+        let consequence: String = {
+            switch (tournament.isDuel, leaving) {
+            case (true, false):
+                return ChessText.format("%@ wins, and it counts as a loss on the leaderboard. Resigning is one transaction.", opponent)
+            case (true, true):
+                return ChessText.format("If you leave, you resign the game. %@ wins, and it counts as a loss on the leaderboard. Resigning is one transaction.", opponent)
+            case (false, false):
+                return ChessText.format("%@ goes through and you are out of the tournament. It counts as a loss on the leaderboard. Resigning is one transaction.", opponent)
+            case (false, true):
+                return ChessText.format("If you leave, you resign the game. %@ goes through and you are out of the tournament. It counts as a loss on the leaderboard. Resigning is one transaction.", opponent)
+            }
+        }()
+        return VStack(spacing: 16) {
+            Image(systemName: leaving ? "rectangle.portrait.and.arrow.right" : "flag.fill")
+                .font(.scaled(size: 34))
+                .foregroundColor(.red)
+                .padding(.top, 28)
+            Text(leaving ? "Leave the game?" : "Resign this game?")
+                .font(.title3.weight(.bold))
+            Text(verbatim: consequence)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
+            Spacer(minLength: 0)
+            VStack(spacing: 10) {
+                Button {
+                    showResignConfirm = false
+                    showLeaveWarning = false
+                    Task {
+                        // A resignation that did not go out leaves the game on: the player stays
+                        // on the board, and the error shows.
+                        if await service.resign(tournament, game: game), leaving { dismiss() }
+                    }
+                } label: {
+                    Text(leaving ? "Resign and leave" : "Resign")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+                Button {
+                    showResignConfirm = false
+                    showLeaveWarning = false
+                } label: {
+                    Text(leaving ? "Stay" : "Keep playing")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.secondary.opacity(0.15))
+                        .foregroundColor(.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 20)
+        }
+    }
+
+    // MARK: - Header, clocks and status
+
+    /// Who is playing and where the game stands - the 1:1 board's header. A player sees the
+    /// opponent's name (their own is on their clock chip); a spectator sees both.
+    private func header(_ game: ChessTournamentGame) -> some View {
+        VStack(spacing: 4) {
+            if let myColor {
+                Text(name(for: game.address(of: myColor.opposite)))
+                    .font(.headline)
+                    .lineLimit(1)
+            } else {
+                Text("\(name(for: game.white)) vs \(name(for: game.black))")
+                    .font(.headline)
+                    .lineLimit(1)
+            }
+            statusLine(game)
+        }
+        .padding(.horizontal)
+    }
+
+    /// The 1:1 board's clock chip (`ChessTournamentClockChip`), the only part of this screen
+    /// redrawn every second.
+    private func clockChip(_ game: ChessTournamentGame, color: ChessColor) -> some View {
+        let address = game.address(of: color)
+        let label: LocalizedStringKey = myColor == nil ? (color == .white ? "White" : "Black") : (color == myColor ? "You" : "Them")
+        return ChessTournamentClockChip(game: game, color: color, address: address, name: name(for: address), label: label)
+    }
+
+    @ViewBuilder
+    private func statusLine(_ game: ChessTournamentGame) -> some View {
+        let text: String = {
+            if let winner = game.winner, let outcome = game.outcome {
+                return ChessText.resultSentence(winner: name(for: winner), outcome: outcome)
+            }
+            if let winner = game.decidedWinner(at: service.now) {
+                // Out of clock, claim not posted yet: the result is already fixed.
+                return ChessText.format("Time ran out. %@ won on time.", name(for: winner))
+            }
+            if service.pendingMoveGames.contains("\(tournamentId)|\(gameId)") { return ChessText.string("Sending your move…") }
+            // The clock runs from the moment the board opens (the match-found countdown covers
+            // the start - see ChessTournamentCodec.matchFoundDelayMs); nothing to count down here.
+            if let myColor {
+                if ChessEngine.isKingInCheck(color: game.sideToMove, board: game.board), game.sideToMove == myColor { return ChessText.string("Check. Your move.") }
+                return ChessText.string(game.sideToMove == myColor ? "Your move" : "Their move")
+            }
+            return ChessText.string(game.sideToMove == .white ? "White to move" : "Black to move")
+        }()
+        Text(verbatim: text)
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(game.isDecided(at: service.now) ? .secondary : .primary)
+    }
+
+    // MARK: - Board
+
+    /// Worked out once per render (the board's), never per square.
+    private var legalDestinations: Set<ChessSquare> {
+        guard let game, let selectedSquare, isMyTurn else { return [] }
+        return Set(ChessEngine.legalMoves(from: selectedSquare, board: game.board).map { $0.to })
+    }
+
+    /// The board as plain values (`ChessTournamentBoard`, Equatable): redrawn when the
+    /// position, the selection or an overlay changes, never for a clock.
+    private func board(_ game: ChessTournamentGame) -> ChessTournamentBoard {
+        var endOverlay: ChessTournamentBoard.EndOverlay?
+        if showEndOverlay, let winner = game.winner, let outcome = game.outcome {
+            endOverlay = .init(winnerName: name(for: winner), outcome: outcome, iWon: myColor == nil ? nil : winner == me)
+        }
+        let last = game.moves.last
+        return ChessTournamentBoard(
+            board: game.board,
+            lastFrom: last?.from,
+            lastTo: last?.to,
+            flipped: flipped,
+            selectedSquare: selectedSquare,
+            destinations: legalDestinations,
+            // Same "Waiting on opponent..." as the 1:1 board, while it is their move.
+            showsWaiting: myColor != nil && !game.isDecided(at: service.now) && game.sideToMove != myColor,
+            endOverlay: endOverlay,
+            // The game is read when the tap comes, never kept from this render: an equal board
+            // can stand for a later ply (a repeated position).
+            onTap: { tap($0) }
+        )
+    }
+
+    private func tap(_ sq: ChessSquare) {
+        guard isMyTurn, let tournament, let game, let myColor else { return }
+        if let from = selectedSquare {
+            if legalDestinations.contains(sq) {
+                let move = ChessMove(from: from, to: sq, promotion: nil)
+                let piece = game.board.piece(at: from)
+                selectedSquare = nil
+                if piece?.type == .pawn, sq.rank == (myColor == .white ? 7 : 0) {
+                    pendingPromotion = move
+                } else {
+                    Haptics.impact(.light)
+                    Task { await service.play(move, in: tournament, game: game) }
+                }
+                return
+            }
+            if game.board.piece(at: sq)?.color == myColor { selectedSquare = sq } else { selectedSquare = nil }
+            return
+        }
+        if game.board.piece(at: sq)?.color == myColor { selectedSquare = sq }
+    }
+
+    private func promotionSheet(_ move: ChessMove, tournament: ChessTournament, game: ChessTournamentGame) -> some View {
+        VStack(spacing: 12) {
+            Text("Promote to").font(.headline).padding(.top, 20)
+            HStack(spacing: 18) {
+                ForEach([ChessPieceType.queen, .rook, .bishop, .knight], id: \.self) { type in
+                    Button {
+                        pendingPromotion = nil
+                        Task { await service.play(ChessMove(from: move.from, to: move.to, promotion: type), in: tournament, game: game) }
+                    } label: {
+                        ChessPieceGlyphView(piece: ChessPiece(type: type, color: myColor ?? .white), fontSize: 44)
+                            .frame(width: 60, height: 60)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.15)))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.bottom, 16)
+        .fittedSheetDetent(estimate: 180)
+    }
+}
+
+
+/// A side's clock chip on the tournament board - avatar and name, label, timer, time - lit
+/// while that side is to move, red under twenty seconds. It alone observes the arena's clock,
+/// so a tick redraws the chips and nothing else on the screen.
+private struct ChessTournamentClockChip: View {
+    let game: ChessTournamentGame
+    let color: ChessColor
+    let address: String
+    let name: String
+    let label: LocalizedStringKey
+    @ObservedObject private var clock = ChessClock.shared
+
+    var body: some View {
+        let remaining = game.remainingMs(color, at: clock.now)
+        let isActive = !game.isOver && game.sideToMove == color
+        let isLow = remaining < 20_000
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let tint: Color = isLow ? Color.red.opacity(0.14) : (isActive ? Color.accentColor.opacity(0.12) : Color.clear)
+        // Adaptive: a white stroke vanished on the light material.
+        let stroke: Color = isLow ? Color.red.opacity(0.55) : (isActive ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.12))
+        return HStack(spacing: 8) {
+            KNSAvatarView(
+                avatarURLString: KNSService.shared.profileCache[address]?.avatarURL,
+                fallbackText: name,
+                size: 26,
+                contactAddress: address
+            )
+            Text(name)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+            Spacer()
+            HStack(spacing: 6) {
+                Text(label)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.secondary)
+                Image(systemName: "timer")
+                    .font(.caption)
+                if isActive && remaining < 10_000 {
+                    // Tenths in the last ten seconds, drawn by a local timeline: the clock
+                    // publishes once a second. Each frame reads the clock at the timeline's own
+                    // instant, so it never jumps back when the next second's `now` lands.
+                    let anchor = Date(timeIntervalSince1970: TimeInterval(clock.now) / 1000)
+                    TimelineView(.periodic(from: anchor, by: 0.1)) { timeline in
+                        let at = max(clock.now, Int64(timeline.date.timeIntervalSince1970 * 1000))
+                        clockLabel(game.remainingMs(color, at: at), isActive: isActive)
+                    }
+                } else {
+                    clockLabel(remaining, isActive: isActive)
+                }
+            }
+            .foregroundColor(isLow ? .red : (isActive ? .primary : .secondary))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                shape.fill(.regularMaterial)
+                    .overlay(shape.fill(tint))
+                    .overlay(shape.stroke(stroke, lineWidth: isActive ? 1.2 : 0.8))
+                    .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
+            )
+        }
+    }
+
+    private func clockLabel(_ ms: Int64, isActive: Bool) -> some View {
+        Text(clockText(ms))
+            .font(.system(.callout, design: .monospaced).weight(isActive ? .bold : .semibold))
+            .monospacedDigit()
+    }
+
+    private func clockText(_ ms: Int64) -> String {
+        let tenths = Int(ms / 100)
+        let seconds = tenths / 10
+        if seconds < 10 { return String(format: "0:%02d.%d", seconds, tenths % 10) }
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+/// The tournament board: 64 squares from plain values, Equatable so the screen's re-renders
+/// (a toast, a sending move, a clock flipping who may move) skip it unless what it draws has
+/// changed. `onTap` is left out of the comparison.
+struct ChessTournamentBoard: View, Equatable {
+    struct EndOverlay: Equatable {
+        let winnerName: String
+        let outcome: ChessTournamentGame.Outcome
+        let iWon: Bool?
+    }
+
+    let board: ChessBoard
+    let lastFrom: ChessSquare?
+    let lastTo: ChessSquare?
+    let flipped: Bool
+    let selectedSquare: ChessSquare?
+    let destinations: Set<ChessSquare>
+    let showsWaiting: Bool
+    let endOverlay: EndOverlay?
+    let onTap: (ChessSquare) -> Void
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.board == rhs.board && lhs.lastFrom == rhs.lastFrom && lhs.lastTo == rhs.lastTo
+            && lhs.flipped == rhs.flipped && lhs.selectedSquare == rhs.selectedSquare
+            && lhs.destinations == rhs.destinations && lhs.showsWaiting == rhs.showsWaiting
+            && lhs.endOverlay == rhs.endOverlay
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size.width / 8
+            let ranks = flipped ? Array(0..<8) : Array((0..<8).reversed())
+            let files = flipped ? Array((0..<8).reversed()) : Array(0..<8)
+            ZStack {
+                VStack(spacing: 0) {
+                    ForEach(ranks, id: \.self) { rank in
+                        HStack(spacing: 0) {
+                            ForEach(files, id: \.self) { file in
+                                square(file: file, rank: rank, size: size)
+                            }
+                        }
+                    }
+                }
+                if showsWaiting {
+                    WaitingOnOpponentOverlay()
+                }
+                if let endOverlay {
+                    ChessGameEndOverlay(winnerName: endOverlay.winnerName, outcome: endOverlay.outcome, iWon: endOverlay.iWon)
+                        .transition(.opacity)
+                }
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func square(file: Int, rank: Int, size: CGFloat) -> some View {
+        let sq = ChessSquare(file: file, rank: rank)
+        let isLight = !(file + rank).isMultiple(of: 2)
+        let isLast = lastFrom == sq || lastTo == sq
+        let isSelected = selectedSquare == sq
+        let isTarget = destinations.contains(sq)
+        return ZStack {
+            Rectangle().fill(isLight ? ChessBoardThumbnail.lightSquareColor : ChessBoardThumbnail.darkSquareColor)
+            if isLast { Rectangle().fill(Color.yellow.opacity(0.35)) }
+            if isSelected { Rectangle().fill(Color.accentColor.opacity(0.35)) }
+            if let piece = board.piece(at: sq) {
+                ChessPieceGlyphView(piece: piece, fontSize: size * 0.7)
+            }
+            if isTarget {
+                Circle().fill(Color.accentColor.opacity(0.55)).frame(width: size * 0.3, height: size * 0.3)
+            }
+        }
+        .frame(width: size, height: size)
+        .contentShape(Rectangle())
+        .onTapGesture { onTap(sq) }
+    }
+}
+
+/// Pops the navigation stack straight to the 1v1 / Tournaments screen (the third controller
+/// on the stack: Games, Chess, then the kind's screen) when `request` changes. The
+/// SwiftUI route - clearing the parent's `isPresented` binding - popped one level when a
+/// grandchild was pushed, leaving the player on the bracket or the board; the navigation
+/// controller pops the whole way in one animation.
+private struct ChessNavigationPopper: UIViewRepresentable {
+    let request: Int
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        guard request != context.coordinator.handled else { return }
+        context.coordinator.handled = request
+        DispatchQueue.main.async {
+            var responder: UIResponder? = uiView
+            while let current = responder {
+                if let navigation = current as? UINavigationController {
+                    let stack = navigation.viewControllers
+                    guard stack.count > 3 else { navigation.popToRootViewController(animated: true); return }
+                    navigation.popToViewController(stack[2], animated: true)
+                    return
+                }
+                if let controller = current as? UIViewController, let navigation = controller.navigationController {
+                    let stack = navigation.viewControllers
+                    guard stack.count > 3 else { navigation.popToRootViewController(animated: true); return }
+                    navigation.popToViewController(stack[2], animated: true)
+                    return
+                }
+                responder = current.next
+            }
+        }
+    }
+
+    final class Coordinator {
+        var handled = 0
+    }
+}

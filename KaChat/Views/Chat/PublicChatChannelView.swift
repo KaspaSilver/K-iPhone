@@ -1,0 +1,2087 @@
+import SwiftUI
+import AVFoundation
+
+/// A single public chat channel's message stream + compose bar.
+/// Public and unencrypted - anyone who has joined the same channel name can read and
+/// post here. Reuses iOS's existing row/compose visual language rather than mirroring
+/// Android's screen design, while matching its feature set (replies, per-message actions,
+/// avatar actions, delivery status, date dividers, scroll-to-bottom).
+struct PublicChatChannelView: View {
+    let channelName: String
+
+    @EnvironmentObject var publicChatService: PublicChatService
+    @EnvironmentObject var contactsManager: ContactsManager
+    /// Not observed: the room only ever calls into it (opening a 1:1 chat). As an
+    /// @EnvironmentObject every 1:1 sync, fetch state and conversation publish re-rendered it.
+    private var chatService: ChatService { ChatService.shared }
+    @EnvironmentObject var walletManager: WalletManager
+    @EnvironmentObject var settingsViewModel: SettingsViewModel
+    @ObservedObject private var knsService = KNSService.shared
+    // A sender's `.kachat` name landing turns on their link previews
+    // (`PublicChatMessageRow.senderHasKachatName`) through `contactsManager`: the registry sends
+    // ContactsManager's objectWillChange whenever an identity changes. Observing the registry
+    // itself redrew the room on every one of its flags.
+    @StateObject private var recorder = PublicChatAudioRecorder()
+
+    /// Voice notes go on chain, so the payload cap is the length cap.
+    private var effectiveMaxRecordingDuration: TimeInterval { PublicChatAudioRecorder.maxDuration }
+
+    private func startVoiceMessage() {
+        recorder.start()
+    }
+
+    /// The composer's text, held by reference so a keystroke doesn't redraw the whole chat
+    /// (see KaChat's `ChatDetailView.messageText`): `messageText` setter redraws, typing doesn't.
+    @State private var composerBox = ComposerTextBox()
+    @State private var composerHasText = false
+    @State private var composerRevision = 0
+    @State private var composerHeight: CGFloat = 0
+    private var messageText: String {
+        get { composerBox.text }
+        nonmutating set {
+            composerBox.text = newValue
+            composerHasText = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            composerRevision &+= 1
+        }
+    }
+    private var composerTextBinding: Binding<String> {
+        Binding(
+            get: { composerBox.text },
+            set: { newValue in
+                composerBox.text = newValue
+                let has = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                if has != composerHasText { composerHasText = has }
+            }
+        )
+    }
+    @State private var isLoadingOlder = false
+    /// The first loaded message before "Load earlier messages", to stay put once older rows land.
+    @State private var keepInPlaceAfterOlderLoad: String?
+    @State private var isMessageFocused = false
+    @State private var showDesktopEmojiPicker = false
+    @State private var emojiInsertionRequest: ComposerTextView.TextInsertionRequest?
+    @State private var isSending = false
+    @State private var toastMessage: String?
+    /// Message whose reactor list is on screen.
+    @State private var reactionsSheetTarget: ReactionsSheetTarget?
+    /// The sender whose avatar was tapped; non-nil presents `senderSheet`.
+    @State private var senderSheetTarget: SenderSheetTarget?
+    private struct SenderSheetTarget: Identifiable {
+        let address: String
+        let isOwnMessage: Bool
+        /// The message whose avatar was tapped, for Report.
+        let message: PublicChatMessage
+        var id: String { address }
+    }
+    /// A report that couldn't go to Mail; non-nil shows `contentReportFallback`.
+    @State private var unsentReport: ContentReport?
+    @State private var toastToken = UUID()
+    /// Send Kaspa from a member's menu: the send screen with their address filled in.
+    @State private var sendTarget: SendTarget?
+    private struct SendTarget: Identifiable {
+        let address: String
+        var id: String { address }
+    }
+    @State private var isBottomAnchorVisible = true
+    @State private var bottomAnchorVisibilityWorkItem: DispatchWorkItem?
+    @State private var feeEstimateSompi: UInt64?
+    @State private var isEstimatingFee = false
+    @State private var feeEstimateLength: Int?
+    @State private var feeEstimateTask: Task<Void, Never>?
+    /// A once-a-minute clock for the reaction pill's green "sent" check, which is meant to go
+    /// away 10 minutes after your reaction. Rows skip re-rendering unless their inputs change
+    /// (`.equatable()`), so the expiry has to arrive as an input - see `isReactionCheckFresh`.
+    @State private var reactionCheckClock = Date()
+    /// User-set fee, from tapping the fee pill - see KaChat's ChatDetailView.feeOverrideSompi's doc comment.
+    @State private var feeOverrideSompi: UInt64?
+    @State private var showFeeEditor = false
+    @State private var feeEditorText = ""
+    /// Tap-a-reply-quote-to-jump-to-original - mirrors KaChat's `ChatDetailView`/KaChat's `GroupChatDetailView`'s
+    /// identical pair. `PublicChatMessage.id` is already the wire txId, unlike 1:1/group's `UUID`
+    /// row ids, so this stays a `String` throughout.
+    @State private var pendingJumpToTxId: String?
+    /// Set by a tap on the header band, consumed inside the `ScrollViewReader` (which is where
+    /// the proxy lives). Mirrors how `pendingJumpToTxId` reaches the same place.
+    @State private var pendingJumpToStart = false
+    @State private var showRoomInfo = false
+    @State private var showOwnRoomExplainer = false
+    /// The bell in the top-right corner: the room's notifications, in a half sheet.
+    @State private var showNotifySheet = false
+    @State private var highlightedMessageID: String?
+    /// Which message (if any) currently has its double-tap quick-reaction bar open - mirrors
+    /// group chat's identical KaChat's `GroupChatDetailView.activeQuickReactionMessageId`, except public chat
+    /// row ids are the wire txId `String` rather than a local `UUID`.
+    @State private var activeQuickReactionMessageId: String?
+    /// The message whose full emoji picker is open. Owned by the SCREEN, not by the reaction bar.
+    @State private var emojiPickerTarget: IdentifiedTxId?
+
+    private var myAddress: String? {
+        walletManager.currentWallet?.publicAddress
+    }
+
+    private func emojiPickerSheet(targetTxId: String) -> some View {
+        EmojiReactionPicker { emoji in
+            togglePublicChatReaction(targetTxId: targetTxId, emoji: emoji)
+        }
+    }
+
+    /// Adds the reaction, or removes it when it is the one already on this message from us -
+    /// the same toggle the quick bar performs.
+    private func togglePublicChatReaction(targetTxId: String, emoji: String) {
+        let reactions = publicChatService.reactions(forChannel: channelName)[targetTxId] ?? []
+        let mine = reactions.first { $0.reactorAddress == myAddress }
+        let action = mine?.emoji == emoji ? "remove" : "add"
+        Task {
+            try? await publicChatService.sendPublicChatReaction(
+                channel: channelName,
+                targetTxId: targetTxId,
+                emoji: emoji,
+                action: action
+            )
+        }
+    }
+
+    /// Zero-balance compose gate - same trigger as 1:1 chat (confirmed 0 KAS only, never on an
+    /// unknown/still-loading balance). See `WalletManager.hasConfirmedZeroChattingBalance`.
+    private var isChattingBalanceZero: Bool {
+        walletManager.hasConfirmedZeroChattingBalance
+    }
+
+    /// A room the indexer tracks (the curated ones, or one added on the indexer): history comes
+    /// from the public chat indexer and retention is fixed at 30 days.
+    private var isIndexedChannel: Bool {
+        PublicChatService.isIndexerTracked(channelName)
+    }
+
+    // Split into four expressions rather than one 14-modifier chain. The type checker solves a
+    // view's whole modifier chain as a SINGLE expression, and this one had grown past what it
+    // will spend on that ("unable to type-check this expression in reasonable time"). Same split,
+    // for the same reason, as KaChat's ChatListView's.
+    var body: some View {
+        chrome
+        .onAppear {
+            publicChatService.acquire(channelName)
+            // What was typed here last time, exactly as 1:1 chats do.
+            if messageText.isEmpty {
+                let saved = ChatService.shared.draft(for: "room:\(PublicChatChannelName.normalize(channelName))")
+                if !saved.isEmpty { messageText = saved }
+            }
+        }
+        .onDisappear {
+            ChatService.shared.setDraft(messageText, for: "room:\(PublicChatChannelName.normalize(channelName))")
+            // Leaving the room mid-recording: nothing is sent, the file goes, and the audio
+            // session is given back.
+            if recorder.state == .recording { recorder.cancel() }
+            publicChatService.release(channelName)
+        }
+        .task {
+            // What the translation service can serve, so Translate is offered only for a
+            // language pair that can succeed. No-op after the first answer.
+            PostTranslationService.shared.refreshSupportedLanguages()
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                guard !Task.isCancelled else { return }
+                reactionCheckClock = Date()
+            }
+        }
+        .task {
+            // Keeps retention feeling "live" while this room is open - a message disappears
+            // shortly after it expires rather than only on the next open or send.
+            //
+            // Every five minutes. The prune runs off the main thread now, but it is still two
+            // batch deletes per channel, and retention is measured in DAYS (3, or 30 for
+            // indexed rooms), so minutes of precision cost nothing anyone can see.
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 300_000_000_000)
+                guard !Task.isCancelled else { return }
+                // Not while backgrounded: nobody is looking. The loop stays alive so the first
+                // tick after returning to the foreground prunes as before.
+                guard UIApplication.shared.applicationState == .active else { continue }
+                await publicChatService.pruneNowAndRefresh(forChannel: channelName)
+            }
+        }
+        .task(id: myAddress) {
+            // Your own avatar always resolves regardless of the auto-avatar-search toggle (that
+            // toggle only gates *other* senders, for privacy) - fetched once at the room level
+            // rather than per-row, since a per-row `.task` can get cancelled/restarted as its
+            // bubble scrolls in and out of the lazy message list's visible viewport.
+            guard let myAddress,
+                  knsService.profileCache[myAddress] == nil else { return }
+            _ = await knsService.fetchProfile(for: myAddress)
+        }
+        .onChange(of: recorder.state) { state in
+            switch state {
+            case .failed(let message):
+                showToast(message)
+                feeEstimateSompi = nil
+            case .recording:
+                updateRecordingFeeEstimate(elapsedSeconds: 0)
+            case .idle:
+                feeEstimateSompi = nil
+            case .encoding:
+                break
+            }
+        }
+    }
+
+    /// Toasts, sheets and the fee alert.
+    private var chrome: some View {
+        navigation
+        .toast(message: toastMessage, style: .success)
+        .contentReportFallback($unsentReport)
+        // Extracted, like the group screen's: inline, this closure inside an already-long
+        // modifier chain is the kind of expression the type checker gives up on.
+        .sheet(item: $senderSheetTarget) { senderSheet(for: $0) }
+        .sheet(item: $emojiPickerTarget) { target in
+            emojiPickerSheet(targetTxId: target.id)
+        }
+        .sheet(item: $reactionsSheetTarget) { target in
+            ReactionsSheet(
+                entries: (publicChatService.reactions(forChannel: channelName)[target.txId] ?? [])
+                    .map { ReactionsSheet.Entry(emoji: $0.emoji, reactorAddress: $0.reactorAddress) },
+                myAddress: myAddress ?? "",
+                displayName: { displayName(for: $0) },
+                avatarURL: { knsService.profileCache[$0]?.avatarURL }
+            )
+        }
+        .alert("Adjust Network Fee", isPresented: $showFeeEditor) {
+            TextField(KaspaUnit.label(AppLocalization.string("Fee (KAS)")), text: $feeEditorText)
+                .keyboardType(.decimalPad)
+                .numericKeyboardDoneButton()
+            Button("Save") { commitFeeOverride() }
+            Button("Use Default") {
+                feeOverrideSompi = nil
+                scheduleFeeEstimate(for: messageText, force: true)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("If the network is busy, a higher fee can help your transaction confirm faster.")
+        }
+    }
+
+    private var roomNotifyEnabled: Bool {
+        let normalized = PublicChatChannelName.normalize(channelName)
+        return publicChatService.channels.first { $0.channelName == normalized }?.notifyEnabled ?? false
+    }
+
+    /// The half sheet behind the bell: what notifications do in this room, and the switch.
+    private var notifySheet: some View {
+        let isTracked = PublicChatService.isIndexerTracked(channelName)
+        let on = roomNotifyEnabled
+        return VStack(spacing: 14) {
+            Text("#\(PublicChatChannelName.normalize(channelName))")
+                .font(.headline)
+                .padding(.top, 24)
+            Text(on
+                 ? (isTracked ? "You're notified of new messages here, even when the app is closed."
+                              : "You're notified of new messages here while the app is open.")
+                 : "New messages here don't notify you. The room still updates when you open it.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            ActionSheetRow(
+                title: on ? "Turn Off Notifications" : "Turn On Notifications",
+                subtitle: on
+                    ? "No notification for new messages in this room."
+                    : (isTracked ? "Notifies you of new messages, even when the app is closed."
+                                 : "Notifies you of new messages while the app is open."),
+                systemImage: on ? "bell.slash" : "bell"
+            ) {
+                publicChatService.setNotifyEnabled(!on, forChannel: channelName)
+                Haptics.selection()
+                showNotifySheet = false
+            }
+            .padding(.horizontal, 16)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Title, toolbar and everything this room can push or present onto.
+    private var navigation: some View {
+        conversation
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                // A room you made yourself: what "public" does and does not mean here. Rooms the
+                // indexer tracks keep their history there, so they need no such warning.
+                if !PublicChatService.isIndexerTracked(channelName) {
+                    Button {
+                        showOwnRoomExplainer = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("About this room")
+                }
+                // This room's notifications, one tap away - the same switch the Public Chats
+                // list offers in its room menu.
+                Button {
+                    showNotifySheet = true
+                } label: {
+                    Image(systemName: roomNotifyEnabled ? "bell.fill" : "bell.slash")
+                }
+                .accessibilityLabel(roomNotifyEnabled ? "Notifications on" : "Notifications off")
+                // Far right, like every KaPosts screen: the leading side belongs to Back.
+                ConnectionStatusIndicator()
+            }
+        }
+        .sheet(isPresented: $showNotifySheet) {
+            notifySheet
+                .presentationDetents([.height(260)])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showOwnRoomExplainer) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("About this room")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 24)
+                Text("No one can see your messages in here unless they are also active in the room at the same time.")
+                Text("If you want messages to persist and be seen by anyone who joins, you need to run your own indexer and have users add it to the room.")
+                Spacer(minLength: 0)
+            }
+            .font(.body)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+            .presentationDetents([.height(280)])
+            .presentationDragIndicator(.visible)
+        }
+        // Empty, because the name is drawn by `roomTitleChip` in the list's top inset now - same
+        // arrangement as 1:1 and group threads.
+        .navigationTitle("")
+        .navigationDestination(isPresented: $showRoomInfo) {
+            PublicChatRoomInfoView(channelName: channelName)
+        }
+        .sheet(item: $sendTarget) { target in
+            NavigationStack {
+                WithdrawKaspaView(fromAddress: myAddress ?? "", availableBalanceSompi: nil, prefillAddress: target.address)
+            }
+        }
+    }
+
+    /// The message list with the compose bar held above the keyboard.
+    private var conversation: some View {
+        messageList
+            // The room's name rides above the list as a pinned inset rather than as a navigation
+            // bar title, which is what 1:1 and group threads already do - so all three headers
+            // are now the same piece of furniture. It also gives the band either side of the name
+            // somewhere to live: tapping there jumps to the first message in the room.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                // Icon and name open Room Info; the space either side jumps to the first
+                // message.
+                roomTitleChip
+                    .chatHeaderTapBand(
+                        onChip: { showRoomInfo = true },
+                        onBand: { jumpToRoomStart() }
+                    )
+                    // Reaches up into the navigation bar's row so the icon sits level with the
+                    // back button. Bounded at -52 for the same reason as the other two: the inset
+                    // is measured from BELOW the safe area, so it can never reach the notch.
+                    .padding(.top, -52)
+                    .padding(.bottom, 2)
+            }
+            // Hosting the compose bar as a real `safeAreaInset` (rather than a floating ZStack
+            // overlay with a manually-tracked keyboard offset) is what guarantees it always sits
+            // flush above the keyboard on every device - this is the mechanism SwiftUI itself
+            // uses for keyboard avoidance, so there's no custom math to get wrong. See
+            // KaChat's ChatDetailView's identical fix for why the old floating approach left a gap.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 0) {
+                    if isChattingBalanceZero {
+                        // Zero-balance gate: reading stays fully usable (the card is part of
+                        // the bottom inset, never an overlay on the message list) - only
+                        // composing is blocked. Mirrors 1:1 chat's gate exactly.
+                        ZeroBalanceFundingCardView(
+                            address: myAddress,
+                            onCopied: { showToast($0.addressCopiedToastText) }
+                        )
+                        .padding(.horizontal)
+                        .padding(.bottom, 4)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    composeBar
+                        .disabled(isChattingBalanceZero)
+                        .allowsHitTesting(!isChattingBalanceZero)
+                        .grayscale(isChattingBalanceZero ? 1 : 0)
+                        .opacity(isChattingBalanceZero ? 0.45 : 1)
+                }
+                .animation(.easeInOut(duration: 0.25), value: isChattingBalanceZero)
+                .padding(.bottom, 2)
+            }
+    }
+
+    /// The room's name as one tappable chip into Room Info - the same piece 1:1 and group threads
+    /// put at the top of their own lists. Its own view, not spelled out inline: doing that here
+    /// pushed this file past the type checker's budget once already.
+    private var roomTitleChip: some View {
+        PublicChatRoomTitleChip(channelName: channelName) { showRoomInfo = true }
+    }
+
+    /// Jumps to the oldest message in the room, from a tap on the header band.
+    ///
+    /// Simpler than the other two threads': a room renders its whole history, with no store
+    /// pagination behind it and no render window in front of it, so there is nothing to open up
+    /// first. The scroll itself has to happen where the proxy is, hence the pending flag.
+    private func jumpToRoomStart() {
+        guard !publicChatService.messages(forChannel: channelName).isEmpty else { return }
+        Haptics.impact(.light)
+        pendingJumpToStart = true
+    }
+
+    private var messageList: some View {
+        let messages = publicChatService.messages(forChannel: channelName)
+        // A long voice note is one bubble at its first part; its other parts aren't drawn.
+        let voiceNotes = publicChatService.voiceNotes(forChannel: channelName)
+        let shownMessages = voiceNotes.hiddenIds.isEmpty
+            ? messages
+            : messages.filter { !voiceNotes.hiddenIds.contains($0.id) }
+        return Group {
+            if messages.isEmpty {
+                emptyState
+            } else {
+                ScrollViewReader { proxy in
+                    ZStack(alignment: .bottomTrailing) {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 8) {
+                                // Landing marker for the header's "jump to the first message" tap.
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id("top_anchor")
+                                // The room holds its newest window in memory; this widens it.
+                                if publicChatService.hasOlderMessages(forChannel: channelName) {
+                                    Button {
+                                        guard !isLoadingOlder else { return }
+                                        isLoadingOlder = true
+                                        keepInPlaceAfterOlderLoad = messages.first?.id
+                                        let countBefore = messages.count
+                                        Task {
+                                            await publicChatService.loadOlderMessages(forChannel: channelName)
+                                            isLoadingOlder = false
+                                            // Nothing older came: no count change will clear the
+                                            // anchor, which would keep new messages from scrolling.
+                                            if publicChatService.messages(forChannel: channelName).count == countBefore {
+                                                keepInPlaceAfterOlderLoad = nil
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            if isLoadingOlder { ProgressView().controlSize(.small) }
+                                            Text(isLoadingOlder ? "Loading…" : "Load earlier messages")
+                                        }
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundColor(.accentColor)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                ForEach(Array(shownMessages.enumerated()), id: \.element.id) { index, message in
+                                    if shouldShowDateDivider(at: index, in: shownMessages) {
+                                        dateDivider(for: message.blockTime)
+                                    }
+                                    messageRow(message, voiceNote: voiceNotes.notesByAnchorId[message.id])
+                                }
+                                // Debounced rather than setting `isBottomAnchorVisible` directly:
+                                // this 1pt marker can appear/disappear many times per second
+                                // during a fast scroll/fling as it crosses the lazy-loaded
+                                // viewport edge, and since it drives an `.animation(value:)` below,
+                                // each flip was re-triggering a full transition rapid-fire enough
+                                // to pin the main thread and freeze the app.
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id("bottom_anchor")
+                                    .onAppear {
+                                        bottomAnchorVisibilityWorkItem?.cancel()
+                                        let workItem = DispatchWorkItem { isBottomAnchorVisible = true }
+                                        bottomAnchorVisibilityWorkItem = workItem
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
+                                    }
+                                    .onDisappear {
+                                        bottomAnchorVisibilityWorkItem?.cancel()
+                                        let workItem = DispatchWorkItem { isBottomAnchorVisible = false }
+                                        bottomAnchorVisibilityWorkItem = workItem
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
+                                    }
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                        }
+                        .onChange(of: messages.count) { _ in
+                            // Older messages arriving at the top must not throw the reader to
+                            // the bottom: keep the message that was first in view where it was.
+                            if let anchor = keepInPlaceAfterOlderLoad {
+                                keepInPlaceAfterOlderLoad = nil
+                                proxy.scrollTo(anchor, anchor: .top)
+                            } else if isBottomAnchorVisible {
+                                // History paging in above a freshly opened room: someone at the
+                                // bottom stays there instead of being left in the history.
+                                scrollToBottom(using: proxy, animated: false)
+                            }
+                        }
+                        // To the bottom only when the NEWEST message changed. This was on the
+                        // count, so every history page a freshly opened room paged in (older
+                        // rows, landing at the top) ran an animated scroll to the bottom -
+                        // stutter while the room filled, and a reader scrolled up into that
+                        // history kept being thrown back down.
+                        .onChange(of: messages.last?.id) { _ in
+                            guard keepInPlaceAfterOlderLoad == nil else { return }
+                            // Someone reading further up stays where they are; your own message
+                            // still brings you down to it.
+                            guard isBottomAnchorVisible || messages.last?.senderAddress == myAddress else { return }
+                            scrollToBottom(using: proxy, animated: true)
+                        }
+                        .onChange(of: pendingJumpToTxId) { id in
+                            guard let id else { return }
+                            jumpToReplyOriginal(id: id, in: messages, using: proxy)
+                            pendingJumpToTxId = nil
+                        }
+                        .onChange(of: pendingJumpToStart) { jump in
+                            guard jump else { return }
+                            pendingJumpToStart = false
+                            // Not animated: see KaChat's `ChatDetailView.jumpToChatStart` for why a long
+                            // animated ride across a whole history is worse than landing.
+                            proxy.scrollTo("top_anchor", anchor: .top)
+                        }
+                        .onAppear {
+                            scrollToBottom(using: proxy, animated: false)
+                        }
+                        // Tapping into the composer scrolls to the newest message rather than
+                        // letting the keyboard rise over wherever you happened to be reading.
+                        // You opened the composer to reply to the room as it stands now.
+                        .onChange(of: isMessageFocused) { focused in
+                            guard focused else { return }
+                            // A turn later: the keyboard is still animating up, and the list has
+                            // not been resized yet, so scrolling now lands short of the bottom.
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                scrollToBottom(using: proxy, animated: true)
+                            }
+                        }
+                        // Same interactive drag-down keyboard dismissal as KaChat's ChatDetailView - the
+                        // room's keyboard had no way down other than sending a message.
+                        // `.immediately` rather than `.interactively`. An interactive dismissal drives the
+                    // keyboard frame from the drag, so SwiftUI's keyboard safe-area inset is mid-
+                    // animation for as long as the finger is down. Every one of these screens
+                    // scrolls itself programmatically while that is happening - a poll delivering a
+                    // message, the live mirror, the bottom-pin - and an interrupted interactive
+                    // dismissal can leave the inset believing the keyboard is still partly up. The
+                    // composer is a bottom `safeAreaInset`, so a stale inset parks it a keyboard's
+                    // height above the bottom of the screen with the message list, which is NOT
+                    // clipped to the safe area, still drawing underneath it. That is the broken
+                    // layout reported on iPhone Pro Max, where the keyboard is tallest and the
+                    // misplacement is largest.
+                    .scrollDismissesKeyboard(.immediately)
+                        .simultaneousGesture(
+                            // Tapping anywhere in the message list dismisses whichever bubble's
+                            // quick-reaction bar is open - mirrors 1:1/group chat's identical gesture.
+                            TapGesture().onEnded {
+                                if activeQuickReactionMessageId != nil {
+                                    activeQuickReactionMessageId = nil
+                                }
+                            }
+                        )
+
+                        if !isBottomAnchorVisible {
+                            Button {
+                                Haptics.impact(.light)
+                                scrollToBottom(using: proxy, animated: true)
+                            } label: {
+                                Circle()
+                                    .fill(.regularMaterial)
+                                    .overlay(
+                                        Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
+                                    .frame(width: 36, height: 36)
+                                    .overlay(
+                                        Image(systemName: "chevron.down")
+                                            .font(.scaled(size: 14, weight: .semibold))
+                                            .foregroundColor(.primary)
+                                    )
+                            }
+                            .padding(.trailing, 12)
+                            .padding(.bottom, 12)
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                            .animation(.easeInOut(duration: 0.2), value: isBottomAnchorVisible)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Tap-a-reply-quote-to-jump-to-original - public chat has no pagination (the full room
+    /// history is already in `messages`), so a jump either finds the target right away or it's
+    /// genuinely gone (pruned/undelivered).
+    private func jumpToReplyOriginal(id rawId: String, in messages: [PublicChatMessage], using proxy: ScrollViewProxy) {
+        // A reply to a hidden part of a long voice note goes to the note's one bubble.
+        let id = publicChatService.voiceNotes(forChannel: channelName).anchorIdByPartId[rawId] ?? rawId
+        guard messages.contains(where: { $0.id == id }) else {
+            showToast("Original message not available.")
+            return
+        }
+        withAnimation {
+            proxy.scrollTo(id, anchor: .center)
+        }
+        highlightedMessageID = id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation(.easeOut(duration: 0.5)) {
+                if highlightedMessageID == id {
+                    highlightedMessageID = nil
+                }
+            }
+        }
+    }
+
+    private func scrollToBottom(using proxy: ScrollViewProxy, animated: Bool) {
+        DispatchQueue.main.async {
+            if animated {
+                withAnimation { proxy.scrollTo("bottom_anchor", anchor: .bottom) }
+            } else {
+                proxy.scrollTo("bottom_anchor", anchor: .bottom)
+            }
+        }
+    }
+
+    private func shouldShowDateDivider(at index: Int, in messages: [PublicChatMessage]) -> Bool {
+        guard index > 0 else { return true }
+        let previous = Date(timeIntervalSince1970: Double(messages[index - 1].blockTime) / 1000)
+        let current = Date(timeIntervalSince1970: Double(messages[index].blockTime) / 1000)
+        return !Calendar.current.isDate(previous, inSameDayAs: current)
+    }
+
+    private func dateDivider(for blockTime: Int64) -> some View {
+        let date = Date(timeIntervalSince1970: Double(blockTime) / 1000)
+        return HStack {
+            Spacer()
+            Text(formatDateDivider(date))
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(Color(UIColor.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            Spacer()
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func formatDateDivider(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return AppLocalization.string("Today") }
+        if calendar.isDateInYesterday(date) { return AppLocalization.string("Yesterday") }
+        return SharedFormatting.chatDay.string(from: date)
+    }
+
+    /// Reply text -> the underlying content, or voice-message placeholder if applicable.
+    private func displayContent(for message: PublicChatMessage) -> (text: String, replyQuote: MessageReplyContent?) {
+        if let reply = MessageReplyCodec.parse(message.content) {
+            return (reply.text, reply)
+        }
+        return (message.content, nil)
+    }
+
+    private func replyQuote(for message: PublicChatMessage) -> MessageReplyContent? {
+        MessageReplyCodec.parse(message.content)
+    }
+
+    private func displayName(for address: String) -> String {
+        // The app's one rule (ContactsManager.displayName): your name for them, else their
+        // .kachat name on testnet (KNS elsewhere), else the short address.
+        contactsManager.displayName(for: address)
+    }
+
+    /// One message row. Its own function because the initializer takes twenty arguments,
+    /// ten of them closures, and inside `messageList` it sat five containers deep - one
+    /// expression the type checker would not finish ("unable to type-check this expression
+    /// in reasonable time").
+    /// The row as its bubble shows it: a long voice note with one status for all its parts, an
+    /// edit with the edit's send state.
+    private func shownStatusMessage(_ message: PublicChatMessage, voiceNote: PublicChatVoiceNote?, editFailed: Bool, editWarning: Bool) -> PublicChatMessage {
+        if let voiceNote { return message.replacingDeliveryStatus(voiceNote.deliveryStatus) }
+        if editFailed { return message.replacingDeliveryStatus(.failed) }
+        if editWarning { return message.replacingDeliveryStatus(.unconfirmed) }
+        return message
+    }
+
+    /// Retry on a row: a long voice note resends only its failed parts, in order.
+    private func makeRetryAction(for message: PublicChatMessage, voiceNote: PublicChatVoiceNote?, editFailed: Bool) -> () -> Void {
+        if let voiceNote {
+            let failed = voiceNote.failedParts
+            return { publicChatService.retryPublicChatVoiceParts(failed) }
+        }
+        if editFailed { return { retryEdit(of: message) } }
+        return { publicChatService.retryPublicChat(message) }
+    }
+
+    /// A long voice note's parts as its bubble plays them.
+    private func makeVoiceNoteInput(for note: PublicChatVoiceNote) -> PublicChatVoiceNoteInput {
+        // Just the parts' text: the bubble's player decodes the audio off the main thread.
+        PublicChatVoiceNoteInput(
+            count: note.count,
+            partContents: note.parts.map(\.content)
+        )
+    }
+
+    @ViewBuilder
+    private func messageRow(_ message: PublicChatMessage, voiceNote: PublicChatVoiceNote? = nil) -> some View {
+        // An edited message reads with its newest text; the row itself is untouched. A failed
+        // edit (only an older build left one in the store) never reached the chain.
+        let storedEdit: MessageEditSnapshot? = publicChatService.edits(forChannel: channelName)[message.id]
+        let edit: MessageEditSnapshot? = storedEdit?.deliveryStatus == .failed ? nil : storedEdit
+        let message = edit.map { message.replacingContent(MessageEditCodec.apply($0.text, to: message.content)) } ?? message
+        let failedEditText = publicChatService.failedEditText(forChannel: channelName, targetTxId: message.id)
+        // The bubble carries the edit's send state; `message` keeps the row's own for the actions.
+        let shownMessage: PublicChatMessage = shownStatusMessage(message, voiceNote: voiceNote, editFailed: failedEditText != nil, editWarning: edit?.deliveryStatus == .warning)
+        let retryAction: () -> Void = makeRetryAction(for: message, voiceNote: voiceNote, editFailed: failedEditText != nil)
+        let voiceNoteInput: PublicChatVoiceNoteInput? = voiceNote.map { makeVoiceNoteInput(for: $0) }
+        let canEdit = message.senderAddress == myAddress && message.deliveryStatus == .sent && MessageEditCodec.isEditable(message.content)
+        let messageReplyQuote = replyQuote(for: message)
+        // Hoisted out of the initializer with explicit types. A ternary producing an OPTIONAL
+        // CLOSURE, and a dictionary subscript defaulted with ??, are both expensive to infer,
+        // and inside a 20-argument call they were what tipped this expression over the type
+        // checker's budget.
+        let jumpToReply: (() -> Void)? = messageReplyQuote == nil ? nil : {
+            pendingJumpToTxId = messageReplyQuote?.replyToId
+        }
+        let messageReactions: [GroupStore.ReactionSnapshot] =
+            publicChatService.reactions(forChannel: channelName)[message.id] ?? []
+        let replySender: String? = messageReplyQuote.map { displayName(for: $0.replyToSender) }
+        PublicChatMessageRow(
+            message: shownMessage,
+            isOwnMessage: message.senderAddress == myAddress,
+            avatarURLString: knsService.profileCache[message.senderAddress]?.avatarURL,
+            displayName: displayName(for: message.senderAddress),
+            senderHasKachatName: KachatLive.identityName(message.senderAddress) != nil,
+            replyQuote: messageReplyQuote,
+            replySenderDisplayName: replySender,
+            onViewProfile: { viewProfile(message.senderAddress) },
+            onCopyAddress: {
+                UIPasteboard.general.string = message.senderAddress
+                showToast(message.senderAddress.addressCopiedToastText)
+            },
+            onHideSender: { publicChatService.hideSender(message.senderAddress, inChannel: channelName) },
+            onReport: { reportMessage(message) },
+            onAvatarTap: {
+                senderSheetTarget = SenderSheetTarget(
+                    address: message.senderAddress,
+                    isOwnMessage: message.senderAddress == myAddress,
+                    message: message
+                )
+            },
+            onReply: { publicChatService.startReplyTo(message) },
+            onCopyMessage: {
+                UIPasteboard.general.string = displayContent(for: message).text
+                showToast("Message copied.")
+            },
+            onRetry: retryAction,
+            onJumpToReply: jumpToReply,
+            reactions: messageReactions,
+            myReactorAddress: myAddress ?? "",
+            onRetryReaction: { reaction in
+                Task {
+                    try? await publicChatService.retryPublicChatReaction(
+                        channel: channelName,
+                        targetTxId: reaction.targetTxId,
+                        emoji: reaction.emoji,
+                        action: reaction.failedAction ?? "add"
+                    )
+                }
+            },
+            onShowReactions: { reactionsSheetTarget = ReactionsSheetTarget(txId: message.id) },
+            onReact: { emoji in
+                let existing = publicChatService.reactions(forChannel: channelName)[message.id]?
+                    .first { $0.reactorAddress == myAddress }
+                let action = existing?.emoji == emoji ? "remove" : "add"
+                Task {
+                    try? await publicChatService.sendPublicChatReaction(
+                        channel: channelName,
+                        targetTxId: message.id,
+                        emoji: emoji,
+                        action: action
+                    )
+                }
+            },
+            onMoreReactions: { emojiPickerTarget = IdentifiedTxId(id: message.id) },
+            activeQuickReactionMessageId: $activeQuickReactionMessageId,
+            isQuickReactionBarShown: activeQuickReactionMessageId == message.id,
+            isReactionCheckFresh: messageReactions.contains {
+                $0.reactorAddress == (myAddress ?? "") && $0.deliveryStatus == .sent
+                    && Int64(reactionCheckClock.timeIntervalSince1970 * 1000) - $0.blockTime < 600_000
+            },
+            isEdited: edit != nil,
+            onEdit: canEdit ? { beginEdit(message) } : nil,
+            voiceNote: voiceNoteInput
+        )
+        // Compared on its data (see `PublicChatMessageRow.==`): its closures made every row
+        // look changed to SwiftUI, so every keystroke, fee estimate, poll and avatar load in the
+        // room re-ran the body of every visible row.
+        .equatable()
+        .id(message.id)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(highlightedMessageID == message.id ? Color.accentColor.opacity(0.18) : Color.clear)
+        )
+        .task(id: message.senderAddress) {
+            // Own address is always fetched by the room-level `.task`
+            // above; this opts *other* senders in.
+            guard message.senderAddress != myAddress,
+                  knsService.profileCache[message.senderAddress] == nil else { return }
+            _ = await knsService.fetchProfile(for: message.senderAddress)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .font(.scaled(size: 48))
+                .foregroundColor(.secondary)
+            Text("No messages yet")
+                .font(.headline)
+            Text("Be the first to post in #\(channelName).")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+    }
+
+    private var composeBar: some View {
+        VStack(spacing: 8) {
+            if let editing = publicChatService.editTarget(inChannel: channelName) {
+                editBanner(for: editing)
+            } else if let reply = publicChatService.replyTarget(inChannel: channelName) {
+                replyBanner(for: reply)
+            }
+            ZStack(alignment: .topLeading) {
+                if recorder.state == .recording || recorder.state == .encoding {
+                    recordingBar
+                } else {
+                    HStack(spacing: 12) {
+                        let _ = composerRevision
+                        let _ = composerHeight
+                        ComposerTextView(
+                            text: composerTextBinding,
+                            isFocused: $isMessageFocused,
+                            onTextChange: { newValue in
+                                scheduleFeeEstimate(for: newValue)
+                            },
+                            onHeightChange: { height in
+                                if abs(height - composerHeight) > 0.5 { composerHeight = height }
+                            },
+                            onSubmit: { send() },
+                            placeholder: "Message #\(channelName)",
+                            insertionRequest: emojiInsertionRequest,
+                            onInsertionHandled: { requestID in
+                                if emojiInsertionRequest?.id == requestID {
+                                    emojiInsertionRequest = nil
+                                }
+                            }
+                        )
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(glassBackground(cornerRadius: 20))
+
+                        if EmojiInputSupport.shouldShowDesktopEmojiButton {
+                            desktopEmojiButton
+                        }
+
+                        // Only a mic/voice-message icon here, matching 1:1 chat's look but
+                        // deliberately without its photo picker - public chats don't support
+                        // photo attachments (only text and voice messages).
+                        sendOrRecordButton
+                    }
+                }
+
+                if shouldShowFeeBubble {
+                    feeBubble
+                        .offset(x: 32, y: -26)
+                        .transition(.opacity)
+                }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .onChange(of: publicChatService.replyingTo) { _ in
+            scheduleFeeEstimate(for: messageText, force: true)
+        }
+        .onChange(of: recorder.elapsedSeconds) { elapsed in
+            updateRecordingFeeEstimate(elapsedSeconds: elapsed)
+            guard elapsed >= effectiveMaxRecordingDuration, recorder.state == .recording else { return }
+            stopAndSendRecording()
+        }
+    }
+
+    private var desktopEmojiButton: some View {
+        Button {
+            showDesktopEmojiPicker.toggle()
+            isMessageFocused = true
+        } label: {
+            Image(systemName: "face.smiling")
+                .font(.title3)
+                .foregroundColor(.primary)
+                .frame(width: 36, height: 36)
+                .background(glassBackground(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Emoji picker"))
+        .popover(isPresented: $showDesktopEmojiPicker, arrowEdge: .bottom) {
+            DesktopEmojiPickerView { emoji in
+                insertDesktopEmoji(emoji)
+            }
+        }
+    }
+
+    private func insertDesktopEmoji(_ emoji: String) {
+        isMessageFocused = true
+        emojiInsertionRequest = ComposerTextView.TextInsertionRequest(id: UUID(), text: emoji)
+    }
+
+    private var sendOrRecordButton: some View {
+        Group {
+            if !composerHasText {
+                Button {
+                    startVoiceMessage()
+                } label: {
+                    Image(systemName: "mic.fill")
+                        .font(.title3)
+                        .foregroundColor(.accentColor)
+                        .frame(width: 36, height: 36)
+                        .background(glassBackground(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Record voice message"))
+            } else {
+                Button {
+                    send()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(isSending ? .secondary : .accentColor)
+                        .frame(width: 36, height: 36)
+                        .background(glassBackground(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                .disabled(isSending)
+                .accessibilityLabel(Text("Send"))
+            }
+        }
+    }
+
+    private func glassBackground(cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.regularMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+            )
+            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
+    }
+
+    private var shouldShowFeeBubble: Bool {
+        guard settingsViewModel.settings.showFeeEstimate else { return false }
+        if recorder.state == .recording || recorder.state == .encoding { return true }
+        return composerHasText
+    }
+
+    private var feeBubble: some View {
+        Group {
+            if isEstimatingFee {
+                KaspaUnit.text("fee: -------- KAS")
+            } else if let fee = feeOverrideSompi ?? feeEstimateSompi {
+                Text(localizedFeeText(fee))
+                    .underline()
+            } else {
+                KaspaUnit.text("fee: -- KAS")
+            }
+        }
+        .font(.caption2)
+        .foregroundColor(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(glassBackground(cornerRadius: 14))
+        .overlay {
+            if isEstimatingFee {
+                FeeShimmerOverlay()
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .allowsHitTesting(false)
+            }
+        }
+        .allowsHitTesting(true)
+        .onTapGesture {
+            guard !isEstimatingFee, let currentFee = feeOverrideSompi ?? feeEstimateSompi else { return }
+            feeEditorText = formatKaspaExact(currentFee)
+            showFeeEditor = true
+        }
+    }
+
+    private func commitFeeOverride() {
+        guard let sompi = KaspaUnit.sompi(fromUserText: feeEditorText) else { return }
+        feeOverrideSompi = sompi
+        scheduleFeeEstimate(for: messageText, force: true)
+    }
+
+    private func localizedFeeText(_ feeSompi: UInt64) -> String {
+        let template = KaspaUnit.label(AppLocalization.string("fee: %@ KAS"))
+        return String(format: template, locale: AppLocalization.locale, formatKaspaExact(feeSompi))
+    }
+
+    /// While typing (`force` false): waits for a 0.6 s pause, and skips the estimate while the
+    /// message is within 24 bytes of the last estimated length - the fee follows the size, and
+    /// each estimate runs on the main thread. Replies and fee overrides force it.
+    private func scheduleFeeEstimate(for text: String, force: Bool = false) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            feeEstimateTask?.cancel()
+            feeEstimateLength = nil
+            if feeEstimateSompi != nil { feeEstimateSompi = nil }
+            if isEstimatingFee { isEstimatingFee = false }
+            return
+        }
+        let length = trimmed.utf8.count
+        if !force, feeEstimateSompi != nil, let last = feeEstimateLength, abs(length - last) < 24 {
+            return
+        }
+        feeEstimateTask?.cancel()
+        if !isEstimatingFee { isEstimatingFee = true }
+        feeEstimateTask = Task {
+            try? await Task.sleep(nanoseconds: force ? 200_000_000 : 600_000_000)
+            guard !Task.isCancelled else { return }
+            do {
+                let estimate = try await publicChatService.estimatePublicChatFee(channel: channelName, content: trimmed, feeOverride: feeOverrideSompi)
+                guard !Task.isCancelled else { return }
+                feeEstimateSompi = estimate
+                feeEstimateLength = length
+                isEstimatingFee = false
+            } catch {
+                guard !Task.isCancelled else { return }
+                // Transient estimation failures (UTXO fetch hiccup, node race with an in-flight
+                // send) must never alarm the user mid-typing: keep showing the last good fee
+                // (or the "--" placeholder if there never was one) and just stop the shimmer.
+                isEstimatingFee = false
+            }
+        }
+    }
+
+    /// Live fee while a voice message is still being recorded: the parts a recording this long
+    /// goes as (16 kbps CBR makes their sizes exact to a few bytes), each part's fee added up.
+    private func updateRecordingFeeEstimate(elapsedSeconds: TimeInterval) {
+        let partSizes = PublicChatAudioRecorder.estimatedPartSizes(forDuration: max(1, elapsedSeconds))
+        isEstimatingFee = false
+        feeEstimateSompi = publicChatService.estimatePublicChatVoiceFee(channel: channelName, partSizes: partSizes)
+    }
+
+    private var recordingBar: some View {
+        HStack(spacing: 12) {
+            // Laid out as KaChat's 1:1 recording bar: a ring filling toward the limit, the time
+            // against it, the trash at the end.
+            HStack {
+                if recorder.state == .encoding {
+                    ProgressView()
+                    Text("Encoding…")
+                } else {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.secondary.opacity(0.25), lineWidth: 3)
+                        Circle()
+                            .trim(from: 0, to: min(1, recorder.elapsedSeconds / max(1, effectiveMaxRecordingDuration)))
+                            .stroke(Color.red, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .animation(.linear(duration: 1), value: recorder.elapsedSeconds)
+                    }
+                    .frame(width: 20, height: 20)
+                    // After a call or another app took the microphone: stopped where it got to,
+                    // still there to send or throw away.
+                    Text(verbatim: "\(AppLocalization.string(recorder.wasInterrupted ? "Recording stopped" : "Recording...")) \(formatRecordingTime(recorder.elapsedSeconds)) / \(formatRecordingTime(effectiveMaxRecordingDuration))")
+                        .monospacedDigit()
+                }
+                Spacer()
+                Button {
+                    recorder.cancel()
+                    feeEstimateSompi = nil
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(glassBackground(cornerRadius: 20))
+
+            Button {
+                stopAndSendRecording()
+            } label: {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(recorder.state == .encoding ? .secondary : .accentColor)
+                    .frame(width: 36, height: 36)
+                    .background(glassBackground(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .disabled(recorder.state == .encoding)
+        }
+    }
+
+    /// "02:50", as KaChat's recording bar shows it.
+    private func formatRecordingTime(_ duration: TimeInterval) -> String {
+        guard duration.isFinite, duration >= 0, duration < 360_000 else { return "--:--" }
+        let totalSeconds = Int(duration.rounded())
+        return String(format: "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+    }
+
+    private func stopAndSendRecording() {
+        Task {
+            do {
+                let parts = try await recorder.stopAndEncodeParts()
+                if parts.count > 1 {
+                    // Longer than one part: tagged parts, one transaction each (2:50 at most).
+                    try await publicChatService.sendPublicChatVoiceParts(channel: channelName, parts: parts)
+                } else if let only = parts.first {
+                    try await publicChatService.sendPublicChatAudio(channel: channelName, audioData: only)
+                }
+            } catch {
+                showToast(String(format: AppLocalization.string("Failed to send voice message: %@"), error.localizedDescription))
+            }
+        }
+    }
+
+    /// Long-press > Edit on one of the user's own text bubbles: the composer takes the message's
+    /// current text under an "Editing message" banner until Send or the X.
+    private func beginEdit(_ message: PublicChatMessage) {
+        publicChatService.startEditing(message)
+        messageText = MessageReplyCodec.unwrappedText(message.content)
+    }
+
+    private func editBanner(for editing: PublicChatMessage) -> some View {
+        let current = publicChatService.edits(forChannel: channelName)[editing.id].map { MessageEditCodec.apply($0.text, to: editing.content) } ?? editing.content
+        return HStack(spacing: 8) {
+            Image(systemName: "pencil")
+                .font(.caption)
+                .foregroundColor(.accentColor)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Editing message")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.accentColor)
+                Text(MessageReplyCodec.previewText(for: MessageReplyCodec.unwrappedText(current)))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Button {
+                publicChatService.cancelEditing()
+                messageText = ""
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(UIColor.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private func replyBanner(for reply: PublicChatMessage) -> some View {
+        let content = displayContent(for: reply)
+        return HStack(spacing: 8) {
+            Image(systemName: "arrowshape.turn.up.left.fill")
+                .font(.caption)
+                .foregroundColor(.accentColor)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Replying to \(displayName(for: reply.senderAddress))")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.accentColor)
+                Text(MessageReplyCodec.previewText(for: content.text))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Button {
+                publicChatService.cancelReply()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(UIColor.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private func send() {
+        let trimmed = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        messageText = ""
+        isSending = true
+        let feeOverride = feeOverrideSompi
+        feeEstimateSompi = nil
+        feeOverrideSompi = nil
+        // Editing: the composer's text replaces the message being edited - one edit
+        // transaction, no new row.
+        if let editing = publicChatService.editTarget(inChannel: channelName) {
+            Task {
+                do {
+                    try await publicChatService.sendPublicChatEdit(channel: channelName, targetTxId: editing.id, text: trimmed)
+                } catch {
+                    showEditFailure(error)
+                }
+                isSending = false
+            }
+            return
+        }
+        Task {
+            do {
+                try await publicChatService.sendPublicChat(channel: channelName, content: trimmed, feeOverride: feeOverride)
+            } catch {
+                showToast(String(format: AppLocalization.string("Failed to send: %@"), error.localizedDescription))
+            }
+            isSending = false
+        }
+    }
+
+    private func retryEdit(of message: PublicChatMessage) {
+        Task {
+            do {
+                try await publicChatService.retryFailedEdit(channel: channelName, targetTxId: message.id)
+            } catch {
+                showEditFailure(error)
+            }
+        }
+    }
+
+    private func showEditFailure(_ error: Error) {
+        // Not "Failed": it may well have gone through.
+        if error is SendOutcomeUnknownError {
+            showToast(error.localizedDescription)
+        } else {
+            showToast(String(format: AppLocalization.string("Failed to edit: %@"), error.localizedDescription))
+        }
+    }
+
+    private func formatKaspaExact(_ sompi: UInt64) -> String {
+        let kas = Double(sompi) / 100_000_000.0
+        return String(format: "%.8f", kas)
+    }
+
+    private func showToast(_ message: String) {
+        let token = UUID()
+        toastToken = token
+        withAnimation(.easeOut(duration: 0.2)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            if toastToken == token {
+                withAnimation(.easeIn(duration: 0.2)) {
+                    toastMessage = nil
+                }
+            }
+        }
+    }
+
+    /// Reporting (App Store guideline 1.2, `ContentReport`): the message's id, room, sender and text.
+    private func reportMessage(_ message: PublicChatMessage) {
+        let report = ContentReport(body: """
+        I want to report this public chat message.
+
+        Room: #\(channelName)
+        Message: \(message.id)
+        Sender: \(message.senderAddress)
+        Text: \(String(displayContent(for: message).text.prefix(500)))
+
+        What is wrong with it:
+
+        """)
+        report.send {
+            // Let the half sheet that offered this finish dismissing before the alert goes up.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { unsentReport = report }
+        }
+    }
+
+    /// The sender half sheet a tapped avatar opens: what the avatar's popup menu used to offer,
+    /// with a line under each option saying what it does - the same shape as the group thread's
+    /// and every other menu in the app that became a sheet. One sheet serves every row.
+    private func senderSheet(for target: SenderSheetTarget) -> some View {
+        let address = target.address
+        // Dismiss first, then act: profile and chat present something of their own, and a sheet
+        // cannot present from underneath one that is still on its way out.
+        func dismissThen(_ action: @escaping () -> Void) {
+            senderSheetTarget = nil
+            DispatchQueue.main.async(execute: action)
+        }
+        return VStack(spacing: 12) {
+            VStack(spacing: 4) {
+                Text(target.isOwnMessage ? "You" : displayName(for: address))
+                    .font(.headline)
+                Text(address)
+                    .font(.caption.monospaced())
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 4)
+
+            ActionSheetRow(
+                title: "View Profile",
+                subtitle: "Their KaPost profile: posts, replies and followers.",
+                systemImage: "person.crop.circle"
+            ) {
+                dismissThen { viewProfile(address) }
+            }
+            if !target.isOwnMessage {
+                ActionSheetRow(
+                    title: "Send Kaspa",
+                    subtitle: "Send Kaspa to their address.",
+                    systemImage: "k.circle",
+                    customIcon: Image("KaspaLogo")
+                ) {
+                    dismissThen { sendTarget = SendTarget(address: address) }
+                }
+            }
+            ActionSheetRow(
+                title: "Copy Address",
+                subtitle: "Copy their Kaspa address.",
+                systemImage: "doc.on.doc"
+            ) {
+                senderSheetTarget = nil
+                UIPasteboard.general.string = address
+                showToast(address.addressCopiedToastText)
+            }
+            if !target.isOwnMessage {
+                ActionSheetRow(
+                    title: "Hide User",
+                    subtitle: "Stop seeing their messages in this room. Undo it in Room Info.",
+                    systemImage: "eye.slash",
+                    tint: .red
+                ) {
+                    senderSheetTarget = nil
+                    publicChatService.hideSender(address, inChannel: channelName)
+                }
+                ActionSheetRow(
+                    title: "Report",
+                    subtitle: "Report abusive or objectionable content. Opens an email with this message attached.",
+                    systemImage: "flag",
+                    tint: .red
+                ) {
+                    senderSheetTarget = nil
+                    reportMessage(target.message)
+                }
+                ActionSheetRow(
+                    title: "Block \(displayName(for: address))",
+                    subtitle: "Hides their posts and room messages, and stops them interacting with you.",
+                    systemImage: "hand.raised",
+                    tint: .red
+                ) {
+                    senderSheetTarget = nil
+                    KaPostsModerationStore.shared.block(address)
+                    showToast("Blocked. Undo it in the Feed's menu, under Blocked.")
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // Tall enough to show every row, Report and Block included.
+        .presentationDetents([.height(target.isOwnMessage ? 266 : 578), .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    /// Their KaPosts profile, on the Feed tab (KaPostsView presents it).
+    private func viewProfile(_ address: String) {
+        KaPostsDeepLink.pendingProfileAddress = address
+        NotificationCenter.default.post(name: .openKaPostsProfile, object: nil)
+    }
+}
+
+/// The room's `#name` in the navigation bar, as the button that opens Room Info.
+/// The room's header chip: an icon over a name capsule, matching KaChat's `ChatDetailView`'s and
+/// KaChat's `GroupChatDetailView`'s chips measure for measure. A room has no photo, so the circle carries
+/// the same glyph the room list uses rather than an avatar.
+private struct PublicChatRoomTitleChip: View {
+    let channelName: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: -12) {
+                ZStack {
+                    Circle().fill(Color.accentColor.opacity(0.2))
+                    Image(systemName: "number")
+                        .font(.scaled(size: 18, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                }
+                .frame(width: 46, height: 46)
+                // Drawn over the capsule, which tucks under it - the negative spacing is what
+                // makes the two read as one piece rather than a stack.
+                .zIndex(1)
+
+                HStack(spacing: 4) {
+                    Text("#" + channelName)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.bold))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 15)
+                .padding(.bottom, 5)
+                // iMessage's floating pill: a thin material so the messages scrolling underneath
+                // actually show through it, a hairline edge to keep it legible against a light
+                // bubble, and a soft shadow so it reads as sitting above the thread.
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .overlay(Capsule().stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
+                        .shadow(color: Color.black.opacity(0.10), radius: 6, x: 0, y: 2)
+                )
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Room info for #\(channelName)"))
+    }
+}
+
+private struct PublicChatMessageRow: View, Equatable {
+    @EnvironmentObject var settingsViewModel: SettingsViewModel
+    /// Translation from the long-press menu - the KaPosts service, reused as-is.
+    @ObservedObject private var translation = PostTranslationService.shared
+    let message: PublicChatMessage
+    let isOwnMessage: Bool
+    let avatarURLString: String?
+    let displayName: String
+    /// The sender has a `.kachat` name: only then do their links preview (`previews`).
+    let senderHasKachatName: Bool
+    let replyQuote: MessageReplyContent?
+    let replySenderDisplayName: String?
+    let onViewProfile: () -> Void
+    let onCopyAddress: () -> Void
+    let onHideSender: () -> Void
+    let onReport: () -> Void
+    /// Tapping the avatar. The parent presents the sender half sheet (see
+    /// `PublicChatChannelView.senderSheet`); the row itself no longer owns a menu.
+    let onAvatarTap: () -> Void
+    let onReply: () -> Void
+    let onCopyMessage: () -> Void
+    let onRetry: () -> Void
+    /// Tapping the reply quote (if any) jumps to and highlights the original message - nil when
+    /// `replyQuote` is nil, since there's nothing to jump to.
+    var onJumpToReply: (() -> Void)?
+    /// This message's current reactions (one per reactor), for the pill shown on its corner -
+    /// same `GroupStore.ReactionSnapshot` shape group bubbles use (see `PublicChatStore.fetchReactions`).
+    var reactions: [GroupStore.ReactionSnapshot] = []
+    /// The local wallet's address, used to find *my* reaction among `reactions` so the pill can
+    /// show my reaction's status (pending → nothing, sent → green check, failed → red error + Retry).
+    var myReactorAddress: String = ""
+    /// Retries the local user's failed reaction on this message (nil disables the reaction Retry).
+    var onRetryReaction: ((GroupStore.ReactionSnapshot) -> Void)? = nil
+    /// Opens the list of who reacted to this message. Offered from the long-press menu only when
+    /// there are reactions to show.
+    var onShowReactions: (() -> Void)? = nil
+    /// Sends/toggles a reaction on this message - nil disables the double-tap quick-reaction bar
+    /// entirely (matches group chat's `GroupMessageBubbleRow.onReact`).
+    var onReact: ((String) -> Void)?
+    /// Asks the SCREEN to open the full emoji picker - see `QuickReactionBarView.onMore`.
+    var onMoreReactions: (() -> Void)?
+    /// Shared across every bubble in the room (not per-bubble `@State`) - mirrors group chat's
+    /// identical binding, keyed by the public chat row's `String` txId.
+    var activeQuickReactionMessageId: Binding<String?> = .constant(nil)
+    /// Whether the quick-reaction bar is on THIS row, as a value so `==` can see it change.
+    var isQuickReactionBarShown: Bool = false
+    /// Your sent reaction here is under 10 minutes old, so the pill still shows its green check.
+    /// Worked out by the parent against a minute clock; a value so `==` sees it expire.
+    var isReactionCheckFresh: Bool = false
+    /// The text shown is an edit of what was sent (the parent swapped `content`); a small
+    /// "edited" chip sits on the bubble. `onEdit` is offered on the user's own text bubbles only.
+    var isEdited: Bool = false
+    var onEdit: (() -> Void)? = nil
+    /// The parts of the long voice note this row stands for (it is the note's first part), or
+    /// nil for any other message. The bubble plays them as one recording.
+    var voiceNote: PublicChatVoiceNoteInput? = nil
+
+    @State private var showFullText = false
+    /// The link whose actions sheet is up. Public Chat keeps tap-to-open disabled (see
+    /// `LinkifiedMessageTextView.tapOpensLink`) - a room's senders are anonymous, so opening a
+    /// link stays a deliberate long-press. The CHOOSER is a half sheet now, matching 1:1 and
+    /// group; the gesture that summons it is unchanged.
+    @State private var linkMenuURL: URL?
+
+    private var showQuickReactionBar: Bool { isQuickReactionBarShown }
+
+    /// Everything the row draws from. The closures are left out on purpose - they are rebuilt
+    /// on every parent pass and never compare equal, which is what made SwiftUI re-render every
+    /// row on every room update - but whether each optional action EXISTS is compared, since
+    /// that changes what the row offers. Observed state inside the row (settings, translation)
+    /// still refreshes it on its own.
+    static func == (lhs: PublicChatMessageRow, rhs: PublicChatMessageRow) -> Bool {
+        lhs.message == rhs.message
+            && lhs.isOwnMessage == rhs.isOwnMessage
+            && lhs.avatarURLString == rhs.avatarURLString
+            && lhs.displayName == rhs.displayName
+            && lhs.senderHasKachatName == rhs.senderHasKachatName
+            && lhs.replyQuote == rhs.replyQuote
+            && lhs.replySenderDisplayName == rhs.replySenderDisplayName
+            && lhs.reactions == rhs.reactions
+            && lhs.myReactorAddress == rhs.myReactorAddress
+            && lhs.isQuickReactionBarShown == rhs.isQuickReactionBarShown
+            && lhs.isReactionCheckFresh == rhs.isReactionCheckFresh
+            && lhs.isEdited == rhs.isEdited
+            && lhs.voiceNote == rhs.voiceNote
+            && (lhs.onEdit == nil) == (rhs.onEdit == nil)
+            && (lhs.onJumpToReply == nil) == (rhs.onJumpToReply == nil)
+            && (lhs.onShowReactions == nil) == (rhs.onShowReactions == nil)
+            && (lhs.onReact == nil) == (rhs.onReact == nil)
+            && (lhs.onRetryReaction == nil) == (rhs.onRetryReaction == nil)
+    }
+
+    /// The local user's own reaction on this message, if any - only our own reactions ever carry
+    /// a pending/failed status, so this uniquely finds the one needing the status icon + Retry.
+    private var localReaction: GroupStore.ReactionSnapshot? {
+        reactions.first { $0.reactorAddress == myReactorAddress }
+    }
+
+    /// Status to show on the reaction pill. Same as `localReaction`'s status, except the green
+    /// "sent" checkmark is dropped once the reaction is older than 10 minutes - it's a recent
+    /// confirmation, not a permanent badge (pending/failed are always shown). Matches
+    /// `GroupMessageBubbleRow.pillReactionStatus`.
+    private var pillReactionStatus: ChatMessage.DeliveryStatus? {
+        guard let localReaction else { return nil }
+        guard localReaction.deliveryStatus == .sent else { return localReaction.deliveryStatus }
+        return isReactionCheckFresh ? .sent : nil
+    }
+
+    /// See `MessageBubbleView.inlineTextTruncationThreshold`'s doc comment - public chat rooms are
+    /// public/unencrypted, so a huge wall of text (e.g. stray base64) landing here is if anything
+    /// more likely than in a private chat.
+    private static let inlineTextTruncationThreshold = 2_000
+    private static let truncatedPreviewLength = 500
+
+    private var displayText: String {
+        replyQuote?.text ?? message.content
+    }
+
+    /// Per message AND per text: an edit changes the text, and a translation of the old text
+    /// must not show over the new one. States live in memory only, so `hashValue` being
+    /// per-launch does not matter.
+    private var translationKey: String {
+        "publicchat:\(message.id):\(displayText.hashValue)"
+    }
+
+    /// The text the bubble draws: the translation while one is showing, otherwise the message.
+    /// Everything that decides WHAT the message is (voice, links, length) still reads
+    /// `displayText`, the original.
+    private var shownText: String {
+        // Every way a room's body is drawn reads this one (see `strippingBidiControls`).
+        KaPostsMarkdown.strippingBidiControls(translation.displayText(for: translationKey, original: displayText))
+    }
+
+    /// Worth offering Translate: someone else's plain text message, confidently in a language
+    /// other than the reader's. Voice notes and KaChat link cards have nothing to translate.
+    private var canTranslate: Bool {
+        !isOwnMessage
+            && displayText.first != "{"
+            && internalLink == nil
+            && translation.canOffer(for: displayText)
+    }
+
+    private func translate() {
+        // No txid: the service caches by KaPost id and checks the text against its own copy of
+        // the post, which a public chat message is not. Sent as bare text, translated, not cached.
+        translation.translate(key: translationKey, text: displayText, postId: nil)
+    }
+
+    private var voicePayload: VoiceMessageSniff.Payload? {
+        VoiceMessageSniff.decode(displayText)
+    }
+
+    /// The swipe-to-reveal time and its offset are drawn by the parent around this row (see
+    /// `PublicChatChannelView.messageRow`), so a drag does not re-render the row every frame.
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            if !isOwnMessage {
+                avatarButton
+            } else {
+                Spacer(minLength: 40)
+            }
+
+            VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 3) {
+                // Sits directly above the bubble in normal layout flow, same as 1:1/group
+                // chat - an `.overlay` with a manual offset gets cropped by the ScrollView's
+                // own clipping instead of rendering cleanly above the row.
+                if showQuickReactionBar, let onReact {
+                    QuickReactionBarView(
+                        emojis: settingsViewModel.settings.effectiveQuickReactionEmojis,
+                        onReact: { emoji in
+                            onReact(emoji)
+                            activeQuickReactionMessageId.wrappedValue = nil
+                        },
+                        onReply: {
+                            onReply()
+                            activeQuickReactionMessageId.wrappedValue = nil
+                        },
+                        onMore: {
+                            // Close the bar and hand off in one go: the screen owns the
+                            // picker, so it survives this bar going away.
+                            activeQuickReactionMessageId.wrappedValue = nil
+                            onMoreReactions?()
+                        }
+                    )
+                    .frame(maxWidth: .infinity, alignment: isOwnMessage ? .trailing : .leading)
+                }
+
+                Text(isOwnMessage ? "You" : displayName)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.accentColor)
+
+                if let replyQuote {
+                    replyQuoteView(replyQuote)
+                }
+
+                bubble
+
+                translationStatus
+
+                trailingLinkPreview
+
+                // The time under every message, exactly as in a 1:1 chat, and under your own the
+                // status after it: "Sending", "Sent" with the green check, "Failed · Tap to retry".
+                MessageTimeLine(date: Date(timeIntervalSince1970: Double(message.blockTime) / 1000), showsDay: true) {
+                    if isOwnMessage {
+                        deliveryStatus
+                    }
+                }
+
+                // A reaction (not the message) that failed to send - shown for reactions on
+                // any message (yours or another sender's), matching group chat.
+                if let localReaction, localReaction.deliveryStatus == .failed {
+                    Text("Retry")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(.red)
+                        .contentShape(Rectangle())
+                        .onTapGesture { onRetryReaction?(localReaction) }
+                }
+            }
+
+            if isOwnMessage {
+                avatarButton
+            } else {
+                Spacer(minLength: 40)
+            }
+        }
+    }
+
+    /// The sender's avatar. Tapping it opens the sender half sheet presented by the parent (see
+    /// `PublicChatChannelView.senderSheet`). This was a popup `Menu` of bare labels; the sheet
+    /// has room to say what each option does, and one sheet serves every row.
+    private var avatarButton: some View {
+        Button(action: onAvatarTap) {
+            KNSAvatarView(
+                avatarURLString: avatarURLString,
+                fallbackText: displayName,
+                size: 32,
+                // the sender's .kachat avatar - yours on your own messages too
+                contactAddress: message.senderAddress
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func replyQuoteView(_ reply: MessageReplyContent) -> some View {
+        VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 2) {
+            Text(replySenderDisplayName ?? Contact.generateDefaultAlias(from: reply.replyToSender))
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundColor(.accentColor)
+            Text(reply.replyToPreview)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(isOwnMessage ? .trailing : .leading)
+        }
+        .padding(8)
+        .background(Color(UIColor.tertiarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .frame(maxWidth: 240, alignment: isOwnMessage ? .trailing : .leading)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onJumpToReply?()
+        }
+    }
+
+    /// The first link in the message, if any - offered as "Open Link"/"Copy Link" entries in the
+    /// same long-press menu as the rest of the message's actions, rather than a separate gesture
+    /// competing with that menu (a plain tap never opens a link here; only this menu can).
+    private var firstLink: URL? {
+        MessageTextRenderPlan.firstHTTPLink(in: displayText)
+    }
+
+    @ViewBuilder
+    private func bubbleContent(voicePayload: VoiceMessageSniff.Payload?) -> some View {
+        if let voiceNote {
+            PublicChatVoiceNoteBubble(input: voiceNote, isOwnMessage: isOwnMessage)
+        } else if let voicePayload {
+            PublicChatAudioBubble(data: voicePayload.data, isOwnMessage: isOwnMessage)
+        } else if shownText.utf8.count > Self.inlineTextTruncationThreshold {
+            truncatedTextContent
+        } else if MessageTextRenderPlan.prefersUIKitTextView(shownText) {
+            LinkifiedMessageTextView(
+                text: shownText,
+                isOutgoing: isOwnMessage,
+                isSingleEmojiOnly: false,
+                onLinkLongPress: { linkMenuURL = $0 },
+                tapOpensLink: false
+            )
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        } else {
+            Text(shownText)
+                .foregroundColor(isOwnMessage ? .white : .primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+        }
+    }
+
+    private var truncatedTextContent: some View {
+        Button {
+            showFullText = true
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(shownText.prefix(Self.truncatedPreviewLength)) + "…")
+                    .foregroundColor(isOwnMessage ? .white : .primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Show More")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(isOwnMessage ? Color.white.opacity(0.85) : Color.accentColor)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showFullText) {
+            FullMessageTextView(text: shownText) {
+                onCopyMessage()
+            }
+        }
+    }
+
+    /// The trailing preview card for a link embedded in a longer text message - rendered below
+    /// the text bubble, exactly like 1:1/group bubbles. (A message that is NOTHING but a link is
+    /// handled inside `bubble` instead: the card replaces the text bubble entirely.) The
+    /// `{`-prefix guard skips JSON envelopes (voice payloads etc.) without paying their decode.
+    @ViewBuilder
+    private var trailingLinkPreview: some View {
+        if displayText.first != "{",
+           internalLink == nil,
+           !MessageTextRenderPlan.isEntirelyLink(displayText),
+           let linkURL = Self.firstExplicitHTTPLink(in: displayText),
+           previews(linkURL) {
+            LinkPreviewCardView(
+                url: linkURL,
+                txId: message.id,
+                onDoubleTap: onReact != nil ? { activeQuickReactionMessageId.wrappedValue = message.id } : nil,
+                isOutgoing: isOwnMessage
+            )
+        }
+    }
+
+    /// Rooms follow KaPost's preview rules (owner's call, 2026-11-18): a link previews, by itself
+    /// with no tap, only when its sender has a `.kachat` name and it is KaChat's own site or a
+    /// popular site on the allowed list with no adult words in it (`KaPostLinkPreviewPolicy`).
+    /// Any other link stays plain text in the bubble, so an unknown server is never contacted.
+    private func previews(_ url: URL) -> Bool {
+        senderHasKachatName && (KaChatSiteLink.isSiteLink(url) || KaPostLinkPreviewPolicy.allows(url))
+    }
+
+    /// The first web link the sender wrote out as one - starting `http://`, `https://` or `www.` -
+    /// the same "explicit link" rule as posts: a bare "x.com" in a sentence is text the data
+    /// detector happens to read as a link, and it never previews. Cached per text.
+    static func firstExplicitHTTPLink(in text: String) -> URL? {
+        let key = text as NSString
+        if let cached = explicitLinkCache.object(forKey: key) { return cached.url }
+        var found: URL?
+        if let detector = SharedDetectors.link {
+            let range = NSRange(location: 0, length: key.length)
+            detector.enumerateMatches(in: text, options: [], range: range) { match, _, stop in
+                guard let match, let url = match.url,
+                      let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return }
+                let written = key.substring(with: match.range).lowercased()
+                guard written.hasPrefix("http://") || written.hasPrefix("https://") || written.hasPrefix("www.") else { return }
+                found = url
+                stop.pointee = true
+            }
+        }
+        explicitLinkCache.setObject(ExplicitLinkBox(found), forKey: key)
+        return found
+    }
+
+    private final class ExplicitLinkBox {
+        let url: URL?
+        init(_ url: URL?) { self.url = url }
+    }
+
+    private static let explicitLinkCache: NSCache<NSString, ExplicitLinkBox> = {
+        let cache = NSCache<NSString, ExplicitLinkBox>()
+        cache.countLimit = 500
+        return cache
+    }()
+
+    /// A link into KaChat itself inside this row's text, if any - see
+    /// `MessageBubbleView.internalLink` (same rule, same cache).
+    private var internalLink: KaChatInternalLink.Match? {
+        guard displayText.first != "{" else { return nil }
+        return KaChatInternalLink.match(in: displayText)
+    }
+
+
+    private var bubble: some View {
+        // Computed once here rather than letting `bubbleContent` and this context menu each call
+        // the (uncached) `VoiceMessageSniff.decode` independently - that decode does a full
+        // JSONSerialization parse + base64 decode of the whole audio payload, so evaluating it
+        // twice per row doubled that cost on every render.
+        let voicePayload = self.voicePayload
+        // Message is nothing but a link - the preview card replaces the plain-text bubble
+        // entirely (matches iMessage and group/1:1 chat) instead of showing both. `fallbackText`
+        // keeps the raw link visible/tappable if no preview data is ever found.
+        // A message that is nothing but a KaChat-internal link gets the native card instead,
+        // claimed here before the generic (network-scraping) one below.
+        let matchedInternalLink = self.internalLink
+        // The card is the WHOLE message, even when the link arrived with text around it -
+        // KaPosts' own share text quotes the post above the link, so keeping the bubble drew the
+        // post twice. Copy and the full-text dialog still carry everything.
+        let loneInternalLink: KaChatInternalLink.Match? = (voicePayload == nil
+            && displayText.utf8.count <= Self.inlineTextTruncationThreshold)
+            ? matchedInternalLink
+            : nil
+        let loneLinkURL: URL? = (voicePayload == nil
+            && matchedInternalLink == nil
+            && displayText.utf8.count <= Self.inlineTextTruncationThreshold
+            && MessageTextRenderPlan.isEntirelyLink(displayText))
+            ? Self.firstExplicitHTTPLink(in: displayText).flatMap { previews($0) ? $0 : nil }
+            : nil
+        return Group {
+            if let loneInternalLink {
+                KaChatInternalLinkCardView(
+                    match: loneInternalLink,
+                    txId: message.id,
+                    onDoubleTap: onReact != nil ? { activeQuickReactionMessageId.wrappedValue = message.id } : nil
+                )
+            } else if let loneLinkURL {
+                // allowed by `previews` above, so it loads by itself
+                LinkPreviewCardView(
+                    url: loneLinkURL,
+                    txId: message.id,
+                    fallbackText: displayText,
+                    onDoubleTap: onReact != nil ? { activeQuickReactionMessageId.wrappedValue = message.id } : nil,
+                    isOutgoing: isOwnMessage
+                )
+            } else {
+                bubbleContent(voicePayload: voicePayload)
+                    .background(isOwnMessage ? OutgoingBubble.color : Color(UIColor.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    // Only the plain bubble gets this menu - `LinkPreviewCardView` carries its
+                    // own (Open Link / Copy Link / View in Explorer), and stacking a second
+                    // long-press menu on top of it would fight it. Matches group bubbles.
+                    // Extracted: this menu's branches inside `bubble`'s already-long
+                    // chain is what the type checker gives up on.
+                    .messageActions(title: voicePayload == nil ? "Message" : "Voice Message",
+                                    preview: voicePayload == nil ? displayText : nil) {
+                        bubbleActions(voicePayload: voicePayload)
+                    }
+            }
+        }
+        .sheet(item: Binding(get: { linkMenuURL.map(IdentifiedURL.init) }, set: { if $0 == nil { linkMenuURL = nil } })) { wrapper in
+            LinkActionsSheet(
+                url: wrapper.url,
+                onOpen: { KaChatLinkRouter.openAnywhere(wrapper.url) },
+                onCopy: { UIPasteboard.general.string = wrapper.url.absoluteString }
+            )
+        }
+            // Overlays are attached HERE - to the content-hugging Group, BEFORE the
+            // `.frame(maxWidth: 280)` below - exactly like 1:1's `MessageBubbleView` and group
+            // chat anchor theirs to the bubble itself. That frame EXPANDS to fill up to 280pt
+            // regardless of how narrow the bubble is, so anything overlaid after it anchors to
+            // the frame's screen-side corner and visibly floats away from a short bubble.
+            .overlay(alignment: isOwnMessage ? .topLeading : .topTrailing) {
+                if isEdited {
+                    Text("edited")
+                        .font(.scaled(size: 10))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color(.systemBackground)))
+                        .offset(y: -8)
+                }
+            }
+            .overlay(alignment: isOwnMessage ? .bottomLeading : .bottomTrailing) {
+                if !reactions.isEmpty {
+                    ReactionPillView(emojis: reactions.map { $0.emoji }, localReactionStatus: pillReactionStatus)
+                        .offset(y: 10)
+                }
+            }
+            // The pill is an overlay (no layout footprint) offset ~10pt below the bubble, so
+            // reserve that space when reactions exist - otherwise it overlaps the next message.
+            .padding(.bottom, reactions.isEmpty ? 0 : 16)
+            .frame(maxWidth: 280, alignment: isOwnMessage ? .trailing : .leading)
+            .tint(.accentColor)
+            // `.simultaneousGesture` rather than `.onTapGesture(count: 2)`: the latter is a
+            // discrete, exclusive gesture that a Button descendant (the truncated-text preview's
+            // "Show More" tap target) would always win the race against, since a Button's tap
+            // fires immediately on touch-up. Matches the fix already applied to the private-chat
+            // text bubble/image bubble for the same reason.
+            // Double-tap opens the quick-reaction bar (reactions + a reply shortcut) instead of
+            // jumping straight into reply mode - matching 1:1/group bubbles' identical change.
+            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                if onReact != nil {
+                    activeQuickReactionMessageId.wrappedValue = message.id
+                } else {
+                    onReply()
+                }
+            })
+    }
+
+    /// The long-press menu on a plain text bubble. Its own @ViewBuilder rather than inline:
+    /// `bubble` is a long chain already, and the type checker solves a view expression whole.
+    ///
+    /// `voicePayload` is passed in, not read off `self`: `bubble` computes it once into a local
+    /// that shadows the property, because the decode is a full JSON parse + base64 of the audio.
+    private func bubbleActions(voicePayload: VoiceMessageSniff.Payload?) -> [MessageAction] {
+        // Reply was reachable only by double-tapping into the quick-reaction bar,
+        // which is not where anyone looks for it. Android has had it here all
+        // along.
+        var actions: [MessageAction] = [.reply(onReply)]
+        if let onEdit { actions.append(.edit(onEdit)) }
+        if let firstLink {
+            actions.append(.openLink {
+                // Internal KaChat links open in-app rather than in Safari - see
+                // `LinkifiedMessageTextView.Coordinator.handleTap`.
+                KaChatLinkRouter.openAnywhere(firstLink)
+            })
+            // Not for a Nextcloud share: the link is the address of someone's file, and the
+            // preview card already refuses to hand it out - same rule here, same classifier.
+            if LinkPreviewService.nextcloudShareEndpoints(for: firstLink) == nil {
+                actions.append(.copyLink { UIPasteboard.general.string = firstLink.absoluteString })
+            }
+        }
+        if voicePayload == nil {
+            actions.append(.copyMessage { onCopyMessage() })
+        }
+        if !isOwnMessage {
+            actions.append(.report { onReport() })
+        }
+        switch translation.state(for: translationKey) {
+        case .translated:
+            if translation.isShowingOriginal(translationKey) {
+                actions.append(.showTranslation { translation.showTranslation(key: translationKey) })
+            } else {
+                actions.append(.showOriginal { translation.showOriginal(key: translationKey) })
+            }
+        case .translating, .unavailable:
+            break
+        case .none, .failed:
+            if voicePayload == nil, canTranslate {
+                actions.append(.translate(into: PostTranslationService.readerLanguageName) { translate() })
+            }
+        }
+        if let url = settingsViewModel.settings.kaspaExplorer.txURL(for: message.id) {
+            actions.append(.explorer(url))
+        }
+        if isOwnMessage && message.deliveryStatus == .failed {
+            actions.append(.retry(onRetry))
+        }
+        // The pill on the bubble shows WHICH emoji are on the message; it has no
+        // room to say how many or from whom. This does.
+        if !reactions.isEmpty, let onShowReactions {
+            actions.append(.reactions(count: reactions.count, onShowReactions))
+        }
+        return actions
+    }
+
+    /// The line under a translated bubble, the same words KaPosts uses: "Translating...",
+    /// "Translated from Spanish - Show original", or why it could not be. Nothing at all until
+    /// Translate is picked from the long-press menu.
+    @ViewBuilder
+    private var translationStatus: some View {
+        switch translation.state(for: translationKey) {
+        case .none:
+            EmptyView()
+        case .translating:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini)
+                Text("Translating...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        case .translated(_, let sourceName):
+            if translation.isShowingOriginal(translationKey) {
+                translationLink("Show translation") { translation.showTranslation(key: translationKey) }
+            } else {
+                HStack(spacing: 4) {
+                    Text("Translated from \(sourceName)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("-")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    translationLink("Show original") { translation.showOriginal(key: translationKey) }
+                }
+            }
+        case .failed:
+            // A dropped connection or a server briefly away: tapping again is the fix.
+            translationLink("Translation unavailable - try again") { translate() }
+        case .unavailable(let reason):
+            // The service's own reasons are English keys; a server message falls through as is.
+            Text(AppLocalization.string(reason))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func translationLink(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.accentColor)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var deliveryStatus: some View {
+        let status: DeliveryStatusLabel.Status
+        switch message.deliveryStatus {
+        case .failed: status = .failed
+        case .pending: status = .pending
+        case .sent: status = .sent
+        case .unconfirmed: status = .unconfirmed
+        }
+        return DeliveryStatusLabel(status: status, retry: message.deliveryStatus == .failed ? onRetry : nil)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        PublicChatChannelView(channelName: "kaspa")
+            .environmentObject(PublicChatService.shared)
+            .environmentObject(ContactsManager.shared)
+            .environmentObject(ChatService.shared)
+            .environmentObject(WalletManager.shared)
+    }
+}

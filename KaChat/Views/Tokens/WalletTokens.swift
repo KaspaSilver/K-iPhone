@@ -152,6 +152,8 @@ struct TokenActivity: Identifiable, Codable, Equatable {
     var holdingID = "chatting"
     /// The network fee (sompi), when this phone paid it (a send or Combine Coins).
     var fee: UInt64? = nil
+    /// A swap that sold kUSDT (it went out); nil or false for one that bought it.
+    var outgoing: Bool? = nil
 
     /// The transaction id, for a line this phone recorded ("txid:holding:kind").
     var txid: String? {
@@ -525,6 +527,16 @@ final class TokenWallet: ObservableObject {
     /// A kUSDT send went out (`KusdtTransfer.send`): its coins are gone from the balances at once,
     /// every output it made is known (so your own change is never announced as received), and the
     /// balances are looked up again shortly, once the node has it.
+    /// A swap made on Trestly's site from KaChat (`TrestlyProvider`): the kUSDT side, on that
+    /// address's history, then a refresh once the pool's new coins can be listed.
+    func noteSwap(token: WalletToken, spendingIndex: Int?, txid: String, units: UInt64, sold: Bool, fee: UInt64?) {
+        guard let account = WalletManager.shared.currentWallet?.publicAddress else { return }
+        let holdingID = spendingIndex.map { "s\($0)" } ?? "chatting"
+        record(TokenActivity(id: "\(txid):\(holdingID):swapped", kind: .swapped, units: units, counterparty: "Trestly",
+                             date: Date(), holdingID: holdingID, fee: fee, outgoing: sold),
+               token: token, account: account)
+    }
+
     func noteSent(_ prepared: KusdtTransfer.Prepared) {
         guard let account = WalletManager.shared.currentWallet?.publicAddress else { return }
         // once per transaction: Try Again after an unknown outcome notes the same one again, which

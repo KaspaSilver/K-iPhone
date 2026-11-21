@@ -285,6 +285,9 @@ final class WalletManager: ObservableObject {
                     ContactsManager.shared.setActiveWalletAddress(nil)
                     await MessageStore.shared.setCurrentWallet(nil)
                     GroupChatService.shared.setCurrentWallet(nil)
+                    PublicChatService.shared.setCurrentWallet(nil)
+                    KaPostsFollowStore.shared.setCurrentWallet(nil)
+                    KaPostsModerationStore.shared.setCurrentWallet(nil)
                     NextcloudService.shared.setCurrentWallet(nil)
                     SharedDataManager.syncWalletAddressForExtension()
         NotificationCenter.default.post(name: .settingsDidChange, object: nil)
@@ -351,6 +354,9 @@ final class WalletManager: ObservableObject {
                 await MessageStore.shared.setCurrentWallet(canonicalWallet.publicAddress)
                 LaunchTrace.mark("loadWallet: services switched")
                 GroupChatService.shared.setCurrentWallet(canonicalWallet.publicAddress)
+                PublicChatService.shared.setCurrentWallet(canonicalWallet.publicAddress)
+                KaPostsFollowStore.shared.setCurrentWallet(canonicalWallet.publicAddress)
+                KaPostsModerationStore.shared.setCurrentWallet(canonicalWallet.publicAddress)
                 // Discover group invites for THIS account right away - switching accounts in-app
                 // does not fire a scenePhase .active, so without this a group you were added to
                 // under this account would not appear until the app was backgrounded/foregrounded.
@@ -371,6 +377,9 @@ final class WalletManager: ObservableObject {
             ContactsManager.shared.setActiveWalletAddress(nil)
             await MessageStore.shared.setCurrentWallet(nil)
             GroupChatService.shared.setCurrentWallet(nil)
+            PublicChatService.shared.setCurrentWallet(nil)
+            KaPostsFollowStore.shared.setCurrentWallet(nil)
+            KaPostsModerationStore.shared.setCurrentWallet(nil)
             NextcloudService.shared.setCurrentWallet(nil)
             SharedDataManager.syncWalletAddressForExtension()
         NotificationCenter.default.post(name: .settingsDidChange, object: nil)
@@ -531,6 +540,9 @@ final class WalletManager: ObservableObject {
         // This must happen before resetForNewWallet() to avoid clearing the wrong store
         await MessageStore.shared.setCurrentWallet(wallet.publicAddress)
         GroupChatService.shared.setCurrentWallet(wallet.publicAddress)
+        PublicChatService.shared.setCurrentWallet(wallet.publicAddress)
+        KaPostsFollowStore.shared.setCurrentWallet(wallet.publicAddress)
+        KaPostsModerationStore.shared.setCurrentWallet(wallet.publicAddress)
         // Discover group invites for this newly-activated account immediately (see the same
         // call in loadWallet) - an in-app account activation does not fire scenePhase .active.
         Task { await GroupChatService.shared.performCatchUpSync() }
@@ -618,6 +630,9 @@ final class WalletManager: ObservableObject {
 
         await MessageStore.shared.setCurrentWallet(nil)
         GroupChatService.shared.setCurrentWallet(nil)
+        PublicChatService.shared.setCurrentWallet(nil)
+        KaPostsFollowStore.shared.setCurrentWallet(nil)
+        KaPostsModerationStore.shared.setCurrentWallet(nil)
         NextcloudService.shared.setCurrentWallet(nil)
         SharedDataManager.syncWalletAddressForExtension()
         NotificationCenter.default.post(name: .settingsDidChange, object: nil)
@@ -732,6 +747,13 @@ final class WalletManager: ObservableObject {
                 if currentWallet == nil {
                     await MessageStore.shared.setCurrentWallet(nil)
                     GroupChatService.shared.setCurrentWallet(nil)
+                    PublicChatService.shared.setCurrentWallet(nil)
+                    KaPostsFollowStore.shared.setCurrentWallet(nil)
+                    KaPostsModerationStore.shared.setCurrentWallet(nil)
+                } else {
+                    // removing the other account's room file closed the rooms' store: this
+                    // account's opens again
+                    PublicChatService.shared.setCurrentWallet(currentWallet?.publicAddress)
                 }
                 AccountBackupStatus.shared.forget(account.publicAddress)
                 if let cached = cachedPrivateKey, Self.isSameAccount(cached.address, account.publicAddress) {
@@ -786,6 +808,9 @@ final class WalletManager: ObservableObject {
 
         await MessageStore.shared.setCurrentWallet(nil)
         GroupChatService.shared.setCurrentWallet(nil)
+        PublicChatService.shared.setCurrentWallet(nil)
+        KaPostsFollowStore.shared.setCurrentWallet(nil)
+        KaPostsModerationStore.shared.setCurrentWallet(nil)
         NextcloudService.shared.setCurrentWallet(nil)
         ChatService.shared.resetForNewWallet(skipStoreClear: true)
         ContactsManager.shared.deleteAllContacts()
@@ -804,16 +829,30 @@ final class WalletManager: ObservableObject {
         let previous = previousChattingAddresses(ofAccount: address)
         for owned in [address] + previous {
             removeSpendingData(forAccount: owned)
+            // its bot games' records and stamped wins, on both networks' addresses
+            ChessBotProgress.shared.removeAll(forAddress: owned)
             for variant in Self.accountAddressVariants(owned) {
                 ChatListSnapshotStore.clear(walletAddress: variant)
                 ChatService.shared.discardDrafts(forWallet: variant)
                 DeletedMessageLog.forget(wallet: variant)
                 TokenWallet.shared.forgetLocalData(account: variant)
+                keychainService.deleteAllKachatCommitSalts(walletAddress: variant)
                 ContactsManager.shared.deletePersistedContacts(forWalletAddress: variant)
                 await NextcloudService.shared.revokeAndPurgeStoredState(forWalletAddress: variant)
                 await KachatNameReminders.removeAll(forWallet: variant)
                 AddressBookManager.shared.removeAllData(forWalletAddress: variant)
                 GlobalNotificationCenter.removeAllData(forWalletAddress: variant)
+                // KaPosts and Public Chats (from KaPost): drafts, the bell, follows, mutes and
+                // blocks (with tips from, held posts and bookmarks), and the rooms' own file
+                KaPostsDraftStore.shared.deleteDrafts(forWalletAddress: variant)
+                KaPostsNotificationCenter.removeAllData(forWalletAddress: variant)
+                KaPostsFollowStore.removeAllData(forWalletAddress: variant)
+                KaPostsModerationStore.removeAllData(forWalletAddress: variant)
+                await PublicChatStore.shared.destroyLocalStore(forWallet: variant)
+                // Chess (from KaPlay): the arena rows it sent and is still waiting to see on chain
+                // (`PublicChatService.localStampsWalletKey`, filed under the lowercased address)
+                UserDefaults.standard.removeObject(forKey: "publicChatLocalStampSentAt.\(variant)")
+                UserDefaults.standard.removeObject(forKey: "publicChatLocalStampSentAt.\(variant.lowercased())")
                 ChatService.shared.removeAllData(forWallet: variant)
                 AddressActivityNotifier.shared.removeAllData(forWallet: variant)
                 ChatListView.removeAllData(forWallet: variant)

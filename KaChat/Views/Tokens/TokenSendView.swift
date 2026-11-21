@@ -40,6 +40,18 @@ struct TokenSendView: View {
         _step = State(initialValue: .from)
     }
 
+    /// A KaPosts tip in kUSDT (Tip In, from KaPost): the recipient is the poster, so there is no
+    /// To step, as in Send Dollars from a chat. It opens on From with a "To <name>" chip.
+    init(token: WalletToken, tipRecipient address: String, name: String) {
+        self.token = token
+        self.startFrom = nil
+        self.recipientLocked = true
+        self.onSent = nil
+        _addressInput = State(initialValue: address)
+        _resolvedName = State(initialValue: name)
+        _step = State(initialValue: .from)
+    }
+
     /// The recipient is fixed (a chat): no To step to go back to.
     private let recipientLocked: Bool
     private let onSent: ((String, UInt32, UInt64) -> Void)?
@@ -64,6 +76,8 @@ struct TokenSendView: View {
 
     // From
     @State private var fromID: String?
+    /// No kUSDT yet: Swap Stablecoins, to buy some.
+    @State private var showBuyStablecoins = false
 
     // How much
     @State private var amountText = ""
@@ -143,6 +157,9 @@ struct TokenSendView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showScanner) {
                 QRScannerView { code in handleScanned(code) }
+            }
+            .sheet(isPresented: $showBuyStablecoins) {
+                BuyStablecoinsSheet()
             }
         }
     }
@@ -237,12 +254,12 @@ struct TokenSendView: View {
                         Text(String(format: AppLocalization.string("None of your addresses holds %@ yet."), token.symbol))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        // KaPay is where tokens are bought: switch to it, or its install page
+                        // buy some here: Swap Stablecoins (Trestly's site, inside KaChat since 2026-11-21)
                         Button {
                             Haptics.impact(.light)
-                            KaPayHandoff.openOrInstall()
+                            showBuyStablecoins = true
                         } label: {
-                            Label("Get KaPay", systemImage: "arrow.up.forward.app")
+                            Label("Swap Stablecoins", systemImage: "dollarsign.circle")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.black)
                                 .frame(maxWidth: .infinity)

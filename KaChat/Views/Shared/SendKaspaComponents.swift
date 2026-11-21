@@ -1234,6 +1234,22 @@ struct SwipeUpLabels {
     var failedFallback = "The send didn't go out."
 
     static let send = SwipeUpLabels()
+    static let buy = SwipeUpLabels(
+        release: "Release to Buy",
+        working: "Buying",
+        workingDetail: "Sending the purchase to the Kaspa BlockDAG...",
+        done: "Name Bought",
+        recipientWord: "for",
+        failedFallback: "The purchase didn't go out."
+    )
+    static let claim = SwipeUpLabels(
+        release: "Release to Claim",
+        working: "Claiming",
+        workingDetail: "Committing to the Kaspa BlockDAG...",
+        done: "Claim Started",
+        recipientWord: "for",
+        failedFallback: "The claim didn't start."
+    )
 }
 
 /// A send screen's scroll view with "Swipe up to Send" pinned at the bottom. Press the bar and
@@ -1268,6 +1284,10 @@ struct SwipeUpToSendScrollView<Content: View>: View {
     /// The screen's error for a send that failed, shown under "Failed".
     var failureMessage: String?
     var labels: SwipeUpLabels = .send
+    /// Set: Face ID (or the passcode) before the action, with this prompt - .kachat name
+    /// transactions (CLAUDE.md, "Face ID on deleting, not on sends"). Nil, as for a plain Kaspa
+    /// send: the swipe sends straight away.
+    var authReason: String? = nil
     /// For an action that ends without a `SentTransaction` (a .kachat claim): true once it
     /// worked, and `outcome` shows under the title in place of the transaction.
     var succeeded = false
@@ -1295,6 +1315,8 @@ struct SwipeUpToSendScrollView<Content: View>: View {
     @State private var confirmed = false
     /// The send ended without a transaction: the sending screen shows "Failed".
     @State private var failed = false
+    /// Face ID is up for an `authReason` action: a second swipe waits.
+    @State private var authPending = false
 
     private static var barHeight: CGFloat { 64 }
     private static var settle: Animation { .spring(response: 0.45, dampingFraction: 0.86) }
@@ -1410,7 +1432,7 @@ struct SwipeUpToSendScrollView<Content: View>: View {
                 .onEnded { _ in
                     guard phase == .form else { return }
                     if armed && active {
-                        startSending()
+                        authenticateThenSend()
                     } else {
                         armed = false
                         withAnimation(Self.settle) { lift = 0 }
@@ -1425,8 +1447,31 @@ struct SwipeUpToSendScrollView<Content: View>: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
             guard active, phase == .form else { return }
-            startSending()
+            authenticateThenSend()
         }
+    }
+
+    /// A Kaspa send goes on the swipe alone. A .kachat name transaction (`authReason` set) asks
+    /// Face ID first; declined, the screen settles back with everything still filled in.
+    private func authenticateThenSend() {
+        guard !authPending, phase == .form else { return }
+        guard let authReason else {
+            startSending()
+            return
+        }
+        authPending = true
+        DeviceAuth.authenticate(
+            reason: authReason,
+            onSuccess: {
+                startSending()
+                authPending = false
+            },
+            onFailure: {
+                authPending = false
+                armed = false
+                withAnimation(Self.settle) { lift = 0 }
+            }
+        )
     }
 
     /// The swipe is the confirmation: no Face ID on sends (owner's call, 2026-11-13). The switch
@@ -1788,6 +1833,60 @@ enum SendSource: Equatable, Hashable {
     }
 }
 
+extension SendSource {
+    /// Where tips leave from unless picked otherwise (KaPosts > Settings > Tips From): the
+    /// chatting address, or a spending address, whose tips are private. Nil when a spending
+    /// address is set but can't be read or isn't one of this account's revealed ones: nothing
+    /// should then go out on its own, since a tip from the chatting address isn't private.
+    @MainActor
+    static func defaultTip() -> SendSource? {
+        guard let index = KaPostsTipSourceStore.shared.index else { return .chatting }
+        let wallet = WalletManager.shared
+        let revealed = WalletManager.isQuantumIndex(index)
+            ? index - WalletManager.quantumIndexBase <= wallet.maxQuantumAddressIndex
+            : index <= wallet.maxSpendingAddressIndex
+        guard index >= 0, revealed, let address = wallet.spendingAddress(at: index) else { return nil }
+        let label = wallet.ownAddressLabel(for: address)
+            ?? "Address #\(WalletManager.addressNumber(forIndex: index))"
+        return .spending(index: index, address: address, label: label)
+    }
+}
+
+/// KaPosts > Settings > Tips From, per account: a spending index only means something on the
+/// account that revealed it.
+@MainActor
+final class KaPostsTipSourceStore: ObservableObject {
+    static let shared = KaPostsTipSourceStore()
+
+    private init() {}
+
+    private static func key(_ address: String) -> String {
+        "kachat_kaposts_tip_source_" + address.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    /// The spending address this account tips from, by index. nil = the chatting address.
+    var index: Int? {
+        get {
+            guard let address = WalletManager.shared.currentWallet?.publicAddress else { return nil }
+            return UserDefaults.standard.object(forKey: Self.key(address)) as? Int
+        }
+        set {
+            guard let address = WalletManager.shared.currentWallet?.publicAddress else { return }
+            objectWillChange.send()
+            if let newValue {
+                UserDefaults.standard.set(newValue, forKey: Self.key(address))
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.key(address))
+            }
+        }
+    }
+
+    /// Delete Account: one wallet's choice, from this device.
+    static func removeAllData(forWalletAddress walletAddress: String) {
+        UserDefaults.standard.removeObject(forKey: key(walletAddress))
+    }
+}
+
 /// A pill to pick one of a few choices, like the amount's currency switch: the chosen one
 /// filled in teal. Send screens' From, Request Payment's address.
 struct SelectablePill: View {
@@ -1960,175 +2059,4 @@ struct OwnAddressList: View {
     }
 }
 
-// MARK: - Coin Control
-
-/// Coin control — lets the user fix the exact UTXO set a send spends from instead of the
-/// automatic largest-first selector. Reachable from a send form's "Coin Control" row (moved here
-/// from Cold Storage on 2026-10-24; it fetches via the generic
-/// `NodePoolService.shared.getUtxosByAddresses`, keyed only by `fromAddress`).
-/// Passes the selection back as a plain `[UTXO]?` (nil = automatic) rather than owning any state
-/// itself, since the actual spendable set needs re-resolving against a fresh fetch at build time
-/// anyway.
-struct CoinControlView: View {
-    let fromAddress: String
-    let initialSelection: [UTXO]?
-    let onDone: ([UTXO]?) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var utxos: [UTXO] = []
-    @State private var selectedKeys: Set<String> = []
-    @State private var isLoading = false
-    /// The node could not be asked. Shown in place of "no coins": an outage must never read as
-    /// an empty address when the coins here are about to be spent.
-    @State private var loadError: String?
-    @State private var utxoLabels: [String: String] = [:]
-
-    private func loadUtxos() async {
-        isLoading = true
-        do {
-            utxos = try await NodePoolService.shared.getUtxosByAddresses([fromAddress])
-            loadError = nil
-        } catch {
-            loadError = UserFacingError.message(for: error)
-        }
-        isLoading = false
-    }
-
-    private func key(_ utxo: UTXO) -> String {
-        "\(utxo.outpoint.transactionId):\(utxo.outpoint.index)"
-    }
-
-    /// A coin the send can't spend right now: not in a block yet, just spent by a send or message
-    /// from this app (`ChatService.unreservedUtxos`), or a mining reward on the chatting address,
-    /// whose sends leave those out. Shown greyed, never picked: a selection of them would only
-    /// fail at the send.
-    private func isSpendable(_ utxo: UTXO) -> Bool {
-        guard utxo.blockDaaScore > 0, !ChatService.shared.unreservedUtxos([utxo]).isEmpty else { return false }
-        if utxo.isCoinbase, let chatting = WalletManager.shared.currentWallet?.publicAddress,
-           WalletManager.isSameAccount(chatting, fromAddress) {
-            return false
-        }
-        return true
-    }
-
-    private var selectedTotalSompi: UInt64 {
-        utxos.filter { selectedKeys.contains(key($0)) }.reduce(0) { $0 + $1.amount }
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                if isLoading && utxos.isEmpty {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                } else if utxos.isEmpty {
-                    if let loadError {
-                        UtxoLoadFailureRow(detail: loadError) {
-                            Task { await loadUtxos() }
-                        }
-                    } else {
-                        Text("No UTXOs found at this address.")
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    Section {
-                        ForEach(Array(utxos.enumerated()), id: \.offset) { _, utxo in
-                            let k = key(utxo)
-                            let isSelected = selectedKeys.contains(k)
-                            let spendable = isSpendable(utxo)
-                            Button {
-                                if isSelected {
-                                    selectedKeys.remove(k)
-                                } else {
-                                    selectedKeys.insert(k)
-                                }
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                        .foregroundColor(isSelected ? .accentColor : .secondary)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        if let label = utxoLabels[k], !label.isEmpty {
-                                            Text(label)
-                                                .font(.caption)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.accentColor)
-                                        }
-                                        Text(verbatim: "\(formatKas(utxo.amount)) \(KaspaUnit.symbol)")
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(.primary)
-                                        Text("\(utxo.outpoint.transactionId.prefix(10))...:\(utxo.outpoint.index)")
-                                            .font(.system(.caption2, design: .monospaced))
-                                            .foregroundColor(.secondary)
-                                        if !spendable {
-                                            Text("Not spendable yet")
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
-                                    Spacer()
-                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(!spendable)
-                            .opacity(spendable ? 1 : 0.45)
-                        }
-                    } footer: {
-                        if !selectedKeys.isEmpty {
-                            Text(verbatim: "Selected: \(formatKas(selectedTotalSompi)) \(KaspaUnit.symbol) (\(selectedKeys.count) UTXO\(selectedKeys.count == 1 ? "" : "s"))")
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Coin Control")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button("Select All") { selectedKeys = Set(utxos.filter(isSpendable).map(key)) }
-                        Button("Automatic (Clear Selection)") { selectedKeys.removeAll() }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                Button {
-                    let selected = utxos.filter { selectedKeys.contains(key($0)) }
-                    onDone(selected.isEmpty ? nil : selected)
-                    dismiss()
-                } label: {
-                    Text(selectedKeys.isEmpty ? "Use Automatic Selection" : "Confirm Selection")
-                        .font(.subheadline.weight(.bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .foregroundColor(.black)
-                        .background(Capsule().fill(Color.accentColor))
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 16)
-            }
-            .task {
-                // the names Rename UTXO gives coins (one store, WalletManager's)
-                utxoLabels = WalletManager.shared.loadSpendingUtxoLabels(address: fromAddress)
-                await loadUtxos()
-                if let initialSelection {
-                    // only coins still in the list and spendable: a pick that's gone isn't kept
-                    let usable = Set(utxos.filter(isSpendable).map(key))
-                    selectedKeys = Set(initialSelection.map(key)).intersection(usable)
-                }
-            }
-        }
-    }
-
-    private func formatKas(_ sompi: UInt64) -> String {
-        String(format: "%.8f", Double(sompi) / 100_000_000.0)
-    }
-}
+// Coin Control: `CoinControlView` lives in Views/ColdStorage/ColdStorageView.swift (KaPay's, 2026-11-21).

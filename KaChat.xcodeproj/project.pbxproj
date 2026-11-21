@@ -58,6 +58,7 @@
 		CMRS00010001000100000001 /* ComposerMediaRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = CMRS00010001000000000001 /* ComposerMediaRoute.swift */; };
 		BGTM00012E0100000002 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BGTM00012E0100000001 /* BackgroundTaskManager.swift */; };
 		KBOT001B000000000000001 /* KaChatBot.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBOT001A000000000000001 /* KaChatBot.swift */; };
+		KHUB001B000000000000001 /* KaspaHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KHUB001A000000000000001 /* KaspaHubView.swift */; };
 		CACHEMGR00010001000100000001 /* CacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CACHEMGR00010001000000000001 /* CacheManager.swift */; };
 		CAMV0000000000000001 /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAMV0000000000000002 /* CameraCaptureView.swift */; };
 		CFMT00010001000000000002 /* CurrencyFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFMT00010001000000000001 /* CurrencyFormat.swift */; };
@@ -180,6 +181,95 @@
 		ABVW0000000000000001 /* AccountBackupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABVW0000000000000002 /* AccountBackupView.swift */; };
 		NFCT0000000000000005 /* NFCCardRestoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = NFCT0000000000000006 /* NFCCardRestoreView.swift */; };
 		WMSA00010001000100000001 /* WalletManager+SpendingAddresses.swift in Sources */ = {isa = PBXBuildFile; fileRef = WMSA00010001000000000001 /* WalletManager+SpendingAddresses.swift */; };
+		PORTB72D1A36B406604A4E0A /* Base58.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTF28275F65F6ECD47C84C /* Base58.swift */; };
+		PORTBBACC7CFDFABF7F4A582 /* KaspaExtendedPublicKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFE789B52E15F1FF003DA /* KaspaExtendedPublicKey.swift */; };
+		PORTBF2BCB3CFEC0F003C942 /* KaspaNetworkStatsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFCE7EA357E70B2359EAA /* KaspaNetworkStatsService.swift */; };
+		PORTBF30B8868FB2ED94FD03 /* MarketPairService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTF2E4D68B2ED86A68B5BC /* MarketPairService.swift */; };
+		PORTB948DF6A6C0A7A665B00 /* PortfolioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFBDB43F5D37ED05D74E5 /* PortfolioManager.swift */; };
+		PORTBC8F37D3322B7E034A18 /* PortfolioLedgerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFA9D37592F3677B6F4F7 /* PortfolioLedgerStore.swift */; };
+		PORTBA6D32BBE4DE0483A47D /* PortfolioAddressImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFD01472E98BB6B4691F0 /* PortfolioAddressImporter.swift */; };
+		PORTBA433F3C7F39FC964A9A /* PortfolioModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTF2288B36FB9B53021E34 /* PortfolioModels.swift */; };
+		PORTBCABCE51D0BA7170148B /* PortfolioViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFF718DB5F9D8298BDF2E /* PortfolioViewModel.swift */; };
+		PORTB2A763C6EBD8E0997A2B /* AddToPortfolioSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFC960B18CC85AFCFA9D5 /* AddToPortfolioSheet.swift */; };
+		PORTBCFF96217803C1B94AB8 /* ChartTouchOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFD6BC12445C41E9F63C0 /* ChartTouchOverlay.swift */; };
+		PORTBD547E1941D0F9EB5C54 /* PortfolioPickerHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFBAD8E037621733F26E5 /* PortfolioPickerHeader.swift */; };
+		PORTB8AB0A710CD9277B99AA /* PortfolioTransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTF318D00DF782C6EAF1EA /* PortfolioTransactionsView.swift */; };
+		PORTB78929596ADE6519BB37 /* PortfolioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTF55462A3106EB5C03155 /* PortfolioView.swift */; };
+		CSTOB49388CA0454B4561987 /* ColdStorageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTOF7747ED6B1B0DD50AD47 /* ColdStorageView.swift */; };
+		CSTOBF0745B146A548022DEE /* ColdStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTOF04AB4EAC9CD6B1909A2 /* ColdStorageManager.swift */; };
+		CSTOBD28C9EE64BD22743274 /* ColdStorageSendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTOF0ACA2A71005CDF0B7AD /* ColdStorageSendEngine.swift */; };
+		CSTOBB399C2177A21CFB22CD /* ByteModeQRCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTOF841595F7FAE28D5E3AB /* ByteModeQRCode.swift */; };
+		CSTOB724301815E073DC7EFD /* KsptCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTOF7C571B57077ABEE1BFA /* KsptCodec.swift */; };
+		CSTOB44F155645B9A5ECBC66 /* QrFrameChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTOF113F6FBA40129F280F2 /* QrFrameChunker.swift */; };
+		CSTOBF401066E75DE5DD60D9 /* MultiFrameQRViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSTOFEDF47A35205CE091706 /* MultiFrameQRViews.swift */; };
+		KNMSB3476542D68281529CBB /* KachatNamesBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = KNMSF1521FF240660B0C318E /* KachatNamesBuilder.swift */; };
+		KNMSBA4697AA56F62B676589 /* KachatOwnedNamesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = KNMSF54B1E6BEED8FEB8532F /* KachatOwnedNamesCache.swift */; };
+		KNMSB781BD9DAF7C2364512D /* KachatMarketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KNMSF1BF21F91EC02122A8BE /* KachatMarketView.swift */; };
+		KNMSBF8F2039F10BDDE6F76E /* KachatHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KNMSFBA3EADB34641D367F2B /* KachatHelpView.swift */; };
+		KPEDB0BE524EFF38D05C5C68 /* KachatProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPEDF10D994711C9A1C5B292 /* KachatProfileEditorView.swift */; };
+		TRSTB546979518F5194AF697 /* KusdtWalletRelays.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTF11678887B12CB3FE87D /* KusdtWalletRelays.swift */; };
+		TRSTBE271E75C8A92F78F886 /* TrestlyProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTFE5E6C7543C38BAE7D55 /* TrestlyProvider.swift */; };
+		TRSTB6269077EC0D7E09A604 /* BuyStablecoinsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTF033EB52A30BC16CD96E /* BuyStablecoinsSheet.swift */; };
+		TRSTB3E82952E5005BC87DA0 /* TrestlyApprovalSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTFC7BC3004B39D3EBBE63 /* TrestlyApprovalSheet.swift */; };
+		TRSTBF96D14850519233B14F /* TokenGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTF39FAE3B81E73982BEF8 /* TokenGuideView.swift */; };
+		TRSTBB65F64C8D27858EEF36 /* kusdt-wallet.js.txt in Resources */ = {isa = PBXBuildFile; fileRef = TRSTF2DAAE2617D5C8CCE81B /* kusdt-wallet.js.txt */; };
+		KPSTB62B6BA64F3F4C8866EC /* KaPostsDockCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTFEF2C55E85C025092A5C /* KaPostsDockCopy.swift */; };
+		KPSTB05129F86EA73DB3BC51 /* KaPostsFeedDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF8B668E17862FAC77A96 /* KaPostsFeedDrawer.swift */; };
+		KPSTB6EC5AF0A6EE0794CAF5 /* KaPostsFeedPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF94162C0569CD3157988 /* KaPostsFeedPager.swift */; };
+		KPSTB72BDAD0A332924CAADB /* KaPostsSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF7CED3C2EC37D16B1885 /* KaPostsSearchView.swift */; };
+		KPSTB296BB91B40809636E13 /* KaPostsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF3E1EDD9B8461789C47E /* KaPostsSettingsView.swift */; };
+		KPSTB4273DB8E1AC3AB9B4CB /* KaPostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF10358A30A1688EF87D5 /* KaPostsView.swift */; };
+		KPSTB4553971C8F61D029E9F /* MarkdownComposerField.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTFDAE6E991A70C555A292 /* MarkdownComposerField.swift */; };
+		KPSTB4D1B7D4B9E40D303926 /* KaPostsAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTFA2D048BC4B16C05DFA1 /* KaPostsAPIClient.swift */; };
+		KPSTB6A4434299E07562869C /* KaPostsChainFallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF6D8A7D167BA730D5FDD /* KaPostsChainFallback.swift */; };
+		KPSTB647E948BA306C4AAC47 /* KaPostsDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF61B8ED3F95E2FA5DD72 /* KaPostsDraftStore.swift */; };
+		KPSTBD7AF571E2C4E1D2B73D /* KaPostsHeldPostStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTFD2878D956D72E3CCF30 /* KaPostsHeldPostStore.swift */; };
+		KPSTB9D496106BE5D876DA4D /* KaPostsNotificationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTFEFA22826A982313A729 /* KaPostsNotificationCenter.swift */; };
+		KPSTB464945B6729709AF8FF /* KaPostsPostMarkStores.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTFC5D30D125C4A2463289 /* KaPostsPostMarkStores.swift */; };
+		KPSTB6628C7BEE94B64DA659 /* KaPostsScheduledStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTFF487E0ED0961D071724 /* KaPostsScheduledStore.swift */; };
+		KPSTB11C03A838DF1A953423 /* PostTranslationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF8563A46743C450DD920 /* PostTranslationService.swift */; };
+		KPSTBA984002E313E0C51DD8 /* KaPostsMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF30B7CA192AEFB929B20 /* KaPostsMarkdown.swift */; };
+		PUBCBF773C4EBC67C9783BB0 /* PublicChatAudioRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCFD3D18801E81ACDE67E1 /* PublicChatAudioRecording.swift */; };
+		PUBCBAB28033CDB943A8CBF1 /* PublicChatChannelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF6B4F3D2EC92D1B83F82 /* PublicChatChannelView.swift */; };
+		PUBCBAC3F98D2CE52C92C064 /* PublicChatListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF044732384DCF0F9301F /* PublicChatListView.swift */; };
+		PUBCB7E184EA89AD6161B191 /* PublicChatNavigationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF4796F306FFFB371FAFA /* PublicChatNavigationPolicy.swift */; };
+		PUBCB68895E8FC2FC3990152 /* PublicChatRoomInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF99C413063431EA3C463 /* PublicChatRoomInfoView.swift */; };
+		PUBCBF800E59234BD2C99061 /* HiddenPublicChatSendersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF4D1618A0B10D36051F3 /* HiddenPublicChatSendersView.swift */; };
+		PUBCBEB7BFE066D5927FDDDA /* PublicChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF4C9BD43170DADA98C63 /* PublicChatService.swift */; };
+		PUBCB3BFBC3BC719E83C385E /* PublicChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCFD675E21770C36DAB550 /* PublicChatStore.swift */; };
+		PUBCB5E536FFDE3FBC06BD93 /* PublicChatUnreadBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF71632A1791E4DAA6421 /* PublicChatUnreadBadge.swift */; };
+		PUBCB9C7C7DB7D2FB909A275 /* VoicePlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF3B02220733D2CAEE84D /* VoicePlaybackCoordinator.swift */; };
+		KPSTB879A9A83A0AA77A4E17 /* ContentReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF7BBEFDD94F468FE5A73 /* ContentReport.swift */; };
+		KPSTB6D82F05DD8AC90D3B36 /* KaPlayChallengeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF8668B84195879D5D37E /* KaPlayChallengeViews.swift */; };
+		P4BFD927A25D70729BA0CCAF /* ChessBotModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F5ADF19222269B7F1A1A64 /* ChessBotModels.swift */; };
+		P4BDF633D40D2B25DB599E7C /* ChessTournamentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F66D7687B8FA7BAC978FCB /* ChessTournamentModels.swift */; };
+		P4B522E5740C2ACF80EB210E /* ChessBotGame.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F855077EE7A4D8A6F7E012 /* ChessBotGame.swift */; };
+		P4B2DCE6DC6AC4F6AB50FF9C /* ChessBotLeaderboardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F00CD72B8F926A5BE2BD22 /* ChessBotLeaderboardService.swift */; };
+		P4B45572C5EED7A39155A7B3 /* ChessBotLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F8AF20725D5FDE6E59615B /* ChessBotLinks.swift */; };
+		P4B6437EB697A430F4A19380 /* ChessTournamentEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F375224340C122F0666E99 /* ChessTournamentEngine.swift */; };
+		P4BA3867D886DEFFD78B30EC /* ChessTournamentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F9640F42366B92EA34BC3B /* ChessTournamentService.swift */; };
+		P4BDEC16E4AD58E177F3D72A /* ChessBotEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F9D7AE343E9081E7890299 /* ChessBotEngine.swift */; };
+		P4B298F20071B096F3358511 /* GamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FC3A19FA729B599700A977 /* GamesView.swift */; };
+		P4B06187C59E8F6FAC48DD20 /* ChessTabIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F5452B1CB580CE25FAF382 /* ChessTabIcon.swift */; };
+		P4B5689D10AAE5A2800FE8CB /* ChessBoardComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FC15FA48112C689CD5DB82 /* ChessBoardComponents.swift */; };
+		P4BC1DE9F8E82B59EE16D965 /* ChessBotGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F81526E97BA185693387B9 /* ChessBotGameView.swift */; };
+		P4B6CCB6CD961CE007E490C0 /* ChessBotLeaderboardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FC71435CD6881081013847 /* ChessBotLeaderboardViews.swift */; };
+		P4B17576FB8264682E5D8DA0 /* ChessBotsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F424E50DD3A9ABECA0ED77 /* ChessBotsView.swift */; };
+		P4BEEF43227E1C366511F00D /* ChessBracketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FC918045982119F329742A /* ChessBracketView.swift */; };
+		P4B5B3396572971973F1895E /* ChessGameResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */; };
+		P4BFF44229E3E35DB10F720D /* ChessHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */; };
+		P4BC31820131CAADEC9A2138 /* ChessLeaderboardTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F025FC39829E27CC676C1A /* ChessLeaderboardTabView.swift */; };
+		P4B8E7554C0DDAA56836EAE9 /* ChessPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FF70345120972E649163DC /* ChessPlayerView.swift */; };
+		P4B0E896CEE591C99F3D3D6D /* ChessText.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FE99E88F843D256855D454 /* ChessText.swift */; };
+		P4BFC7420076E07A48448F1A /* ChessTournamentGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */; };
+		P4BDEFB5D82003DC76981EF9 /* ChessTournamentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F897FEB2D37B40ED475813 /* ChessTournamentView.swift */; };
+		P4BFF9F07A1EA238E730650F /* ChessTournamentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FAAFAF7F21D0C57F7E1F45 /* ChessTournamentsView.swift */; };
+		P4B919167AB9645EE78CC15C /* ChessWaitingRoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FF1CF7ADB42717ECA98A81 /* ChessWaitingRoomView.swift */; };
+		P4BBE13BBF0F8235B8B98138 /* FittedSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4BFD85A32621D5AA01E9C55 /* FittedSheet.swift */; };
+		P5B308635D5ABBBFDA281AE4 /* KaChatStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5F591C396FEF8ECA982FAEC /* KaChatStatsView.swift */; };
+		P5B0F6238B43DD8FC63C05F0 /* KaspaWebsitesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5FB7D7D3BAB15B749134713 /* KaspaWebsitesView.swift */; };
+		P5TB336207E299AF38A80DDA /* TermsOfUseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5TF31FE02495A3C860324BC /* TermsOfUseView.swift */; };
+		P5GBEF99EC3EE12C1EC2C325 /* KachatSetupGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5GF75C63E0E8A4ABC2D9FFD /* KachatSetupGuideView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -285,6 +375,7 @@
 		CSEX00010001000000000007 /* ChatService+Reactions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatService+Reactions.swift"; sourceTree = "<group>"; };
 		CSEX00010001000000000008 /* ChatService+PaymentPools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatService+PaymentPools.swift"; sourceTree = "<group>"; };
 		KBOT001A000000000000001 /* KaChatBot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaChatBot.swift; sourceTree = "<group>"; };
+		KHUB001A000000000000001 /* KaspaHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaspaHubView.swift; sourceTree = "<group>"; };
 		DA0001A0000000000000001 /* DeviceAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceAuth.swift; sourceTree = "<group>"; };
 		DECI00010001000000000001 /* DecimalInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecimalInput.swift; sourceTree = "<group>"; };
 		DTAL00010001000000000001 /* DeterministicAlias.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeterministicAlias.swift; sourceTree = "<group>"; };
@@ -424,6 +515,95 @@
 		ABVW0000000000000002 /* AccountBackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountBackupView.swift; sourceTree = "<group>"; };
 		NFCT0000000000000006 /* NFCCardRestoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFCCardRestoreView.swift; sourceTree = "<group>"; };
 		WMSA00010001000000000001 /* WalletManager+SpendingAddresses.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WalletManager+SpendingAddresses.swift"; sourceTree = "<group>"; };
+		PORTF28275F65F6ECD47C84C /* Base58.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base58.swift; sourceTree = "<group>"; };
+		PORTFE789B52E15F1FF003DA /* KaspaExtendedPublicKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaspaExtendedPublicKey.swift; sourceTree = "<group>"; };
+		PORTFCE7EA357E70B2359EAA /* KaspaNetworkStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaspaNetworkStatsService.swift; sourceTree = "<group>"; };
+		PORTF2E4D68B2ED86A68B5BC /* MarketPairService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketPairService.swift; sourceTree = "<group>"; };
+		PORTFBDB43F5D37ED05D74E5 /* PortfolioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioManager.swift; sourceTree = "<group>"; };
+		PORTFA9D37592F3677B6F4F7 /* PortfolioLedgerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioLedgerStore.swift; sourceTree = "<group>"; };
+		PORTFD01472E98BB6B4691F0 /* PortfolioAddressImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioAddressImporter.swift; sourceTree = "<group>"; };
+		PORTF2288B36FB9B53021E34 /* PortfolioModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioModels.swift; sourceTree = "<group>"; };
+		PORTFF718DB5F9D8298BDF2E /* PortfolioViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioViewModel.swift; sourceTree = "<group>"; };
+		PORTFC960B18CC85AFCFA9D5 /* AddToPortfolioSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToPortfolioSheet.swift; sourceTree = "<group>"; };
+		PORTFD6BC12445C41E9F63C0 /* ChartTouchOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartTouchOverlay.swift; sourceTree = "<group>"; };
+		PORTFBAD8E037621733F26E5 /* PortfolioPickerHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioPickerHeader.swift; sourceTree = "<group>"; };
+		PORTF318D00DF782C6EAF1EA /* PortfolioTransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioTransactionsView.swift; sourceTree = "<group>"; };
+		PORTF55462A3106EB5C03155 /* PortfolioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioView.swift; sourceTree = "<group>"; };
+		CSTOF7747ED6B1B0DD50AD47 /* ColdStorageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColdStorageView.swift; sourceTree = "<group>"; };
+		CSTOF04AB4EAC9CD6B1909A2 /* ColdStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColdStorageManager.swift; sourceTree = "<group>"; };
+		CSTOF0ACA2A71005CDF0B7AD /* ColdStorageSendEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColdStorageSendEngine.swift; sourceTree = "<group>"; };
+		CSTOF841595F7FAE28D5E3AB /* ByteModeQRCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ByteModeQRCode.swift; sourceTree = "<group>"; };
+		CSTOF7C571B57077ABEE1BFA /* KsptCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KsptCodec.swift; sourceTree = "<group>"; };
+		CSTOF113F6FBA40129F280F2 /* QrFrameChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QrFrameChunker.swift; sourceTree = "<group>"; };
+		CSTOFEDF47A35205CE091706 /* MultiFrameQRViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiFrameQRViews.swift; sourceTree = "<group>"; };
+		KNMSF1521FF240660B0C318E /* KachatNamesBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatNamesBuilder.swift; sourceTree = "<group>"; };
+		KNMSF54B1E6BEED8FEB8532F /* KachatOwnedNamesCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatOwnedNamesCache.swift; sourceTree = "<group>"; };
+		KNMSF1BF21F91EC02122A8BE /* KachatMarketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatMarketView.swift; sourceTree = "<group>"; };
+		KNMSFBA3EADB34641D367F2B /* KachatHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatHelpView.swift; sourceTree = "<group>"; };
+		KPEDF10D994711C9A1C5B292 /* KachatProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatProfileEditorView.swift; sourceTree = "<group>"; };
+		TRSTF11678887B12CB3FE87D /* KusdtWalletRelays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KusdtWalletRelays.swift; sourceTree = "<group>"; };
+		TRSTFE5E6C7543C38BAE7D55 /* TrestlyProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrestlyProvider.swift; sourceTree = "<group>"; };
+		TRSTF033EB52A30BC16CD96E /* BuyStablecoinsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyStablecoinsSheet.swift; sourceTree = "<group>"; };
+		TRSTFC7BC3004B39D3EBBE63 /* TrestlyApprovalSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrestlyApprovalSheet.swift; sourceTree = "<group>"; };
+		TRSTF39FAE3B81E73982BEF8 /* TokenGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenGuideView.swift; sourceTree = "<group>"; };
+		TRSTF2DAAE2617D5C8CCE81B /* kusdt-wallet.js.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = kusdt-wallet.js.txt; sourceTree = "<group>"; };
+		KPSTFEF2C55E85C025092A5C /* KaPostsDockCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsDockCopy.swift; sourceTree = "<group>"; };
+		KPSTF8B668E17862FAC77A96 /* KaPostsFeedDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsFeedDrawer.swift; sourceTree = "<group>"; };
+		KPSTF94162C0569CD3157988 /* KaPostsFeedPager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsFeedPager.swift; sourceTree = "<group>"; };
+		KPSTF7CED3C2EC37D16B1885 /* KaPostsSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsSearchView.swift; sourceTree = "<group>"; };
+		KPSTF3E1EDD9B8461789C47E /* KaPostsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsSettingsView.swift; sourceTree = "<group>"; };
+		KPSTF10358A30A1688EF87D5 /* KaPostsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsView.swift; sourceTree = "<group>"; };
+		KPSTFDAE6E991A70C555A292 /* MarkdownComposerField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownComposerField.swift; sourceTree = "<group>"; };
+		KPSTFA2D048BC4B16C05DFA1 /* KaPostsAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsAPIClient.swift; sourceTree = "<group>"; };
+		KPSTF6D8A7D167BA730D5FDD /* KaPostsChainFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsChainFallback.swift; sourceTree = "<group>"; };
+		KPSTF61B8ED3F95E2FA5DD72 /* KaPostsDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsDraftStore.swift; sourceTree = "<group>"; };
+		KPSTFD2878D956D72E3CCF30 /* KaPostsHeldPostStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsHeldPostStore.swift; sourceTree = "<group>"; };
+		KPSTFEFA22826A982313A729 /* KaPostsNotificationCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsNotificationCenter.swift; sourceTree = "<group>"; };
+		KPSTFC5D30D125C4A2463289 /* KaPostsPostMarkStores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsPostMarkStores.swift; sourceTree = "<group>"; };
+		KPSTFF487E0ED0961D071724 /* KaPostsScheduledStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsScheduledStore.swift; sourceTree = "<group>"; };
+		KPSTF8563A46743C450DD920 /* PostTranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTranslationService.swift; sourceTree = "<group>"; };
+		KPSTF30B7CA192AEFB929B20 /* KaPostsMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsMarkdown.swift; sourceTree = "<group>"; };
+		PUBCFD3D18801E81ACDE67E1 /* PublicChatAudioRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatAudioRecording.swift; sourceTree = "<group>"; };
+		PUBCF6B4F3D2EC92D1B83F82 /* PublicChatChannelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatChannelView.swift; sourceTree = "<group>"; };
+		PUBCF044732384DCF0F9301F /* PublicChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatListView.swift; sourceTree = "<group>"; };
+		PUBCF4796F306FFFB371FAFA /* PublicChatNavigationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatNavigationPolicy.swift; sourceTree = "<group>"; };
+		PUBCF99C413063431EA3C463 /* PublicChatRoomInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatRoomInfoView.swift; sourceTree = "<group>"; };
+		PUBCF4D1618A0B10D36051F3 /* HiddenPublicChatSendersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiddenPublicChatSendersView.swift; sourceTree = "<group>"; };
+		PUBCF4C9BD43170DADA98C63 /* PublicChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatService.swift; sourceTree = "<group>"; };
+		PUBCFD675E21770C36DAB550 /* PublicChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatStore.swift; sourceTree = "<group>"; };
+		PUBCF71632A1791E4DAA6421 /* PublicChatUnreadBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatUnreadBadge.swift; sourceTree = "<group>"; };
+		PUBCF3B02220733D2CAEE84D /* VoicePlaybackCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePlaybackCoordinator.swift; sourceTree = "<group>"; };
+		KPSTF7BBEFDD94F468FE5A73 /* ContentReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentReport.swift; sourceTree = "<group>"; };
+		KPSTF8668B84195879D5D37E /* KaPlayChallengeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPlayChallengeViews.swift; sourceTree = "<group>"; };
+		P4F5ADF19222269B7F1A1A64 /* ChessBotModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotModels.swift; sourceTree = "<group>"; };
+		P4F66D7687B8FA7BAC978FCB /* ChessTournamentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentModels.swift; sourceTree = "<group>"; };
+		P4F855077EE7A4D8A6F7E012 /* ChessBotGame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotGame.swift; sourceTree = "<group>"; };
+		P4F00CD72B8F926A5BE2BD22 /* ChessBotLeaderboardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotLeaderboardService.swift; sourceTree = "<group>"; };
+		P4F8AF20725D5FDE6E59615B /* ChessBotLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotLinks.swift; sourceTree = "<group>"; };
+		P4F375224340C122F0666E99 /* ChessTournamentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentEngine.swift; sourceTree = "<group>"; };
+		P4F9640F42366B92EA34BC3B /* ChessTournamentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentService.swift; sourceTree = "<group>"; };
+		P4F9D7AE343E9081E7890299 /* ChessBotEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotEngine.swift; sourceTree = "<group>"; };
+		P4FC3A19FA729B599700A977 /* GamesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamesView.swift; sourceTree = "<group>"; };
+		P4F5452B1CB580CE25FAF382 /* ChessTabIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTabIcon.swift; sourceTree = "<group>"; };
+		P4FC15FA48112C689CD5DB82 /* ChessBoardComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBoardComponents.swift; sourceTree = "<group>"; };
+		P4F81526E97BA185693387B9 /* ChessBotGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotGameView.swift; sourceTree = "<group>"; };
+		P4FC71435CD6881081013847 /* ChessBotLeaderboardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotLeaderboardViews.swift; sourceTree = "<group>"; };
+		P4F424E50DD3A9ABECA0ED77 /* ChessBotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotsView.swift; sourceTree = "<group>"; };
+		P4FC918045982119F329742A /* ChessBracketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBracketView.swift; sourceTree = "<group>"; };
+		P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessGameResultView.swift; sourceTree = "<group>"; };
+		P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessHomeView.swift; sourceTree = "<group>"; };
+		P4F025FC39829E27CC676C1A /* ChessLeaderboardTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessLeaderboardTabView.swift; sourceTree = "<group>"; };
+		P4FF70345120972E649163DC /* ChessPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessPlayerView.swift; sourceTree = "<group>"; };
+		P4FE99E88F843D256855D454 /* ChessText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessText.swift; sourceTree = "<group>"; };
+		P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentGameView.swift; sourceTree = "<group>"; };
+		P4F897FEB2D37B40ED475813 /* ChessTournamentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentView.swift; sourceTree = "<group>"; };
+		P4FAAFAF7F21D0C57F7E1F45 /* ChessTournamentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentsView.swift; sourceTree = "<group>"; };
+		P4FF1CF7ADB42717ECA98A81 /* ChessWaitingRoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessWaitingRoomView.swift; sourceTree = "<group>"; };
+		P4BFD85A32621D5AA01E9C55 /* FittedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FittedSheet.swift; sourceTree = "<group>"; };
+		P5F591C396FEF8ECA982FAEC /* KaChatStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaChatStatsView.swift; sourceTree = "<group>"; };
+		P5FB7D7D3BAB15B749134713 /* KaspaWebsitesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaspaWebsitesView.swift; sourceTree = "<group>"; };
+		P5TF31FE02495A3C860324BC /* TermsOfUseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TermsOfUseView.swift; sourceTree = "<group>"; };
+		P5GF75C63E0E8A4ABC2D9FFD /* KachatSetupGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatSetupGuideView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -481,6 +661,8 @@
 		KUSDTGRUP000000000000001 /* Tokens */ = {
 			isa = PBXGroup;
 			children = (
+				TRSTFE5E6C7543C38BAE7D55 /* TrestlyProvider.swift */,
+				TRSTF11678887B12CB3FE87D /* KusdtWalletRelays.swift */,
 				KUSDTFREF000000000000002 /* Kusdt.swift */,
 				KUSDTFREF000000000000004 /* KusdtBalances.swift */,
 				KUSDTFREF000000000000006 /* KusdtCore.swift */,
@@ -492,6 +674,9 @@
 		KUSDTGRUP000000000000010 /* Tokens */ = {
 			isa = PBXGroup;
 			children = (
+				TRSTF39FAE3B81E73982BEF8 /* TokenGuideView.swift */,
+				TRSTFC7BC3004B39D3EBBE63 /* TrestlyApprovalSheet.swift */,
+				TRSTF033EB52A30BC16CD96E /* BuyStablecoinsSheet.swift */,
 				KUSDTFREF000000000000011 /* WalletTokens.swift */,
 				KUSDTFREF000000000000013 /* TokenViews.swift */,
 				KUSDTFREF000000000000015 /* TokenManageViews.swift */,
@@ -506,6 +691,7 @@
 		KUSDTGRUP000000000000025 /* KusdtCore */ = {
 			isa = PBXGroup;
 			children = (
+				TRSTF2DAAE2617D5C8CCE81B /* kusdt-wallet.js.txt */,
 				KUSDTFREF000000000000026 /* kusdt-core.html */,
 				KUSDTFREF000000000000028 /* kusdt_wasm.js.txt */,
 				KUSDTFREF000000000000030 /* kusdt_wasm_bg.wasm */,
@@ -516,6 +702,8 @@
 		KCNMGRP00000000000000001 /* KachatNames */ = {
 			isa = PBXGroup;
 			children = (
+				KNMSF54B1E6BEED8FEB8532F /* KachatOwnedNamesCache.swift */,
+				KNMSF1521FF240660B0C318E /* KachatNamesBuilder.swift */,
 				KCNM00000000010000000000 /* KachatNamesCodec.swift */,
 				KCNM00000000020000000000 /* KachatNamesTransaction.swift */,
 				KCNM00000000030000000000 /* KachatNamesManifest.swift */,
@@ -591,6 +779,9 @@
 		E80000122D4C000000000012 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				P4F66D7687B8FA7BAC978FCB /* ChessTournamentModels.swift */,
+				P4F5ADF19222269B7F1A1A64 /* ChessBotModels.swift */,
+				PORTF2288B36FB9B53021E34 /* PortfolioModels.swift */,
 				E81000202D4C000100000011 /* Models.swift */,
 			);
 			path = Models;
@@ -599,6 +790,30 @@
 		E80000132D4C000000000013 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				P4F9640F42366B92EA34BC3B /* ChessTournamentService.swift */,
+				P4F375224340C122F0666E99 /* ChessTournamentEngine.swift */,
+				P4F8AF20725D5FDE6E59615B /* ChessBotLinks.swift */,
+				P4F00CD72B8F926A5BE2BD22 /* ChessBotLeaderboardService.swift */,
+				P4F855077EE7A4D8A6F7E012 /* ChessBotGame.swift */,
+				PUBCF3B02220733D2CAEE84D /* VoicePlaybackCoordinator.swift */,
+				PUBCF71632A1791E4DAA6421 /* PublicChatUnreadBadge.swift */,
+				PUBCFD675E21770C36DAB550 /* PublicChatStore.swift */,
+				PUBCF4C9BD43170DADA98C63 /* PublicChatService.swift */,
+				KPSTF8563A46743C450DD920 /* PostTranslationService.swift */,
+				KPSTFF487E0ED0961D071724 /* KaPostsScheduledStore.swift */,
+				KPSTFC5D30D125C4A2463289 /* KaPostsPostMarkStores.swift */,
+				KPSTFEFA22826A982313A729 /* KaPostsNotificationCenter.swift */,
+				KPSTFD2878D956D72E3CCF30 /* KaPostsHeldPostStore.swift */,
+				KPSTF61B8ED3F95E2FA5DD72 /* KaPostsDraftStore.swift */,
+				KPSTF6D8A7D167BA730D5FDD /* KaPostsChainFallback.swift */,
+				KPSTFA2D048BC4B16C05DFA1 /* KaPostsAPIClient.swift */,
+				CSTOF0ACA2A71005CDF0B7AD /* ColdStorageSendEngine.swift */,
+				CSTOF04AB4EAC9CD6B1909A2 /* ColdStorageManager.swift */,
+				PORTFD01472E98BB6B4691F0 /* PortfolioAddressImporter.swift */,
+				PORTFA9D37592F3677B6F4F7 /* PortfolioLedgerStore.swift */,
+				PORTFBDB43F5D37ED05D74E5 /* PortfolioManager.swift */,
+				PORTF2E4D68B2ED86A68B5BC /* MarketPairService.swift */,
+				PORTFCE7EA357E70B2359EAA /* KaspaNetworkStatsService.swift */,
 				E81000062D4C000100000004 /* WalletManager.swift */,
 				WMSA00010001000000000001 /* WalletManager+SpendingAddresses.swift */,
 				E81000082D4C000100000005 /* KeychainService.swift */,
@@ -651,6 +866,11 @@
 		E80000142D4C000000000014 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				P4GF5BC300AABFC852A12061 /* Chess */,
+				P4GDC96C7C4760037C9260C8 /* Games */,
+				KPSTGF5018F55468F4CD3737 /* KaPosts */,
+				CSTOGC2703474790BB0D5187 /* ColdStorage */,
+				PORTG01D9258253C89682768 /* Portfolio */,
 				E80000182D4C000000000018 /* Onboarding */,
 				E80000192D4C000000000019 /* Chat */,
 				E800001A2D4C00000000001A /* Contacts */,
@@ -665,6 +885,7 @@
 		E80000152D4C000000000015 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				PORTFF718DB5F9D8298BDF2E /* PortfolioViewModel.swift */,
 				E81000282D4C000100000015 /* SettingsViewModel.swift */,
 			);
 			path = ViewModels;
@@ -673,6 +894,13 @@
 		E80000162D4C000000000016 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				P4F9D7AE343E9081E7890299 /* ChessBotEngine.swift */,
+				KPSTF30B7CA192AEFB929B20 /* KaPostsMarkdown.swift */,
+				CSTOF113F6FBA40129F280F2 /* QrFrameChunker.swift */,
+				CSTOF7C571B57077ABEE1BFA /* KsptCodec.swift */,
+				CSTOF841595F7FAE28D5E3AB /* ByteModeQRCode.swift */,
+				PORTFE789B52E15F1FF003DA /* KaspaExtendedPublicKey.swift */,
+				PORTF28275F65F6ECD47C84C /* Base58.swift */,
 				E810002E2D4C000100000018 /* CryptoUtils.swift */,
 				APLC00010000000000000BF2 /* AppLocalization.swift */,
 				DA0001A0000000000000001 /* DeviceAuth.swift */,
@@ -713,6 +941,7 @@
 		E80000182D4C000000000018 /* Onboarding */ = {
 			isa = PBXGroup;
 			children = (
+				P5TF31FE02495A3C860324BC /* TermsOfUseView.swift */,
 				E81000102D4C000100000009 /* OnboardingView.swift */,
 				E81000122D4C00010000000A /* CreateWalletView.swift */,
 				E81000142D4C00010000000B /* ImportWalletView.swift */,
@@ -730,6 +959,12 @@
 		E80000192D4C000000000019 /* Chat */ = {
 			isa = PBXGroup;
 			children = (
+				PUBCF4D1618A0B10D36051F3 /* HiddenPublicChatSendersView.swift */,
+				PUBCF99C413063431EA3C463 /* PublicChatRoomInfoView.swift */,
+				PUBCF4796F306FFFB371FAFA /* PublicChatNavigationPolicy.swift */,
+				PUBCF044732384DCF0F9301F /* PublicChatListView.swift */,
+				PUBCF6B4F3D2EC92D1B83F82 /* PublicChatChannelView.swift */,
+				PUBCFD3D18801E81ACDE67E1 /* PublicChatAudioRecording.swift */,
 				E81000162D4C00010000000C /* ChatListView.swift */,
 				GRPCHATLV000100010000001 /* GroupChatListView.swift */,
 				E81000182D4C00010000000D /* ChatDetailView.swift */,
@@ -779,6 +1014,11 @@
 		E8F100132D4C0001000000FF /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				P4BFD85A32621D5AA01E9C55 /* FittedSheet.swift */,
+				P4F5452B1CB580CE25FAF382 /* ChessTabIcon.swift */,
+				KPSTF8668B84195879D5D37E /* KaPlayChallengeViews.swift */,
+				KPSTF7BBEFDD94F468FE5A73 /* ContentReport.swift */,
+				CSTOFEDF47A35205CE091706 /* MultiFrameQRViews.swift */,
 				E8F100142D4C0001000001FF /* QRScannerView.swift */,
 				E8F100112D4C0001000000FF /* Toast.swift */,
 				E8F1AC700001000000000001 /* ActionSheet.swift */,
@@ -802,8 +1042,15 @@
 		ECO0001G0000000000000001 /* Ecosystem */ = {
 			isa = PBXGroup;
 			children = (
+				P5GF75C63E0E8A4ABC2D9FFD /* KachatSetupGuideView.swift */,
+				P5FB7D7D3BAB15B749134713 /* KaspaWebsitesView.swift */,
+				P5F591C396FEF8ECA982FAEC /* KaChatStatsView.swift */,
+				KPEDF10D994711C9A1C5B292 /* KachatProfileEditorView.swift */,
+				KNMSFBA3EADB34641D367F2B /* KachatHelpView.swift */,
+				KNMSF1BF21F91EC02122A8BE /* KachatMarketView.swift */,
 				KCM0002A000000000000001 /* KachatNamesLiveViews.swift */,
 				KBOT001A000000000000001 /* KaChatBot.swift */,
+				KHUB001A000000000000001 /* KaspaHubView.swift */,
 			);
 			path = Ecosystem;
 			sourceTree = "<group>";
@@ -841,6 +1088,69 @@
 				SHRT000100010000000002 /* KaChatShortcuts.swift */,
 			);
 			path = Shortcuts;
+			sourceTree = "<group>";
+		};
+		PORTG01D9258253C89682768 /* Portfolio */ = {
+			isa = PBXGroup;
+			children = (
+				PORTF55462A3106EB5C03155 /* PortfolioView.swift */,
+				PORTF318D00DF782C6EAF1EA /* PortfolioTransactionsView.swift */,
+				PORTFBAD8E037621733F26E5 /* PortfolioPickerHeader.swift */,
+				PORTFD6BC12445C41E9F63C0 /* ChartTouchOverlay.swift */,
+				PORTFC960B18CC85AFCFA9D5 /* AddToPortfolioSheet.swift */,
+			);
+			path = Portfolio;
+			sourceTree = "<group>";
+		};
+		CSTOGC2703474790BB0D5187 /* ColdStorage */ = {
+			isa = PBXGroup;
+			children = (
+				CSTOF7747ED6B1B0DD50AD47 /* ColdStorageView.swift */,
+			);
+			path = ColdStorage;
+			sourceTree = "<group>";
+		};
+		KPSTGF5018F55468F4CD3737 /* KaPosts */ = {
+			isa = PBXGroup;
+			children = (
+				KPSTFDAE6E991A70C555A292 /* MarkdownComposerField.swift */,
+				KPSTF10358A30A1688EF87D5 /* KaPostsView.swift */,
+				KPSTF3E1EDD9B8461789C47E /* KaPostsSettingsView.swift */,
+				KPSTF7CED3C2EC37D16B1885 /* KaPostsSearchView.swift */,
+				KPSTF94162C0569CD3157988 /* KaPostsFeedPager.swift */,
+				KPSTF8B668E17862FAC77A96 /* KaPostsFeedDrawer.swift */,
+				KPSTFEF2C55E85C025092A5C /* KaPostsDockCopy.swift */,
+			);
+			path = KaPosts;
+			sourceTree = "<group>";
+		};
+		P4GDC96C7C4760037C9260C8 /* Games */ = {
+			isa = PBXGroup;
+			children = (
+				P4FC3A19FA729B599700A977 /* GamesView.swift */,
+			);
+			path = Games;
+			sourceTree = "<group>";
+		};
+		P4GF5BC300AABFC852A12061 /* Chess */ = {
+			isa = PBXGroup;
+			children = (
+				P4FF1CF7ADB42717ECA98A81 /* ChessWaitingRoomView.swift */,
+				P4FAAFAF7F21D0C57F7E1F45 /* ChessTournamentsView.swift */,
+				P4F897FEB2D37B40ED475813 /* ChessTournamentView.swift */,
+				P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */,
+				P4FE99E88F843D256855D454 /* ChessText.swift */,
+				P4FF70345120972E649163DC /* ChessPlayerView.swift */,
+				P4F025FC39829E27CC676C1A /* ChessLeaderboardTabView.swift */,
+				P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */,
+				P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */,
+				P4FC918045982119F329742A /* ChessBracketView.swift */,
+				P4F424E50DD3A9ABECA0ED77 /* ChessBotsView.swift */,
+				P4FC71435CD6881081013847 /* ChessBotLeaderboardViews.swift */,
+				P4F81526E97BA185693387B9 /* ChessBotGameView.swift */,
+				P4FC15FA48112C689CD5DB82 /* ChessBoardComponents.swift */,
+			);
+			path = Chess;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -993,6 +1303,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				TRSTBB65F64C8D27858EEF36 /* kusdt-wallet.js.txt in Resources */,
 				E81000052D4C000100000003 /* Assets.xcassets in Resources */,
 				PRIV00010001000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 				ENGL00012F70000100000002 /* english.txt in Resources */,
@@ -1092,6 +1403,94 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				P5GBEF99EC3EE12C1EC2C325 /* KachatSetupGuideView.swift in Sources */,
+				P5TB336207E299AF38A80DDA /* TermsOfUseView.swift in Sources */,
+				P5B0F6238B43DD8FC63C05F0 /* KaspaWebsitesView.swift in Sources */,
+				P5B308635D5ABBBFDA281AE4 /* KaChatStatsView.swift in Sources */,
+				P4BBE13BBF0F8235B8B98138 /* FittedSheet.swift in Sources */,
+				P4B919167AB9645EE78CC15C /* ChessWaitingRoomView.swift in Sources */,
+				P4BFF9F07A1EA238E730650F /* ChessTournamentsView.swift in Sources */,
+				P4BDEFB5D82003DC76981EF9 /* ChessTournamentView.swift in Sources */,
+				P4BFC7420076E07A48448F1A /* ChessTournamentGameView.swift in Sources */,
+				P4B0E896CEE591C99F3D3D6D /* ChessText.swift in Sources */,
+				P4B8E7554C0DDAA56836EAE9 /* ChessPlayerView.swift in Sources */,
+				P4BC31820131CAADEC9A2138 /* ChessLeaderboardTabView.swift in Sources */,
+				P4BFF44229E3E35DB10F720D /* ChessHomeView.swift in Sources */,
+				P4B5B3396572971973F1895E /* ChessGameResultView.swift in Sources */,
+				P4BEEF43227E1C366511F00D /* ChessBracketView.swift in Sources */,
+				P4B17576FB8264682E5D8DA0 /* ChessBotsView.swift in Sources */,
+				P4B6CCB6CD961CE007E490C0 /* ChessBotLeaderboardViews.swift in Sources */,
+				P4BC1DE9F8E82B59EE16D965 /* ChessBotGameView.swift in Sources */,
+				P4B5689D10AAE5A2800FE8CB /* ChessBoardComponents.swift in Sources */,
+				P4B06187C59E8F6FAC48DD20 /* ChessTabIcon.swift in Sources */,
+				P4B298F20071B096F3358511 /* GamesView.swift in Sources */,
+				P4BDEC16E4AD58E177F3D72A /* ChessBotEngine.swift in Sources */,
+				P4BA3867D886DEFFD78B30EC /* ChessTournamentService.swift in Sources */,
+				P4B6437EB697A430F4A19380 /* ChessTournamentEngine.swift in Sources */,
+				P4B45572C5EED7A39155A7B3 /* ChessBotLinks.swift in Sources */,
+				P4B2DCE6DC6AC4F6AB50FF9C /* ChessBotLeaderboardService.swift in Sources */,
+				P4B522E5740C2ACF80EB210E /* ChessBotGame.swift in Sources */,
+				P4BDF633D40D2B25DB599E7C /* ChessTournamentModels.swift in Sources */,
+				P4BFD927A25D70729BA0CCAF /* ChessBotModels.swift in Sources */,
+				KPSTB6D82F05DD8AC90D3B36 /* KaPlayChallengeViews.swift in Sources */,
+				KPSTB879A9A83A0AA77A4E17 /* ContentReport.swift in Sources */,
+				PUBCB9C7C7DB7D2FB909A275 /* VoicePlaybackCoordinator.swift in Sources */,
+				PUBCB5E536FFDE3FBC06BD93 /* PublicChatUnreadBadge.swift in Sources */,
+				PUBCB3BFBC3BC719E83C385E /* PublicChatStore.swift in Sources */,
+				PUBCBEB7BFE066D5927FDDDA /* PublicChatService.swift in Sources */,
+				PUBCBF800E59234BD2C99061 /* HiddenPublicChatSendersView.swift in Sources */,
+				PUBCB68895E8FC2FC3990152 /* PublicChatRoomInfoView.swift in Sources */,
+				PUBCB7E184EA89AD6161B191 /* PublicChatNavigationPolicy.swift in Sources */,
+				PUBCBAC3F98D2CE52C92C064 /* PublicChatListView.swift in Sources */,
+				PUBCBAB28033CDB943A8CBF1 /* PublicChatChannelView.swift in Sources */,
+				PUBCBF773C4EBC67C9783BB0 /* PublicChatAudioRecording.swift in Sources */,
+				KPSTBA984002E313E0C51DD8 /* KaPostsMarkdown.swift in Sources */,
+				KPSTB11C03A838DF1A953423 /* PostTranslationService.swift in Sources */,
+				KPSTB6628C7BEE94B64DA659 /* KaPostsScheduledStore.swift in Sources */,
+				KPSTB464945B6729709AF8FF /* KaPostsPostMarkStores.swift in Sources */,
+				KPSTB9D496106BE5D876DA4D /* KaPostsNotificationCenter.swift in Sources */,
+				KPSTBD7AF571E2C4E1D2B73D /* KaPostsHeldPostStore.swift in Sources */,
+				KPSTB647E948BA306C4AAC47 /* KaPostsDraftStore.swift in Sources */,
+				KPSTB6A4434299E07562869C /* KaPostsChainFallback.swift in Sources */,
+				KPSTB4D1B7D4B9E40D303926 /* KaPostsAPIClient.swift in Sources */,
+				KPSTB4553971C8F61D029E9F /* MarkdownComposerField.swift in Sources */,
+				KPSTB4273DB8E1AC3AB9B4CB /* KaPostsView.swift in Sources */,
+				KPSTB296BB91B40809636E13 /* KaPostsSettingsView.swift in Sources */,
+				KPSTB72BDAD0A332924CAADB /* KaPostsSearchView.swift in Sources */,
+				KPSTB6EC5AF0A6EE0794CAF5 /* KaPostsFeedPager.swift in Sources */,
+				KPSTB05129F86EA73DB3BC51 /* KaPostsFeedDrawer.swift in Sources */,
+				KPSTB62B6BA64F3F4C8866EC /* KaPostsDockCopy.swift in Sources */,
+				TRSTBF96D14850519233B14F /* TokenGuideView.swift in Sources */,
+				TRSTB3E82952E5005BC87DA0 /* TrestlyApprovalSheet.swift in Sources */,
+				TRSTB6269077EC0D7E09A604 /* BuyStablecoinsSheet.swift in Sources */,
+				TRSTBE271E75C8A92F78F886 /* TrestlyProvider.swift in Sources */,
+				TRSTB546979518F5194AF697 /* KusdtWalletRelays.swift in Sources */,
+				KPEDB0BE524EFF38D05C5C68 /* KachatProfileEditorView.swift in Sources */,
+				KNMSBF8F2039F10BDDE6F76E /* KachatHelpView.swift in Sources */,
+				KNMSB781BD9DAF7C2364512D /* KachatMarketView.swift in Sources */,
+				KNMSBA4697AA56F62B676589 /* KachatOwnedNamesCache.swift in Sources */,
+				KNMSB3476542D68281529CBB /* KachatNamesBuilder.swift in Sources */,
+				CSTOBF401066E75DE5DD60D9 /* MultiFrameQRViews.swift in Sources */,
+				CSTOB44F155645B9A5ECBC66 /* QrFrameChunker.swift in Sources */,
+				CSTOB724301815E073DC7EFD /* KsptCodec.swift in Sources */,
+				CSTOBB399C2177A21CFB22CD /* ByteModeQRCode.swift in Sources */,
+				CSTOBD28C9EE64BD22743274 /* ColdStorageSendEngine.swift in Sources */,
+				CSTOBF0745B146A548022DEE /* ColdStorageManager.swift in Sources */,
+				CSTOB49388CA0454B4561987 /* ColdStorageView.swift in Sources */,
+				PORTB78929596ADE6519BB37 /* PortfolioView.swift in Sources */,
+				PORTB8AB0A710CD9277B99AA /* PortfolioTransactionsView.swift in Sources */,
+				PORTBD547E1941D0F9EB5C54 /* PortfolioPickerHeader.swift in Sources */,
+				PORTBCFF96217803C1B94AB8 /* ChartTouchOverlay.swift in Sources */,
+				PORTB2A763C6EBD8E0997A2B /* AddToPortfolioSheet.swift in Sources */,
+				PORTBCABCE51D0BA7170148B /* PortfolioViewModel.swift in Sources */,
+				PORTBA433F3C7F39FC964A9A /* PortfolioModels.swift in Sources */,
+				PORTBA6D32BBE4DE0483A47D /* PortfolioAddressImporter.swift in Sources */,
+				PORTBC8F37D3322B7E034A18 /* PortfolioLedgerStore.swift in Sources */,
+				PORTB948DF6A6C0A7A665B00 /* PortfolioManager.swift in Sources */,
+				PORTBF30B8868FB2ED94FD03 /* MarketPairService.swift in Sources */,
+				PORTBF2BCB3CFEC0F003C942 /* KaspaNetworkStatsService.swift in Sources */,
+				PORTBBACC7CFDFABF7F4A582 /* KaspaExtendedPublicKey.swift in Sources */,
+				PORTB72D1A36B406604A4E0A /* Base58.swift in Sources */,
 				E81000012D4C000100000001 /* KaChatApp.swift in Sources */,
 				E81000032D4C000100000002 /* ContentView.swift in Sources */,
 				3F4C10012F72000100000002 /* LaunchRouter.swift in Sources */,
@@ -1168,6 +1567,7 @@
 				E81000232D4C000100000012 /* MainTabView.swift in Sources */,
 				KCM0002B000000000000001 /* KachatNamesLiveViews.swift in Sources */,
 				KBOT001B000000000000001 /* KaChatBot.swift in Sources */,
+				KHUB001B000000000000001 /* KaspaHubView.swift in Sources */,
 				E81000292D4C000100000015 /* SettingsViewModel.swift in Sources */,
 				DTAL00010001000100000001 /* DeterministicAlias.swift in Sources */,
 				E810002F2D4C000100000018 /* CryptoUtils.swift in Sources */,

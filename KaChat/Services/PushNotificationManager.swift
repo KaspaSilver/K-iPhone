@@ -431,22 +431,23 @@ final class PushNotificationManager: ObservableObject {
         let platform = "ios"
         #endif
 
+        let kinds = AppSettings.load()
         let request = PushRegistrationRequest(
             deviceToken: token,
             platform: platform,
             watchedAddresses: watchedAddresses,
             watchedGroupIds: watchedGroupIds,
-            // Public Chats and KaPosts left the app (2026-10-24): registered as empty, so the
-            // service drops whatever an older build asked it for.
-            watchedPublicChatChannels: [],
-            hiddenPublicChatSenders: [:],
-            kapostsPubkey: nil,
-            kapostsNotifyLikes: false,
-            kapostsNotifyDislikes: false,
-            kapostsNotifyComments: false,
-            kapostsNotifyReposts: false,
-            kapostsNotifyFollows: false,
-            kapostsWatchAuthors: [],
+            // Public Chats and KaPosts (back since 2026-11-21): the rooms whose bell is on, and
+            // this account's KaPosts key with its per-kind switches, as KaPost registers them.
+            watchedPublicChatChannels: collectWatchedPublicChatChannels(),
+            hiddenPublicChatSenders: collectHiddenPublicChatSenders(),
+            kapostsPubkey: collectKaPostsPubkey(),
+            kapostsNotifyLikes: kinds.kaPostsNotifyLikes,
+            kapostsNotifyDislikes: kinds.kaPostsNotifyDislikes,
+            kapostsNotifyComments: kinds.kaPostsNotifyComments,
+            kapostsNotifyReposts: kinds.kaPostsNotifyReposts,
+            kapostsNotifyFollows: kinds.kaPostsNotifyFollows,
+            kapostsWatchAuthors: collectKaPostsWatchAuthors(),
             primaryAddress: primaryAddress,
             aliases: aliases,
             apnsEnvironment: ApnsEnvironment.current.rawValue,
@@ -729,21 +730,22 @@ final class PushNotificationManager: ObservableObject {
             return
         }
 
+        let kinds = AppSettings.load()
         let request = PushUpdateRequest(
             deviceToken: token,
             watchedAddresses: watchedAddresses,
             watchedGroupIds: watchedGroupIds,
-            // Public Chats and KaPosts left the app (2026-10-24): registered as empty, so the
-            // service drops whatever an older build asked it for.
-            watchedPublicChatChannels: [],
-            hiddenPublicChatSenders: [:],
-            kapostsPubkey: nil,
-            kapostsNotifyLikes: false,
-            kapostsNotifyDislikes: false,
-            kapostsNotifyComments: false,
-            kapostsNotifyReposts: false,
-            kapostsNotifyFollows: false,
-            kapostsWatchAuthors: [],
+            // Public Chats and KaPosts (back since 2026-11-21): the rooms whose bell is on, and
+            // this account's KaPosts key with its per-kind switches, as KaPost registers them.
+            watchedPublicChatChannels: collectWatchedPublicChatChannels(),
+            hiddenPublicChatSenders: collectHiddenPublicChatSenders(),
+            kapostsPubkey: collectKaPostsPubkey(),
+            kapostsNotifyLikes: kinds.kaPostsNotifyLikes,
+            kapostsNotifyDislikes: kinds.kaPostsNotifyDislikes,
+            kapostsNotifyComments: kinds.kaPostsNotifyComments,
+            kapostsNotifyReposts: kinds.kaPostsNotifyReposts,
+            kapostsNotifyFollows: kinds.kaPostsNotifyFollows,
+            kapostsWatchAuthors: collectKaPostsWatchAuthors(),
             primaryAddress: primaryAddress,
             aliases: aliases,
             apnsEnvironment: ApnsEnvironment.current.rawValue,
@@ -870,9 +872,56 @@ final class PushNotificationManager: ObservableObject {
         let apnsEnvironment = ApnsEnvironment.current.rawValue
         // The silenced groups are part of what the service holds for this device, so a change
         // is a change worth an update even when the forced re-registration behind the switch
-        // could not run (permission, wallet-binding cooldown).
+        // could not run (permission, wallet-binding cooldown). So are the rooms and KaPosts'
+        // key, switches and watched authors.
         let silentGroups = GroupChatService.shared.groupSilentNotifications.sorted().joined(separator: "+")
-        return (addrs + ["|"] + groupIds + ["|"] + aliasList + ["|", primary] + ["|", apnsEnvironment] + ["|", silentGroups]).joined(separator: ",")
+        let publicChatChannels = collectWatchedPublicChatChannels()
+        let hiddenPublicChat = collectHiddenPublicChatSenders()
+            .sorted { $0.key < $1.key }
+            .map { "\($0.key):\($0.value.joined(separator: "+"))" }
+        let kapostsKey = collectKaPostsPubkey() ?? ""
+        let watchAuthors = collectKaPostsWatchAuthors().sorted().joined(separator: "+")
+        let kinds = AppSettings.load()
+        let kaPostsKinds = [kinds.kaPostsNotifyLikes, kinds.kaPostsNotifyDislikes, kinds.kaPostsNotifyComments, kinds.kaPostsNotifyReposts, kinds.kaPostsNotifyFollows]
+            .map { $0 ? "1" : "0" }.joined()
+        return (addrs + ["|"] + groupIds + ["|"] + aliasList + ["|", primary] + ["|", apnsEnvironment] + ["|", silentGroups]
+                + ["|"] + publicChatChannels + ["|"] + hiddenPublicChat + ["|", kapostsKey, kaPostsKinds, watchAuthors]).joined(separator: ",")
+    }
+
+    /// Indexer-tracked public chat rooms whose bell is on - the push service sends room pushes
+    /// for these while the app is closed. Bell off = room left out = no push (from KaPost).
+    private func collectWatchedPublicChatChannels() -> [String] {
+        PublicChatService.shared.channels
+            .filter { PublicChatService.isIndexerTracked($0.channelName) && $0.notifyEnabled }
+            .map(\.channelName)
+            .sorted()
+    }
+
+    /// Per-room hidden senders for the watched rooms - the push service must not send pushes
+    /// from these senders to this device. Global hides apply to every watched room.
+    private func collectHiddenPublicChatSenders() -> [String: [String]] {
+        let hidden = PublicChatService.shared.hiddenSendersByChannel()
+        var result: [String: [String]] = [:]
+        for channel in collectWatchedPublicChatChannels() {
+            let combined = hidden.global.union(hidden.perChannel[channel] ?? [])
+            if !combined.isEmpty {
+                result[channel] = combined.sorted()
+            }
+        }
+        return result
+    }
+
+    /// The account's KaPosts identity - the push service sends "actions on your content" pushes
+    /// for it while the app is closed. Nil when no wallet is loaded.
+    private func collectKaPostsPubkey() -> String? {
+        try? KaPostsAPIClient.shared.requesterPubkey()
+    }
+
+    /// The authors this account asked to hear about when they post (KaPosts' bell). Empty
+    /// without a KaPosts identity.
+    private func collectKaPostsWatchAuthors() -> [String] {
+        guard collectKaPostsPubkey() != nil else { return [] }
+        return KaPostsWatchStore.shared.watchedPubkeys
     }
 
     /// Unregister device (call on logout/wallet delete)
@@ -2232,8 +2281,8 @@ struct PushRegistrationRequest: Codable {
     let watchedGroupIds: [String]
     let watchedPublicChatChannels: [String]
     let hiddenPublicChatSenders: [String: [String]]
-    /// The Public Chats and KaPosts fields below are sent empty since 2026-10-24 (both features
-    /// left the app), which tells the service this device wants none of their pushes.
+    /// The Public Chats and KaPosts fields below: the rooms whose bell is on and the account's
+    /// KaPosts key and per-kind switches (empty from 2026-10-24 until they came back, 2026-11-21).
     let kapostsPubkey: String?
     let kapostsNotifyLikes: Bool
     let kapostsNotifyDislikes: Bool

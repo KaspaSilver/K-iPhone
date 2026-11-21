@@ -6,8 +6,19 @@ struct ContentView: View {
     /// old tabs back as they were: on Profile (where Log Out is), without an onAppear to start
     /// polling for the new account.
     @State private var signInSession = 0
+    /// The version of the Terms of Use last agreed to on this device (since 2026-11-21, with
+    /// KaPosts and Public Chats back: App Store guideline 1.2).
+    @AppStorage(KaChatTerms.acceptedVersionKey) private var acceptedTermsVersion = 0
 
     var body: some View {
+        if acceptedTermsVersion >= KaChatTerms.currentVersion {
+            accountContent
+        } else {
+            TermsAcceptanceView { acceptedTermsVersion = KaChatTerms.currentVersion }
+        }
+    }
+
+    private var accountContent: some View {
         Group {
             switch LaunchRouter.route(
                 isWalletMetadataLoading: walletManager.isLoading,

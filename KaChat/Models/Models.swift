@@ -1669,6 +1669,108 @@ struct VoicePartTag: Equatable, Hashable {
     }
 }
 
+/// Parts of one long voice note in a room: same room, sender, tag id and count.
+struct PublicChatVoiceNote: Equatable {
+    let key: String
+    let count: Int
+    /// The parts present, one per index, in index order.
+    let parts: [PublicChatMessage]
+    /// The lowest-index part present: where the one bubble sits, and whose time it shows.
+    let anchor: PublicChatMessage
+
+    var isComplete: Bool { parts.count == count }
+
+    /// The note's status: any failed part fails it, then any part still sending keeps it
+    /// sending, then any part not confirmed shows that.
+    var deliveryStatus: PublicChatMessage.DeliveryStatus {
+        let statuses = parts.map(\.deliveryStatus)
+        if statuses.contains(.failed) { return .failed }
+        if statuses.contains(.pending) { return .pending }
+        if statuses.contains(.unconfirmed) { return .unconfirmed }
+        return .sent
+    }
+
+    /// The parts to resend: failed, in index order.
+    var failedParts: [PublicChatMessage] {
+        parts.filter { $0.deliveryStatus == .failed }
+    }
+
+    static func key(channel: String, sender: String, tag: VoicePartTag) -> String {
+        "\(channel.lowercased())|\(sender.lowercased())|\(tag.id)|\(tag.count)"
+    }
+}
+
+enum PublicChatVoiceParts {
+    struct Result: Equatable {
+        /// Notes by their anchor's id.
+        var notesByAnchorId: [String: PublicChatVoiceNote] = [:]
+        /// Parts that aren't their note's anchor: not drawn.
+        var hiddenIds: Set<String> = []
+        /// Each hidden part's anchor id, so a reply or reaction aimed at a hidden part (another
+        /// client that shows parts one by one) lands on the bubble.
+        var anchorIdByPartId: [String: String] = [:]
+    }
+
+    /// Groups the voice-note parts of a room's `messages`, which must be in room order. A note
+    /// with one part present is still a note (its bubble says it is receiving the rest).
+    static func group(_ messages: [PublicChatMessage]) -> Result {
+        var tagged: [String: [(message: PublicChatMessage, tag: VoicePartTag)]] = [:]
+        var order: [String] = []
+        for message in messages where message.content.first == "{" {
+            guard let tag = VoicePartTag.sniff(message.content) else { continue }
+            let key = PublicChatVoiceNote.key(channel: message.channelName, sender: message.senderAddress, tag: tag)
+            if tagged[key] == nil { order.append(key) }
+            tagged[key, default: []].append((message, tag))
+        }
+        var result = Result()
+        for key in order {
+            guard let members = tagged[key], !members.isEmpty else { continue }
+            var byIndex: [Int: PublicChatMessage] = [:]
+            for member in members {
+                if let existing = byIndex[member.tag.index] {
+                    // Two messages for one index (a resend that landed twice): the delivered one.
+                    if priority(member.message.deliveryStatus) > priority(existing.deliveryStatus) {
+                        byIndex[member.tag.index] = member.message
+                    }
+                } else {
+                    byIndex[member.tag.index] = member.message
+                }
+            }
+            // The anchor is the lowest index present, not the earliest row: while a note sends,
+            // its parts swap places as each one's local time becomes the chain's, and an anchor
+            // that followed room order hopped from part to part (and stopped playback).
+            let parts = byIndex.keys.sorted().compactMap { byIndex[$0] }
+            guard let anchor = parts.first else { continue }
+            result.notesByAnchorId[anchor.id] = PublicChatVoiceNote(
+                key: key,
+                count: members[0].tag.count,
+                parts: parts,
+                anchor: anchor
+            )
+            for member in members where member.message.id != anchor.id {
+                result.hiddenIds.insert(member.message.id)
+                result.anchorIdByPartId[member.message.id] = anchor.id
+            }
+        }
+        return result
+    }
+
+    /// The note key of a message that is a part, else nil.
+    static func noteKey(of message: PublicChatMessage) -> String? {
+        guard message.content.first == "{", let tag = VoicePartTag.sniff(message.content) else { return nil }
+        return PublicChatVoiceNote.key(channel: message.channelName, sender: message.senderAddress, tag: tag)
+    }
+
+    private static func priority(_ status: PublicChatMessage.DeliveryStatus) -> Int {
+        switch status {
+        case .sent: return 3
+        case .unconfirmed: return 2
+        case .pending: return 1
+        case .failed: return 0
+        }
+    }
+}
+
 /// On-chain voice notes, 1:1 and groups (MESSAGING.md, "Long voice notes (multi-part)"):
 /// 16 kbps CBR Opus in 60 ms frames everywhere, parts as long as the path's per-transaction cap
 /// allows, and a note only as long as 1 KAS of fees allows. The Nextcloud route is separate.
@@ -1703,6 +1805,8 @@ enum VoiceNotePolicy {
 
     static let oneToOne = Path(partSeconds: 14.5, maxSeconds: 170, maxBytes: 31_000)
     static let group = Path(partSeconds: 9.8, maxSeconds: 110, maxBytes: 21_000)
+    /// Public Chats rooms (KaPost's): the same sizes as 1:1.
+    static let publicChat = Path(partSeconds: 14.5, maxSeconds: 170, maxBytes: 31_000)
 }
 
 /// On-chain photo quality, chosen at send time (MESSAGING.md, "Photos: quality tiers and
@@ -2420,6 +2524,26 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
     case profile
     /// Settings, its own tab since 2026-10-24 (it used to be a sheet behind Profile's gear).
     case settings
+    /// Kaspa Hub (back 2026-11-20): the grid of every tab that isn't in the dock. Always in the dock.
+    case hub
+    /// Portfolio (back 2026-11-21, from KaPay): watched addresses and the KAS price.
+    case portfolio
+    /// Cold Storage (back 2026-11-21, from KaPay): watch-only KasSigner accounts, signed on the device.
+    case coldStorage
+    /// .kachat names (back 2026-11-21, from KaPay): claim, renew, sell, buy and offers.
+    case kachatNames
+    /// KaPosts (back 2026-11-21, from KaPost): the on-chain social feed.
+    case kaposts
+    /// Games (back 2026-11-21, from KaPlay): a card per game; Chess is online 1v1, tournaments
+    /// and the bots.
+    case games
+    /// The chess leaderboards (back 2026-11-21, from KaPlay): 1v1, tournaments and each bot.
+    case leaderboard
+    /// KaChat Stats (back 2026-11-21, phase 5): how many transactions KaChat has put on Kaspa,
+    /// by kind, as the indexers count them (STATS_INDEXER.md).
+    case kachatStats
+    /// Kaspa Websites (back 2026-11-21, phase 5): Kaspa sites opened in the in-app browser.
+    case apps
 
     var id: String { rawValue }
 
@@ -2431,6 +2555,15 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .addressBook: return "Contacts"
         case .profile: return "Profile"
         case .settings: return "Settings"
+        case .hub: return "Kaspa Hub"
+        case .portfolio: return "Portfolio"
+        case .coldStorage: return "Cold Storage"
+        case .kachatNames: return ".kachat"
+        case .kaposts: return "KaPost"
+        case .games: return "KaPlay"
+        case .leaderboard: return "Leaderboard"
+        case .kachatStats: return "Stats"
+        case .apps: return "Websites"
         }
     }
 
@@ -2444,6 +2577,17 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .addressBook: return "person.text.rectangle"
         case .profile: return "person.crop.circle"
         case .settings: return "gearshape"
+        case .hub: return "square.grid.2x2"
+        case .portfolio: return "chart.pie"
+        case .coldStorage: return "lock.shield"
+        case .kachatNames: return "at"
+        // KaPost's Feed and Public Chats tabs
+        case .kaposts: return "square.text.square"
+        // KaPlay's Play and Leaderboard tabs
+        case .games: return "gamecontroller"
+        case .leaderboard: return "trophy"
+        case .kachatStats: return "chart.bar.xaxis"
+        case .apps: return "globe"
         }
     }
 
@@ -2454,11 +2598,28 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .profile: return 2
         case .addressBook: return 14
         case .settings: return 16
+        case .hub: return 20
+        case .portfolio: return 3
+        case .coldStorage: return 4
+        case .kachatNames: return 12
+        case .kaposts: return 5
+        case .games: return 22
+        case .leaderboard: return 24
+        // their tags from before they left (2026-10-24)
+        case .kachatStats: return 13
+        case .apps: return 9
         }
     }
 
-    /// What the dock renders, in order.
-    static let dock: [AppTab] = [.addressBook, .wallet, .chats, .profile, .settings]
+    /// The most tabs the dock shows.
+    static let maxDockItems = 5
+    /// Always in the dock: Kaspa Hub (the way to everything else) and Profile (owner's call,
+    /// 2026-11-21: your KaPosts profile, with Edit Profile and Share Profile).
+    static let pinnedToDock: [AppTab] = [.hub, .profile]
+    /// Every new install's dock, in this order (owner's call, 2026-11-21: Kaspa Hub, Wallet, Chats,
+    /// Profile, Settings). New features land in Kaspa Hub, never here; Customize Dock changes it
+    /// (`DockLayout`).
+    static let defaultDock: [AppTab] = [.hub, .wallet, .chats, .profile, .settings]
 }
 
 /// Block explorer used for "view transaction" links, matching Android's KaspaExplorer enum.
@@ -2581,6 +2742,12 @@ enum KasNameText {
 
 // MARK: - Settings Models
 
+/// What KaPosts' Tip sends (KaPosts Settings > Tip In; from KaPost, 2026-11-21).
+enum KaPostsTipAsset: String, Codable, CaseIterable {
+    case kaspa
+    case kusdt
+}
+
 struct AppSettings: Codable {
     var messageRetention: MessageRetention
     var networkType: NetworkType
@@ -2593,7 +2760,31 @@ struct AppSettings: Codable {
     /// receives Kaspa from an external source. Gates both the live
     /// UTXO-subscription path and the foreground catch-up diff (see AddressActivityNotifier).
     var addressActivityNotificationsEnabled: Bool
+    /// Notifications > KaPosts: per-event-type gates for KaPosts notification pings (all
+    /// default ON), mapped from the notifications API's `contentType` / `voteType` fields via
+    /// `shouldNotifyKaPostsAction` - a disabled type is silently skipped, never queued.
+    var kaPostsNotifyLikes: Bool
+    var kaPostsNotifyReposts: Bool
+    var kaPostsNotifyFollows: Bool
+    var kaPostsNotifyDislikes: Bool
+    var kaPostsNotifyComments: Bool
+    var kaPostsNotifyMentions: Bool
     var showFeeEstimate: Bool
+    /// KaPosts > Settings: the tip a tap on "Tip" sends at once, in sompi. nil = ask every time.
+    var kaPostsDefaultTipSompi: UInt64?
+    /// The same default tip set in a currency instead (KaPosts > Settings, the unit tapped from
+    /// KAS to the currency): each tip sends what this is worth in KAS at the price of the moment.
+    /// Only one of this and `kaPostsDefaultTipSompi` is set.
+    var kaPostsDefaultTipFiat: Double?
+    /// The currency `kaPostsDefaultTipFiat` is in (the app's currency when it was set).
+    var kaPostsDefaultTipFiatCurrency: AppCurrency?
+    /// KaPosts > Settings > Tip In: what a tap on Tip sends. nil = ask each time (Kaspa or kUSDT),
+    /// except that an instant tip amount (always Kaspa) makes it Kaspa; see `kaPostsTipAssetInUse`.
+    var kaPostsTipAsset: KaPostsTipAsset?
+    /// KaPosts > Settings > Cool down before post: every KaPosts action (post, comment, like,
+    /// repost, vote, edit, delete) waits 5 seconds with an Undo before it goes on chain. Off by
+    /// default, as in KaPost.
+    var kaPostsCooldownEnabled: Bool
     /// Optional (unlike most fields here) - this struct has no custom `init(from:)`, so a newly
     /// added *required* field would fail this whole struct's decode for anyone with a
     /// pre-existing settings blob saved before it existed, silently resetting every other setting
@@ -2645,12 +2836,19 @@ struct AppSettings: Codable {
     /// Deriving it from `networkType` also means switching networks moves it, instead of leaving
     /// a testnet wallet pointed at the mainnet registry.
     var knsBaseURL: String { Self.defaultKNSURL(for: networkType) }
+    /// KaPosts, Public Chats and post translation run on KaChat's own indexer, so they follow
+    /// `indexerURL` (empty on testnet, where they are off). KaPost has a field for each.
+    var kaPostIndexerURL: String { indexerURL }
+    var publicChatIndexerURL: String { indexerURL }
+    var translationServiceURL: String { indexerURL }
 
     var kaspaRestAPIURL: String
     /// Trestly's API (kusdt-open's coordinator): where kUSDT balances are looked up
     /// (`/tokens?owner=`), each answer checked on the node. KaChat only reads it; buying and
     /// swapping happen in KaPay.
     var trestlyAPIURL: String
+    /// Trestly's site, opened inside KaChat to swap stablecoins (Connection Settings > Trestly).
+    var trestlySiteURL: String
     var kaspaExplorer: KaspaExplorer
     /// A user-pinned "host:port" gRPC node - when non-blank, NodePoolService stops discovery
     /// (DNS seeds/peer-gossip/scoring) entirely and only ever connects to this address,
@@ -2676,6 +2874,10 @@ struct AppSettings: Codable {
 
     // Default URLs per network
     static let defaultIndexerURL = "https://indexer.kachat.app"
+    /// KaPosts, Public Chats and translation: the same indexer (see `kaPostIndexerURL`).
+    static let defaultKaPostIndexerURL = defaultIndexerURL
+    static let defaultPublicChatIndexerURL = defaultIndexerURL
+    static let defaultTranslationServiceURL = defaultIndexerURL
     /// Testnet has no default indexer: its chat, push and `.kachat` names fields start blank
     /// (every indexer and push call is skipped then) until someone enters a server.
     static let defaultTestnetIndexerURL = ""
@@ -2720,18 +2922,55 @@ struct AppSettings: Codable {
     /// KaChat ships pinned to this node out of the box, rather than defaulting to full
     /// seed/DNS/peer-gossip discovery - the "Use Default" button in Connection Settings resets
     /// back to this same address after a user has typed something else. This is Kaspium's own
-    /// currently-live default (see their node_settings_notifier.dart's "temporary Toccata node
-    /// override" - node.kaspium.io's cert had expired, so Kaspium's app itself now points here
-    /// instead) - TLS-secured, hence the `grpcs://` scheme (see Endpoint.secure/Endpoint(url:)).
-    static let defaultTrustedNodeAddress = "grpcs://toccata.kaspium.io"
+    /// default again (owner's call, 2026-11-21: Kaspium moved back to it). Checked that day: a
+    /// valid Let's Encrypt certificate over HTTP/2, and a live GetInfo / GetCurrentNetwork
+    /// answered "mainnet", kaspad 2.1.0, synced, UTXO index on - TLS-secured, hence the
+    /// `grpcs://` scheme (see Endpoint.secure/Endpoint(url:)).
+    static let defaultTrustedNodeAddress = "grpcs://node.kaspium.io"
+    /// Earlier defaults, moved to `defaultTrustedNodeAddress` when settings decode: toccata.kaspium.io
+    /// (Kaspium's stopgap while node.kaspium.io's certificate had expired) no longer answers.
+    static let legacyDefaultTrustedNodeAddresses: Set<String> = ["grpcs://toccata.kaspium.io"]
+
+    /// A retired default node becomes today's; anything the person typed is kept.
+    static func replacingRetiredDefaultNode(_ address: String) -> String {
+        legacyDefaultTrustedNodeAddresses.contains(address.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+            ? defaultTrustedNodeAddress : address
+    }
 
     /// Trestly's own deployments (kusdt-open `wallet/extension/src/config/defaults.ts`).
     static func defaultTrestlyAPIURL(for network: NetworkType) -> String {
         network == .mainnet ? "https://api.trestly.io/api/v1" : "https://testnet.trestly.io/api/v1"
     }
 
+    static func defaultTrestlySiteURL(for network: NetworkType) -> String {
+        network == .mainnet ? "https://trestly.io" : "https://testnet.trestly.io"
+    }
+
     /// Fixed tapback-style default set - matches Android's `QUICK_REACTION_EMOJIS`'s default.
     static let defaultQuickReactionEmojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
+
+    /// Per-event-type gate for KaPosts notification pings, keyed off the notifications API's
+    /// fields: `contentType` is "vote" (with `voteType` "upvote"/"downvote"), "reply", "quote"
+    /// (reposts, quotes with text included), "follow" or "mention". Unknown kinds always notify
+    /// rather than silently vanishing behind a toggle that doesn't name them.
+    func shouldNotifyKaPostsAction(contentType: String?, voteType: String?) -> Bool {
+        switch contentType {
+        case "vote": return voteType == "downvote" ? kaPostsNotifyDislikes : kaPostsNotifyLikes
+        case "reply": return kaPostsNotifyComments
+        case "quote": return kaPostsNotifyReposts
+        case "follow": return kaPostsNotifyFollows
+        case "mention": return kaPostsNotifyMentions
+        default: return true
+        }
+    }
+
+    /// What a tap on Tip sends: the Tip In choice, or Kaspa when an instant tip amount is set
+    /// (those are always Kaspa); nil = ask each time.
+    var kaPostsTipAssetInUse: KaPostsTipAsset? {
+        if let kaPostsTipAsset { return kaPostsTipAsset }
+        if (kaPostsDefaultTipSompi ?? 0) > 0 || (kaPostsDefaultTipFiat ?? 0) > 0 { return .kaspa }
+        return nil
+    }
 
     /// What the double-tap quick-reaction bar should actually show - falls back to the default
     /// set if never customized, or if a customization somehow ended up with the wrong count
@@ -2753,7 +2992,8 @@ struct AppSettings: Codable {
             kaspaRestAPIURL: kaspaRestAPIURL,
             trustedNodeAddress: trustedNodeAddress,
             savedNodeAddresses: savedNodeAddresses,
-            trestlyAPIURL: trestlyAPIURL
+            trestlyAPIURL: trestlyAPIURL,
+            trestlySiteURL: trestlySiteURL
         )
     }
 
@@ -2772,6 +3012,7 @@ struct AppSettings: Codable {
         trustedNodeAddress = next.trustedNodeAddress
         savedNodeAddresses = next.savedNodeAddresses
         trestlyAPIURL = next.trestlyAPIURL ?? Self.defaultTrestlyAPIURL(for: network)
+        trestlySiteURL = next.trestlySiteURL ?? Self.defaultTrestlySiteURL(for: network)
         networkType = network
     }
 
@@ -2825,7 +3066,21 @@ struct AppSettings: Codable {
         case incomingNotificationSoundEnabled
         case incomingNotificationVibrationEnabled
         case addressActivityNotificationsEnabled
+        case kaPostsNotifyLikes
+        case kaPostsNotifyReposts
+        case kaPostsNotifyFollows
+        case kaPostsNotifyDislikes
+        case kaPostsNotifyComments
+        case kaPostsNotifyMentions
         case showFeeEstimate
+        case kaPostsDefaultTipSompi
+        case kaPostsDefaultTipFiat
+        case kaPostsDefaultTipFiatCurrency
+        case kaPostsTipAsset
+        /// KaPost's name for it since 2026-11-18, when the cooldown went off by default: a value
+        /// saved under the old name ("kaPostsCooldownEnabled", mostly the old default of on) is
+        /// ignored.
+        case kaPostsCooldownEnabled = "kaPostsCooldownOn"
         case quickReactionEmojis
         case appearance
         case language
@@ -2839,6 +3094,7 @@ struct AppSettings: Codable {
         case kachatNamesIndexerURL
         case kaspaRestAPIURL
         case trestlyAPIURL
+        case trestlySiteURL
         case kaspaExplorer
         case trustedNodeAddress
         case savedNodeAddresses
@@ -2866,7 +3122,18 @@ struct AppSettings: Codable {
         incomingNotificationSoundEnabled: Bool = true,
         incomingNotificationVibrationEnabled: Bool = true,
         addressActivityNotificationsEnabled: Bool = true,
+        kaPostsNotifyLikes: Bool = true,
+        kaPostsNotifyReposts: Bool = true,
+        kaPostsNotifyFollows: Bool = true,
+        kaPostsNotifyDislikes: Bool = true,
+        kaPostsNotifyComments: Bool = true,
+        kaPostsNotifyMentions: Bool = true,
         showFeeEstimate: Bool = true,
+        kaPostsDefaultTipSompi: UInt64? = nil,
+        kaPostsDefaultTipFiat: Double? = nil,
+        kaPostsDefaultTipFiatCurrency: AppCurrency? = nil,
+        kaPostsTipAsset: KaPostsTipAsset? = nil,
+        kaPostsCooldownEnabled: Bool = false,
         quickReactionEmojis: [String]? = nil,
         appearance: AppAppearance = .system,
         language: AppLanguage = .system,
@@ -2880,6 +3147,7 @@ struct AppSettings: Codable {
         kachatNamesIndexerURL: String? = nil,
         kaspaRestAPIURL: String,
         trestlyAPIURL: String? = nil,
+        trestlySiteURL: String? = nil,
         kaspaExplorer: KaspaExplorer = .default,
         trustedNodeAddress: String = AppSettings.defaultTrustedNodeAddress,
         savedNodeAddresses: [SavedNodeAddress] = [],
@@ -2895,7 +3163,18 @@ struct AppSettings: Codable {
         self.incomingNotificationSoundEnabled = incomingNotificationSoundEnabled
         self.incomingNotificationVibrationEnabled = incomingNotificationVibrationEnabled
         self.addressActivityNotificationsEnabled = addressActivityNotificationsEnabled
+        self.kaPostsNotifyLikes = kaPostsNotifyLikes
+        self.kaPostsNotifyReposts = kaPostsNotifyReposts
+        self.kaPostsNotifyFollows = kaPostsNotifyFollows
+        self.kaPostsNotifyDislikes = kaPostsNotifyDislikes
+        self.kaPostsNotifyComments = kaPostsNotifyComments
+        self.kaPostsNotifyMentions = kaPostsNotifyMentions
         self.showFeeEstimate = showFeeEstimate
+        self.kaPostsDefaultTipSompi = kaPostsDefaultTipSompi
+        self.kaPostsDefaultTipFiat = kaPostsDefaultTipFiat
+        self.kaPostsDefaultTipFiatCurrency = kaPostsDefaultTipFiatCurrency
+        self.kaPostsTipAsset = kaPostsTipAsset
+        self.kaPostsCooldownEnabled = kaPostsCooldownEnabled
         self.quickReactionEmojis = quickReactionEmojis
         self.appearance = appearance
         self.language = language
@@ -2909,6 +3188,7 @@ struct AppSettings: Codable {
         self.kachatNamesIndexerURL = kachatNamesIndexerURL ?? indexerURL
         self.kaspaRestAPIURL = kaspaRestAPIURL
         self.trestlyAPIURL = trestlyAPIURL ?? Self.defaultTrestlyAPIURL(for: networkType)
+        self.trestlySiteURL = trestlySiteURL ?? Self.defaultTrestlySiteURL(for: networkType)
         self.kaspaExplorer = kaspaExplorer
         self.trustedNodeAddress = trustedNodeAddress
         self.savedNodeAddresses = savedNodeAddresses
@@ -2952,7 +3232,20 @@ struct AppSettings: Codable {
         // Defaults ON, and an older settings file with no such key decodes as ON - a switch
         // appearing for the first time must not silently mute anything.
         addressActivityNotificationsEnabled = try container.decodeIfPresent(Bool.self, forKey: .addressActivityNotificationsEnabled) ?? true
+        // The KaPosts fields: a missing or no longer decodable value falls back to its default,
+        // rather than failing the whole decode.
+        kaPostsNotifyLikes = (try? container.decodeIfPresent(Bool.self, forKey: .kaPostsNotifyLikes)) ?? true
+        kaPostsNotifyReposts = (try? container.decodeIfPresent(Bool.self, forKey: .kaPostsNotifyReposts)) ?? true
+        kaPostsNotifyFollows = (try? container.decodeIfPresent(Bool.self, forKey: .kaPostsNotifyFollows)) ?? true
+        kaPostsNotifyDislikes = (try? container.decodeIfPresent(Bool.self, forKey: .kaPostsNotifyDislikes)) ?? true
+        kaPostsNotifyComments = (try? container.decodeIfPresent(Bool.self, forKey: .kaPostsNotifyComments)) ?? true
+        kaPostsNotifyMentions = (try? container.decodeIfPresent(Bool.self, forKey: .kaPostsNotifyMentions)) ?? true
         showFeeEstimate = try container.decodeIfPresent(Bool.self, forKey: .showFeeEstimate) ?? true
+        kaPostsDefaultTipSompi = (try? container.decodeIfPresent(UInt64.self, forKey: .kaPostsDefaultTipSompi)) ?? nil
+        kaPostsDefaultTipFiat = (try? container.decodeIfPresent(Double.self, forKey: .kaPostsDefaultTipFiat)) ?? nil
+        kaPostsDefaultTipFiatCurrency = (try? container.decodeIfPresent(AppCurrency.self, forKey: .kaPostsDefaultTipFiatCurrency)) ?? nil
+        kaPostsTipAsset = (try? container.decodeIfPresent(KaPostsTipAsset.self, forKey: .kaPostsTipAsset)) ?? nil
+        kaPostsCooldownEnabled = (try? container.decodeIfPresent(Bool.self, forKey: .kaPostsCooldownEnabled)) ?? false
         quickReactionEmojis = try container.decodeIfPresent([String].self, forKey: .quickReactionEmojis)
         appearance = try container.decodeIfPresent(AppAppearance.self, forKey: .appearance) ?? .system
         language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .system
@@ -2985,6 +3278,9 @@ struct AppSettings: Codable {
         let storedTrestly = (try container.decodeIfPresent(String.self, forKey: .trestlyAPIURL) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         trestlyAPIURL = storedTrestly.isEmpty ? AppSettings.defaultTrestlyAPIURL(for: networkType) : storedTrestly
+        let storedSite = (try container.decodeIfPresent(String.self, forKey: .trestlySiteURL) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        trestlySiteURL = storedSite.isEmpty ? AppSettings.defaultTrestlySiteURL(for: networkType) : storedSite
         connectionProfiles = try container.decodeIfPresent([String: ConnectionProfile].self, forKey: .connectionProfiles) ?? [:]
         // Testnet moved from the retired testnet-11 to testnet-10: carry the old default forward,
         // both live and in the stashed testnet profile. A custom URL is left alone.
@@ -3012,7 +3308,8 @@ struct AppSettings: Codable {
         pushIndexerURL = AppSettings.replacingRetiredDefaultIndexer(pushIndexerURL)
         kachatNamesIndexerURL = AppSettings.replacingRetiredDefaultIndexer(kachatNamesIndexerURL)
         kaspaExplorer = try container.decodeIfPresent(KaspaExplorer.self, forKey: .kaspaExplorer) ?? .default
-        trustedNodeAddress = try container.decodeIfPresent(String.self, forKey: .trustedNodeAddress) ?? AppSettings.defaultTrustedNodeAddress
+        trustedNodeAddress = AppSettings.replacingRetiredDefaultNode(
+            try container.decodeIfPresent(String.self, forKey: .trustedNodeAddress) ?? AppSettings.defaultTrustedNodeAddress)
         savedNodeAddresses = try container.decodeIfPresent([SavedNodeAddress].self, forKey: .savedNodeAddresses) ?? []
 
         // gRPC pool settings
@@ -3039,7 +3336,18 @@ struct AppSettings: Codable {
         try container.encode(incomingNotificationSoundEnabled, forKey: .incomingNotificationSoundEnabled)
         try container.encode(incomingNotificationVibrationEnabled, forKey: .incomingNotificationVibrationEnabled)
         try container.encode(addressActivityNotificationsEnabled, forKey: .addressActivityNotificationsEnabled)
+        try container.encode(kaPostsNotifyLikes, forKey: .kaPostsNotifyLikes)
+        try container.encode(kaPostsNotifyReposts, forKey: .kaPostsNotifyReposts)
+        try container.encode(kaPostsNotifyFollows, forKey: .kaPostsNotifyFollows)
+        try container.encode(kaPostsNotifyDislikes, forKey: .kaPostsNotifyDislikes)
+        try container.encode(kaPostsNotifyComments, forKey: .kaPostsNotifyComments)
+        try container.encode(kaPostsNotifyMentions, forKey: .kaPostsNotifyMentions)
         try container.encode(showFeeEstimate, forKey: .showFeeEstimate)
+        try container.encodeIfPresent(kaPostsDefaultTipSompi, forKey: .kaPostsDefaultTipSompi)
+        try container.encodeIfPresent(kaPostsDefaultTipFiat, forKey: .kaPostsDefaultTipFiat)
+        try container.encodeIfPresent(kaPostsDefaultTipFiatCurrency, forKey: .kaPostsDefaultTipFiatCurrency)
+        try container.encodeIfPresent(kaPostsTipAsset, forKey: .kaPostsTipAsset)
+        try container.encode(kaPostsCooldownEnabled, forKey: .kaPostsCooldownEnabled)
         try container.encodeIfPresent(quickReactionEmojis, forKey: .quickReactionEmojis)
         try container.encode(appearance, forKey: .appearance)
         try container.encode(language, forKey: .language)
@@ -3053,6 +3361,7 @@ struct AppSettings: Codable {
         try container.encode(kachatNamesIndexerURL, forKey: .kachatNamesIndexerURL)
         try container.encode(kaspaRestAPIURL, forKey: .kaspaRestAPIURL)
         try container.encode(trestlyAPIURL, forKey: .trestlyAPIURL)
+        try container.encode(trestlySiteURL, forKey: .trestlySiteURL)
         try container.encode(kaspaExplorer, forKey: .kaspaExplorer)
         try container.encode(trustedNodeAddress, forKey: .trustedNodeAddress)
         try container.encode(savedNodeAddresses, forKey: .savedNodeAddresses)
@@ -3092,6 +3401,15 @@ struct AppSettings: Codable {
 }
 
 // MARK: - Error Types
+
+/// A send put off until its coins confirm: it goes out on its own, so it mustn't be sent again
+/// (KaPosts' tips, from KaPost).
+struct SendDeferredError: LocalizedError {
+    static var message: String {
+        AppLocalization.string("Waiting for your coins to confirm. It sends on its own in a moment, so don't send it again.")
+    }
+    var errorDescription: String? { Self.message }
+}
 
 enum KasiaError: LocalizedError {
     case walletNotFound
@@ -3258,6 +3576,7 @@ struct ConnectionProfile: Codable, Equatable {
     var savedNodeAddresses: [SavedNodeAddress]
     /// Optional, so profiles stashed by builds before kUSDT still decode (nil = the default).
     var trestlyAPIURL: String?
+    var trestlySiteURL: String?
 
     init(
         indexerURL: String,
@@ -3266,7 +3585,8 @@ struct ConnectionProfile: Codable, Equatable {
         kaspaRestAPIURL: String,
         trustedNodeAddress: String,
         savedNodeAddresses: [SavedNodeAddress],
-        trestlyAPIURL: String? = nil
+        trestlyAPIURL: String? = nil,
+        trestlySiteURL: String? = nil
     ) {
         self.indexerURL = indexerURL
         self.pushIndexerURL = pushIndexerURL
@@ -3275,11 +3595,13 @@ struct ConnectionProfile: Codable, Equatable {
         self.trustedNodeAddress = trustedNodeAddress
         self.savedNodeAddresses = savedNodeAddresses
         self.trestlyAPIURL = trestlyAPIURL
+        self.trestlySiteURL = trestlySiteURL
     }
 
     private enum CodingKeys: String, CodingKey {
         case indexerURL, pushIndexerURL, kachatNamesIndexerURL, kaspaRestAPIURL, trustedNodeAddress, savedNodeAddresses
         case trestlyAPIURL
+        case trestlySiteURL
     }
 
     /// A profile stashed before `.kachat` names had their own indexer field read names from its
@@ -3293,9 +3615,10 @@ struct ConnectionProfile: Codable, Equatable {
             try container.decodeIfPresent(String.self, forKey: .kachatNamesIndexerURL) ?? indexerURL
         )
         kaspaRestAPIURL = try container.decode(String.self, forKey: .kaspaRestAPIURL)
-        trustedNodeAddress = try container.decode(String.self, forKey: .trustedNodeAddress)
+        trustedNodeAddress = AppSettings.replacingRetiredDefaultNode(try container.decode(String.self, forKey: .trustedNodeAddress))
         savedNodeAddresses = try container.decode([SavedNodeAddress].self, forKey: .savedNodeAddresses)
         trestlyAPIURL = try container.decodeIfPresent(String.self, forKey: .trestlyAPIURL)
+        trestlySiteURL = try container.decodeIfPresent(String.self, forKey: .trestlySiteURL)
     }
 
     /// What a network starts with. Testnet: the public testnet REST API, automatic node
@@ -3310,7 +3633,8 @@ struct ConnectionProfile: Codable, Equatable {
                 kaspaRestAPIURL: AppSettings.defaultKaspaMainnetURL,
                 trustedNodeAddress: AppSettings.defaultTrustedNodeAddress,
                 savedNodeAddresses: [],
-                trestlyAPIURL: AppSettings.defaultTrestlyAPIURL(for: .mainnet)
+                trestlyAPIURL: AppSettings.defaultTrestlyAPIURL(for: .mainnet),
+                trestlySiteURL: AppSettings.defaultTrestlySiteURL(for: .mainnet)
             )
         case .testnet:
             return ConnectionProfile(
@@ -3320,7 +3644,8 @@ struct ConnectionProfile: Codable, Equatable {
                 kaspaRestAPIURL: AppSettings.defaultKaspaTestnetURL,
                 trustedNodeAddress: "",
                 savedNodeAddresses: [],
-                trestlyAPIURL: AppSettings.defaultTrestlyAPIURL(for: .testnet)
+                trestlyAPIURL: AppSettings.defaultTrestlyAPIURL(for: .testnet),
+                trestlySiteURL: AppSettings.defaultTrestlySiteURL(for: .testnet)
             )
         }
     }

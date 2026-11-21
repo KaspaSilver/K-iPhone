@@ -10,21 +10,35 @@ struct ChatListView: View {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    /// One row of the list: chats and groups share it, by latest activity.
+    /// One row of the list: chats, groups and public rooms share it, by latest activity (rooms
+    /// moved in from their own tab on 2026-11-21).
     private enum ChatListEntry: Identifiable {
         case chat(Conversation)
         case group(GroupChat)
+        case room(PublicChatChannel)
 
         var id: String {
             switch self {
             case .chat(let conversation): return ChatListView.entryID(conversation)
             case .group(let group): return ChatListView.entryID(group)
+            case .room(let channel): return "r:\(channel.channelName)"
             }
         }
     }
 
     /// What the + sheet is showing: the choice, or the screen it led to.
-    private enum CreateStep { case menu, chat, group }
+    private enum CreateStep { case menu, chat, group, publicRoom, publicSettings }
+
+    /// The public rooms (Public Chats live in this list since 2026-11-21). Observed: a room's new
+    /// message moves its row.
+    @ObservedObject private var publicChats = PublicChatService.shared
+    @State private var selectedPublicRoom: String?
+    /// A room you added, waiting on its delete confirmation (a default room is only switched off).
+    @State private var roomToLeave: String?
+    /// New Public Chat: the room name being typed, and why it was refused.
+    @State private var createRoomName = ""
+    @State private var createRoomError: String?
+    @FocusState private var createRoomFieldFocused: Bool
 
     @State private var searchText = ""
     @State private var selectedContact: Contact?
@@ -110,6 +124,7 @@ struct ChatListView: View {
                             startInPaymentMode: selectedContactStartInPaymentMode
                         ))
                         .modifier(GroupChatDetailNavigationDestination(selectedGroup: $selectedGroup))
+                        .modifier(PublicChatChannelDestination(selectedChannel: $selectedPublicRoom))
                 }
             }
         }
@@ -273,6 +288,9 @@ struct ChatListView: View {
         } else if let contact = selectedContact {
             ChatDetailView(contact: contact, startInPaymentMode: selectedContactStartInPaymentMode)
                 .id(contact.id)
+        } else if let room = selectedPublicRoom {
+            PublicChatChannelView(channelName: room)
+                .id(room)
         } else {
             splitEmptyDetailView
         }
@@ -298,6 +316,27 @@ struct ChatListView: View {
             selectedEntryIDs = []
         }
         .onAppear { loadCirclePins() }
+        // Public rooms: every default room listed from the start (switched-off ones aside), and a
+        // room handed over by a tapped notification or a room link opens here.
+        .onAppear {
+            publicChats.ensureDefaultChannelsJoined()
+            if let pending = publicChats.pendingPublicChatNavigation {
+                publicChats.pendingPublicChatNavigation = nil
+                DispatchQueue.main.async { openRoomFromHandoff(pending) }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openPublicChat)) { notification in
+            guard let channel = notification.userInfo?["channel"] as? String else { return }
+            openRoomFromHandoff(channel)
+        }
+        .onChange(of: publicChats.pendingPublicChatNavigation) { newValue in
+            guard let channel = newValue else { return }
+            publicChats.pendingPublicChatNavigation = nil
+            openRoomFromHandoff(channel)
+        }
+        .sheet(isPresented: Binding(get: { roomToLeave != nil }, set: { if !$0 { roomToLeave = nil } })) {
+            if let name = roomToLeave { leaveRoomSheet(name) }
+        }
         .safeAreaInset(edge: .bottom) {
             if editMode == .active {
                 selectionActionBar
@@ -519,6 +558,28 @@ struct ChatListView: View {
                     },
                     onCancel: resetCreateSheet
                 )
+            case .publicRoom:
+                NavigationStack {
+                    createJoinRoom
+                        .navigationTitle("New Public Chat")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Back") { resetCreateSheet() }
+                            }
+                        }
+                }
+            case .publicSettings:
+                // the switches for the default rooms and the language rooms
+                NavigationStack {
+                    PublicChatsSettingsView()
+                        .environmentObject(publicChats)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { showCreateSheet = false }
+                            }
+                        }
+                }
             }
         }
         .presentationDetents([Self.createMenuHeight, .large], selection: $createDetent)
@@ -547,6 +608,24 @@ struct ChatListView: View {
                 createDetent = .large
                 createStep = .group
             }
+            ActionSheetRow(
+                title: "New Public Chat",
+                subtitle: "Join a public room, or create one.",
+                systemImage: "number"
+            ) {
+                createRoomName = ""
+                createRoomError = nil
+                createDetent = .large
+                createStep = .publicRoom
+            }
+            ActionSheetRow(
+                title: "Edit Default Public Chats",
+                subtitle: "Turn the default rooms and the language rooms on or off.",
+                systemImage: "slider.horizontal.3"
+            ) {
+                createDetent = .large
+                createStep = .publicSettings
+            }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
@@ -559,7 +638,217 @@ struct ChatListView: View {
         createDetent = Self.createMenuHeight
     }
 
-    private static let createMenuHeight: PresentationDetent = .height(250)
+    private static let createMenuHeight: PresentationDetent = .height(410)
+
+    // MARK: - Public rooms
+
+    /// Join or create a public room, right in the New sheet. Joining opens the room.
+    private var createJoinRoom: some View {
+        VStack(spacing: 12) {
+            Text("Anyone who joins the same channel name can see and post messages there - there is no owner and no invite.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+
+            HStack(spacing: 4) {
+                Text(verbatim: "#")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                TextField("channel-name", text: $createRoomName)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.join)
+                    .focused($createRoomFieldFocused)
+                    .onSubmit { joinRoomFromCreateSheet() }
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.regularMaterial)
+            )
+
+            if let createRoomError {
+                Text(createRoomError)
+                    .font(.footnote)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button(action: joinRoomFromCreateSheet) {
+                Text("Join")
+                    .font(.subheadline.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.black)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.accentColor.opacity(createRoomNameIsEmpty ? 0.4 : 1))
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(createRoomNameIsEmpty)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // A turn later: the field doesn't exist yet on the step that showed it.
+        .onAppear { DispatchQueue.main.async { createRoomFieldFocused = true } }
+    }
+
+    private var createRoomNameIsEmpty: Bool {
+        createRoomName.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// The room list's own rules; errors show in place, and a joined room opens.
+    private func joinRoomFromCreateSheet() {
+        guard !createRoomNameIsEmpty else { return }
+        let normalized = PublicChatChannelName.normalize(createRoomName)
+        guard PublicChatChannelName.isValid(normalized) else {
+            createRoomError = String(format: AppLocalization.string("Channel names must be 1-%d characters with no spaces or colons."),
+                                     locale: AppLocalization.locale, PublicChatChannelName.maxLength)
+            return
+        }
+        guard publicChats.joinChannel(normalized) else {
+            createRoomError = AppLocalization.string("Something went wrong joining that channel.")
+            return
+        }
+        Haptics.success()
+        showCreateSheet = false
+        openRoom(normalized)
+    }
+
+    private func openRoom(_ name: String) {
+        selectedContact = nil
+        selectedGroup = nil
+        selectedPublicRoom = name
+    }
+
+    /// A room handed over from outside: a tapped notification or a shared room link. The name is
+    /// checked again (a link's is anyone's), and a room with no store row gets one first.
+    private func openRoomFromHandoff(_ rawName: String) {
+        guard let normalized = KaChatInternalLink.normalizeAndValidateChannel(rawName) else { return }
+        if !publicChats.channels.contains(where: { $0.channelName == normalized }) {
+            _ = publicChats.joinChannel(normalized)
+        }
+        openRoom(normalized)
+    }
+
+    /// The rooms in the list (default rooms switched off in Edit Default Public Chats are left
+    /// out), filtered by the search.
+    private var displayedRooms: [PublicChatChannel] {
+        let rooms = publicChats.listedChannels
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return rooms }
+        return rooms.filter { $0.channelName.range(of: query, options: .caseInsensitive) != nil }
+    }
+
+    /// When a room last had a message: where it sits among the chats. A room nobody has written in
+    /// yet goes to the bottom - the default rooms are all joined at once, on first launch, and by
+    /// their join time they sat above every chat.
+    private func roomActivity(_ channel: PublicChatChannel) -> Date {
+        if let latest = publicChats.messages(forChannel: channel.channelName).last?.blockTime {
+            return Date(timeIntervalSince1970: Double(latest) / 1000)
+        }
+        return .distantPast
+    }
+
+    private func roomRow(_ channel: PublicChatChannel) -> some View {
+        Button {
+            Haptics.impact(.light)
+            openRoom(channel.channelName)
+        } label: {
+            PublicChatRow(channelName: channel.channelName, channel: channel)
+        }
+        .buttonStyle(ChatRowPressStyle())
+        // Delete and Mute; no full swipe, so a long swipe can't start a delete
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                deleteRoom(channel.channelName)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .tint(.red)
+            Button {
+                toggleRoomNotify(channel)
+            } label: {
+                Label(LocalizedStringKey(channel.notifyEnabled ? "Mute" : "Unmute"),
+                      systemImage: channel.notifyEnabled ? "bell.slash" : "bell")
+            }
+            .tint(.orange)
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            if publicChats.unreadCount(forChannel: channel.channelName) > 0 {
+                Button {
+                    publicChats.markChannelRead(channel.channelName)
+                } label: {
+                    Label("Mark as Read", systemImage: "envelope.open")
+                }
+                .tint(.accentColor)
+            } else {
+                Button {
+                    publicChats.markChannelUnread(channel.channelName)
+                } label: {
+                    Label("Mark as Unread", systemImage: "envelope.badge")
+                }
+                .tint(.accentColor)
+            }
+        }
+        .listRowBackground(Color.clear)
+    }
+
+    /// A default room is never really deleted: it is switched off, like its switch in Edit
+    /// Default Public Chats, which brings it back. A room you added asks first.
+    private func deleteRoom(_ name: String) {
+        if PublicChatService.curatedChannels.contains(name) {
+            publicChats.removeFromList(name)
+            showToast(String(format: AppLocalization.string("#%@ is off - turn it back on in Edit Default Public Chats"),
+                             locale: AppLocalization.locale, name))
+        } else {
+            roomToLeave = name
+        }
+    }
+
+    private func toggleRoomNotify(_ channel: PublicChatChannel) {
+        let newValue = !channel.notifyEnabled
+        publicChats.setNotifyEnabled(newValue, forChannel: channel.channelName)
+        let isIndexed = PublicChatService.isIndexerTracked(channel.channelName)
+        showToast(AppLocalization.string(newValue
+            ? (isIndexed
+                ? "You'll get notifications for new messages in this public chat, even when the app is closed"
+                : "You'll get a notification for new messages in this public chat as long as your app remains open")
+            : "Notifications are off for this public chat"))
+    }
+
+    private func leaveRoomSheet(_ name: String) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: "trash")
+                .font(.scaled(size: 30))
+                .foregroundColor(.red)
+                .padding(.top, 26)
+            Text("Delete #\(name)?")
+                .font(.title3.weight(.bold))
+            Text("Every message cached for this room on this device is deleted. This cannot be undone - rejoining later starts with no history.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            ActionSheetRow(title: "Delete", subtitle: "Removes this room and its messages from this device.", systemImage: "trash", tint: .red) {
+                publicChats.leaveChannel(name)
+                if selectedPublicRoom == name { selectedPublicRoom = nil }
+                roomToLeave = nil
+            }
+            ActionSheetRow(title: "Keep", subtitle: "Leave the room as it is.", systemImage: "xmark") {
+                roomToLeave = nil
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .presentationDetents([.height(360)])
+        .presentationDragIndicator(.visible)
+    }
 
 
     private var emptyStateView: some View {
@@ -637,7 +926,12 @@ struct ChatListView: View {
         var dated: [(at: Date, entry: ChatListEntry)] = chats
             .map { ($0.lastMessage?.timestamp ?? Date.distantPast, ChatListEntry.chat($0)) }
         dated += displayedGroups.map { (groupMessages[$0.id]?.last?.timestamp ?? $0.createdAt, ChatListEntry.group($0)) }
-        return dated.sorted { $0.at > $1.at }.map(\.entry)
+        dated += displayedRooms.map { (roomActivity($0), ChatListEntry.room($0)) }
+        // ties (rooms nobody has written in) keep their order: `sorted` isn't stable, and they'd
+        // swap places from one redraw to the next
+        return dated.enumerated()
+            .sorted { $0.element.at != $1.element.at ? $0.element.at > $1.element.at : $0.offset < $1.offset }
+            .map(\.element.entry)
     }
 
     // MARK: - Circles (bot chats)
@@ -774,6 +1068,7 @@ struct ChatListView: View {
                         switch entry {
                         case .chat(let conversation): chatRow(conversation)
                         case .group(let group): groupRow(group)
+                        case .room(let channel): roomRow(channel)
                         }
                     }
                     .onAppear {
@@ -1864,6 +2159,8 @@ struct ConversationRow: View {
                 result = KaspaUnit.label(String(format: AppLocalization.string("Payment request: %@ KAS"), request.amountText))
             case .kaPost:
                 result = AppLocalization.string("Shared a KaPost")
+            case .publicChatRoom(let channel):
+                result = "Public chat room #\(channel)"
             }
             Self.previewCache.setObject(result as NSString, forKey: key)
             return result

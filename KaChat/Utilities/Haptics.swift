@@ -28,4 +28,12 @@ enum Haptics {
         #endif
         #endif
     }
+
+    static func selection() {
+        #if os(iOS)
+        #if !targetEnvironment(macCatalyst)
+        UISelectionFeedbackGenerator().selectionChanged()
+        #endif
+        #endif
+    }
 }

@@ -23,7 +23,7 @@ final class GlobalNotificationCenter: ObservableObject {
 
             var label: String {
                 switch self {
-                case .kaposts: return "KaPosts"
+                case .kaposts: return "KaPost"
                 case .group: return "Group"
                 case .publicChat: return "Public Chat"
                 case .wallet: return "Wallet"
@@ -196,7 +196,7 @@ struct GlobalNotificationListView: View {
                         // Every row deep-opens its subject through the same pending-deep-link
                         // flow the OS notification taps use: wallet rows the address.
                         .contentShape(Rectangle())
-                        .onTapGesture { open(entry) }
+                        .onTapGesture { Self.open(entry) { dismiss() } }
                     }
                     .listStyle(.plain)
                 }
@@ -220,7 +220,8 @@ struct GlobalNotificationListView: View {
     /// Routes a tapped row to its subject. The sheet has to close first (only one sheet presents
     /// at a time), so the pending target is staged now and the tab switch posted after the
     /// dismissal animation - the same two-step every notification tap uses.
-    private func open(_ entry: GlobalNotificationCenter.Entry) {
+    /// Static so the all-in-one Notifications list (Profile's bell) opens wallet rows the same way.
+    static func open(_ entry: GlobalNotificationCenter.Entry, dismiss: () -> Void) {
         let target = entry.targetId ?? ""
         switch entry.source {
         case .kaposts, .publicChat, .kachat:
@@ -259,5 +260,57 @@ struct GlobalNotificationListView: View {
                 NotificationCenter.default.post(name: .openToken, object: nil)
             }
         }
+    }
+}
+
+// MARK: - Every notification, behind Profile's bell (owner's call, 2026-11-21)
+
+/// A tapped notification that opens the Notifications screen (a KaPosts push naming no post), for
+/// Profile's bell to take. Survives a cold start, where the post has no observer yet.
+enum NotificationsRoute {
+    static var pending = false
+}
+
+extension Notification.Name {
+    /// Opens the Notifications screen behind Profile's bell.
+    static let openAllNotifications = Notification.Name("KaChatOpenAllNotifications")
+}
+
+/// Profile's bell: the unseen count across KaPosts activity and the wallet's notifications.
+struct AllNotificationsBadge {
+    @MainActor static var count: Int {
+        KaPostsNotificationCenter.shared.unseenCount + GlobalNotificationCenter.shared.unreadCount
+    }
+}
+
+/// Every notification in one list (owner's calls, 2026-11-21): KaPosts activity (likes, replies,
+/// follows, tips...) and the wallet's (Kaspa and kUSDT received), newest first, no switch between
+/// them. A sheet from Profile's bell: no back arrow and no settings gear; swipe down or Done closes it.
+struct AllNotificationsView: View {
+    var body: some View {
+        KaPostsNotificationsView(allInOne: true)
+            // seeing the list is seeing them, both kinds
+            .onAppear {
+                KaPostsNotificationCenter.shared.markAllSeen()
+                GlobalNotificationCenter.shared.markAllSeen()
+            }
+    }
+}
+
+/// The bell itself: top right on Profile, with a red count while anything is unseen.
+struct AllNotificationsBell: View {
+    let action: () -> Void
+    @ObservedObject private var kaPostsCenter = KaPostsNotificationCenter.shared
+    @ObservedObject private var walletCenter = GlobalNotificationCenter.shared
+
+    var body: some View {
+        let count = kaPostsCenter.unseenCount + walletCenter.unreadCount
+        Button(action: action) {
+            Image(systemName: count > 0 ? "bell.badge" : "bell")
+                .symbolRenderingMode(count > 0 ? .palette : .monochrome)
+                .foregroundStyle(count > 0 ? Color.red : Color.accentColor, Color.accentColor)
+        }
+        .accessibilityLabel(Text("Notifications"))
+        .accessibilityValue(count > 0 ? Text(verbatim: "\(count)") : Text(verbatim: ""))
     }
 }

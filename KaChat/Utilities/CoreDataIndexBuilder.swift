@@ -140,6 +140,15 @@ enum CoreDataIndexBuilder {
 /// retrofit and the add both run on a background queue, the caller waits without blocking,
 /// and the store's flags flip on the main thread as before.
 enum CoreDataStoreLoader {
+    private static let unusableStoreCodes: Set<Int> = [
+        NSPersistentStoreIncompatibleVersionHashError,
+        NSPersistentStoreIncompatibleSchemaError,
+        NSMigrationError,
+        NSMigrationMissingSourceModelError,
+        NSMigrationMissingMappingModelError,
+        NSFileReadCorruptFileError,
+    ]
+
     static func load(
         container: NSPersistentContainer,
         description: NSPersistentStoreDescription,
@@ -166,6 +175,25 @@ enum CoreDataStoreLoader {
     static func detachStore(at url: URL?, from container: NSPersistentContainer) {
         guard let url, let stale = container.persistentStoreCoordinator.persistentStore(for: url) else { return }
         try? container.persistentStoreCoordinator.remove(stale)
+    }
+
+    /// True when the file itself is the problem and a cache-only store may be rebuilt.
+    static func isUnusableStore(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == NSCocoaErrorDomain && unusableStoreCodes.contains(nsError.code)
+    }
+
+    /// Deletes the store file so the next load starts a fresh one. For caches of on-chain
+    /// data only: the rows come back from the network, and a file the model cannot open
+    /// would otherwise leave the feature dead until the app was reinstalled.
+    static func destroyStore(at url: URL, in container: NSPersistentContainer) {
+        do {
+            try container.persistentStoreCoordinator.destroyPersistentStore(at: url, type: .sqlite, options: nil)
+        } catch {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(atPath: url.path + suffix)
+            }
+        }
     }
 
     /// The user's message history could not be opened: nothing else in the app says so, and

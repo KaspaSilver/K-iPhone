@@ -1,0 +1,2961 @@
+import SwiftUI
+import CoreImage
+import CoreImage.CIFilterBuiltins
+import UIKit
+
+/// Cold Storage — a fully separate area of the app for watching/spending funds held on an
+/// air-gapped KasSigner device. Everything here is watch-only (public keys only); signing always
+/// happens on the physical device via QR exchange, never inside KaChat.
+struct ColdStorageListView: View {
+    @ObservedObject private var manager = ColdStorageManager.shared
+
+    @State private var showScanner = false
+    @State private var showManualEntry = false
+    @FocusState private var manualKpubFocused: Bool
+    @FocusState private var importNameFocused: Bool
+    @State private var manualKpubInput = ""
+    @State private var pendingKpub: String?
+    @State private var nameInput = ""
+    @State private var importError: String?
+    /// Account whose kpub QR is on screen.
+    @State private var kpubQRTarget: ColdStorageAccount?
+    /// Account whose actions half sheet is open.
+    @State private var accountActionsTarget: ColdStorageAccount?
+    /// Held across the actions sheet dismissing, so the QR can be presented after it.
+    @State private var pendingKpubQRAccount: ColdStorageAccount?
+    @State private var toastMessage: String?
+    @State private var toastToken = UUID()
+
+    var body: some View {
+        List {
+            if manager.accounts.isEmpty {
+                emptyState
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            } else {
+                ForEach(manager.accounts) { account in
+                    ZStack {
+                        NavigationLink {
+                            ColdStorageDetailView(account: account)
+                        } label: {
+                            EmptyView()
+                        }
+                        .opacity(0)
+
+                        accountRow(account)
+                    }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .padding(.vertical, 6)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 12) {
+                Button {
+                    manualKpubInput = ""
+                    showManualEntry = true
+                } label: {
+                    Label("Paste kpub", systemImage: "doc.on.clipboard")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .foregroundColor(.black)
+                        .background(Capsule().fill(Color.accentColor))
+                }
+                Button {
+                    showScanner = true
+                } label: {
+                    Label("Scan", systemImage: "qrcode.viewfinder")
+                        .font(.subheadline.weight(.bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .foregroundColor(.black)
+                        .background(Capsule().fill(Color.accentColor))
+                }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 16)
+        }
+        .pinnedTabHeader("Cold Storage")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                ConnectionStatusIndicator()
+            }
+            ToolbarItem(placement: .principal) {
+                BalanceToolbarLabel()
+            }
+        }
+        .toast(message: toastMessage)
+        .sheet(item: $accountActionsTarget, onDismiss: {
+            // Handing the QR over only once this sheet is fully gone; presenting one from
+            // inside a sheet that is still dismissing drops it.
+            if let pending = pendingKpubQRAccount {
+                pendingKpubQRAccount = nil
+                kpubQRTarget = pending
+            }
+        }) { account in
+            ColdStorageAccountActionsSheet(
+                account: account,
+                onCopyKpub: {
+                    UIPasteboard.general.string = account.kpubString
+                    Haptics.success()
+                    showToast("kpub copied to clipboard.")
+                },
+                onShowKpubQR: { pendingKpubQRAccount = account },
+                onRename: { manager.renameAccount(account, to: $0) }
+            )
+        }
+        .sheet(item: $kpubQRTarget) { account in
+            ColdStorageKpubQRView(account: account)
+        }
+        .sheet(isPresented: $showScanner) {
+            QRScannerView { code in
+                beginImport(kpub: code)
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { pendingKpub != nil },
+            set: { if !$0 { pendingKpub = nil } }
+        )) {
+            importNameSheet
+        }
+        .tint(.accentColor)
+        .alert(
+            "Import Failed",
+            isPresented: Binding(
+                get: { importError != nil },
+                set: { if !$0 { importError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importError ?? "")
+        }
+        .sheet(isPresented: $showManualEntry) {
+            manualEntrySheet
+        }
+    }
+
+    /// A half sheet rather than a full-screen form: it holds one field, and a whole screen for
+    /// one paste is more ceremony than the step deserves.
+    private var manualEntrySheet: some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 4) {
+                Text("Enter kpub")
+                    .font(.headline)
+                Text("Paste the kpub exported from your KasSigner device. It contains no private key material.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 4)
+
+            TextField("kpub...", text: $manualKpubInput, axis: .vertical)
+                .font(.system(.footnote, design: .monospaced))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .lineLimit(3...5)
+                .focused($manualKpubFocused)
+                .padding(14)
+                .background(glassBackground(cornerRadius: 16))
+
+            HStack(spacing: 12) {
+                Button("Cancel") { showManualEntry = false }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.primary)
+                    .background(glassBackground(cornerRadius: 16))
+
+                Button("Next") {
+                    showManualEntry = false
+                    beginImport(kpub: manualKpubInput)
+                }
+                .font(.subheadline.weight(.bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .foregroundColor(.black)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.accentColor.opacity(manualKpubIsEmpty ? 0.4 : 1))
+                )
+                .disabled(manualKpubIsEmpty)
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .fittedSheetDetents(360)
+        .presentationDragIndicator(.visible)
+        // A turn later: the field does not exist yet on the tap that presented this.
+        .onAppear { DispatchQueue.main.async { manualKpubFocused = true } }
+    }
+
+    /// Naming the imported account. A half sheet rather than a system alert, matching the kpub
+    /// step it follows and every other menu on this screen - an alert box in the middle of a
+    /// sheet-shaped flow was the one thing here that still looked like a dialog.
+    private var importNameSheet: some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 4) {
+                Text("Name This Account")
+                    .font(.headline)
+                Text("Give this account a name so you can recognize it.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 4)
+
+            TextField("Name", text: $nameInput)
+                .font(.body)
+                .focused($importNameFocused)
+                .submitLabel(.done)
+                .onSubmit { if !importNameIsEmpty { completeImport() } }
+                .padding(14)
+                .background(glassBackground(cornerRadius: 16))
+
+            HStack(spacing: 12) {
+                Button("Cancel") { pendingKpub = nil }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.primary)
+                    .background(glassBackground(cornerRadius: 16))
+
+                Button("Import") { completeImport() }
+                    .font(.subheadline.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.black)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.accentColor.opacity(importNameIsEmpty ? 0.4 : 1))
+                    )
+                    .disabled(importNameIsEmpty)
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .fittedSheetDetents(280)
+        .presentationDragIndicator(.visible)
+        // A turn later: the field does not exist yet on the tap that presented this.
+        .onAppear { DispatchQueue.main.async { importNameFocused = true } }
+    }
+
+    private var importNameIsEmpty: Bool {
+        nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var manualKpubIsEmpty: Bool {
+        manualKpubInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "lock.shield")
+                .font(.scaled(size: 40))
+                .foregroundColor(.secondary)
+            Text("No Cold Storage Accounts")
+                .font(.headline)
+            Text("Scan or paste a kpub exported from your KasSigner device to watch its balance.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal, 24)
+    }
+
+
+    private func accountRow(_ account: ColdStorageAccount) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "lock.fill")
+                .foregroundColor(.accentColor)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(account.label)
+                    .fontWeight(.semibold)
+                Text(account.kpubString)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer()
+            Button {
+                Haptics.impact(.light)
+                accountActionsTarget = account
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.scaled(size: 16, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(glassBackground(cornerRadius: 18))
+        .contentShape(Rectangle())
+    }
+
+    private func beginImport(kpub: String) {
+        let trimmed = kpub.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard KaspaExtendedPublicKey(kpubString: trimmed) != nil else {
+            importError = ColdStorageError.invalidKpub.localizedDescription
+            return
+        }
+        pendingKpub = trimmed
+        nameInput = "Cold Storage \(manager.accounts.count + 1)"
+    }
+
+    private func completeImport() {
+        guard let kpub = pendingKpub else { return }
+        let result = manager.importAccount(kpubString: kpub, label: nameInput)
+        pendingKpub = nil
+        if case .failure(let error) = result {
+            importError = UserFacingError.message(for: error)
+        }
+    }
+
+    private func showToast(_ message: String) {
+        let token = UUID()
+        toastToken = token
+        withAnimation(.easeOut(duration: 0.2)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            if toastToken == token {
+                withAnimation(.easeIn(duration: 0.2)) {
+                    toastMessage = nil
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Detail
+
+/// Address list for one Cold Storage account. Funded addresses sort to the top (newest index
+/// first within each group), matching Manage Addresses' spending-chain sort so a freshly
+/// generated (zero-balance) address lands right below the last funded one.
+struct ColdStorageDetailView: View {
+    let account: ColdStorageAccount
+
+    @EnvironmentObject var settingsViewModel: SettingsViewModel
+    @ObservedObject private var manager = ColdStorageManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var entries: [ColdStorageAddressEntry] = []
+    @State private var isLoading = false
+    @State private var isGenerating = false
+    @State private var isDiscovering = false
+    /// The address-actions half sheet.
+    @State private var showAddressActions = false
+    /// Address Visibility was picked there: opened once that sheet has finished closing, since
+    /// a sheet opened while another is still going away is dropped.
+    @State private var openVisibilityAfterActions = false
+    /// Address whose own actions half sheet is open.
+    @State private var addressActionsTarget: ColdStorageAddressEntry?
+    /// Live scan position while discovering, so the sheet can show progress rather than a spinner.
+    @State private var discoveryProgress: ColdStorageManager.DiscoveryProgress?
+    /// Result line kept on screen after a scan finishes, until the sheet is dismissed.
+    @State private var discoverySummary: String?
+    @State private var qrTarget: ColdStorageAddressEntry?
+    @State private var sendTarget: ColdStorageAddressEntry?
+    @State private var renameTarget: ColdStorageAddressEntry?
+    @State private var renameText = ""
+    @State private var renamingAccount = false
+    @State private var renameAccountText = ""
+    @State private var showDeleteConfirm = false
+    @State private var showVisibilityManager = false
+    @State private var toastMessage: String?
+    @State private var toastToken = UUID()
+    @State private var loadToken = UUID()
+    /// Addresses that own at least one KNS domain (cached assets-by-owner lookup) - drives the
+    /// "Contains domain" row tag and promotes those rows into the funded group in the sort.
+    @State private var domainOwningAddresses: Set<String> = []
+    /// Zero-balance addresses whose used/unused history probe FAILED on the last load - their
+    /// badge shows a neutral "Checking" state instead of a possibly-wrong "Unused".
+    @State private var unknownUsedAddresses: Set<String> = []
+
+    private var currentAccount: ColdStorageAccount {
+        manager.accounts.first { $0.id == account.id } ?? account
+    }
+
+    /// Addresses that have a balance OR contain a KNS domain first (keeping the pre-existing
+    /// funded-first/newest-index-first relative order within that group), fresh/unused
+    /// addresses last - matching Manage Addresses' spending-chain sort.
+    private var visibleEntries: [ColdStorageAddressEntry] {
+        let sorted = entries.filter { !$0.hidden }
+            .sorted { lhs, rhs in
+                if (lhs.balanceSompi > 0) != (rhs.balanceSompi > 0) {
+                    return lhs.balanceSompi > 0
+                }
+                return lhs.index > rhs.index
+            }
+        // Stable partition: domain-holding rows rank with the funded group, but relative order
+        // inside each group stays exactly what the comparator above produced.
+        let active = sorted.filter { $0.balanceSompi > 0 || domainOwningAddresses.contains($0.address) }
+        let fresh = sorted.filter { $0.balanceSompi == 0 && !domainOwningAddresses.contains($0.address) }
+        return active + fresh
+    }
+
+    private var totalBalanceSompi: UInt64 {
+        entries.filter { !$0.hidden }.reduce(0) { $0 + $1.balanceSompi }
+    }
+
+    var body: some View {
+        List {
+            accountSummary
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+
+            if isLoading && entries.isEmpty {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .padding(.top, 20)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            } else if visibleEntries.isEmpty {
+                Text("No addresses discovered yet.")
+                    .foregroundColor(.secondary)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            } else {
+                ForEach(visibleEntries) { entry in
+                    addressRow(entry)
+                        .padding(.vertical, 6)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .navigationTitle(currentAccount.label)
+        .navigationBarTitleDisplayMode(.inline)
+        .toast(message: toastMessage)
+        .toolbar {
+            // Address Visibility used to be an unlabelled checklist glyph up here. It is one of
+            // this account's address actions, so it lives with the others in the Address Actions
+            // sheet, where it has room to say what it does.
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showDeleteConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                }
+            }
+        }
+        .sheet(isPresented: $showVisibilityManager, onDismiss: {
+            // Apply the visibility edits to the rows we already have IMMEDIATELY -
+            // loadEntries() re-fetches every balance and used-flag, which takes long
+            // enough that the screen looked stale after hitting Done.
+            applyVisibilityChangesInstantly()
+            Task { await loadEntries() }
+        }) {
+            ColdStorageAddressVisibilityView(account: currentAccount)
+        }
+        .refreshable {
+            await loadEntries()
+        }
+        .task {
+            await loadEntries()
+        }
+        // Live own-address receive detected (AddressActivityNotifier) - refresh balances so
+        // the screen reflects the funds without a manual pull.
+        .onReceive(NotificationCenter.default.publisher(for: .ownAddressActivity)) { _ in
+            Task { await loadEntries() }
+        }
+        // Always-post variant: also fires for self-send change (withdrawal/compound change)
+        // that the notification-gated event above suppresses.
+        .onReceive(NotificationCenter.default.publisher(for: .ownAddressUtxoActivity)) { _ in
+            Task { await loadEntries() }
+        }
+        .sheet(item: $addressActionsTarget) { entry in
+            addressRowActionsSheet(entry)
+                .fittedSheetDetents(entry.balanceSompi == 0 ? 380 : 300)
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showAddressActions, onDismiss: {
+            if openVisibilityAfterActions {
+                openVisibilityAfterActions = false
+                showVisibilityManager = true
+            }
+        }) {
+            addressActionsSheet
+                // Three rows now that Address Visibility lives here.
+                .fittedSheetDetents(400)
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $qrTarget) { entry in
+            ColdStorageAddressQRView(entry: entry)
+        }
+        .sheet(item: $sendTarget) { entry in
+            ColdSendFlowView(fromAddress: entry.address, availableBalanceSompi: entry.balanceSompi) {
+                Task { await loadEntries() }
+            }
+            .sendKaspaSheetSizing()
+        }
+        .alert(
+            "Rename Address",
+            isPresented: Binding(
+                get: { renameTarget != nil },
+                set: { if !$0 { renameTarget = nil } }
+            )
+        ) {
+            TextField("Label", text: $renameText)
+            Button("Save") {
+                if let renameTarget {
+                    manager.setAddressLabel(accountId: currentAccount.id, index: renameTarget.index, label: renameText)
+                }
+                renameTarget = nil
+                Task { await loadEntries() }
+            }
+            Button("Cancel", role: .cancel) {
+                renameTarget = nil
+            }
+        }
+        .sheet(isPresented: $renamingAccount) {
+            RenameSheet(
+                title: "Rename Account",
+                subtitle: currentAccount.label,
+                text: $renameAccountText
+            ) { newName in
+                manager.renameAccount(currentAccount, to: newName)
+            }
+        }
+        .alert(
+            "Remove Cold Storage Account",
+            isPresented: $showDeleteConfirm
+        ) {
+            Button("Remove", role: .destructive) {
+                manager.removeAccount(currentAccount)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This only removes it from KaChat's watch list. It has no effect on the KasSigner device or any funds it holds.")
+        }
+    }
+
+    /// Plain labeled text instead of each stacking in its own glass card — this is summary info
+    /// about the account (not a tappable row), so a card treatment just added visual noise
+    /// without meaning "you can tap this."
+    private var accountSummary: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Name")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(currentAccount.label)
+                        .fontWeight(.semibold)
+                }
+                Spacer()
+                Button {
+                    renameAccountText = currentAccount.label
+                    renamingAccount = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.scaled(size: 14, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("kpub")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(currentAccount.kpubString)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.primary)
+                Button {
+                    UIPasteboard.general.string = currentAccount.kpubString
+                    Haptics.success()
+                    showToast("kpub copied to clipboard.")
+                } label: {
+                    Label("Copy kpub", systemImage: "doc.on.doc")
+                        .font(.caption.weight(.semibold))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Total Balance")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(verbatim: "\(KaspaUnit.groupedExact(totalBalanceSompi)) \(KaspaUnit.symbol)")
+                    .font(.title2)
+                    .fontWeight(.bold)
+            }
+
+            // Directly under the balance rather than pinned to the bottom of the screen: the
+            // actions are about this account, so they belong with the account, and a floating
+            // bar covered the last address row on a short list.
+            Button {
+                Haptics.impact(.light)
+                showAddressActions = true
+            } label: {
+                Group {
+                    if isGenerating || isDiscovering {
+                        ProgressView().tint(.black)
+                    } else {
+                        Text("Address Actions")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .foregroundColor(.black)
+                .background(Capsule().fill(Color.accentColor))
+            }
+            .buttonStyle(.plain)
+            .disabled(isGenerating || isDiscovering)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+    }
+
+    /// The half sheet behind one address row's ellipsis, replacing the menu that was there.
+    private func addressRowActionsSheet(_ entry: ColdStorageAddressEntry) -> some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 2) {
+                Text(entry.displayLabel)
+                    .font(.headline)
+                Text(entry.shortAddress)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 4)
+
+            ActionSheetRow(
+                title: "Rename Address",
+                subtitle: "Gives this address a label of your own.",
+                systemImage: "pencil"
+            ) {
+                addressActionsTarget = nil
+                DispatchQueue.main.async {
+                    renameText = entry.label ?? ""
+                    renameTarget = entry
+                }
+            }
+            ActionSheetRow(
+                title: "Copy Address",
+                subtitle: "Puts the full address on the clipboard.",
+                systemImage: "doc.on.doc"
+            ) {
+                UIPasteboard.general.string = entry.address
+                Haptics.success()
+                addressActionsTarget = nil
+                showToast(entry.address.addressCopiedToastText)
+            }
+            ActionSheetRow(
+                title: "Show QR Code",
+                subtitle: "Full screen, for scanning with another device.",
+                systemImage: "qrcode"
+            ) {
+                addressActionsTarget = nil
+                DispatchQueue.main.async { qrTarget = entry }
+            }
+            // Hide straight from the row - same effect as unchecking it in Address Visibility,
+            // without opening that screen. Same guard as the checklist: never a funded address
+            // (cold storage has no primary-address concept).
+            if entry.balanceSompi == 0 {
+                ActionSheetRow(
+                    title: "Hide Address",
+                    subtitle: "Removes it from this list. Re-enable it in Address Visibility.",
+                    systemImage: "eye.slash",
+                    tint: .orange
+                ) {
+                    addressActionsTarget = nil
+                    hideAddress(entry)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    /// The half sheet behind "Address Actions".
+    ///
+    /// Discovery reports its position as it walks, and that lands HERE rather than dismissing:
+    /// a scan is one network call per address until the gap limit is reached, easily half a
+    /// minute, and the sheet closing on an unmoving spinner said nothing about whether it was
+    /// working. The sheet stays put, counts up, and finishes with what it found.
+    private var addressActionsSheet: some View {
+        VStack(spacing: 0) {
+            Text("Address Actions")
+                .font(.headline)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+
+            if isDiscovering, let progress = discoveryProgress {
+                VStack(spacing: 10) {
+                    ProgressView()
+                    Text("Checking address #\(progress.checkingIndex)")
+                        .font(.subheadline.weight(.semibold))
+                    Text(progress.foundCount == 0
+                         ? "No used addresses yet"
+                         : "\(progress.foundCount) found so far")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+
+                    // The scan belongs to this screen, not to the sheet, so closing the sheet
+                    // does not stop it - it keeps running and reports what it found in a toast.
+                    // Holding the sheet open for the length of a thousand-address sweep was the
+                    // only reason to sit and watch it.
+                    Button {
+                        showAddressActions = false
+                    } label: {
+                        Text("Close and Keep Scanning")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .foregroundColor(.accentColor)
+                            .background(glassBackground(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 6)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                VStack(spacing: 12) {
+                    ActionSheetRow(
+                        title: "Generate More Addresses",
+                        subtitle: "Reveals the next unused address in this account.",
+                        systemImage: "plus.circle",
+                        isBusy: isGenerating,
+                        isDisabled: isDiscovering
+                    ) {
+                        generateMore()
+                        showAddressActions = false
+                    }
+                    ActionSheetRow(
+                        title: "Discover Addresses",
+                        subtitle: "Finds addresses holding a balance or a domain.",
+                        systemImage: "magnifyingglass",
+                        isDisabled: isDiscovering
+                    ) {
+                        discoverAddresses()
+                    }
+                    ActionSheetRow(
+                        title: "Address Visibility",
+                        subtitle: "Check off every address you want on the list, in one sitting.",
+                        systemImage: "checklist",
+                        isDisabled: isDiscovering
+                    ) {
+                        openVisibilityAfterActions = true
+                        showAddressActions = false
+                    }
+                    if let discoverySummary {
+                        Text(discoverySummary)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.secondary)
+                            .padding(.top, 2)
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
+        // belongs to this screen rather than to the sheet, so closing it does not abandon
+        // anything - the Address Actions button keeps its spinner and the result arrives as a
+        // toast. Holding the sheet open was only ever protecting a progress readout.
+        .onDisappear { discoverySummary = nil }
+    }
+
+
+    private func addressRow(_ entry: ColdStorageAddressEntry) -> some View {
+        let isUsed = entry.everUsed || entry.balanceSompi > 0
+        // The history probe for this address failed on the last load: used-ness is unknown,
+        // and claiming "Unused" could invite address reuse. Pull to refresh re-checks.
+        let usedUnknown = !isUsed && unknownUsedAddresses.contains(entry.address)
+
+        return ZStack {
+            NavigationLink {
+                ColdStorageAddressTransactionHistoryView(entry: entry)
+            } label: {
+                EmptyView()
+            }
+            .opacity(0)
+
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(entry.displayLabel)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.accentColor)
+                    Text(entry.shortAddress)
+                        .font(.system(.subheadline, design: .monospaced))
+                        .foregroundColor(.primary)
+                    Text(verbatim: "\(KaspaUnit.groupedExact(entry.balanceSompi)) \(KaspaUnit.symbol)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    HStack(spacing: 6) {
+                        Text(isUsed ? "Used" : (usedUnknown ? "Checking" : "Unused"))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(isUsed ? .orange : (usedUnknown ? .secondary : .green))
+                        if domainOwningAddresses.contains(entry.address) {
+                            ContainsDomainTag()
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    Haptics.impact(.light)
+                    addressActionsTarget = entry
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.scaled(size: 18, weight: .bold))
+                        .rotationEffect(.degrees(90))
+                        .foregroundColor(.secondary)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(16)
+        }
+        .background(glassBackground(cornerRadius: 18))
+    }
+
+    /// Row-menu "Hide Address": flips the same per-account hidden flag the Address Visibility
+    /// checklist edits (so it shows unchecked there) and updates the row in place.
+    /// setAddressHidden re-verifies the live balance server-side and returns false if the
+    /// address can't be hidden. Mirrors Manage Addresses' hideAddress.
+    private func hideAddress(_ entry: ColdStorageAddressEntry) {
+        Task {
+            let ok = await manager.setAddressHidden(account: currentAccount, index: entry.index, hidden: true)
+            guard ok else {
+                showToast("This address can't be hidden.")
+                return
+            }
+            if let position = entries.firstIndex(where: { $0.id == entry.id }) {
+                var updated = entries[position]
+                updated.hidden = true
+                entries[position] = updated
+            }
+            Haptics.success()
+            showToast("Address hidden. Re-enable it in Address Visibility.")
+        }
+    }
+
+    private func loadEntries() async {
+        isLoading = true
+        let token = UUID()
+        loadToken = token
+
+        // getAddressList's balance fetch is now a single batched gRPC call (see
+        // ColdStorageManager), so addresses + balances are ready fast — show them immediately
+        // instead of also waiting on the slower per-address "used" REST scan below, which was
+        // making the whole list sit behind a spinner until every address (even the empty ones
+        // discovery just found) had been checked one at a time.
+        let baseEntries = await manager.getAddressList(for: currentAccount)
+        guard loadToken == token else { return }
+        entries = baseEntries.sorted { $0.index < $1.index }
+        isLoading = false
+
+        // Backfills the "Used"/"Unused" badge for zero-balance addresses in the background.
+        // Sequential, not concurrent — same rate-limit reasoning as Manage Addresses'
+        // spending-chain "used" check: a burst of simultaneous REST requests risked the host
+        // rate-limiting and returning a degraded response that reads as "unused" when it isn't.
+        // Guarded by loadToken so a stale backfill from an earlier call (e.g. before a pull-to-
+        // refresh or Generate More triggers a fresh loadEntries()) can't clobber newer entries.
+        //
+        // Collected into `updates` and applied to `entries` in a single commit at the end rather
+        // than once per address: mutating the published array on every single result was
+        // re-rendering that row mid-backfill, which — if its "..." menu happened to be open at
+        // that moment — visibly flickered/dismissed the open menu.
+        // Tri-state per address: true/false = confirmed by a successful probe, nil = the probe
+        // failed (network/rate-limit) - those rows keep their previous badge state and show a
+        // neutral "Checking" instead of a possibly-wrong "Unused".
+        var updates: [String: Bool] = [:]
+        var failedProbes: Set<String> = []
+        for entry in baseEntries where entry.balanceSompi == 0 {
+            let used = await ChatService.shared.spendingAddressUsedState(entry.address)
+            guard loadToken == token else { return }
+            if let used {
+                updates[entry.address] = used
+            } else {
+                failedProbes.insert(entry.address)
+            }
+        }
+        guard loadToken == token else { return }
+        if !updates.isEmpty {
+            for idx in entries.indices {
+                if let used = updates[entries[idx].address] {
+                    entries[idx].everUsed = used
+                }
+            }
+        }
+        unknownUsedAddresses = failedProbes.filter { address in
+            !(entries.first(where: { $0.address == address })?.everUsed ?? false)
+        }
+
+        // Contains-domain tags, after the rows are already visible. refreshIfNeeded is the same
+        // batched KNS lookup: capped
+        // concurrency, per-address debounce and failure cooldown, shared in-flight requests -
+        // so re-opening this screen reads warm cache instead of re-firing a request burst.
+        let addresses = baseEntries.map { $0.address }
+        await KNSService.shared.refreshIfNeeded(for: addresses)
+        guard loadToken == token else { return }
+        var owners: Set<String> = []
+        for address in addresses where KNSService.shared.domainCache[address]?.allDomains.isEmpty == false {
+            owners.insert(address)
+        }
+        // .kachat names count too (testnet, where the registry is live).
+        owners.formUnion(await KachatNamesRegistry.shared.ownersOfNames(among: addresses))
+        guard loadToken == token else { return }
+        domainOwningAddresses = owners
+    }
+
+    /// Stamps the fresh hidden set onto the rows already loaded and adds any newly revealed
+    /// indices (pager-derived addresses beyond what this screen had), so the list reflects
+    /// the user's edits the moment they hit Done. The full loadEntries() that follows fills
+    /// in balances/used. Mirrors Manage Addresses' applyVisibilityChangesInstantly.
+    private func applyVisibilityChangesInstantly() {
+        let hidden = manager.hiddenIndexSet(accountId: currentAccount.id)
+        var updated = entries
+        for i in updated.indices {
+            updated[i].hidden = hidden.contains(updated[i].index)
+        }
+        let known = Set(updated.map(\.index))
+        let maxIndex = currentAccount.maxAddressIndex
+        if maxIndex >= 0 {
+            for index in 0...maxIndex where !known.contains(index) && !hidden.contains(index) {
+                guard let address = manager.address(for: currentAccount, at: index) else { continue }
+                updated.append(ColdStorageAddressEntry(
+                    index: index,
+                    address: address,
+                    balanceSompi: 0,
+                    hidden: false
+                ))
+            }
+        }
+        entries = updated.sorted { $0.index < $1.index }
+    }
+
+    private func generateMore() {
+        guard !isGenerating else { return }
+        isGenerating = true
+        Task {
+            let index = await manager.lowestUnusedAddress(for: currentAccount)
+            await loadEntries()
+            isGenerating = false
+            showToast("Address #\(index) is ready.")
+        }
+    }
+
+    private func discoverAddresses() {
+        guard !isDiscovering else { return }
+        isDiscovering = true
+        discoverySummary = nil
+        discoveryProgress = ColdStorageManager.DiscoveryProgress(checkingIndex: 0, foundCount: 0)
+        Task {
+            let discovered = await manager.discoverAddresses(for: currentAccount) { progress in
+                discoveryProgress = progress
+            }
+            await loadEntries()
+            isDiscovering = false
+            discoveryProgress = nil
+            // The count is addresses that hold a balance or a KNS domain - say so, rather than
+            // "used", which is what the old high-water-mark number implied and was not.
+            let summary = discovered == 0
+                ? AppLocalization.string("No addresses with a balance or domain found.")
+                : discovered == 1
+                    ? AppLocalization.string("Found 1 address with a balance or domain.")
+                    : String(format: AppLocalization.string("Found %lld addresses with a balance or domain."),
+                             locale: AppLocalization.locale, discovered)
+            discoverySummary = summary
+            // Closed the sheet and carried on? Then the summary above has nowhere to render, so
+            // say it here instead of finishing silently.
+            if !showAddressActions { showToast(summary) }
+        }
+    }
+
+    private func showToast(_ message: String) {
+        let token = UUID()
+        toastToken = token
+        withAnimation(.easeOut(duration: 0.2)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            if toastToken == token {
+                withAnimation(.easeIn(duration: 0.2)) {
+                    toastMessage = nil
+                }
+            }
+        }
+    }
+}
+
+/// White-background QR display for a single Cold Storage address, matching the same visual
+/// treatment as ManageAddressesView's SpendingAddressQRView.
+/// A Cold Storage address's receive page, on the shared receive screen (`AddressReceiveView`). Its
+/// key is on the KasSigner, which signs Kaspa only, so kUSDT isn't for here.
+private struct ColdStorageAddressQRView: View {
+    let entry: ColdStorageAddressEntry
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            AddressReceiveView(
+                title: AppLocalization.string("Receive Kaspa"),
+                address: entry.address,
+                addressLabel: entry.displayLabel,
+                balanceLine: KaspaUnit.groupedAmount(entry.balanceSompi),
+                privacyNote: ReceiveNote(kind: .info, text: AppLocalization.string("A Cold Storage address: its key is on your KasSigner, never on this phone.")),
+                notes: [
+                    ReceiveNotes.kaspaOnly,
+                    ReceiveNote(kind: .warning, text: AppLocalization.string("Don't send kUSDT here: Cold Storage can't move it.")),
+                ],
+                icon: { KaspaLogoIcon() }
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// The full "send" round trip for one Cold Storage address: enter recipient/amount, build an
+/// unsigned transaction, display it as a KSPT QR (animated if it needs multiple frames) for the
+/// KasSigner device to scan, scan the signed response back, verify it matches what was sent for
+/// signing, and broadcast. The engine (ColdStorageSendEngine) never sees a private key — signing
+/// happens entirely on the physical device.
+private struct ColdSendFlowView: View {
+    let fromAddress: String
+    let availableBalanceSompi: UInt64
+    /// Pre-fills the recipient with `fromAddress` itself (a self-send) and auto-fills Max, for
+    /// the "Compound UTXOs" entry point — merges every UTXO at this address into one. Locks the
+    /// recipient field instead of just pre-filling it, since editing it away from `fromAddress`
+    /// would defeat the point of a compound send.
+    var isCompoundMode: Bool = false
+    let onDone: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var settingsViewModel: SettingsViewModel
+    @ObservedObject private var portfolioViewModel = PortfolioViewModel.shared
+    @StateObject private var fiatAmountState = KaspaFiatAmountState()
+
+    /// After the form (To, Amount, Review): Build, then KasSigner signs it from the QR, the
+    /// signed transaction is scanned back, and the last screen is swipe up to send, as in Send
+    /// Kaspa (the BlockDAG, then Sent or Failed with Try Again).
+    private enum Step {
+        case form
+        case building
+        case showingQR(ColdStorageSendEngine.UnsignedColdTx, [Data])
+        case scanning(ColdStorageSendEngine.UnsignedColdTx, [Data])
+        case signed(ColdStorageSendEngine.UnsignedColdTx, [Data], KsptCodec.Decoded)
+        case failed(String)
+    }
+
+    @State private var step: Step = .form
+    /// The signed transaction going out (the swipe-up), and how it went.
+    @State private var isBroadcasting = false
+    @State private var broadcastError: String?
+    @State private var sentTransaction: SentTransaction?
+    @State private var toAddress = ""
+    @State private var isValidAddress = false
+    @State private var amountText = ""
+    @State private var isEstimatingMax = false
+    @State private var showRecipientScanner = false
+
+    @State private var isResolvingKNS = false
+    @State private var resolvedAddress: String?
+    @State private var resolvedDomain: String?
+    /// Every service's answer for a typed name and the one in use: the rest go under "Other domains".
+    @State private var nameResolutions: [NameResolution] = []
+    @State private var selectedTLD: NameServiceTLD?
+    @State private var knsError: String?
+    private let knsService = KNSService.shared
+
+    /// The actual address to use (resolved from a KNS domain, or the direct input) - same
+    /// precedence as ContactsView's WithdrawKaspaView/AddContactView.
+    private var effectiveAddress: String {
+        resolvedAddress ?? toAddress
+    }
+
+    /// True once we have a usable recipient - either a resolved KNS domain or a directly valid
+    /// Kaspa address (mirrors WithdrawKaspaView.hasValidRecipient).
+    private var hasValidRecipient: Bool {
+        if resolvedAddress != nil { return true }
+        return isValidAddress && !isResolvingKNS
+    }
+    @State private var feeTier: WithdrawFeeTier = .normal
+    @State private var customExtraFeeSompi: UInt64?
+    @State private var isEditingFee = false
+    @State private var feeEditorText = ""
+    /// Fetched once when the screen appears and reused everywhere the fee needs computing (the
+    /// form preview, the QR screen, and the actual build/broadcast) — rather than letting each of
+    /// those independently call `fetchQuotedFeeRateSompiPerGram()` and each potentially get a
+    /// different live quote, which was exactly why the fee shown before Build didn't match what
+    /// the real transaction ended up costing.
+    @State private var liveFeeRateSompiPerGram: UInt64?
+    /// Coin control — nil means automatic (greedy, largest-first) selection; non-nil fixes the
+    /// exact input set the user picked instead.
+    @State private var manualUtxos: [UTXO]?
+    @State private var showCoinControl = false
+    /// Compound mode only: true when this address holds more UTXOs than one KasSigner transaction
+    /// can merge at once (`KsptCodec.maxInputs`), so the user must run Compound again after this
+    /// round. Drives the "repeat to finish" note.
+    @State private var compoundHasMoreRounds = false
+    /// Debounced live preview of what automatic selection would pick for the current amount/fee
+    /// — see `schedulePreview()`. Non-nil only while it's still fresh for the current amount/fee;
+    /// cleared immediately on any change so a stale preview never gets shown or built with.
+    @State private var previewSelection: ColdStorageSendEngine.AutomaticSelectionPreview?
+    @State private var previewTask: Task<Void, Never>?
+
+    /// The send's steps, as in Send Kaspa: who to, how much (on the app's keypad), and the
+    /// review, where only the fee and coin control change before Build. Compound opens on the
+    /// review (its recipient and amount are set).
+    private enum FormStep: Int { case recipient, amount, review, fee }
+    @State private var formStep: FormStep?
+    @State private var formForward = true
+    @State private var feeDraft = ""
+    private var currentFormStep: FormStep { formStep ?? (isCompoundMode ? .review : .recipient) }
+
+    private func go(to next: FormStep) {
+        dismissSystemKeyboard()
+        formForward = next.rawValue > currentFormStep.rawValue
+        DispatchQueue.main.async {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { formStep = next }
+        }
+    }
+
+    private var formTransition: AnyTransition {
+        .asymmetric(insertion: .move(edge: formForward ? .trailing : .leading),
+                    removal: .move(edge: formForward ? .leading : .trailing))
+    }
+
+    private var amountSompi: UInt64? {
+        guard let sompi = KaspaUnit.sompi(fromUserText: amountText), sompi > 0 else { return nil }
+        return sompi
+    }
+
+    private var canBuild: Bool {
+        hasValidRecipient && amountSompi != nil
+    }
+
+    /// Reference-mass fee shown/edited here, matching Android's ColdSendFlow: a fixed
+    /// 1-input/2-standard-output mass when the input count isn't known yet (automatic selection,
+    /// not resolved until build time) — good enough to reason about "pay more to confirm faster"
+    /// without an extra network round trip just to populate this label. When coin control has
+    /// fixed a UTXO set, though, the real count IS already known, so this uses that exact input
+    /// count instead of guessing — otherwise the preview shown here could understate the real fee
+    /// for a multi-UTXO selection, which then only became visible after tapping Build.
+    private var referenceMass: UInt64 {
+        guard let manualUtxos, !manualUtxos.isEmpty else {
+            return ColdStorageSendEngine.referenceMassForFeeEditor
+        }
+        return ColdStorageSendEngine.calculateMass(numInputs: manualUtxos.count, outputScriptLens: [34, 34], payloadSize: 0)
+    }
+
+    /// Same live-or-minimum rate `ColdStorageSendEngine`'s own default falls back to — using it
+    /// here too (instead of always assuming the bare protocol minimum) means the "Normal" preview
+    /// matches what a nil-override build would actually charge whenever the network's live quote
+    /// is currently above the minimum.
+    private var baseFeeRateSompiPerGram: UInt64 {
+        liveFeeRateSompiPerGram ?? KaspaFeePolicy.minimumRelayFeePerGramSompi
+    }
+
+    private var defaultFeeSompi: UInt64 {
+        ColdStorageSendEngine.calculateFee(mass: referenceMass, rateSompiPerGram: baseFeeRateSompiPerGram)
+    }
+
+    /// Normal/Fast/Priority multiplier system, same inline (no separate screen) pattern as the
+    /// main-address withdraw flow and Manage Addresses' consolidate flow — see
+    /// `WithdrawFeeTier` and `ContactsView`'s withdraw sheet.
+    private var extraFeeSompi: UInt64 {
+        if let customExtraFeeSompi { return customExtraFeeSompi }
+        return defaultFeeSompi * (feeTier.multiplier - 1)
+    }
+
+    /// The live preview (when fresh and automatic selection is in play — coin control already
+    /// knows its exact count another way) takes priority over the reference-mass guess, since it
+    /// reflects the real number of inputs this amount+fee will actually need.
+    private var effectiveFeeSompi: UInt64 {
+        if manualUtxos == nil, let previewSelection {
+            return previewSelection.feeSompi
+        }
+        return defaultFeeSompi + extraFeeSompi
+    }
+
+    /// Converts the tier/custom-fee total back into the sompi-per-mass-gram rate
+    /// `ColdStorageSendEngine` actually builds with. Always an explicit value now (never nil, even
+    /// for plain Normal) — passing nil let the engine do its own separate live-quote fetch at
+    /// build time, which could return a slightly different number than whatever this screen's own
+    /// fetch showed moments earlier, and that drift was exactly why the fee after Build didn't
+    /// match the one shown beforehand.
+    private var feeRateOverride: UInt64? {
+        guard feeTier != .normal || customExtraFeeSompi != nil else { return baseFeeRateSompiPerGram }
+        return UInt64((Double(effectiveFeeSompi) / Double(referenceMass)).rounded(.up))
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                switch step {
+                case .form, .building:
+                    formView
+                case .showingQR(let unsignedTx, let frames), .scanning(let unsignedTx, let frames):
+                    // the scanner is its own sheet below, over the QR
+                    qrStep(unsignedTx: unsignedTx, frames: frames)
+                        .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                case .signed(let unsignedTx, let frames, let decoded):
+                    signedStep(unsignedTx: unsignedTx, frames: frames, decoded: decoded)
+                        .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                case .failed(let message):
+                    failedView(message: message)
+                }
+            }
+            // Every screen draws its own header.
+            .toolbar(.hidden, for: .navigationBar)
+            .task {
+                liveFeeRateSompiPerGram = await ColdStorageSendEngine.fetchQuotedFeeRateSompiPerGram()
+                if isCompoundMode {
+                    toAddress = fromAddress
+                    isValidAddress = true
+                    await setupCompoundInputs()
+                }
+            }
+            .sheet(isPresented: $showRecipientScanner) {
+                QRScannerView { code in
+                    handleScannedRecipient(code)
+                }
+            }
+            .sheet(isPresented: isScanningSignedResponse) {
+                if case .scanning(let unsignedTx, _) = step {
+                    MultiFrameQRScannerView(isComplete: { KsptCodec.looksLikeKspt($0) }) { data in
+                        handleScannedSignedResponse(data, unsignedTx: unsignedTx)
+                    }
+                }
+            }
+            .sheet(isPresented: $showCoinControl) {
+                // the build leaves out immature mining rewards and coins a send just spent
+                CoinControlView(fromAddress: fromAddress, initialSelection: manualUtxos,
+                                unavailableReason: CoinControlView.hotWalletReason(chatting: false)) { selection in
+                    manualUtxos = selection
+                    schedulePreview()
+                }
+            }
+        }
+    }
+
+    private var isScanningSignedResponse: Binding<Bool> {
+        Binding(
+            get: { if case .scanning = step { return true } else { return false } },
+            // closed without a scan: back on the QR
+            set: { if !$0, case .scanning(let tx, let frames) = step { step = .showingQR(tx, frames) } }
+        )
+    }
+
+    private var formView: some View {
+        ZStack {
+            switch currentFormStep {
+            case .recipient: recipientStep.transition(formTransition)
+            case .amount: amountStep.transition(formTransition)
+            case .review: reviewStep.transition(formTransition)
+            case .fee: feeStep.transition(formTransition)
+            }
+        }
+        // The recipient card only shows the lookup; this screen runs it.
+        .onChange(of: toAddress) { handleInputChange($0) }
+        .onChange(of: amountText) { _ in schedulePreview() }
+        .onChange(of: feeTier) { _ in
+            customExtraFeeSompi = nil
+            isEditingFee = false
+            schedulePreview()
+        }
+        .onChange(of: customExtraFeeSompi) { _ in schedulePreview() }
+        .onChange(of: liveFeeRateSompiPerGram) { _ in schedulePreview() }
+    }
+
+    private var screenTitle: LocalizedStringKey {
+        isCompoundMode ? "Compound UTXOs" : "Send from Cold Storage"
+    }
+
+    private var exceedsBalance: Bool {
+        guard let amountSompi else { return false }
+        return amountSompi > availableBalanceSompi
+    }
+
+    private var recipientStep: some View {
+        SendStepScreen(title: Text(screenTitle), onCancel: { dismiss() }, canContinue: hasValidRecipient) {
+            go(to: .amount)
+        } content: {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    SendStepQuestion(text: "Who are you sending to?")
+                    SendRecipientCard(
+                        input: $toAddress,
+                        isResolving: isResolvingKNS,
+                        resolvedAddress: resolvedAddress,
+                        resolvedName: resolvedDomain,
+                        lookupError: knsError,
+                        isValidAddress: isValidAddress,
+                        onScan: { showRecipientScanner = true },
+                        nameResolutions: nameResolutions,
+                        selectedTLD: selectedTLD,
+                        onSelectResolution: selectResolution,
+                        focusOnAppear: true
+                    )
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+    }
+
+    private var amountStep: some View {
+        SendStepScreen(title: Text(screenTitle), onBack: { go(to: .recipient) }, onCancel: { dismiss() },
+                       continueTitle: "Review", canContinue: canBuild && !exceedsBalance && !isEstimatingMax) {
+            go(to: .review)
+        } content: {
+            VStack(spacing: 0) {
+                VStack(spacing: 8) {
+                    SendStepChip(label: "To", value: resolvedDomain ?? effectiveAddress, isAddress: resolvedDomain == nil)
+                    SendStepChip(label: "From", value: AppLocalization.string("Cold Storage"))
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                KaspaKeypadAmountEntry(
+                    fiatAmountState: fiatAmountState,
+                    onAmountChange: { amountText = $0 },
+                    isEstimatingMax: isEstimatingMax,
+                    maxEnabled: hasValidRecipient,
+                    footnote: exceedsBalance
+                        ? AppLocalization.string("This is more than the address you're sending from holds.")
+                        : KaspaUnit.label(String(format: AppLocalization.string("Available: %@ KAS"),
+                                                 locale: AppLocalization.locale, formatKas(availableBalanceSompi))),
+                    footnoteIsError: exceedsBalance,
+                    onMax: setMaxAmount
+                )
+            }
+        }
+    }
+
+    private var reviewStep: some View {
+        let isBuilding: Bool = { if case .building = step { return true } else { return false } }()
+        // A tap, not a swipe: this only builds the transaction for KasSigner to sign.
+        return SendStepScreen(title: Text(isCompoundMode ? "Compound UTXOs" : "Review"),
+                              onBack: isCompoundMode ? nil : { go(to: .amount) },
+                              onCancel: { dismiss() },
+                              continueTitle: isBuilding ? "Building..." : "Build Unsigned Transaction",
+                              canContinue: canBuild && !isBuilding) {
+            buildTransaction()
+        } content: {
+            ScrollView {
+                VStack(spacing: 18) {
+                    VStack(spacing: 6) {
+                        Text(isCompoundMode ? "Consolidating" : "You're sending")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        if let amountSompi {
+                            Text(verbatim: "\(KaspaUnit.plain(amountSompi)) \(KaspaUnit.symbol)")
+                                .font(.system(size: 40, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                        } else {
+                            ProgressView().frame(height: 48)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        reviewRow("To") {
+                            if isCompoundMode {
+                                Text("This address (consolidating)")
+                            } else {
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    if let resolvedDomain {
+                                        Text(verbatim: resolvedDomain).fontWeight(.semibold)
+                                    }
+                                    Text(verbatim: effectiveAddress)
+                                        .font(.caption.monospaced())
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                            }
+                        }
+                        Divider()
+                        reviewRow("From") {
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("Cold Storage").fontWeight(.semibold)
+                                Text(verbatim: "\(fromAddress.prefix(14))...\(fromAddress.suffix(6))")
+                                    .font(.caption.monospaced())
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        Divider()
+                        reviewRow("Total") {
+                            if let amountSompi {
+                                Text(verbatim: "~\(KaspaUnit.plain(amountSompi + effectiveFeeSompi)) \(KaspaUnit.symbol)")
+                                    .fontWeight(.semibold)
+                                    .monospacedDigit()
+                            } else {
+                                Text(verbatim: "—").foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .font(.subheadline)
+                    .padding(14)
+                    .background(sendKaspaGlass(cornerRadius: 20))
+
+                    if isCompoundMode {
+                        Group {
+                            if compoundHasMoreRounds {
+                                Text("This address has more than \(KsptCodec.maxInputs) UTXOs. KasSigner can sign at most \(KsptCodec.maxInputs) inputs per transaction, so this merges the largest \(KsptCodec.maxInputs) into one. Run Compound again afterward to keep combining the rest.")
+                            } else {
+                                Text("Merges all of this address's UTXOs into a single one, so future sends need fewer inputs.")
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    }
+
+                    // Compound auto-manages its own input set (largest <=8, KasSigner's per-tx limit),
+                    // so manual coin control is hidden there - it only applies to a normal send.
+                    SendFeeControls(
+                        feeTier: $feeTier,
+                        isEditingFee: $isEditingFee,
+                        customFeeText: $feeEditorText,
+                        isEstimatingFee: false,
+                        feeText: "~\(KaspaUnit.plain(effectiveFeeSompi)) \(KaspaUnit.symbol)",
+                        onStartEditing: {},
+                        onCommit: {},
+                        showsCoinControl: !isCompoundMode,
+                        coinControlSummary: coinControlSummary(manualUtxos),
+                        onCoinControl: { showCoinControl = true },
+                        onEditFee: {
+                            feeDraft = KaspaUnit.plain(effectiveFeeSompi)
+                            go(to: .fee)
+                        }
+                    )
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+            }
+        }
+    }
+
+    private var feeStep: some View {
+        SendFeeEditorScreen(draft: $feeDraft, minimumSompi: defaultFeeSompi,
+                            onCancel: { go(to: .review) }) { typed in
+            // never under the network's minimum
+            customExtraFeeSompi = typed > defaultFeeSompi ? typed - defaultFeeSompi : 0
+            go(to: .review)
+        }
+    }
+
+    private func reviewRow<Value: View>(_ label: LocalizedStringKey, @ViewBuilder value: () -> Value) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .foregroundColor(.secondary)
+            Spacer(minLength: 12)
+            value()
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    /// Commits the manually-typed total fee. Values below the tier-computed baseline are clamped
+    /// up to zero extra rather than rejected outright, matching the main-address withdraw
+    /// flow's identical `commitCustomFee()`.
+    private func commitCustomFee() {
+        defer { isEditingFee = false }
+        guard let totalSompi = KaspaUnit.sompi(fromUserText: feeEditorText) else { return }
+        customExtraFeeSompi = totalSompi > defaultFeeSompi ? totalSompi - defaultFeeSompi : 0
+    }
+
+    /// Sign: the unsigned transaction as an animated QR for KasSigner, on literal white
+    /// regardless of dark mode - a dark surround gives a camera photographing this screen far
+    /// less contrast around the code (see ChattingAddressQRView/ColdStorageAddressQRView).
+    /// Continue opens the scanner for the signed transaction.
+    private func qrStep(unsignedTx: ColdStorageSendEngine.UnsignedColdTx, frames: [Data]) -> some View {
+        SendStepScreen(title: Text("Sign with KasSigner"), onBack: { withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { step = .form } },
+                       onCancel: { dismiss() }, continueTitle: "Scan Signed Transaction", canContinue: true) {
+            step = .scanning(unsignedTx, frames)
+        } content: {
+            ScrollView {
+                VStack(spacing: 18) {
+                    SendStepQuestion(text: "Scan this on your KasSigner")
+                    // its own white card (a QR needs the contrast in dark mode too)
+                    AnimatedQRDisplayView(frames: frames, displaySize: 280)
+                    Text("KasSigner shows what it is signing. Check it matches, sign, then scan the signed transaction it shows.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    summaryCard(amountSompi: builtAmount(unsignedTx), feeSompi: unsignedTx.feeSompi)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+            }
+        }
+    }
+
+    /// Signed and scanned back: the last look, then swipe up to send it - the BlockDAG, then Sent
+    /// with the transaction, or Failed with Try Again (back here, still signed).
+    private func signedStep(unsignedTx: ColdStorageSendEngine.UnsignedColdTx, frames: [Data],
+                            decoded: KsptCodec.Decoded) -> some View {
+        SwipeUpToSendScrollView(
+            screenTitle: isCompoundMode ? "Compound UTXOs" : "Send from Cold Storage",
+            onCancel: { dismiss() },
+            onBack: { step = .showingQR(unsignedTx, frames) },
+            title: isCompoundMode ? "Swipe up to Consolidate" : "Swipe up to Send",
+            isBusy: isBroadcasting,
+            isEnabled: !isBroadcasting && sentTransaction == nil,
+            amountSompi: builtAmount(unsignedTx),
+            recipient: isCompoundMode ? nil : (resolvedDomain ?? effectiveAddress),
+            sent: sentTransaction,
+            failureMessage: broadcastError,
+            onDone: {
+                onDone()
+                dismiss()
+            },
+            action: { broadcast(unsignedTx: unsignedTx, decoded: decoded) }
+        ) {
+            VStack(spacing: 18) {
+                Label("Signed by KasSigner", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Color.green.opacity(0.12)))
+                    .padding(.top, 8)
+                VStack(spacing: 6) {
+                    Text(isCompoundMode ? "Consolidating" : "You're sending")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    if let amountSompi = builtAmount(unsignedTx) {
+                        Text(verbatim: "\(KaspaUnit.plain(amountSompi)) \(KaspaUnit.symbol)")
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                summaryCard(amountSompi: builtAmount(unsignedTx), feeSompi: unsignedTx.feeSompi)
+                Text("Nothing can change now: this is the transaction KasSigner signed.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+
+    /// What the built transaction pays the recipient: its first output, which a Max or a
+    /// near-Max amount may have trimmed below what was typed.
+    private func builtAmount(_ unsignedTx: ColdStorageSendEngine.UnsignedColdTx) -> UInt64? {
+        unsignedTx.transaction.outputs.first?.value ?? amountSompi
+    }
+
+    /// To, From, the fee and the total, as built.
+    private func summaryCard(amountSompi: UInt64?, feeSompi: UInt64) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            reviewRow("To") {
+                if isCompoundMode {
+                    Text("This address (consolidating)")
+                } else {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        if let resolvedDomain {
+                            Text(verbatim: resolvedDomain).fontWeight(.semibold)
+                        }
+                        Text(verbatim: effectiveAddress)
+                            .font(.caption.monospaced())
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+            }
+            Divider()
+            reviewRow("From") {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Cold Storage").fontWeight(.semibold)
+                    Text(verbatim: "\(fromAddress.prefix(14))...\(fromAddress.suffix(6))")
+                        .font(.caption.monospaced())
+                        .foregroundColor(.secondary)
+                }
+            }
+            Divider()
+            reviewRow("Network Fee") {
+                Text(verbatim: "\(KaspaUnit.plain(feeSompi)) \(KaspaUnit.symbol)")
+                    .monospacedDigit()
+            }
+            if let amountSompi {
+                Divider()
+                reviewRow("Total") {
+                    Text(verbatim: "\(KaspaUnit.plain(amountSompi + feeSompi)) \(KaspaUnit.symbol)")
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                }
+            }
+        }
+        .font(.subheadline)
+        .padding(14)
+        .background(sendKaspaGlass(cornerRadius: 20))
+    }
+
+    /// Building failed (or the compound inputs couldn't be read): what went wrong, and Try Again
+    /// back to the form as it was.
+    private func failedView(message: String) -> some View {
+        SendStepScreen(title: Text(screenTitle), onCancel: { dismiss() }, continueTitle: "Try Again", canContinue: true) {
+            step = .form
+        } content: {
+            VStack(spacing: 16) {
+                Spacer(minLength: 40)
+                Image(systemName: "xmark.circle.fill")
+                    .font(.scaled(size: 56))
+                    .foregroundColor(.red)
+                Text("Something Went Wrong")
+                    .font(.title3.weight(.semibold))
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func handleScannedRecipient(_ code: String) {
+        var address = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        if address.lowercased().hasPrefix("kaspa:") || address.lowercased().hasPrefix("kaspatest:") {
+            if let queryIndex = address.firstIndex(of: "?") {
+                address = String(address[..<queryIndex])
+            }
+        }
+        toAddress = address
+        handleInputChange(address)
+    }
+
+    private func handleInputChange(_ input: String) {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        resolvedAddress = nil
+        resolvedDomain = nil
+        knsError = nil
+        isResolvingKNS = false
+        nameResolutions = []
+        selectedTLD = nil
+
+        guard !trimmed.isEmpty else {
+            isValidAddress = false
+            return
+        }
+
+        if trimmed.hasPrefix("kaspa:") || trimmed.hasPrefix("kaspatest:") {
+            isValidAddress = KaspaAddress.isValid(trimmed)
+            return
+        }
+
+        if NameServicesClient.looksLikeName(trimmed) {
+            isValidAddress = false
+            resolveKNSDomain(trimmed)
+        } else {
+            isValidAddress = false
+        }
+    }
+
+    /// Use one service's answer (the priority one, or a pick from "Other domains").
+    private func selectResolution(_ resolution: NameResolution) {
+        guard let address = resolution.address else { return }
+        resolvedAddress = address
+        resolvedDomain = resolution.display
+        selectedTLD = resolution.tld
+        knsError = nil
+    }
+
+    private func resolveKNSDomain(_ domain: String) {
+        isResolvingKNS = true
+
+        // On the main actor: the check below must read the field as it is now. Read from a
+        // background task while typing fast, it could see an older value, take this lookup for a
+        // stale one and stop - leaving "Looking up domain..." up for good.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+
+            guard toAddress.trimmingCharacters(in: .whitespacesAndNewlines) == domain ||
+                  toAddress.trimmingCharacters(in: .whitespacesAndNewlines) + ".kas" == domain + ".kas" else {
+                return
+            }
+
+            // Every name service, in priority: the ending typed, else .kachat only (the others wait under Other domains)
+            // (see NameServicesClient). The resolved line names which one answered; the others
+            // are offered under "Other domains".
+            let results = await NameServicesClient.shared.resolveEverywhere(domain)
+            await MainActor.run {
+                guard toAddress.trimmingCharacters(in: .whitespacesAndNewlines) == domain else { return }
+                nameResolutions = results
+                isResolvingKNS = false
+                if let resolution = NameServicesClient.primary(of: results, typed: domain), resolution.address != nil {
+                    selectResolution(resolution)
+                } else {
+                    resolvedAddress = nil
+                    resolvedDomain = nil
+                    selectedTLD = nil
+                    knsError = NameServicesClient.notFoundMessage(typed: domain, results: results)
+                }
+            }
+        }
+    }
+
+    /// Debounced (400ms) live preview of what automatic selection would pick for the current
+    /// amount + fee rate — cancels and restarts on every relevant change so a burst of typing
+    /// doesn't fire a network call per keystroke, and clears the stale preview immediately (rather
+    /// than leaving the last one showing) so the fee display never claims to be exact when it
+    /// isn't anymore. No-ops entirely once coin control is active — that already knows its exact
+    /// count without needing a preview fetch.
+    private func schedulePreview() {
+        previewTask?.cancel()
+        previewSelection = nil
+        guard manualUtxos == nil, let amountSompi else { return }
+        let rate = feeRateOverride ?? baseFeeRateSompiPerGram
+        let recipient = effectiveAddress
+        previewTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            let preview = await ColdStorageSendEngine.shared.previewAutomaticSelection(
+                fromAddress: fromAddress,
+                toAddress: recipient,
+                amountSompi: amountSompi,
+                feeRateSompiPerGram: rate
+            )
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                previewSelection = preview
+            }
+        }
+    }
+
+    /// Compound mode: fix the input set to the largest <=8 UTXOs — the most one KasSigner-signable
+    /// transaction can hold — then Max the amount for exactly that set. Without this cap, Max spans
+    /// every UTXO at the address and the build fails with `tooManyInputs` the moment it holds more
+    /// than 8. `compoundHasMoreRounds` records whether another round is needed afterward.
+    private func setupCompoundInputs() async {
+        do {
+            let (utxos, hasMore) = try await ColdStorageSendEngine.shared.compoundInputs(fromAddress: fromAddress)
+            manualUtxos = utxos
+            compoundHasMoreRounds = hasMore
+            setMaxAmount()
+        } catch {
+            step = .failed(error.localizedDescription)
+        }
+    }
+
+    private func setMaxAmount() {
+        guard hasValidRecipient else { return }
+        isEstimatingMax = true
+        let overrideRate = feeRateOverride
+        let utxos = manualUtxos
+        let recipient = effectiveAddress
+        Task {
+            do {
+                let maxSompi = try await ColdStorageSendEngine.shared.estimateMaxAmount(fromAddress: fromAddress, toAddress: recipient, feeRateOverride: overrideRate, manualUtxos: utxos)
+                await MainActor.run {
+                    amountText = fiatAmountState.setMaxKas(Double(maxSompi) / 100_000_000.0, priceInCurrency: portfolioViewModel.currentPriceUsd)
+                    isEstimatingMax = false
+                }
+            } catch {
+                await MainActor.run {
+                    isEstimatingMax = false
+                }
+            }
+        }
+    }
+
+    private func buildTransaction() {
+        guard let amountSompi else { return }
+        step = .building
+
+        let recipient = effectiveAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let overrideRate = feeRateOverride
+        // Real coin control (explicit user selection) wins if set; otherwise, if a fresh
+        // automatic-selection preview is available, pass its exact UTXO set through as the
+        // build's `manualUtxos` too — guaranteeing the fee just shown on this screen and the fee
+        // the real build produces are the same number, not just close. Re-resolved against a
+        // fresh fetch inside buildUnsignedTransaction either way, so this is never stale-unsafe.
+        let utxos = manualUtxos ?? previewSelection?.utxos
+        let previewed = manualUtxos == nil && previewSelection != nil
+        Task {
+            do {
+                let unsignedTx = try await ColdStorageSendEngine.shared.buildUnsignedTransaction(
+                    fromAddress: fromAddress,
+                    toAddress: recipient,
+                    amountSompi: amountSompi,
+                    feeRateOverride: overrideRate,
+                    manualUtxos: utxos,
+                    previewed: previewed
+                )
+                let kspt = try ColdStorageSendEngine.shared.toKspt(unsignedTx)
+                let frames = try QrFrameChunker.chunk(kspt)
+                await MainActor.run {
+                    step = .showingQR(unsignedTx, frames)
+                }
+            } catch {
+                await MainActor.run {
+                    step = .failed(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func handleScannedSignedResponse(_ data: Data, unsignedTx: ColdStorageSendEngine.UnsignedColdTx) {
+        guard case .scanning(_, let frames) = step else { return }
+        do {
+            let decoded = try KsptCodec.decode(data)
+            broadcastError = nil
+            sentTransaction = nil
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) {
+                step = .signed(unsignedTx, frames, decoded)
+            }
+        } catch {
+            step = .failed(error.localizedDescription)
+        }
+    }
+
+    /// The swipe let go: the signed transaction goes out.
+    private func broadcast(unsignedTx: ColdStorageSendEngine.UnsignedColdTx, decoded: KsptCodec.Decoded) {
+        isBroadcasting = true
+        broadcastError = nil
+        Task {
+            do {
+                try await SendFailureSimulation.failIfEnabled()
+                let txId = try await ColdStorageSendEngine.shared.broadcastSigned(unsignedTx: unsignedTx, decoded: decoded)
+                await MainActor.run {
+                    isBroadcasting = false
+                    sentTransaction = SentTransaction(
+                        txId: txId,
+                        amountSompi: isCompoundMode ? nil : builtAmount(unsignedTx),
+                        recipient: isCompoundMode ? nil : (resolvedDomain ?? effectiveAddress)
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    isBroadcasting = false
+                    broadcastError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func formatKas(_ sompi: UInt64) -> String {
+        String(format: "%.8f", Double(sompi) / 100_000_000.0)
+    }
+}
+
+/// Coin control — lets the user fix the exact UTXO set a send spends from instead of the
+/// automatic largest-first selector. Reachable from a send form's "Coin Control" row - shared by
+/// `ColdSendFlowView` and `SpendingAddressWithdrawView` (not Cold-Storage-specific: it fetches
+/// via the generic `NodePoolService.shared.getUtxosByAddresses`, keyed only by `fromAddress`).
+/// Passes the selection back as a plain `[UTXO]?` (nil = automatic) rather than owning any state
+/// itself, since the actual spendable set needs re-resolving against a fresh fetch at build time
+/// anyway (see `ColdStorageSendEngine.buildUnsignedTransaction`'s `manualUtxos` handling).
+struct CoinControlView: View {
+    let fromAddress: String
+    let initialSelection: [UTXO]?
+    /// Why a send can't spend a coin, nil when it can: the same coins the send leaves out, listed
+    /// greyed out and never picked, so a selection can't be made of coins the send would refuse.
+    /// The second value is the network's virtual DAA score, when known, for mining-reward maturity.
+    var unavailableReason: ((UTXO, UInt64?) -> LocalizedStringKey?)? = nil
+    let onDone: ([UTXO]?) -> Void
+
+    /// A hot-wallet send's rule (`ChatService.withdrawalSpendable` for the chatting address;
+    /// `spendableUtxos` and `unreservedUtxos` for a spending address, which can spend a mining
+    /// reward once it's mature).
+    static func hotWalletReason(chatting: Bool) -> (UTXO, UInt64?) -> LocalizedStringKey? {
+        { utxo, virtualDaaScore in
+            if utxo.covenantId != nil { return "Locked by a covenant" }
+            if chatting, utxo.isCoinbase { return "Mining reward, not spendable here" }
+            if chatting, utxo.blockDaaScore == 0 { return "Not confirmed yet" }
+            if !chatting, ChatService.spendableUtxos([utxo], virtualDaaScore: virtualDaaScore).isEmpty {
+                return "Not spendable yet"
+            }
+            if ChatService.shared.unreservedUtxos([utxo]).isEmpty { return "Just spent by a send" }
+            return nil
+        }
+    }
+    @State private var virtualDaaScore: UInt64?
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var utxos: [UTXO] = []
+    @State private var selectedKeys: Set<String> = []
+    @State private var isLoading = false
+    /// The node could not be asked. Shown in place of "no coins": an outage must never read as
+    /// an empty address when the coins here are about to be spent.
+    @State private var loadError: String?
+    @State private var utxoLabels: [String: String] = [:]
+
+    private func loadUtxos() async {
+        isLoading = true
+        do {
+            let fetched = try await NodePoolService.shared.getUtxosByAddresses([fromAddress])
+            // only needed to tell a mature mining reward from one that isn't yet
+            if fetched.contains(where: \.isCoinbase) {
+                virtualDaaScore = await NodePoolService.shared.currentVirtualDaaScore()
+            }
+            utxos = fetched
+            loadError = nil
+        } catch {
+            loadError = UserFacingError.message(for: error)
+        }
+        isLoading = false
+    }
+
+    private func key(_ utxo: UTXO) -> String {
+        "\(utxo.outpoint.transactionId):\(utxo.outpoint.index)"
+    }
+
+    private var availableUtxos: [UTXO] {
+        guard let unavailableReason else { return utxos }
+        return utxos.filter { unavailableReason($0, virtualDaaScore) == nil }
+    }
+
+    private var selectedTotalSompi: UInt64 {
+        availableUtxos.filter { selectedKeys.contains(key($0)) }.reduce(0) { $0 + $1.amount }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if isLoading && utxos.isEmpty {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                } else if utxos.isEmpty {
+                    if let loadError {
+                        UtxoLoadFailureRow(detail: loadError) {
+                            Task { await loadUtxos() }
+                        }
+                    } else {
+                        Text("No UTXOs found at this address.")
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    Section {
+                        ForEach(Array(utxos.enumerated()), id: \.offset) { _, utxo in
+                            let k = key(utxo)
+                            let isSelected = selectedKeys.contains(k)
+                            let unavailable = unavailableReason?(utxo, virtualDaaScore)
+                            Button {
+                                if isSelected {
+                                    selectedKeys.remove(k)
+                                } else {
+                                    selectedKeys.insert(k)
+                                }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(isSelected ? .accentColor : .secondary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if let label = utxoLabels[k], !label.isEmpty {
+                                            Text(label)
+                                                .font(.caption)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.accentColor)
+                                        }
+                                        Text(verbatim: "\(formatKas(utxo.amount)) \(KaspaUnit.symbol)")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                        Text("\(utxo.outpoint.transactionId.prefix(10))...:\(utxo.outpoint.index)")
+                                            .font(.system(.caption2, design: .monospaced))
+                                            .foregroundColor(.secondary)
+                                        if let unavailable {
+                                            Text(unavailable)
+                                                .font(.caption2)
+                                                .foregroundColor(.orange)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(unavailable != nil)
+                            .opacity(unavailable == nil ? 1 : 0.5)
+                        }
+                    } footer: {
+                        if !selectedKeys.isEmpty {
+                            let amount = "\(formatKas(selectedTotalSompi)) \(KaspaUnit.symbol)"
+                            Text(verbatim: selectedKeys.count == 1
+                                 ? String(format: AppLocalization.string("Selected: %@ (1 UTXO)"), locale: AppLocalization.locale, amount)
+                                 : String(format: AppLocalization.string("Selected: %@ (%lld UTXOs)"), locale: AppLocalization.locale, amount, selectedKeys.count))
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Coin Control")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button("Select All") { selectedKeys = Set(availableUtxos.map(key)) }
+                        Button("Automatic (Clear Selection)") { selectedKeys.removeAll() }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    let selected = availableUtxos.filter { selectedKeys.contains(key($0)) }
+                    onDone(selected.isEmpty ? nil : selected)
+                    dismiss()
+                } label: {
+                    Text(selectedKeys.isEmpty ? "Use Automatic Selection" : "Confirm Selection")
+                        .font(.subheadline.weight(.bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .foregroundColor(.black)
+                        .background(Capsule().fill(Color.accentColor))
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 16)
+            }
+            .task {
+                // a spending address's labels (Manage Addresses) or a KasSigner address's
+                utxoLabels = WalletManager.shared.loadSpendingUtxoLabels(address: fromAddress)
+                    .merging(ColdStorageManager.shared.loadUtxoLabels(address: fromAddress)) { spending, _ in spending }
+                await loadUtxos()
+                if let initialSelection {
+                    // coins spent since they were picked drop out of the selection
+                    selectedKeys = Set(initialSelection.map(key)).intersection(Set(availableUtxos.map(key)))
+                }
+            }
+        }
+    }
+
+    private func formatKas(_ sompi: UInt64) -> String {
+        String(format: "%.8f", Double(sompi) / 100_000_000.0)
+    }
+}
+
+/// Transaction history for a single Cold Storage address, opening each transaction directly on
+/// whichever block explorer is selected in Settings > Connection > Kaspa Explorer.
+struct ColdStorageAddressTransactionHistoryView: View {
+    let entry: ColdStorageAddressEntry
+
+    /// The tapped transaction, while its action chooser is up.
+    @State private var transactionActionTarget: KaspaFullTransactionResponse?
+    @State private var pendingPortfolioCandidate: PortfolioCandidateTransaction?
+    /// The transaction being filed into a portfolio, if any - see `AddToPortfolioSheet`.
+    @State private var portfolioCandidate: PortfolioCandidateTransaction?
+    /// Name of the portfolio just added to, for the confirmation capsule.
+    @State private var addedPortfolioName: String?
+
+    @EnvironmentObject var settingsViewModel: SettingsViewModel
+
+    private enum Tab: String, CaseIterable {
+        case transactions = "History"
+        case utxos = "UTXOs"
+        case kachatDomains = "Domains"
+    }
+
+    @State private var selectedTab: Tab = .transactions
+    @State private var transactions: [KaspaFullTransactionResponse] = []
+    /// The last history fetch gave up partway. Kept separate from `transactions.isEmpty` because
+    /// the two mean opposite things and used to render identically: a rate-limited request looked
+    /// exactly like an address that has never been used.
+    @State private var historyIncomplete = false
+    @State private var isLoading = false
+    @State private var utxos: [UTXO] = []
+    @State private var isLoadingUtxos = false
+    /// See `CoinControlView.loadError`.
+    @State private var utxoLoadError: String?
+    @State private var showReceiveSheet = false
+    @State private var showSendSheet = false
+    @State private var showCompoundSheet = false
+    @State private var showAddressActions = false
+    @State private var showPublicKeySheet = false
+    /// What the Address Actions row picked opens, once that sheet has finished closing.
+    @State private var afterAddressActions: (() -> Void)?
+    @State private var utxoLabels: [String: String] = [:]
+    @State private var renamingUtxo: UTXO?
+    @State private var renameUtxoText = ""
+
+    private func outpointKey(_ utxo: UTXO) -> String {
+        "\(utxo.outpoint.transactionId):\(utxo.outpoint.index)"
+    }
+
+    /// Plain names - History, UTXOs, Domains - the way the user asked for them.
+    private func tabLabel(_ tab: Tab) -> String {
+        tab.rawValue
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 2) {
+                Text("Balance")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(verbatim: "\(KaspaUnit.groupedExact(entry.balanceSompi)) \(KaspaUnit.symbol)")
+                    .font(.title3.weight(.semibold))
+            }
+            .padding(.top, 12)
+
+            // The app's tab look (`UnderlineTabBar`), not a segmented control.
+            UnderlineTabBar(
+                tabs: Tab.allCases.map { (tab: $0, title: tabLabel($0)) },
+                selection: $selectedTab
+            )
+            .padding(.top, 4)
+
+            switch selectedTab {
+            case .transactions:
+                transactionsList
+            case .utxos:
+                utxosList
+            case .kachatDomains:
+                AddressDomainsTab(address: entry.address)
+            }
+        }
+        .navigationTitle(entry.displayLabel)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                AddressOptionsButton { showAddressActions = true }
+            }
+        }
+        .sheet(isPresented: $showAddressActions, onDismiss: {
+            let next = afterAddressActions
+            afterAddressActions = nil
+            next?()
+        }) {
+            // no View Private Key: a cold address's key stays on the signer
+            let sheet = AddressActionsSheet(
+                explorerURL: settingsViewModel.settings.kaspaExplorer.addressURL(for: entry.address),
+                onViewPublicKey: {
+                    afterAddressActions = { showPublicKeySheet = true }
+                    showAddressActions = false
+                },
+                onViewInExplorer: { url in
+                    showAddressActions = false
+                    UIApplication.shared.open(url)
+                }
+            )
+            sheet
+                .fittedSheetDetents(sheet.height)
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showPublicKeySheet) {
+            AddressPublicKeyView(address: entry.address, note: "This is the public half of this address. It cannot spend anything.")
+        }
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 12) {
+                Button {
+                    showReceiveSheet = true
+                } label: {
+                    Label("Receive", systemImage: "qrcode")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .foregroundColor(.black)
+                        .background(Capsule().fill(Color.accentColor))
+                }
+                Button {
+                    showSendSheet = true
+                } label: {
+                    Label("Send", systemImage: "arrow.up.circle.fill")
+                        .font(.subheadline.weight(.bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .foregroundColor(.black)
+                        .background(Capsule().fill(Color.accentColor))
+                }
+                .disabled(entry.balanceSompi == 0)
+                .opacity(entry.balanceSompi == 0 ? 0.5 : 1)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 16)
+        }
+        .sheet(isPresented: $showReceiveSheet) {
+            ColdStorageAddressQRView(entry: entry)
+        }
+        .sheet(isPresented: $showSendSheet) {
+            ColdSendFlowView(fromAddress: entry.address, availableBalanceSompi: entry.balanceSompi) {
+                Task {
+                    await loadTransactions()
+                    await loadUtxos()
+                }
+            }
+            .sendKaspaSheetSizing()
+        }
+        .sheet(isPresented: $showCompoundSheet) {
+            ColdSendFlowView(fromAddress: entry.address, availableBalanceSompi: entry.balanceSompi, isCompoundMode: true) {
+                Task {
+                    await loadTransactions()
+                    await loadUtxos()
+                }
+            }
+            .sendKaspaSheetSizing()
+        }
+        .sheet(item: $renamingUtxo) { utxo in
+            RenameSheet(
+                title: "Rename UTXO",
+                subtitle: outpointKey(utxo),
+                text: $renameUtxoText
+            ) { newName in
+                ColdStorageManager.shared.setUtxoLabel(
+                    address: entry.address,
+                    outpointKey: outpointKey(utxo),
+                    label: newName
+                )
+                utxoLabels = ColdStorageManager.shared.loadUtxoLabels(address: entry.address)
+            }
+        }
+        .task {
+            utxoLabels = ColdStorageManager.shared.loadUtxoLabels(address: entry.address)
+            await loadTransactions()
+            await loadUtxos()
+        }
+    }
+
+    private var transactionsList: some View {
+        List {
+            if isLoading && transactions.isEmpty {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            } else if transactions.isEmpty && historyIncomplete {
+                // A failed fetch is not an empty history. Saying "No transactions yet." here was
+                // a confident answer about someone's money that the app had not actually got.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Could not load transactions.")
+                        .foregroundColor(.secondary)
+                    Button("Try Again") {
+                        Task { await loadTransactions() }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                }
+            } else if transactions.isEmpty {
+                Text("No transactions yet.")
+                    .foregroundColor(.secondary)
+            } else {
+                if historyIncomplete {
+                    // Some pages landed, some did not. Say so rather than letting a truncated
+                    // list read as the whole history.
+                    Text("Some transactions could not be loaded. Pull to refresh to try again.")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+                ForEach(transactions, id: \.transactionId) { tx in
+                    Button {
+                        Haptics.impact(.light)
+                        // Tapping a transaction asks what to do with it. It used to open the
+                        // explorer outright, which left "Add to Portfolio" on a swipe and a long
+                        // press - both invisible until you already knew they were there.
+                        transactionActionTarget = tx
+                    } label: {
+                        transactionRow(tx)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        // The menu is a sheet rather than a confirmation dialog so each option can say what it
+        // does, and so the transaction it applies to stays on screen while you choose.
+        .sheet(item: $transactionActionTarget, onDismiss: {
+            // Handing the portfolio sheet over only once this one is fully gone. Presenting a
+            // sheet from inside a sheet that is still dismissing drops it on the floor.
+            if let pending = pendingPortfolioCandidate {
+                pendingPortfolioCandidate = nil
+                portfolioCandidate = pending
+            }
+        }) { tx in
+            TransactionActionsSheet(
+                transaction: tx,
+                address: entry.address,
+                onOpenExplorer: { openInExplorer(tx) },
+                onAddToPortfolio: { pendingPortfolioCandidate = $0 }
+            )
+        }
+        .sheet(item: $portfolioCandidate) { candidate in
+            AddToPortfolioSheet(candidate: candidate) { portfolio in
+                addedPortfolioName = portfolio.name
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let addedPortfolioName {
+                PortfolioAddedCapsule(portfolioName: addedPortfolioName) {
+                    self.addedPortfolioName = nil
+                }
+            }
+        }
+        .refreshable {
+            await loadTransactions()
+        }
+    }
+
+    private var utxosList: some View {
+        List {
+            if utxos.count > 1 {
+                Section {
+                    Button {
+                        showCompoundSheet = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.triangle.merge")
+                            Text("Compound UTXOs")
+                                .fontWeight(.semibold)
+                            Spacer()
+                        }
+                    }
+                } footer: {
+                    Text("Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs.")
+                }
+            }
+            if isLoadingUtxos && utxos.isEmpty {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            } else if utxos.isEmpty {
+                if let utxoLoadError {
+                    UtxoLoadFailureRow(detail: utxoLoadError) {
+                        Task { await loadUtxos() }
+                    }
+                } else {
+                    Text("No UTXOs.")
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                ForEach(Array(utxos.enumerated()), id: \.offset) { _, utxo in
+                    utxoRow(utxo)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .refreshable {
+            await loadUtxos()
+        }
+    }
+
+    private func utxoRow(_ utxo: UTXO) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: utxo.isCoinbase ? "cube.fill" : "circle.grid.2x2.fill")
+                .font(.title2)
+                .foregroundColor(.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                if let label = utxoLabels[outpointKey(utxo)], !label.isEmpty {
+                    Text(label)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.accentColor)
+                }
+                Text(verbatim: "\(KaspaUnit.groupedExact(utxo.amount)) \(KaspaUnit.symbol)")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Text("\(utxo.outpoint.transactionId):\(utxo.outpoint.index)")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer()
+            if utxo.isCoinbase {
+                Text("Coinbase")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+            }
+            Button {
+                renameUtxoText = utxoLabels[outpointKey(utxo)] ?? ""
+                renamingUtxo = utxo
+            } label: {
+                Image(systemName: "pencil")
+                    .foregroundColor(.accentColor)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func transactionRow(_ tx: KaspaFullTransactionResponse) -> some View {
+        let info = tx.direction(for: entry.address)
+        return HStack(spacing: 12) {
+            Image(systemName: info?.isOutgoing == true ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                .font(.title2)
+                .foregroundColor(info == nil ? .secondary : (info!.isOutgoing ? .red : .green))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info == nil ? "Transaction" : (info!.isOutgoing ? "Sent" : "Received"))
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(info == nil ? .secondary : (info!.isOutgoing ? .red : .green))
+                Text(tx.transactionId)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let blockTime = tx.blockTime {
+                    Text(Date(timeIntervalSince1970: Double(blockTime) / 1000).formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                if let info {
+                    Text(verbatim: "\(info.isOutgoing ? "-" : "+")\(KaspaUnit.groupedExact(info.amountSompi)) \(KaspaUnit.symbol)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(info.isOutgoing ? .red : .green)
+                }
+                // The network fee this transaction paid (inputs minus outputs). Every
+                // transaction has one, whoever sent it; on a received one it is what the
+                // sender paid.
+                if let fee = tx.feeText() {
+                    Text(fee)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                Image(systemName: "arrow.up.right.square")
+                    .font(.caption)
+                    .foregroundColor(.accentColor)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func loadTransactions() async {
+        isLoading = true
+        // Confirmed live against api.kaspa.org that limit=500 works fine in a single call
+        // (~0.7s) - cuts this from up to 4 sequential round trips down to 1.
+        let result = await ChatService.shared.fetchFullTransactionsResult(for: entry.address, pageSize: 200, maxTransactions: 200)
+        // block rewards the chain never accepted paid nothing: not history
+        transactions = result.transactions.filter(\.belongsInHistory)
+        historyIncomplete = !result.complete
+        isLoading = false
+    }
+
+    private func loadUtxos() async {
+        isLoadingUtxos = true
+        do {
+            utxos = try await NodePoolService.shared.getUtxosByAddresses([entry.address])
+            utxoLoadError = nil
+        } catch {
+            // The list keeps what it had; an outage is not an empty address.
+            utxoLoadError = UserFacingError.message(for: error)
+        }
+        isLoadingUtxos = false
+    }
+
+    private func openInExplorer(_ tx: KaspaFullTransactionResponse) {
+        guard let url = settingsViewModel.settings.kaspaExplorer.txURL(for: tx.transactionId) else { return }
+        UIApplication.shared.open(url)
+    }
+}
+
+/// Bulk address-visibility checklist for one cold storage account: a paged list of EVERY
+/// derived address (and, past the derived set, future indices derived on the fly) with a
+/// whole-row check toggle. Mirrors Manage Addresses' SpendingAddressVisibilityView minus
+/// the primary-address concept, which cold storage doesn't have.
+private struct ColdStorageAddressVisibilityView: View {
+    let account: ColdStorageAccount
+
+    @ObservedObject private var manager = ColdStorageManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var entries: [ColdStorageAddressEntry] = []
+    @State private var isLoading = true
+    /// Lazily-filled history results for zero-balance addresses (address -> ever used).
+    @State private var usedByAddress: [String: Bool] = [:]
+    /// Pager: 50 addresses per page, endless - pages past the derived set derive future
+    /// indices on the fly (checking one reveals it without flooding the main list).
+    @State private var page = 0
+    private let pageSize = 50
+    private static let topAnchorID = "visibility_top"
+
+    private var currentAccount: ColdStorageAccount {
+        manager.accounts.first { $0.id == account.id } ?? account
+    }
+
+    /// The rows for the current page, by raw index order. Derived indices come from the
+    /// loaded entries; anything beyond derives its address fresh (underived = unchecked).
+    private var pageEntries: [ColdStorageAddressEntry] {
+        let byIndex = Dictionary(uniqueKeysWithValues: entries.map { ($0.index, $0) })
+        let start = page * pageSize
+        return (start..<(start + pageSize)).compactMap { index in
+            if let existing = byIndex[index] { return existing }
+            guard let address = manager.address(for: currentAccount, at: index) else { return nil }
+            return ColdStorageAddressEntry(index: index, address: address, balanceSompi: 0, hidden: true)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading && entries.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollViewReader { proxy in
+                        List {
+                            // A zero-height anchor rather than scrolling to the first row: the
+                            // row has its own insets, and scrolling to it left the list a few
+                            // points down from the true top.
+                            Color.clear
+                                .frame(height: 0)
+                                .listRowInsets(EdgeInsets())
+                                .listRowSeparator(.hidden)
+                                .id(Self.topAnchorID)
+                            ForEach(pageEntries) { entry in
+                                row(entry)
+                            }
+                        }
+                        .listStyle(.plain)
+                        // Turning the page keeps the scroll offset otherwise, so page 2 opened
+                        // wherever page 1 was left - at the bottom, if that is where the pager
+                        // was tapped from, which is the only place it can be tapped from.
+                        .onChange(of: page) { _ in
+                            proxy.scrollTo(Self.topAnchorID, anchor: .top)
+                        }
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                pagerBar
+            }
+            .navigationTitle("Address Visibility")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .fontWeight(.semibold)
+                }
+            }
+            .task { await load() }
+        }
+    }
+
+    /// Bottom pager: "#start - #end" with arrows; the right arrow never runs out (pages past
+    /// the derived set derive future addresses).
+    private var pagerBar: some View {
+        HStack {
+            Button {
+                page = max(0, page - 1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.headline)
+                    .frame(width: 44, height: 36)
+            }
+            .disabled(page == 0)
+            Spacer()
+            Text("#\(page * pageSize) - #\(page * pageSize + pageSize - 1)")
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+            Spacer()
+            Button {
+                page += 1
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.headline)
+                    .frame(width: 44, height: 36)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.thinMaterial)
+    }
+
+    private func row(_ entry: ColdStorageAddressEntry) -> some View {
+        let funded = entry.balanceSompi > 0
+        let visible = !entry.hidden
+        return HStack(spacing: 10) {
+            Image(systemName: visible ? "checkmark.circle.fill" : "circle")
+                .font(.scaled(size: 20))
+                .foregroundColor(visible ? .accentColor : .secondary)
+                .opacity(funded ? 0.45 : 1)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text("#\(entry.index)")
+                        .font(.subheadline.weight(.bold))
+                        .monospacedDigit()
+                    if let label = entry.label, !label.trimmingCharacters(in: .whitespaces).isEmpty {
+                        Text(label)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Text("\(entry.address.prefix(16))…\(entry.address.suffix(6))")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 6)
+            usedTag(entry, funded: funded)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { toggle(entry) }
+        .listRowSeparatorTint(Color.secondary.opacity(0.2))
+        .task(id: entry.address) { await ensureUsedLoaded(entry, funded: funded) }
+    }
+
+    @ViewBuilder
+    private func usedTag(_ entry: ColdStorageAddressEntry, funded: Bool) -> some View {
+        if funded {
+            Text(verbatim: "\(String(format: "%.4f", Double(entry.balanceSompi) / 100_000_000.0)) \(KaspaUnit.symbol)")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(.accentColor)
+        } else if let used = usedByAddress[entry.address] {
+            Text(used ? "Used" : "Unused")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(used ? .orange : .secondary)
+        } else {
+            Text("…")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func load() async {
+        entries = await manager.getAddressList(for: currentAccount)
+        isLoading = false
+    }
+
+    /// One history lookup per zero-balance address, cached for the session of this sheet.
+    /// A failed probe stores nothing, so the row keeps its neutral "…" badge (never a
+    /// possibly-wrong "Unused") and the next appearance of the row retries.
+    private func ensureUsedLoaded(_ entry: ColdStorageAddressEntry, funded: Bool) async {
+        guard !funded, usedByAddress[entry.address] == nil else { return }
+        if let used = await ChatService.shared.spendingAddressUsedState(entry.address) {
+            usedByAddress[entry.address] = used
+        }
+    }
+
+    private func toggle(_ entry: ColdStorageAddressEntry) {
+        // Funded rows don't toggle - mirrors the manager-side guard.
+        guard entry.balanceSompi == 0 else { return }
+        Task {
+            let derivedMax = entries.map(\.index).max() ?? -1
+            if entry.index > derivedMax {
+                // A derived future index from the endless pager: reveal exactly this one
+                // (indices in between stay hidden so the main list doesn't flood).
+                manager.revealAddress(for: currentAccount, at: entry.index)
+                entries = await manager.getAddressList(for: currentAccount)
+            } else {
+                let ok = await manager.setAddressHidden(account: currentAccount, index: entry.index, hidden: !entry.hidden)
+                guard ok else { return }
+                if let position = entries.firstIndex(where: { $0.id == entry.id }) {
+                    var updated = entries[position]
+                    updated.hidden.toggle()
+                    entries[position] = updated
+                }
+            }
+        }
+    }
+}
+
+
+/// The half sheet behind an account's ellipsis, replacing the menu that was there.
+///
+/// Renaming happens in place rather than by dismissing into an alert: the sheet is already the
+/// context for "this account", and bouncing out to a system alert to type one word threw that
+/// away. Cancel walks back to the options rather than closing, so a mis-tap costs nothing.
+private struct ColdStorageAccountActionsSheet: View {
+    let account: ColdStorageAccount
+    let onCopyKpub: () -> Void
+    let onShowKpubQR: () -> Void
+    let onRename: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var isRenaming = false
+    @State private var nameText = ""
+    @FocusState private var nameFocused: Bool
+
+    private var trimmedName: String {
+        nameText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(isRenaming ? "Rename Account" : account.label)
+                .font(.headline)
+                .lineLimit(1)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+
+            if isRenaming { renameFields } else { options }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // One fixed height for both states: a detent that changes while the sheet is up
+        // resizes in a jump rather than animating, and the rename fields fit the options' height.
+        .fittedSheetDetents(300)
+        .presentationDragIndicator(.visible)
+        .animation(.easeInOut(duration: 0.2), value: isRenaming)
+    }
+
+    private var options: some View {
+        VStack(spacing: 12) {
+            ActionSheetRow(
+                title: "Copy kpub",
+                subtitle: "Puts the extended public key on the clipboard.",
+                systemImage: "doc.on.doc"
+            ) {
+                onCopyKpub()
+                dismiss()
+            }
+            ActionSheetRow(
+                title: "Show kpub QR",
+                subtitle: "Scan it into another device to watch this account there.",
+                systemImage: "qrcode"
+            ) {
+                onShowKpubQR()
+                dismiss()
+            }
+            ActionSheetRow(
+                title: "Rename",
+                subtitle: "Changes the name shown for this account.",
+                systemImage: "pencil"
+            ) {
+                nameText = account.label
+                isRenaming = true
+                // A turn later: the field does not exist yet on the tap that reveals it.
+                DispatchQueue.main.async { nameFocused = true }
+            }
+            // Per account, not all of cold storage at once: this account's receives alone.
+            ActionSheetRow(
+                title: account.notifyOnReceive ? "Turn Off Receive Notifications" : "Turn On Receive Notifications",
+                subtitle: account.notifyOnReceive
+                    ? "Stops notifying when this account receives Kaspa. Other accounts keep theirs."
+                    : "Notifies you when this account receives Kaspa.",
+                systemImage: account.notifyOnReceive ? "bell.slash" : "bell"
+            ) {
+                ColdStorageManager.shared.setNotifyOnReceive(!account.notifyOnReceive, for: account)
+                Haptics.selection()
+                dismiss()
+            }
+        }
+    }
+
+    private var renameFields: some View {
+        VStack(spacing: 12) {
+            TextField("Name", text: $nameText)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .focused($nameFocused)
+                .onSubmit(save)
+                .padding(14)
+                .background(glassBackground(cornerRadius: 16))
+
+            HStack(spacing: 12) {
+                Button("Cancel") { isRenaming = false }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.primary)
+                    .background(glassBackground(cornerRadius: 16))
+
+                Button("Save", action: save)
+                    .font(.subheadline.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.black)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.accentColor.opacity(trimmedName.isEmpty ? 0.4 : 1))
+                    )
+                    .disabled(trimmedName.isEmpty)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func save() {
+        guard !trimmedName.isEmpty else { return }
+        onRename(trimmedName)
+        Haptics.success()
+        dismiss()
+    }
+}
+
+/// The kpub of one cold-storage account, as a QR for moving it to another device or a watch-only
+/// wallet elsewhere.
+///
+/// Deliberately says what a kpub is. It holds no private key and cannot spend anything, which is
+/// why it is safe to display at all - but it derives EVERY address in the account, so whoever
+/// scans it can watch the whole balance and history forever. That is a privacy decision the
+/// person holding the phone should get to make knowingly, not discover later.
+private struct ColdStorageKpubQRView: View {
+    let account: ColdStorageAccount
+    @Environment(\.dismiss) private var dismiss
+    @State private var qrImage: UIImage?
+    @State private var toastMessage: String?
+    @State private var toastToken = UUID()
+
+    var body: some View {
+        NavigationStack {
+            Color.white
+                .ignoresSafeArea()
+                .overlay(
+                    VStack(spacing: 20) {
+                        Spacer()
+                        Group {
+                            if let qrImage {
+                                Image(uiImage: qrImage)
+                                    .interpolation(.none)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 260, height: 260)
+                            } else {
+                                ProgressView()
+                                    .frame(width: 260, height: 260)
+                            }
+                        }
+                        .padding(20)
+                        .background(Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.accentColor, lineWidth: 3)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+                        Text(account.kpubString)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundColor(Color.black.opacity(0.7))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+
+                        Text("Watch-only. This cannot spend, but it reveals every address in this account.")
+                            .font(.footnote)
+                            .foregroundColor(Color.black.opacity(0.45))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+
+                        Text("Tap anywhere to copy")
+                            .font(.footnote)
+                            .foregroundColor(Color.black.opacity(0.4))
+
+                        Spacer()
+                        Spacer()
+                    }
+                )
+                .contentShape(Rectangle())
+                .onTapGesture { copyKpub() }
+                .navigationTitle(account.label)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Close") { dismiss() }
+                    }
+                }
+                .onAppear { generateQR() }
+                .toast(message: toastMessage)
+        }
+    }
+
+    private func copyKpub() {
+        UIPasteboard.general.string = account.kpubString
+        Haptics.success()
+        showToast("kpub copied to clipboard.")
+    }
+
+    private func showToast(_ message: String) {
+        let token = UUID()
+        toastToken = token
+        withAnimation(.easeOut(duration: 0.2)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            if toastToken == token {
+                withAnimation(.easeIn(duration: 0.2)) {
+                    toastMessage = nil
+                }
+            }
+        }
+    }
+
+    private func generateQR() {
+        let kpub = account.kpubString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !kpub.isEmpty, let data = kpub.data(using: .utf8) else { return }
+
+        let filter = CIFilter.qrCodeGenerator()
+        filter.setValue(data, forKey: "inputMessage")
+        // "L" where the address QR uses "M": a kpub is several times longer, and at "M" the extra
+        // error-correction pushes the symbol into a denser version that scans worse on screen
+        // than the lower correction level does. Nothing is being transmitted over a lossy channel
+        // here - it is one screen photographed by one camera.
+        filter.setValue("L", forKey: "inputCorrectionLevel")
+
+        guard let outputImage = filter.outputImage else { return }
+        let scaled = outputImage.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
+        let context = CIContext()
+        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return }
+        qrImage = UIImage(cgImage: cgImage)
+    }
+}

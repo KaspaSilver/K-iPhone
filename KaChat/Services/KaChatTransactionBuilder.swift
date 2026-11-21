@@ -2,6 +2,26 @@ import Foundation
 import CryptoKit
 import P256K
 
+/// Public Chat channel name rules, matching the Android client's
+/// `MessageProtocol.normalizeChannelName`/`isValidChannelName`.
+enum PublicChatChannelName {
+    static let maxLength = 36
+
+    /// Normalize a channel name for comparison/storage: trimmed, lowercased.
+    static func normalize(_ raw: String) -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    /// Whether an (already-normalized) channel name is valid: non-empty, within length,
+    /// and free of whitespace/colons (colons are the payload field delimiter).
+    static func isValid(_ name: String) -> Bool {
+        guard !name.isEmpty, name.count <= maxLength else { return false }
+        guard name.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return false }
+        guard !name.contains(":") else { return false }
+        return true
+    }
+}
+
 /// Builds Kaspa transactions for Kasia messaging protocol
 struct KasiaTransactionBuilder {
 
@@ -235,6 +255,79 @@ struct KasiaTransactionBuilder {
         return estimateFee(payload: payload, inputCount: inputCount, outputs: [output]) + 3
     }
 
+    /// Build a public chat channel message transaction (KaChat 2.0 Public Chat feature).
+    /// Same self-stash shape as a contextual message, but the payload is plaintext -
+    /// public chats are public one-to-many channels, so pairwise encryption doesn't apply.
+    static func buildPublicChatTx(
+        from senderAddress: String,
+        channel: String,
+        content: String,
+        senderPrivateKey: Data,
+        utxos: [UTXO],
+        feeOverride: UInt64? = nil
+    ) throws -> KaspaRpcTransaction {
+        let payload = buildPublicChatPayload(channel: channel, content: content)
+
+        guard let senderScriptPubKey = KaspaAddress.scriptPublicKey(from: senderAddress) else {
+            throw KasiaError.invalidAddress
+        }
+
+        let selection = try selectUtxosForContextualMessage(
+            utxos: utxos,
+            payload: payload,
+            senderScriptPubKey: senderScriptPubKey,
+            feeOverride: feeOverride
+        )
+        let selectedUtxos = selection.utxos
+        let outputAmount = selection.totalInput - selection.fee
+
+        let outputs = [KaspaRpcTransactionOutput(
+            value: outputAmount,
+            scriptPublicKey: KaspaScriptPublicKey(version: 0, script: senderScriptPubKey)
+        )]
+
+        let unsignedTx = KaspaRpcTransaction(
+            version: 0,
+            inputs: selectedUtxos.map { utxo in
+                KaspaRpcTransactionInput(
+                    previousOutpoint: utxo.outpoint,
+                    signatureScript: Data(),
+                    sequence: 0,
+                    sigOpCount: 1
+                )
+            },
+            outputs: outputs,
+            lockTime: 0,
+            subnetworkId: standardSubnetworkId,
+            gas: 0,
+            payload: payload
+        )
+
+        return try signTransaction(unsignedTx, privateKey: senderPrivateKey, utxos: selectedUtxos)
+    }
+
+    /// Build the plaintext public chat payload: kchat:1:bcast:<channel>:<content> (the legacy
+    /// `ciph_msg:1:` root is read, never written)
+    static func buildPublicChatPayload(channel: String, content: String) -> Data {
+        Data("kchat:1:bcast:\(channel):\(content)".utf8)
+    }
+
+    /// Parse a decoded transaction payload string back into (channel, content).
+    /// Returns nil if the payload isn't a public chat message.
+    static func parsePublicChatPayload(_ payloadString: String) -> (channel: String, content: String)? {
+        // Dual-read: new `kchat:` root and legacy `ciph_msg:` root (tail identical).
+        let prefix: String
+        if payloadString.hasPrefix("kchat:1:bcast:") { prefix = "kchat:1:bcast:" }
+        else if payloadString.hasPrefix("ciph_msg:1:bcast:") { prefix = "ciph_msg:1:bcast:" }
+        else { return nil }
+        let rest = payloadString.dropFirst(prefix.count)
+        guard let colonIndex = rest.firstIndex(of: ":") else { return nil }
+        let channel = String(rest[rest.startIndex..<colonIndex])
+        let content = String(rest[rest.index(after: colonIndex)...])
+        guard !channel.isEmpty else { return nil }
+        return (channel, content)
+    }
+
     /// Build a self-spend compaction transaction for message UTXOs.
     /// Produces a single self output with empty payload to reduce future input count.
     static func buildMessageCompactionTx(
@@ -294,7 +387,9 @@ struct KasiaTransactionBuilder {
         changeAddress: String? = nil,
         /// Extra priority fee on top of the computed base fee (Fast/Priority tiers). Covered by
         /// input selection and left unclaimed by the outputs, so it becomes miner fee.
-        extraFeeSompi: UInt64 = 0
+        extraFeeSompi: UInt64 = 0,
+        /// The transaction's payload instead of `kchat:1:pay:` + the sealed note (a KaPosts tip).
+        payloadOverride: Data? = nil
     ) throws -> KaspaRpcTransaction {
         guard amount > 0 else {
             throw KasiaError.networkError("Amount must be greater than zero")
@@ -311,8 +406,9 @@ struct KasiaTransactionBuilder {
         AppLog.log("[TxBuilder]   amount: %llu sompi", amount)
         #endif
 
-        // Build payment payload (encrypted hex under kchat:1:pay:)
-        let paymentPayload = try buildPaymentPayload(message: note, amount: amount, recipientPublicKey: recipientPublicKey, senderPrivateKey: senderPrivateKey)
+        // Build payment payload (encrypted hex under kchat:1:pay:), or the caller's own (a
+        // KaPosts tip carries its sealed record inside a signed `kchat:1:tip:` payload)
+        let paymentPayload = try payloadOverride ?? buildPaymentPayload(message: note, amount: amount, recipientPublicKey: recipientPublicKey, senderPrivateKey: senderPrivateKey)
         #if DEBUG
         AppLog.log("[TxBuilder]   payload size: %d bytes", paymentPayload.count)
         AppLog.log("[TxBuilder]   payload hex (first 100): %@", paymentPayload.prefix(100).map { String(format: "%02x", $0) }.joined())
@@ -516,7 +612,8 @@ struct KasiaTransactionBuilder {
     /// conservative behavior of excluding coinbase entirely - callers that want to spend mining
     /// rewards must supply the current virtual DAA score.
     static func spendableForBuild(_ utxos: [UTXO], virtualDaaScore: UInt64?) -> [UTXO] {
-        utxos.filter { utxo in
+        // A coin a scheduled KaPost is waiting to spend is not available (KaPostsScheduledStore).
+        KaPostsScheduledStore.filterReserved(utxos).filter { utxo in
             guard utxo.isCoinbase else { return true }
             guard let vds = virtualDaaScore else { return false }
             // overflow (a nonsense DAA score from a node) counts as not yet mature
@@ -1275,7 +1372,8 @@ struct KasiaTransactionBuilder {
         senderScriptPubKey: Data,
         feeOverride: UInt64? = nil
     ) throws -> ContextualSelection {
-        let spendable = utxos.filter { !$0.isCoinbase && $0.covenantId == nil }
+        // A coin a scheduled KaPost is waiting to spend is not available (KaPostsScheduledStore).
+        let spendable = KaPostsScheduledStore.filterReserved(utxos).filter { !$0.isCoinbase && $0.covenantId == nil }
         let pending = spendable
             .filter { $0.blockDaaScore == 0 }
             .sorted { $0.amount > $1.amount }
@@ -1529,7 +1627,7 @@ struct KasiaTransactionBuilder {
         maxInputs: Int
     ) throws -> MessageCompactionSelection {
         let boundedMaxInputs = max(2, maxInputs)
-        let spendable = utxos.filter { !$0.isCoinbase }
+        let spendable = KaPostsScheduledStore.filterReserved(utxos).filter { !$0.isCoinbase }
         let confirmed = spendable
             .filter { $0.blockDaaScore > 0 }
             .sorted { $0.amount > $1.amount }
@@ -1624,7 +1722,7 @@ struct KasiaTransactionBuilder {
         // Every available UTXO as its own input (the external Kasia app's behaviour), largest
         // first and at most `maxInputsPerTransaction`: past ~89 inputs the node rejects the
         // transaction as over-mass with an opaque error (IOS-009).
-        let utxos = Array(utxos
+        let utxos = Array(KaPostsScheduledStore.filterReserved(utxos)
             .filter { !$0.isCoinbase }
             .sorted { $0.amount > $1.amount }
             .prefix(maxInputsPerTransaction))

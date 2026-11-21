@@ -56,6 +56,31 @@
 				<string>kachat</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.kachat.chess</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kachatchess</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.kachat.kaposts</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kaposts</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.kachat.wallet</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kapay</string>
+				<string>kachatwallet</string>
+			</array>
+		</dict>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

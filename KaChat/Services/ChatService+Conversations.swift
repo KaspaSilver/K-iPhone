@@ -1070,6 +1070,7 @@ extension ChatService {
         guard let pendingTxId else { return }
         noInputRetryCounts.removeValue(forKey: pendingTxId)
         scheduledSendRetries.remove(pendingTxId)
+        pendingTips.removeValue(forKey: pendingTxId)
     }
 
     func shouldAttemptMessageUtxoCompaction(
@@ -2457,6 +2458,17 @@ extension ChatService {
         }
     }
 
+    /// Holds back coins by outpoint key ("txid:index"), as `reserveSpentOutpoints` does: a
+    /// scheduled KaPost the indexer sent keeps its coins out of every pick until they confirm.
+    func reserveOutpointKeys(_ keys: [String]) {
+        let expiration = Date().addingTimeInterval(reservedOutpointTTL)
+        for key in keys {
+            reservedMessageOutpoints[key] = expiration
+            pendingMessageUtxos.removeValue(forKey: key)
+        }
+        invalidateUtxoCache()
+    }
+
     /// Called by `NodePoolService` just BEFORE a submit: the transaction's coins leave every pick
     /// while its submit runs, so a send running beside it (a name action, a payment) can't build
     /// on the same coins. Returns what each key held before, for `releaseSubmitHold`; a coin
@@ -2476,6 +2488,16 @@ extension ChatService {
         return held
     }
 
+    /// Holds coins by "txid:index" (a Trestly swap's inputs, which aren't `UTXO`s here) for as
+    /// long as a send's own, so the next send can't pick them.
+    func reserveOutpoints(_ keys: [String]) {
+        let expiration = Date().addingTimeInterval(reservedOutpointTTL)
+        for key in keys {
+            if let until = reservedMessageOutpoints[key], until > expiration { continue }
+            reservedMessageOutpoints[key] = expiration
+        }
+    }
+
     /// Every "txid:index" a send from this app is holding right now (kUSDT's coins aren't `UTXO`s,
     /// so they're filtered by key: `TokenWallet.apply`, `KusdtTransfer.prepare`).
     func heldOutpointKeys() -> Set<String> {
@@ -2487,6 +2509,19 @@ extension ChatService {
     func markUnknownOutcome(_ outpoints: [UTXO.Outpoint]) {
         let expiration = Date().addingTimeInterval(reservedOutpointTTL)
         for outpoint in outpoints { unknownOutcomeOutpoints[outpointKey(outpoint)] = expiration }
+    }
+
+    /// The coin an automatic pick should lead with after a "Not confirmed" send (KaPay's rule): one
+    /// of that send's coins, the largest, so the new send and the unconfirmed one conflict and at
+    /// most one lands. Nil when no such coin is among `spendable`.
+    func conflictingOutpoint(in spendable: [UTXO]) -> String? {
+        let now = Date()
+        unknownOutcomeOutpoints = unknownOutcomeOutpoints.filter { $0.value > now }
+        guard !unknownOutcomeOutpoints.isEmpty else { return nil }
+        return spendable
+            .filter { unknownOutcomeOutpoints[outpointKey($0.outpoint)] != nil }
+            .max { $0.amount < $1.amount }
+            .map { outpointKey($0.outpoint) }
     }
 
     /// Every "txid:index" a "Not confirmed" send spent and that may still land.
@@ -2713,6 +2748,9 @@ extension ChatService {
         sourceSpendingIndex: Int? = nil,
         /// Coin control: spend only these coins of the source address. nil = automatic.
         manualUtxos: [UTXO]? = nil,
+        /// A KaPosts tip: the payment names the post (KAPOSTS_INDEXER.md 5.11). Only from the
+        /// chatting address: with a `sourceSpendingIndex` it goes as a private payment instead.
+        tip: KaPostTip? = nil,
         /// The fee the Review showed (as in `sendWithdrawal`). nil holds it to nothing.
         expectedFeeSompi: UInt64? = nil
     ) async throws -> String? {
@@ -2728,6 +2766,7 @@ extension ChatService {
                 extraFeeSompi: extraFeeSompi,
                 sourceSpendingIndex: sourceSpendingIndex,
                 manualUtxos: manualUtxos,
+                tip: tip,
                 expectedFeeSompi: expectedFeeSompi,
                 ownerAddress: ownerAddress
             )
@@ -2748,6 +2787,7 @@ extension ChatService {
         extraFeeSompi: UInt64 = 0,
         sourceSpendingIndex: Int? = nil,
         manualUtxos: [UTXO]? = nil,
+        tip: KaPostTip? = nil,
         /// The Review's fee, nil for a deferred retry: no Review is on screen to go back to.
         expectedFeeSompi: UInt64? = nil,
         /// The account this payment was queued under: it never signs as another one.
@@ -2756,6 +2796,10 @@ extension ChatService {
         guard amountSompi > 0 else {
             throw KasiaError.networkError("Amount must be greater than zero")
         }
+        // A tip stays a tip on a retry (which knows only the pending id). Only one from the
+        // chatting address is a tip (KAPOSTS_INDEXER.md 5.11): from another address it's a
+        // private payment, which doesn't name the post or count on it.
+        let tip = sourceSpendingIndex == nil ? (tip ?? pendingTxId.flatMap { pendingTips[$0] }) : nil
         guard let wallet = WalletManager.shared.currentWallet else {
             throw KasiaError.walletNotFound
         }
@@ -2832,6 +2876,7 @@ extension ChatService {
         }
 
         let activePendingTxId = pendingTxId ?? "pending_\(UUID().uuidString)"
+        if let tip { pendingTips[activePendingTxId] = tip }
         let pendingMessageId: UUID
         if pendingTxId == nil {
             let formattedAmount = formatKasAmount(amountSompi)
@@ -2919,6 +2964,18 @@ extension ChatService {
             // chat about it right after (`sendSpendingPaymentNotice`): the payee has never seen
             // that address, so a chat payment from it would open a stranger's Message Request on
             // their side instead of landing in this chat (XP-022).
+            // A tip: the same sealed note, inside a signed payload that names the post.
+            var tipPayload: Data?
+            if let tip {
+                let sealed = try KasiaTransactionBuilder.sealedPaymentHex(message: note, amount: amountSompi, recipientPublicKey: recipientPublicKey, senderPrivateKey: sourcePrivateKey)
+                let pubkey = try KaPostsAPIClient.shared.requesterPubkey()
+                let signature = try WalletManager.shared.signArbitraryMessage(
+                    KaPostsProtocol.tipSigningString(postId: tip.postId, authorPubkey: tip.authorPubkey, sealedHex: sealed),
+                    mode: .kaspaPersonalMessage
+                )
+                tipPayload = Data(KaPostsProtocol.tipPayload(pubkey: pubkey, signature: signature, postId: tip.postId,
+                                                             authorPubkey: tip.authorPubkey, sealedHex: sealed).utf8)
+            }
             let tx: KaspaRpcTransaction
             if fromChattingAddress {
                 tx = try KasiaTransactionBuilder.buildPaymentTx(
@@ -2930,7 +2987,8 @@ extension ChatService {
                     recipientPublicKey: recipientPublicKey,
                     utxos: spendable,
                     changeAddress: changeAddress,
-                    extraFeeSompi: extraFeeSompi
+                    extraFeeSompi: extraFeeSompi,
+                    payloadOverride: tipPayload
                 )
             } else {
                 // A quantum-safe source (KIP-22) spends with its redeem script pushed after the
@@ -3254,14 +3312,22 @@ extension ChatService {
     private func withdrawalSpendableUtxos(for address: String) async throws -> [UTXO] {
         let utxos = try await NodePoolService.shared.getUtxosByAddresses([address])
         updateWalletBalanceIfNeeded(address: address, utxos: utxos)
-        return unreservedUtxos(utxos.filter { $0.blockDaaScore > 0 && !$0.isCoinbase })
+        return withdrawalSpendable(utxos)
+    }
+
+    /// What a plain send from the chatting address may spend out of `utxos`: confirmed, not mining
+    /// rewards, not held by a scheduled KaPost and not just spent by this app (`unreservedUtxos`).
+    func withdrawalSpendable(_ utxos: [UTXO]) -> [UTXO] {
+        unreservedUtxos(utxos.filter { $0.blockDaaScore > 0 && !$0.isCoinbase })
     }
 
     /// Leaves out coins a transaction from this app has just spent (`reservedMessageOutpoints`):
-    /// the node goes on listing them until that spend is in a block.
+    /// the node goes on listing them until that spend is in a block. Coins a scheduled KaPost
+    /// holds are left out too (`KaPostsScheduledStore.filterReserved`): its signed transaction
+    /// spends them later.
     func unreservedUtxos(_ utxos: [UTXO]) -> [UTXO] {
         let now = Date()
-        return utxos.filter { utxo in
+        return KaPostsScheduledStore.filterReserved(utxos).filter { utxo in
             // A covenant-bound coin can only be spent under its covenant's rules: never in a
             // plain send, message or record.
             guard utxo.covenantId == nil else { return false }
@@ -3888,15 +3954,23 @@ extension ChatService {
         return messageFee
     }
 
-    /// The payload a payment will carry, for pricing it.
-    private func estimationPayload(note: String, amount: UInt64, recipientPublicKey: Data) throws -> Data {
-        try KasiaTransactionBuilder.buildPaymentPayload(message: note, amount: amount, recipientPublicKey: recipientPublicKey)
+    /// The payload a payment will carry, for pricing it: a tip carries the larger `kchat:1:tip:`
+    /// one (signed, naming the post), so it is built the same way with a stand-in signature of
+    /// the real length instead of asking for one.
+    private func estimationPayload(note: String, amount: UInt64, recipientPublicKey: Data, tip: KaPostTip? = nil) throws -> Data {
+        guard let tip else {
+            return try KasiaTransactionBuilder.buildPaymentPayload(message: note, amount: amount, recipientPublicKey: recipientPublicKey)
+        }
+        let sealed = try KasiaTransactionBuilder.sealedPaymentHex(message: note, amount: amount, recipientPublicKey: recipientPublicKey)
+        let pubkey = (try? KaPostsAPIClient.shared.requesterPubkey()) ?? String(repeating: "0", count: 66)
+        return Data(KaPostsProtocol.tipPayload(pubkey: pubkey, signature: String(repeating: "0", count: 128), postId: tip.postId,
+                                               authorPubkey: tip.authorPubkey, sealedHex: sealed).utf8)
     }
 
     /// The base (Normal) fee; a Fast / Priority / custom extra goes on top (see the Send KAS sheet).
     /// With `extraFeeSompi`, the estimate is built the way the send will be (see
     /// `KasiaTransactionBuilder.estimatePaymentFee`); its network fee includes the extra.
-    func estimatePaymentFee(to contact: Contact, amountSompi: UInt64, note: String = "", sourceSpendingIndex: Int? = nil, manualUtxos: [UTXO]? = nil, extraFeeSompi: UInt64 = 0) async throws -> SendFeeEstimate {
+    func estimatePaymentFee(to contact: Contact, amountSompi: UInt64, note: String = "", sourceSpendingIndex: Int? = nil, manualUtxos: [UTXO]? = nil, extraFeeSompi: UInt64 = 0, tip: KaPostTip? = nil) async throws -> SendFeeEstimate {
         guard amountSompi > 0 else { throw KasiaError.networkError("Amount is zero") }
         // Must source from whatever `sendPaymentInternal` will actually spend from - the
         // spending chain with Chats Payment Privacy ON, the chatting address with it OFF (see
@@ -3908,7 +3982,7 @@ extension ChatService {
             throw KasiaError.invalidAddress
         }
 
-        let payload = try estimationPayload(note: note, amount: amountSompi, recipientPublicKey: recipientPublicKey)
+        let payload = try estimationPayload(note: note, amount: amountSompi, recipientPublicKey: recipientPublicKey, tip: tip)
         // The coins the send itself picks from, read fresh: the 20-second cache still lists coins
         // a message or send just spent.
         let candidates = try await withdrawalSpendableUtxos(for: sourceAddress)
@@ -3973,7 +4047,10 @@ extension ChatService {
     /// Calculate maximum sendable amount (balance - fee for send-all transaction with no change output)
     /// `cappedAtInputLimit`: the source holds more coins than one transaction can spend, so Max is
     /// what its largest `maxInputsPerTransaction` carry.
-    func estimateMaxPaymentAmount(to contact: Contact, note: String = "", sourceSpendingIndex: Int? = nil, manualUtxos: [UTXO]? = nil, extraFeeSompi: UInt64 = 0) async throws -> (amountSompi: UInt64, cappedAtInputLimit: Bool) {
+    /// With a `feeMultiplier` (Fast, Priority; KaPosts' tip sheet), the extra is priced on this
+    /// Max's own coins, base x (multiplier - 1), the way the Review prices it; `extraFeeSompi` is
+    /// then ignored.
+    func estimateMaxPaymentAmount(to contact: Contact, note: String = "", sourceSpendingIndex: Int? = nil, manualUtxos: [UTXO]? = nil, extraFeeSompi: UInt64 = 0, feeMultiplier: UInt64? = nil, tip: KaPostTip? = nil) async throws -> (amountSompi: UInt64, cappedAtInputLimit: Bool) {
         // Same toggle-aware sourcing as `estimatePaymentFee` above - see its doc comment.
         let sourceAddress = try paymentFundingSourceAddress(spendingIndex: sourceSpendingIndex)
         guard let recipientPublicKey = KaspaAddress.publicKey(from: contact.address) else {
@@ -3997,7 +4074,7 @@ extension ChatService {
         }
 
         // Build payload with a placeholder amount (doesn't affect fee calculation significantly)
-        let payload = try estimationPayload(note: note, amount: totalBalance, recipientPublicKey: recipientPublicKey)
+        let payload = try estimationPayload(note: note, amount: totalBalance, recipientPublicKey: recipientPublicKey, tip: sourceSpendingIndex == nil ? tip : nil)
 
         // Calculate fee for send-all (uses 2 outputs to match selectUtxosForPayment behavior)
         let fee = KasiaTransactionBuilder.estimateSendAllFee(
@@ -4010,7 +4087,8 @@ extension ChatService {
         )
 
         // Leave room for a Fast / Priority / custom extra on top of the base fee.
-        let totalFee = fee + extraFeeSompi
+        let extra = feeMultiplier.map { $0 > 1 ? fee.multipliedReportingOverflow(by: $0 - 1).partialValue : 0 } ?? extraFeeSompi
+        let totalFee = fee + extra
         guard totalBalance > totalFee else {
             throw KasiaError.networkError("Balance too low to cover fee")
         }
@@ -5545,4 +5623,10 @@ enum DeletedMessageLog {
             UserDefaults.standard.removeObject(forKey: key)
         }
     }
+}
+
+/// The post a KaPosts tip is for (KAPOSTS_INDEXER.md 5.11): its txid and its author's pubkey.
+struct KaPostTip: Equatable {
+    let postId: String
+    let authorPubkey: String
 }

@@ -1,0 +1,318 @@
+import SwiftUI
+
+/// One tournament: the bracket and the players. A player is taken straight to their game the
+/// moment it exists (round 1 at the eighth join; later rounds when the pair's other game ends),
+/// and can tap any game to watch it meanwhile. Waiting for a room to fill happens in
+/// ChessWaitingRoomView, which covers everything until it does.
+struct ChessTournamentView: View {
+    let tournamentId: String
+    @ObservedObject private var service = ChessTournamentService.shared
+    @EnvironmentObject private var walletManager: WalletManager
+    @State private var openGameId: String?
+    @State private var autoOpenedGameId: String?
+    @State private var isJoining = false
+    @State private var showCancelConfirm = false
+
+    private var tournament: ChessTournament? { service.tournaments[tournamentId] }
+    private var me: String? { walletManager.currentWallet?.publicAddress }
+
+    var body: some View {
+        Group {
+            if let tournament {
+                content(tournament)
+            } else {
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("Loading the tournament from the arena…")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .fixedScreenTitle(titleText)
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(titleText)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { BalanceToolbarLabel() }
+        }
+        .navigationDestination(isPresented: Binding(
+            get: { openGameId != nil },
+            set: { if !$0 { openGameId = nil } }
+        )) {
+            if let gameId = openGameId {
+                ChessTournamentGameView(tournamentId: tournamentId, gameId: gameId)
+            }
+        }
+        .onAppear { service.acquire() }
+        .onDisappear { service.release() }
+        // The player's game came into being: open it (once per game).
+        .onChange(of: tournament?.games.count) { _ in autoOpenMyGameIfNeeded() }
+        // The cool-down runs out: the arena's clock, without observing it (a tick must not
+        // redraw this screen).
+        .onReceive(ChessClock.shared.$now) { _ in autoOpenMyGameIfNeeded() }
+        .onAppear { autoOpenMyGameIfNeeded() }
+    }
+
+    /// The player's next game, waiting on its cool-down: it opens at its start block time plus
+    /// `matchFoundDelayMs` - ten seconds on the bracket, the same instant for both players -
+    /// and immediately when a player arrives after that.
+    private var nextGameCountdownMs: Int64? {
+        guard let tournament, let me, let game = tournament.currentGame(for: me), !game.isOver else { return nil }
+        let left = game.startedAt + ChessTournamentCodec.matchFoundDelayMs - service.now
+        return left > 0 ? left : nil
+    }
+
+    private func autoOpenMyGameIfNeeded() {
+        guard let tournament, let me, let game = tournament.currentGame(for: me), !game.isOver,
+              autoOpenedGameId != game.id, nextGameCountdownMs == nil else { return }
+        autoOpenedGameId = game.id
+        Haptics.success()
+        openGameId = game.id
+    }
+
+    private var titleText: Text {
+        tournament.map { Text(verbatim: $0.displayName) } ?? Text("Tournament")
+    }
+
+    /// Contact name, then KNS domain, then the shortened address - for the player too.
+    private func name(for address: String) -> String {
+        ContactsManager.shared.displayName(for: address)
+    }
+
+    @ViewBuilder
+    private func content(_ tournament: ChessTournament) -> some View {
+        List {
+            Section {
+                statusRow(tournament)
+            }
+            if tournament.status == .open {
+                let seated = tournament.seatedPlayers(at: service.now)
+                Section("Players (\(seated.count) of \(tournament.capacity))") {
+                    // By address: a seat that runs out shifts the ones after it.
+                    ForEach(Array(seated.enumerated()), id: \.element) { index, address in
+                        playerRow(seed: index + 1, address: address)
+                    }
+                    ForEach(0..<max(0, tournament.capacity - seated.count), id: \.self) { _ in
+                        HStack(spacing: 12) {
+                            Circle().strokeBorder(Color.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4]))
+                                .frame(width: 36, height: 36)
+                            Text("Open seat").foregroundColor(.secondary)
+                        }
+                    }
+                }
+            } else if tournament.isDuel {
+                Section("Game") {
+                    ForEach(tournament.games(inRound: 1)) { game in
+                        gameRow(game, tournament: tournament)
+                    }
+                }
+            } else {
+                Section {
+                    ChessBracketView(tournament: tournament, me: me, now: service.now) { gameId in
+                        openGameId = gameId
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                } header: {
+                    Text("Bracket · tap a game to watch")
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .confirmationDialog("Cancel this tournament?", isPresented: $showCancelConfirm, titleVisibility: .visible) {
+            Button("Cancel tournament", role: .destructive) { Task { await service.cancel(tournament) } }
+            Button("Keep it", role: .cancel) {}
+        } message: {
+            Text("Everyone who joined is released. This is one transaction.")
+        }
+        .toast(message: service.lastError, style: .error)
+    }
+
+    @ViewBuilder
+    private func statusRow(_ tournament: ChessTournament) -> some View {
+        switch tournament.status {
+        case .open:
+            VStack(alignment: .leading, spacing: 8) {
+                Text(verbatim: tournament.isDuel
+                     ? ChessText.string("Waiting for your opponent. The game starts by itself when they join.")
+                     : (tournament.seatsLeft == 1
+                        ? ChessText.string("Waiting for 1 more player. It starts by itself when the eighth joins.")
+                        : ChessText.format("Waiting for %lld more players. It starts by itself when the eighth joins.", tournament.seatsLeft)))
+                    .font(.subheadline)
+                if let me, !tournament.isSeated(me, at: service.now) {
+                    Button {
+                        guard !isJoining else { return }
+                        isJoining = true
+                        Task { await service.join(tournament); isJoining = false }
+                    } label: {
+                        Text(verbatim: isJoining ? ChessText.string("Joining…") : service.joinLabel(roomId: tournament.id))
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color.accentColor)
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
+                if tournament.creator == me, !tournament.isPublic {
+                    Button("Cancel tournament", role: .destructive) { showCancelConfirm = true }
+                        .font(.subheadline)
+                }
+                if !tournament.isPublic {
+                    HStack(spacing: 8) {
+                        Text("Code: \(tournament.id)")
+                            .font(.subheadline.monospaced().weight(.semibold))
+                        Spacer()
+                        Button {
+                            UIPasteboard.general.string = tournament.id
+                            Haptics.success()
+                        } label: {
+                            Label("Copy", systemImage: "doc.on.doc").font(.caption.weight(.semibold))
+                        }
+                        ShareLink(item: ChessText.invite(for: tournament)) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+            }
+        case .live:
+            if let me, let game = tournament.currentGame(for: me) {
+                if game.isOver {
+                    if game.winner == me {
+                        Text(verbatim: wonText(round: game.round))
+                            .font(.subheadline)
+                    } else {
+                        Text("You are out of this tournament. Watch the rest of the bracket.")
+                            .font(.subheadline)
+                    }
+                } else {
+                    // Cool-down on the bracket before the next round (who it is, and when), then
+                    // the way to the game. Its own view: the countdown is redrawn every second.
+                    ChessNextGameRow(
+                        opensAt: game.startedAt + ChessTournamentCodec.matchFoundDelayMs,
+                        title: nextText(round: game.round, opponent: name(for: game.address(of: game.color(of: me) == .white ? .black : .white)))
+                    ) {
+                        openGameId = game.id
+                    }
+                }
+            } else {
+                Text("In play. Tap any game to watch it live.")
+                    .font(.subheadline)
+            }
+        case .finished:
+            if let champion = tournament.champion {
+                Label(tournament.isDuel ? ChessText.format("%@ won", name(for: champion)) : ChessText.format("%@ won the tournament", name(for: champion)), systemImage: "trophy.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.orange)
+            }
+        case .cancelled:
+            Text("Cancelled by the creator.").font(.subheadline).foregroundColor(.secondary)
+        }
+    }
+
+    /// A whole sentence per round, so a translation never has to fit "the final" into a gap.
+    private func wonText(round: Int) -> String {
+        guard let tournament, !tournament.isDuel else {
+            return ChessText.string("You won the game. Waiting for your next opponent - watch the other game meanwhile.")
+        }
+        switch round {
+        case 3: return ChessText.string("You won the final. Waiting for your next opponent - watch the other game meanwhile.")
+        case 2: return ChessText.string("You won the semifinal. Waiting for your next opponent - watch the other game meanwhile.")
+        default: return ChessText.string("You won round 1. Waiting for your next opponent - watch the other game meanwhile.")
+        }
+    }
+
+    private func nextText(round: Int, opponent: String) -> String {
+        guard let tournament, !tournament.isDuel else { return ChessText.format("Next: the game vs %@", opponent) }
+        switch round {
+        case 3: return ChessText.format("Next: the final vs %@", opponent)
+        case 2: return ChessText.format("Next: the semifinal vs %@", opponent)
+        default: return ChessText.format("Next: round 1 vs %@", opponent)
+        }
+    }
+
+    private func playerRow(seed: Int, address: String) -> some View {
+        HStack(spacing: 12) {
+            KNSAvatarView(
+                avatarURLString: KNSService.shared.profileCache[address]?.avatarURL,
+                fallbackText: ContactsManager.shared.displayName(for: address),
+                size: 36,
+                contactAddress: address
+            )
+            Text(name(for: address)).font(.subheadline.weight(.semibold))
+            Spacer()
+            Text("Seed \(seed)").font(.caption).foregroundColor(.secondary)
+        }
+    }
+
+    private func gameRow(_ game: ChessTournamentGame, tournament: ChessTournament) -> some View {
+        Button {
+            openGameId = game.id
+        } label: {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(name(for: game.white)).fontWeight(game.winner == game.white ? .bold : .regular)
+                        Text("vs").foregroundColor(.secondary)
+                        Text(name(for: game.black)).fontWeight(game.winner == game.black ? .bold : .regular)
+                    }
+                    .font(.subheadline)
+                    .lineLimit(1)
+                    Text(verbatim: game.isOver ? ChessText.resultSummary(game, now: service.now, name: name(for:)) : ChessText.moveLine(game))
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                Spacer()
+                if !game.isOver {
+                    ChessLiveClockText(game: game)
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.secondary)
+                }
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundColor(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+}
+
+/// The player's next game on the bracket: "Next: the semifinal vs …" with the seconds until it
+/// opens (`matchFoundDelayMs` after its start, the same instant for both players), then "Go to
+/// your game". It alone observes the arena's clock.
+private struct ChessNextGameRow: View {
+    let opensAt: Int64
+    let title: String
+    let onOpen: () -> Void
+    @ObservedObject private var clock = ChessClock.shared
+
+    var body: some View {
+        let left = opensAt - clock.now
+        if left > 0 {
+            let seconds = Int((left + 999) / 1000)
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: title)
+                        .font(.subheadline.weight(.semibold))
+                    Text("Your game starts in")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Text(verbatim: "\(seconds)")
+                    .font(.scaled(size: 34, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundColor(.accentColor)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.2), value: seconds)
+            }
+        } else {
+            Button(action: onOpen) {
+                Label("Go to your game", systemImage: "play.fill")
+                    .font(.subheadline.weight(.semibold))
+            }
+        }
+    }
+}

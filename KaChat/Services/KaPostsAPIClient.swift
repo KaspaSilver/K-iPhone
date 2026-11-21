@@ -1,0 +1,1764 @@
+import Foundation
+import P256K
+import UIKit
+import UserNotifications
+
+/// REST client for the K social-network indexer (Settings > Connection Settings > KaPost
+/// Indexer URL, default mainnet.kaspatalk.net) - the read side of KaPosts wiring.
+///
+/// Division of responsibilities (deliberate):
+/// - The K indexer supplies SOCIAL data only: posts, replies, votes, follows, counts.
+/// - KNS supplies ALL identity: names/avatars/profiles. Responses' `userNickname` /
+///   `userProfileImage` fields are ignored entirely - a poster's identity is derived by mapping
+///   their pubkey to a Kaspa address and resolving through the app's existing KNS/contacts chain.
+/// - Writes never touch this API: every K action is an on-chain Kaspa self-send transaction
+///   whose payload the indexer ingests from the chain (Phase B - see KaPostsProtocol notes).
+///
+/// EXCLUSIVITY: KaPosts is KaChat-only. KaChat-authored posts carry an invisible marker
+/// (word-joiner) prefixed to the message content, and every feed read here filters to marked
+/// posts - so K-website content never appears in KaPosts. (Full two-way exclusivity - K users
+/// not seeing KaChat posts - requires running our own indexer fork later.)
+@MainActor
+final class KaPostsAPIClient: ObservableObject {
+    static let shared = KaPostsAPIClient()
+    private init() {}
+
+    // MARK: - KaChat exclusivity marker
+
+    /// U+2060 WORD JOINER: invisible everywhere, survives base64 round-trips, and comes back in
+    /// `postContent` so feeds can filter on it (the raw tx payload is NOT exposed by the API,
+    /// which is why the marker must live inside the message itself).
+    /// `nonisolated` because these three are pure string work on a constant, and the payload
+    /// parser that reads a shared post off the chain (`KaPostsProtocol.parseChainPayload`) is not
+    /// on the main actor - the class is only `@MainActor` for the published API state around it.
+    nonisolated static let kaChatMarker = "\u{2060}"
+
+    nonisolated static func isKaChatContent(_ text: String) -> Bool {
+        text.hasPrefix(kaChatMarker)
+    }
+
+    nonisolated static func stripMarker(_ text: String) -> String {
+        text.hasPrefix(kaChatMarker) ? String(text.dropFirst(kaChatMarker.count)) : text
+    }
+
+    // MARK: - Errors
+
+    enum KaPostsAPIError: LocalizedError {
+        case badURL
+        case api(code: String, message: String)
+        case badResponse
+        case missingWallet
+        /// No KaPost indexer on this network (testnet has none yet).
+        case noIndexer
+        /// The payload can't fit one transaction (`payloadFitsOneTransaction`).
+        case tooLong
+        /// The action was made as another account than the one open now: never signed or sent.
+        case accountChanged
+
+        /// The indexer's own "nothing like that here" answer (`NOT_FOUND`): for a cancel, it
+        /// holds no still-scheduled post with that id. Every other answer (rate limit, bad
+        /// signature, storage error) says nothing about whether it will still send it.
+        var isNotFound: Bool {
+            if case .api(let code, _) = self { return code == "NOT_FOUND" }
+            return false
+        }
+
+        var errorDescription: String? {
+            switch self {
+            case .noIndexer: return "KaPost isn't available on Testnet yet"
+            case .tooLong: return AppLocalization.string("This post is too long for one transaction. Shorten it and try again.")
+            case .badURL: return "Invalid KaPost indexer URL"
+            case .api(_, let message): return message
+            case .badResponse: return "Unexpected response from the KaPost indexer"
+            case .missingWallet: return "No active wallet"
+            case .accountChanged: return AppLocalization.string("The account changed, so this wasn't sent.")
+            }
+        }
+    }
+
+    // MARK: - Wire models (verbatim K field names; identity fields deliberately ignored)
+
+    /// Embedded reference the indexer attaches to quote posts - the quoted post's id, content
+    /// and author, so feeds can render the quote card without a second fetch.
+    struct KQuoteRef: Decodable {
+        let referencedContentId: String?
+        let referencedMessage: String?
+        let referencedSenderPubkey: String?
+
+        var decodedMessage: String? {
+            guard let referencedMessage,
+                  let data = Data(base64Encoded: referencedMessage),
+                  let text = String(data: data, encoding: .utf8) else { return nil }
+            return text
+        }
+    }
+
+    struct KPost: Decodable {
+        let id: String
+        let userPublicKey: String
+        let postContent: String
+        let timestamp: Int64
+        let repliesCount: Int?
+        let quotesCount: Int?
+        let upVotesCount: Int?
+        let downVotesCount: Int?
+        /// How many times it was tipped (KAPOSTS_INDEXER.md 5.11); absent on an older indexer.
+        let tipsCount: Int?
+        let parentPostId: String?
+        let mentionedPubkeys: [String]?
+        let isUpvoted: Bool?
+        let isDownvoted: Bool?
+        let blockedUser: Bool?
+        let contentType: String?
+        let isQuote: Bool?
+        let quote: KQuoteRef?
+        /// Set by the KaChat indexer when the content shown is an accepted edit (ms). The
+        /// `postContent` is then the edited text; `timestamp` stays the original's.
+        let editedAt: Int64?
+        /// Present when this post is a poll (KAPOSTS_INDEXER.md §5.9): options, current counts,
+        /// the requester's vote, and when voting closes.
+        let poll: KPoll?
+
+        /// Base64 -> plain text (K encodes all content fields).
+        var decodedContent: String? {
+            guard let data = Data(base64Encoded: postContent),
+                  let text = String(data: data, encoding: .utf8) else { return nil }
+            return text
+        }
+    }
+
+    /// The indexer's poll object (§5.9). `options` are base64, like every content field.
+    struct KPoll: Decodable {
+        let options: [String]
+        let counts: [Int]?
+        let total: Int?
+        let closesAt: Int64
+        let myVote: Int?
+
+        var decodedOptions: [String] {
+            options.map { Data(base64Encoded: $0).flatMap { String(data: $0, encoding: .utf8) } ?? "" }
+        }
+    }
+
+    /// One row of `GET /scheduled-posts` (§5.10).
+    struct KScheduledPost: Decodable {
+        let txId: String
+        let notBefore: Int64
+        let status: String
+        let submittedAt: Int64?
+        let error: String?
+        let postContent: String?
+    }
+
+    struct KPagination: Decodable {
+        let hasMore: Bool
+        let nextCursor: String?
+        let prevCursor: String?
+    }
+
+    private struct PostsResponse: Decodable {
+        let posts: [KPost]
+        let pagination: KPagination?
+    }
+
+    /// `get-post?id=` - one post, any age, any author.
+    private struct PostResponse: Decodable {
+        let post: KPost
+    }
+
+    /// `get-thread?id=` - the post plus its ancestor chain, ROOT FIRST, excluding the post itself.
+    private struct ThreadResponse: Decodable {
+        let ancestors: [KPost]?
+        let post: KPost
+    }
+
+    private struct RepliesResponse: Decodable {
+        let replies: [KPost]
+        let pagination: KPagination?
+    }
+
+    struct KNotification: Decodable {
+        let id: String
+        let userPublicKey: String
+        let postContent: String?
+        let timestamp: Int64
+        let contentType: String?
+        let voteType: String?
+        let contentId: String?
+        /// contentType "tip" only: what the tip paid you, in sompi (contentId = the tipped post).
+        let tipAmountSompi: UInt64?
+
+        var decodedContent: String? {
+            guard let postContent, let data = Data(base64Encoded: postContent),
+                  let text = String(data: data, encoding: .utf8) else { return nil }
+            return text
+        }
+    }
+
+    private struct NotificationsResponse: Decodable {
+        let notifications: [KNotification]
+        /// Present on the K webserver's paginated notifications response; optional so older
+        /// deployments (no pagination block) simply read as "one page, no more".
+        let pagination: KPagination?
+    }
+
+    /// One actor row from get-post-engagement (KaChat indexer fork): who did what to a post,
+    /// with the ACTION's txid for explorer deep-links.
+    struct KEngagementEntry: Decodable {
+        let actorPubkey: String
+        let actionTxId: String
+        let timestamp: Int64
+        let kind: String    // upvote | downvote | repost | quote
+    }
+
+    private struct EngagementResponse: Decodable {
+        let engagement: [KEngagementEntry]
+        let pagination: KPagination?
+    }
+
+    struct KFollowUser: Decodable, Identifiable {
+        let userPublicKey: String
+        let timestamp: Int64?
+        var id: String { userPublicKey }
+    }
+
+    /// The users-list endpoints wrap their items under "posts" (verified live) - keep the other
+    /// plausible keys as fallbacks in case deployments differ.
+    private struct FollowListResponse: Decodable {
+        let posts: [KFollowUser]?
+        let users: [KFollowUser]?
+        let following: [KFollowUser]?
+        let followers: [KFollowUser]?
+        let pagination: KPagination?
+        var items: [KFollowUser] { posts ?? users ?? following ?? followers ?? [] }
+    }
+
+    struct KUserDetails: Decodable {
+        let userPublicKey: String?
+        let followersCount: Int?
+        let followingCount: Int?
+        let followedUser: Bool?
+    }
+
+    private struct APIErrorBody: Decodable {
+        let error: String
+        let code: String
+    }
+
+    // MARK: - Requester identity (own compressed pubkey, derived once per wallet)
+
+    private var cachedRequesterPubkey: String?
+    private var cachedRequesterAddress: String?
+
+    /// K identifies users by 66-hex COMPRESSED secp256k1 pubkey. The wallet stores x-only, so
+    /// derive compressed from the private key and cache per wallet address.
+    func requesterPubkey() throws -> String {
+        guard let wallet = WalletManager.shared.currentWallet else { throw KaPostsAPIError.missingWallet }
+        if let cached = cachedRequesterPubkey, cachedRequesterAddress == wallet.publicAddress {
+            return cached
+        }
+        guard let privateKeyData = WalletManager.shared.getPrivateKey() else {
+            throw KaPostsAPIError.missingWallet
+        }
+        let signingKey = try P256K.Schnorr.PrivateKey(dataRepresentation: privateKeyData)
+        // P256K Schnorr public keys expose the x-only bytes; compressed = parity prefix + x.
+        // Recover the full compressed form via the ECDSA key view of the same scalar.
+        let ecdsaKey = try P256K.Signing.PrivateKey(dataRepresentation: privateKeyData, format: .compressed)
+        let compressed = ecdsaKey.publicKey.dataRepresentation.hexString
+        _ = signingKey // same scalar; kept for clarity that Schnorr signing uses this key later
+        cachedRequesterPubkey = compressed
+        cachedRequesterAddress = wallet.publicAddress
+        return compressed
+    }
+
+    // MARK: - Identity mapping (K pubkey -> Kaspa address, so KNS owns display)
+
+    /// Compressed (02/03 + x) or raw x-only pubkey hex -> Kaspa address for the current network.
+    /// This is THE bridge that keeps identity in KNS: every K pubkey is mapped to an address and
+    /// then resolved through the app's normal contacts/KNS chain.
+    static func kaspaAddress(fromPubkey pubkeyHex: String) -> String? {
+        guard let raw = Data(hexString: pubkeyHex) else { return nil }
+        let xOnly: Data
+        if raw.count == 33 {
+            xOnly = raw.dropFirst()
+        } else if raw.count == 32 {
+            xOnly = raw
+        } else {
+            return nil
+        }
+        let hrp = AppSettings.load().networkType == .mainnet ? "kaspa" : "kaspatest"
+        return KaspaAddress(hrp: hrp, type: .pubKey, payload: xOnly).address
+    }
+
+    // MARK: - Requests
+
+    /// Whether this network has a KaPost indexer to talk to. A blank setting means the shipped
+    /// default on mainnet and "none" on testnet - never the mainnet indexer, which would serve
+    /// mainnet posts under testnet addresses and never see testnet posts.
+    static var hasIndexer: Bool {
+        let settings = AppSettings.load()
+        return settings.networkType == .mainnet
+            || !settings.kaPostIndexerURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func baseURL() throws -> URL {
+        let settings = AppSettings.load()
+        let raw = settings.kaPostIndexerURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.isEmpty && settings.networkType != .mainnet { throw KaPostsAPIError.noIndexer }
+        guard let url = URL(string: raw.isEmpty ? AppSettings.defaultKaPostIndexerURL : raw) else {
+            throw KaPostsAPIError.badURL
+        }
+        return url
+    }
+
+    private func get<T: Decodable>(_ path: String, query: [String: String]) async throws -> T {
+        let base = try baseURL()
+        var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)
+        components?.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        guard let url = components?.url else { throw KaPostsAPIError.badURL }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+        let pageKey = KaPostsPageCache.key(base: base, path: path, query: query)
+        let health = KaPostsIndexerHealth.shared
+        // Confirmed down: the saved page at once, not after a timeout. The probe looks for its
+        // return. With nothing saved it's still asked, briefly: any answer ends the outage.
+        if health.isDown {
+            if let saved: T = await savedPage(pageKey) { return saved }
+            request.timeoutInterval = 6
+        }
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            health.note(error)
+            // A saved page only for a confirmed outage or a phone with no connection. Any other
+            // failure throws as it always did, so the caller asks the indexer again.
+            if health.isDown || KaPostsIndexerHealth.meansOffline(error), let saved: T = await savedPage(pageKey) { return saved }
+            throw error
+        }
+        guard let http = response as? HTTPURLResponse else { throw KaPostsAPIError.badResponse }
+        guard http.statusCode == 200 else {
+            if KaPostsIndexerHealth.meansDown(statusCode: http.statusCode) {
+                health.noteFailure()
+                if health.isDown, let saved: T = await savedPage(pageKey) { return saved }
+            } else {
+                health.noteAnswered()
+            }
+            if let body = try? JSONDecoder().decode(APIErrorBody.self, from: data) {
+                throw KaPostsAPIError.api(code: body.code, message: body.error)
+            }
+            throw KaPostsAPIError.badResponse
+        }
+        do {
+            let decoded = try await Self.decodeOffMain(T.self, from: data)
+            health.noteAnswered()
+            if let pageKey { KaPostsPageCache.save(data, key: pageKey) }
+            return decoded
+        } catch {
+            // The indexer answered, with something this build can't read: no outage.
+            health.noteUnreadableAnswer()
+            throw error
+        }
+    }
+
+    private func savedPage<T: Decodable>(_ key: String?) async -> T? {
+        guard let key, let data = await KaPostsPageCache.load(key: key) else { return nil }
+        return try? await Self.decodeOffMain(T.self, from: data)
+    }
+
+    /// Whether the indexer answers. A placeholder key, since the answer isn't read for anyone.
+    func probeIndexer() async -> Bool {
+        guard let base = try? baseURL(),
+              var components = URLComponents(url: base.appendingPathComponent("get-posts-watching"), resolvingAgainstBaseURL: false) else { return false }
+        components.queryItems = [
+            URLQueryItem(name: "requesterPubkey", value: "02" + String(repeating: "0", count: 64)),
+            URLQueryItem(name: "limit", value: "1"),
+        ]
+        guard let url = components.url else { return false }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+        guard let (_, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        // Any answer of its own ends the outage: a 4xx is an answer, about this request.
+        return !KaPostsIndexerHealth.meansDown(statusCode: http.statusCode)
+    }
+
+    /// A first page while the indexer is down: what the read saved (or nothing), with what `chain`
+    /// adds. No cursor, since one is only good with the indexer. Any other time, just the read.
+    private func withChain(
+        before: String?,
+        read: () async throws -> (posts: [KPost], pagination: KPagination?),
+        chain: () async -> [KPost]
+    ) async throws -> (posts: [KPost], pagination: KPagination?) {
+        // Deletes and edits the block stream saw during the outage apply to the saved page and
+        // the chain rows alike (`KaPostsLiveChainFeed.amended`); otherwise a post deleted while
+        // it's down came back on every refresh.
+        let live = KaPostsLiveChainFeed.shared
+        do {
+            let page = try await read()
+            guard before == nil, KaPostsIndexerHealth.shared.isDown else { return page }
+            return (live.amended(Self.mergedNewestFirst(page.posts, await chain())), nil)
+        } catch {
+            guard before == nil, KaPostsIndexerHealth.shared.isDown else { throw error }
+            let rows = await chain()
+            if rows.isEmpty { throw error }
+            return (live.amended(Self.mergedNewestFirst([], rows)), nil)
+        }
+    }
+
+    /// The indexer's copy wins a tie: it has the counts and the viewer's own votes.
+    private static func mergedNewestFirst(_ saved: [KPost], _ chain: [KPost]) -> [KPost] {
+        let known = Set(saved.map(\.id))
+        return (saved + chain.filter { !known.contains($0.id) }).sorted { $0.timestamp > $1.timestamp }
+    }
+
+    /// The people this account follows, as their posts on chain: the first 20, a few at a time.
+    private func followedPostsFromChain() async -> [KPost] {
+        let pubkeys = KaPostsFollowStore.shared.following.sorted().prefix(20).compactMap { Self.kapostPubkey(fromAddress: $0) }
+        var found: [KPost] = []
+        for start in stride(from: 0, to: pubkeys.count, by: 4) {
+            await withTaskGroup(of: [KPost]?.self) { group in
+                for pubkey in pubkeys[start..<min(start + 4, pubkeys.count)] {
+                    group.addTask { await KaPostsChainPosts.posts(ofPubkey: pubkey) }
+                }
+                for await posts in group { found += posts ?? [] }
+            }
+        }
+        // On x-only: `pubkeys` is built from addresses as "02" + x, and a real post carries true parity.
+        let live = Set(pubkeys.map(KaPostsChainPosts.xOnly))
+        var seen = Set<String>()
+        return (found + KaPostsLiveChainFeed.shared.posts.filter { live.contains(KaPostsChainPosts.xOnly($0.userPublicKey)) })
+            .filter { seen.insert($0.id).inserted }
+    }
+
+    /// The feed decode, off the main actor. This client is `@MainActor`, so the plain
+    /// `JSONDecoder().decode` here ran on the main thread - a 50-post page with nested
+    /// profiles and pagination is enough to drop frames while the feed is scrolling.
+    nonisolated private static func decodeOffMain<T: Decodable>(_ type: T.Type, from data: Data) async throws -> T {
+        try await Task.detached(priority: .userInitiated) {
+            try JSONDecoder().decode(T.self, from: data)
+        }.value
+    }
+
+    // MARK: - Reads (KaChat-filtered)
+
+    /// Global feed (K "watching" = all posts). Filtered to KaChat-marked posts.
+    func fetchGlobalFeed(limit: Int = 50, before: String? = nil) async throws -> (posts: [KPost], pagination: KPagination?) {
+        var query = ["requesterPubkey": try requesterPubkey(), "limit": "\(limit)"]
+        if let before { query["before"] = before }
+        return try await withChain(before: before) {
+            let response: PostsResponse = try await get("get-posts-watching", query: query)
+            return (Self.filterKaChat(response.posts), response.pagination)
+        } chain: {
+            // nothing lists every post but the indexer: what's new since it went away
+            KaPostsLiveChainFeed.shared.posts.filter { $0.parentPostId == nil }
+        }
+    }
+
+    /// Content (posts+replies+quotes) from accounts the requester follows on K.
+    func fetchFollowingFeed(limit: Int = 50, before: String? = nil) async throws -> (posts: [KPost], pagination: KPagination?) {
+        var query = ["requesterPubkey": try requesterPubkey(), "limit": "\(limit)"]
+        if let before { query["before"] = before }
+        return try await withChain(before: before) {
+            let response: PostsResponse = try await get("get-contents-following", query: query)
+            // Top-level content only in the feed - replies live under their post's thread.
+            return (Self.filterKaChat(response.posts).filter { ($0.contentType ?? "post") != "reply" }, response.pagination)
+        } chain: {
+            await followedPostsFromChain().filter { $0.parentPostId == nil }
+        }
+    }
+
+    /// One user's posts (by K pubkey). NOTE: the deployed indexer ignores includeReplies
+    /// (get-posts serves content_type post/quote only) - use fetchUserReplies for replies.
+    func fetchUserPosts(pubkey: String, limit: Int = 50, before: String? = nil, includeReplies: Bool = false) async throws -> (posts: [KPost], pagination: KPagination?) {
+        var query = ["user": pubkey, "requesterPubkey": try requesterPubkey(), "limit": "\(limit)"]
+        if includeReplies { query["includeReplies"] = "true" }
+        if let before { query["before"] = before }
+        return try await withChain(before: before) {
+            let response: PostsResponse = try await get("get-posts", query: query)
+            return (Self.filterKaChat(response.posts), response.pagination)
+        } chain: {
+            let posts = await KaPostsChainPosts.posts(ofPubkey: pubkey) ?? []
+            return includeReplies ? posts : posts.filter { $0.parentPostId == nil }
+        }
+    }
+
+    /// One user's replies across ALL threads: get-replies with `user` instead of `post`
+    /// (verified live). The indexer's get-posts only serves content_type post/quote and
+    /// ignores includeReplies, so the profile Replies tab must read this endpoint.
+    /// Items carry parentPostId. KaChat-filtered like everything else.
+    func fetchUserReplies(pubkey: String, limit: Int = 50, before: String? = nil) async throws -> (posts: [KPost], pagination: KPagination?) {
+        var query = ["user": pubkey, "requesterPubkey": try requesterPubkey(), "limit": "\(limit)"]
+        if let before { query["before"] = before }
+        return try await withChain(before: before) {
+            let response: RepliesResponse = try await get("get-replies", query: query)
+            return (Self.filterKaChat(response.replies), response.pagination)
+        } chain: {
+            (await KaPostsChainPosts.posts(ofPubkey: pubkey) ?? []).filter { $0.parentPostId != nil }
+        }
+    }
+
+    /// Replies to a post. KaChat-filtered like everything else.
+    func fetchReplies(postId: String, limit: Int = 100, before: String? = nil) async throws -> (posts: [KPost], pagination: KPagination?) {
+        var query = ["post": postId, "requesterPubkey": try requesterPubkey(), "limit": "\(limit)"]
+        if let before { query["before"] = before }
+        return try await withChain(before: before) {
+            let response: RepliesResponse = try await get("get-replies", query: query)
+            return (Self.filterKaChat(response.replies), response.pagination)
+        } chain: {
+            KaPostsLiveChainFeed.shared.posts.filter { $0.parentPostId == postId }
+        }
+    }
+
+    /// One post by id, any age, any author (`get-post?id=`).
+    ///
+    /// This is what makes a reply thread complete. A reply's parent is on chain, but every other
+    /// read endpoint is a feed or a list, so an ancestor chain could only ever show the levels
+    /// that happened to be loaded - which is none of them for a reply opened from a profile.
+    ///
+    /// Deliberately NOT run through `filterKaChat`: the feeds drop posts without the KaChat
+    /// marker because they are someone else's client's content, but a parent IS the context the
+    /// reader asked for, and a hole in a thread is worse than a Kasia-origin post in it.
+    /// An unknown id throws `.api` carrying the indexer's 404, so callers can `try?` and fall back.
+    func fetchPost(id: String) async throws -> KPost {
+        let response: PostResponse = try await get("get-post", query: [
+            "id": id,
+            "requesterPubkey": try requesterPubkey(),
+        ])
+        return response.post
+    }
+
+    /// One post plus its whole ancestor chain, root first (`get-thread?id=`).
+    ///
+    /// Preferred over walking `parentPostId` upward with `fetchPost`: that is a round trip per
+    /// level, and the chain renders above the post the reader is already reading, so five levels
+    /// deep on a slow connection is a visible stall.
+    func fetchThread(id: String) async throws -> (ancestors: [KPost], post: KPost) {
+        let response: ThreadResponse = try await get("get-thread", query: [
+            "id": id,
+            "requesterPubkey": try requesterPubkey(),
+        ])
+        return (response.ancestors ?? [], response.post)
+    }
+
+    /// The requester's notification stream - votes/replies/quotes on OUR content. This is the
+    /// only documented source of per-action actor identity + action txid (the notification id),
+    /// which is why the engagement screen can list actors for your own posts only.
+    func fetchNotifications(limit: Int = 100, before: String? = nil) async throws -> (notifications: [KNotification], pagination: KPagination?) {
+        var query = ["requesterPubkey": try requesterPubkey(), "limit": "\(limit)"]
+        if let before { query["before"] = before }
+        let response: NotificationsResponse = try await get("get-notifications", query: query)
+        return (response.notifications, response.pagination)
+    }
+
+    /// Per-post actor lists from the KaChat indexer fork - works for ANY post, unlike the
+    /// notifications stream (own posts only).
+    func fetchPostEngagement(postId: String, type: String = "all", limit: Int = 100, before: String? = nil) async throws -> (entries: [KEngagementEntry], pagination: KPagination?) {
+        var query = [
+            "postId": postId,
+            "type": type,
+            "requesterPubkey": try requesterPubkey(),
+            "limit": "\(limit)"
+        ]
+        if let before { query["before"] = before }
+        let response: EngagementResponse = try await get("get-post-engagement", query: query)
+        return (response.engagement, response.pagination)
+    }
+
+    /// Who `pubkey` follows (followers=false) or who follows them (followers=true).
+    func fetchFollowList(ofPubkey pubkey: String, followers: Bool, limit: Int = 100, before: String? = nil) async throws -> (users: [KFollowUser], pagination: KPagination?) {
+        let path = followers ? "get-users-followers" : "get-users-following"
+        var query = [
+            "requesterPubkey": try requesterPubkey(),
+            "userPubkey": pubkey,
+            "limit": "\(limit)"
+        ]
+        if let before { query["before"] = before }
+        let response: FollowListResponse = try await get(path, query: query)
+        return (response.items, response.pagination)
+    }
+
+    /// One tip of a post: who, how much, when (`get-post-tippers`, KAPOSTS_INDEXER.md 5.11).
+    struct KTip: Decodable, Identifiable {
+        /// The tip's txid.
+        let id: String
+        let userPublicKey: String
+        let amountSompi: UInt64
+        let timestamp: Int64
+    }
+
+    private struct TippersResponse: Decodable {
+        let tippers: [KTip]
+        let pagination: KPagination?
+    }
+
+    /// Who tipped a post, newest first.
+    func fetchTippers(postId: String, limit: Int = 50, before: String? = nil) async throws -> (tips: [KTip], pagination: KPagination?) {
+        var query = ["postId": postId, "limit": "\(limit)"]
+        if let before { query["before"] = before }
+        let response: TippersResponse = try await get("get-post-tippers", query: query)
+        return (response.tippers, response.pagination)
+    }
+
+    /// Follower/following counts etc. for an address's K identity.
+    func fetchUserDetails(pubkey: String) async throws -> KUserDetails {
+        try await get("get-user-details", query: ["user": pubkey, "requesterPubkey": try requesterPubkey()])
+    }
+
+    /// KaChat-only filter: keep posts whose decoded content carries the invisible marker, and
+    /// drop content the indexer masked for blocked users.
+    private static func filterKaChat(_ posts: [KPost]) -> [KPost] {
+        posts.filter { post in
+            guard post.blockedUser != true, let content = post.decodedContent else { return false }
+            return isKaChatContent(content)
+        }
+    }
+}
+
+
+// MARK: - Endless-scroll driver (server cursors + client-filter shrinkage)
+
+/// Shared pagination engine for every KaPosts list.
+///
+/// The problem it solves: KaPosts filters everything the indexer returns down to KaChat-marked
+/// content and then drops muted/blocked authors, so a server page of 50 can collapse to 2
+/// visible rows. A naive one-request-per-scroll pager would stall on those pages and look
+/// broken. `collect` therefore keeps following the server's `nextCursor` until it has
+/// accumulated `target` rows that actually survive filtering, the server says there is nothing
+/// left, or it hits `maxRequests` (so a single scroll trigger can never hammer the indexer).
+///
+/// Cursors are the server's own opaque `pagination.nextCursor` values - no client-side offset
+/// math anywhere. A missing/empty cursor, or `hasMore == false`, means the surface is exhausted;
+/// endpoints on older deployments that return no pagination block degrade to a single page.
+@MainActor
+enum KaPostsPaginator {
+    /// Server page size. The indexer caps `limit` at 100 on every endpoint.
+    /// (`nonisolated` so the tuning constants can be used as default arguments, which are
+    /// evaluated outside the enum's main-actor isolation.)
+    nonisolated static let pageSize = 50
+    /// How many post-filter rows one scroll trigger tries to add.
+    nonisolated static let targetNewRows = 18
+    /// Hard cap on requests per trigger.
+    nonisolated static let maxRequestsPerTrigger = 5
+
+    /// Everything a surface needs to append a page and update its own paging state.
+    /// `Row` is the VIEW's model (already mapped), not the wire type.
+    struct Batch<Row> {
+        /// Rows that survived mapping + filtering + dedup, in server order.
+        var items: [Row] = []
+        /// Cursor to pass as `before` on the NEXT trigger (nil once exhausted).
+        var cursor: String?
+        var hasMore = false
+        var requests = 0
+        /// True when the loop burned its whole request budget and NOTHING survived filtering.
+        /// The surface then shows an explicit "Load more" instead of auto-firing again, so a
+        /// heavily-filtered stretch of history can't turn into an API hammer loop. (A partial
+        /// batch - some rows, just fewer than `target` - is progress, so it keeps auto-loading.)
+        var stalled = false
+    }
+
+    /// - Parameters:
+    ///   - startCursor: `nil` for a first page / refresh, otherwise the surface's stored cursor.
+    ///   - fetch: performs ONE request for the given cursor and page size.
+    ///   - keep: maps + filters a server page down to the rows the surface will actually show
+    ///     (dedup by id belongs here - the server can repeat items across pages).
+    static func collect<Item, Row>(
+        from startCursor: String?,
+        pageSize: Int = pageSize,
+        target: Int = targetNewRows,
+        maxRequests: Int = maxRequestsPerTrigger,
+        fetch: (_ before: String?, _ limit: Int) async throws -> (items: [Item], pagination: KaPostsAPIClient.KPagination?),
+        keep: ([Item]) -> [Row]
+    ) async throws -> Batch<Row> {
+        var batch = Batch<Row>(cursor: startCursor, hasMore: true)
+        while batch.requests < maxRequests {
+            let page = try await fetch(batch.cursor, pageSize)
+            batch.requests += 1
+            batch.items.append(contentsOf: keep(page.items))
+            guard let pagination = page.pagination,
+                  pagination.hasMore,
+                  let next = pagination.nextCursor, !next.isEmpty else {
+                // End of the line: no cursor to continue with.
+                batch.cursor = nil
+                batch.hasMore = false
+                return batch
+            }
+            batch.cursor = next
+            if batch.items.count >= target { return batch }
+            if Task.isCancelled { return batch }
+        }
+        batch.stalled = batch.items.isEmpty
+        return batch
+    }
+}
+
+
+// MARK: - K protocol writes (Phase B: on-chain self-send transactions)
+
+/// Builds K protocol payloads exactly as the indexer's parser/verifier expects
+/// (K-transaction-processor/k_protocol.rs). Every write is a colon-delimited payload on a Kaspa
+/// self-send transaction; the signature is Kaspa personal-message signing
+/// (schnorr(blake2b256(key: "PersonalMessageSigningHash", msg))) over the action's canonical
+/// field string - the app's WalletManager.signArbitraryMessage(.kaspaPersonalMessage) scheme.
+enum KaPostsProtocol {
+    // `kchat:` migration: KaPosts now writes the `kchat:1:<action>:` root (was `k:1:`). Reads come
+    // pre-parsed from the K indexer, which indexes `kchat:1:` only (pre-migration `k:1:` posts
+    // aren't served; the owner accepted that loss, XP-006).
+    static let prefix = "kchat:1:"
+
+    static func b64(_ text: String) -> String {
+        Data(text.utf8).base64EncodedString()
+    }
+
+    // Signed strings (canonical field joins, verified server-side):
+    static func postSigningString(b64Message: String, mentionsJSON: String) -> String {
+        "\(b64Message):\(mentionsJSON)"
+    }
+    static func replySigningString(postId: String, b64Message: String, mentionsJSON: String) -> String {
+        "\(postId):\(b64Message):\(mentionsJSON)"
+    }
+    static func voteSigningString(postId: String, vote: String, authorPubkey: String) -> String {
+        "\(postId):\(vote):\(authorPubkey)"
+    }
+    static func followSigningString(action: String, followedPubkey: String) -> String {
+        "\(action):\(followedPubkey)"
+    }
+    static func quoteSigningString(contentId: String, b64Message: String, quotedAuthorPubkey: String) -> String {
+        "\(contentId):\(b64Message):\(quotedAuthorPubkey)"
+    }
+    static func unquoteSigningString(contentId: String) -> String {
+        contentId
+    }
+    /// Edits carry the action name in what is signed - a reply's signature covers the very
+    /// same three fields, and without the prefix a reply to your own post could be replayed
+    /// as an edit of it.
+    static func editSigningString(postId: String, b64Message: String, mentionsJSON: String) -> String {
+        "edit:\(postId):\(b64Message):\(mentionsJSON)"
+    }
+    /// Same domain separation as `edit`: an unquote signs a bare content id, and a delete must
+    /// not be forgeable from one.
+    static func deleteSigningString(postId: String) -> String {
+        "delete:\(postId)"
+    }
+    /// Polls (KAPOSTS_INDEXER.md §5.9): the question is the post's message, the options ride as
+    /// base64 joined by commas, and the closing time is unix ms.
+    static func pollSigningString(b64Question: String, optionsCSV: String, closesAtMs: Int64, mentionsJSON: String) -> String {
+        "poll:\(b64Question):\(optionsCSV):\(closesAtMs):\(mentionsJSON)"
+    }
+    /// A tip (§5.11): the sealed note is in what is signed, so two tips of one post never share
+    /// a signature.
+    static func tipSigningString(postId: String, authorPubkey: String, sealedHex: String) -> String {
+        "tip:\(postId):\(authorPubkey):\(sealedHex)"
+    }
+    static func tipPayload(pubkey: String, signature: String, postId: String, authorPubkey: String, sealedHex: String) -> String {
+        "\(prefix)tip:\(pubkey):\(signature):\(postId):\(authorPubkey):\(sealedHex)"
+    }
+    static func pollVoteSigningString(pollId: String, optionIndex: Int) -> String {
+        "pollvote:\(pollId):\(optionIndex)"
+    }
+    /// Scheduled posts (§5.10): what the phone signs to hand a signed transaction to the
+    /// indexer for later submission, and to take it back.
+    static func scheduleSigningString(txId: String, notBeforeMs: Int64) -> String {
+        "schedule:\(txId):\(notBeforeMs)"
+    }
+    static func cancelScheduleSigningString(txId: String) -> String {
+        "cancel-schedule:\(txId)"
+    }
+    /// The options field: each option base64 (no `,` or `:` in the alphabet), comma-joined.
+    static func pollOptionsCSV(_ options: [String]) -> String {
+        options.map { b64($0) }.joined(separator: ",")
+    }
+    static func pollOptions(fromCSV csv: String) -> [String] {
+        csv.split(separator: ",").map { Data(base64Encoded: String($0)).flatMap { String(data: $0, encoding: .utf8) } ?? "" }
+    }
+
+    /// The on-chain record behind one post id, read straight off the transaction payload.
+    ///
+    /// `get-post?id=` exists on the indexer now and is tried first (see `fetchPost`), so this is
+    /// the LAST resort rather than the only one. It still earns its place: a post published
+    /// seconds ago is not indexed yet, and the chain has every post that has ever existed,
+    /// because a post IS a transaction and its id IS the transaction id - the Kaspa REST API
+    /// returns the same bytes the indexer itself read.
+    struct ChainPost: Equatable {
+        /// "post", "reply" or "quote" - the three actions that carry a message.
+        let action: String
+        let authorPubkey: String
+        /// Decoded, with the KaChat exclusivity marker stripped.
+        let message: String
+        /// What this one points at: the parent for a reply, the quoted post for a quote.
+        let referencedId: String?
+    }
+
+    /// Parses a decoded transaction payload. Returns nil for anything that is not a KaPosts
+    /// message - votes, follows and unquotes carry no text, and other apps' payloads share the
+    /// chain.
+    ///
+    /// Reads the legacy `k:1:` root as well as today's `kchat:1:`: a post written before the
+    /// migration and opened by txId still reads. (The indexer indexes `kchat:1:` only - see
+    /// KAPOSTS_INDEXER.md "Root migration".)
+    static func parseChainPayload(_ payload: String) -> ChainPost? {
+        let roots = [prefix, "k:1:"]
+        guard let root = roots.first(where: { payload.hasPrefix($0) }) else { return nil }
+        // Base64 has no ":" in its alphabet and neither do pubkeys, signatures or ids, so the
+        // fields split cleanly however long the message is.
+        let fields = payload.dropFirst(root.count).components(separatedBy: ":")
+        guard fields.count >= 4 else { return nil }
+        let action = fields[0]
+        let pubkey = fields[1]
+        // post:  <pubkey>:<signature>:<b64message>:<mentions>
+        // reply: <pubkey>:<signature>:<postId>:<b64message>:<mentions>
+        // quote: <pubkey>:<signature>:<contentId>:<b64message>:<quotedAuthorPubkey>
+        let messageIndex: Int
+        switch action {
+        case "post", "poll": messageIndex = 3
+        case "reply", "quote": messageIndex = 4
+        default: return nil
+        }
+        guard fields.count > messageIndex,
+              let data = Data(base64Encoded: fields[messageIndex]),
+              let decoded = String(data: data, encoding: .utf8) else { return nil }
+        // A payload can name anyone as its author, so the signature must verify against the key
+        // it names - the same check the indexer makes before it shows a post. Without it, a
+        // shared link to a forged transaction would open as someone else's post, with their
+        // name, avatar, Tip and Follow. Only KaPost messages count, as in the feed fallback.
+        guard KaPostsAPIClient.isKaChatContent(decoded),
+              let signingString = chainSigningString(action: action, fields: fields),
+              KaPostsChainPosts.signatureIsValid(fields[2], signingString: signingString, pubkey: pubkey) else { return nil }
+        // An empty message is legitimate - a quote with no added comment is just a repost - so
+        // this returns the record and lets the caller decide what to show for it.
+        let text = KaPostsAPIClient.stripMarker(decoded).trimmingCharacters(in: .whitespacesAndNewlines)
+        return ChainPost(
+            action: action,
+            authorPubkey: pubkey,
+            message: text,
+            // Field 2 for both shapes that have one; a plain post references nothing.
+            referencedId: action == "post" || action == "poll" ? nil : (fields[3].isEmpty ? nil : fields[3])
+        )
+    }
+
+    /// What the author signed for a message-carrying payload, rebuilt from its fields; nil when
+    /// the fields don't have the shape the action needs.
+    private static func chainSigningString(action: String, fields: [String]) -> String? {
+        switch action {
+        case "post":
+            guard fields.count >= 5 else { return nil }
+            return postSigningString(b64Message: fields[3], mentionsJSON: fields[4])
+        case "reply":
+            guard fields.count >= 6 else { return nil }
+            return replySigningString(postId: fields[3], b64Message: fields[4], mentionsJSON: fields[5])
+        case "quote":
+            guard fields.count >= 6 else { return nil }
+            return quoteSigningString(contentId: fields[3], b64Message: fields[4], quotedAuthorPubkey: fields[5])
+        case "poll":
+            guard fields.count >= 7, let closesAtMs = Int64(fields[5]) else { return nil }
+            return pollSigningString(b64Question: fields[3], optionsCSV: fields[4], closesAtMs: closesAtMs, mentionsJSON: fields[6])
+        default:
+            return nil
+        }
+    }
+
+    // Full payloads:
+    static func postPayload(pubkey: String, signature: String, b64Message: String, mentionsJSON: String) -> String {
+        "\(prefix)post:\(pubkey):\(signature):\(b64Message):\(mentionsJSON)"
+    }
+    static func replyPayload(pubkey: String, signature: String, postId: String, b64Message: String, mentionsJSON: String) -> String {
+        "\(prefix)reply:\(pubkey):\(signature):\(postId):\(b64Message):\(mentionsJSON)"
+    }
+    static func votePayload(pubkey: String, signature: String, postId: String, vote: String, authorPubkey: String) -> String {
+        "\(prefix)vote:\(pubkey):\(signature):\(postId):\(vote):\(authorPubkey)"
+    }
+    static func followPayload(pubkey: String, signature: String, action: String, followedPubkey: String) -> String {
+        "\(prefix)follow:\(pubkey):\(signature):\(action):\(followedPubkey)"
+    }
+    static func quotePayload(pubkey: String, signature: String, contentId: String, b64Message: String, quotedAuthorPubkey: String) -> String {
+        "\(prefix)quote:\(pubkey):\(signature):\(contentId):\(b64Message):\(quotedAuthorPubkey)"
+    }
+    static func unquotePayload(pubkey: String, signature: String, contentId: String) -> String {
+        "\(prefix)unquote:\(pubkey):\(signature):\(contentId)"
+    }
+    /// Replaces the text of `postId` (a post, reply or quote by the same pubkey) - honoured by
+    /// the indexer only within `KaPostsAPIClient.editWindow` of the original.
+    static func editPayload(pubkey: String, signature: String, postId: String, b64Message: String, mentionsJSON: String) -> String {
+        "\(prefix)edit:\(pubkey):\(signature):\(postId):\(b64Message):\(mentionsJSON)"
+    }
+    /// Removes `postId` (a post, reply or quote by the same pubkey) from every feed - any time.
+    static func deletePayload(pubkey: String, signature: String, postId: String) -> String {
+        "\(prefix)delete:\(pubkey):\(signature):\(postId)"
+    }
+    static func pollPayload(pubkey: String, signature: String, b64Question: String, optionsCSV: String, closesAtMs: Int64, mentionsJSON: String) -> String {
+        "\(prefix)poll:\(pubkey):\(signature):\(b64Question):\(optionsCSV):\(closesAtMs):\(mentionsJSON)"
+    }
+    static func pollVotePayload(pubkey: String, signature: String, pollId: String, optionIndex: Int) -> String {
+        "\(prefix)pollvote:\(pubkey):\(signature):\(pollId):\(optionIndex)"
+    }
+}
+
+/// Reads a KaPost straight off the transaction it was published as.
+///
+/// The indexer answers single ids now (`get-post?id=`, see `fetchPost`), which is what "Post not
+/// found - it may be older than the current feed" used to be: a post outside the feed window and
+/// outside the fetched profiles was unanswerable by the API. This remains the fallback behind that
+/// lookup, for the window where a post exists on chain but the indexer has not caught up yet. The
+/// chain has every post that has ever existed: the post id IS the transaction id.
+///
+/// Deliberately nonisolated - the callers are a chat bubble and a feed, and none of this touches
+/// actor state.
+enum KaPostChainReader {
+    struct Record: Equatable {
+        let txId: String
+        let action: String
+        let authorPubkey: String
+        let message: String
+        /// Parent for a reply, quoted post for a quote.
+        let referencedId: String?
+        let blockTimeMillis: UInt64?
+    }
+
+    /// Nil when the REST API has no such transaction, when it carries no payload, or when the
+    /// payload is not a KaPosts message (a vote, a follow, or another app's transaction).
+    static func fetch(txId: String) async -> Record? {
+        guard !txId.isEmpty, var components = URLComponents(string: AppSettings.load().kaspaRestAPIURL) else { return nil }
+        components.path += "/transactions/\(txId)"
+        components.queryItems = [
+            // Nothing but the payload is wanted, and skipping input resolution keeps this the
+            // cheapest form of the call.
+            URLQueryItem(name: "inputs", value: "false"),
+            URLQueryItem(name: "outputs", value: "false"),
+            URLQueryItem(name: "resolve_previous_outpoints", value: "no")
+        ]
+        guard let url = components.url else { return nil }
+        do {
+            // Same 20s cap as `get` above rather than the session's 60s default.
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 20
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            let tx = try JSONDecoder().decode(ChainTx.self, from: data)
+            guard let hex = tx.payload, !hex.isEmpty,
+                  let bytes = CryptoUtils.hexToData(hex),
+                  let payload = String(data: bytes, encoding: .utf8),
+                  let parsed = KaPostsProtocol.parseChainPayload(payload) else { return nil }
+            return Record(
+                txId: txId,
+                action: parsed.action,
+                authorPubkey: parsed.authorPubkey,
+                message: parsed.message,
+                referencedId: parsed.referencedId,
+                blockTimeMillis: tx.blockTime
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    /// Only the two fields this needs, so an unrelated shape change upstream cannot break it.
+    private struct ChainTx: Decodable {
+        let payload: String?
+        let blockTime: UInt64?
+
+        enum CodingKeys: String, CodingKey {
+            case payload
+            case blockTime = "block_time"
+        }
+    }
+}
+
+extension KaPostsAPIClient {
+    /// Publishes a KaChat post on-chain. The KaChat exclusivity marker is prepended INSIDE the
+    /// message (the only channel the read API surfaces). Returns the transaction id = post id.
+    func submitPost(text: String, mentionedPubkeys: [String] = [], expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let marked = Self.kaChatMarker + text
+        let b64 = KaPostsProtocol.b64(marked)
+        let pubkey = try requesterPubkey()
+        // Client-resolved @mentions: dedupe, drop bad shapes and self, then serialize into the
+        // signed mentioned_pubkeys array. The indexer turns each into a `mention` notification.
+        let mentions = Self.mentionsJSON(mentionedPubkeys, me: pubkey)
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.postSigningString(b64Message: b64, mentionsJSON: mentions),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.postPayload(pubkey: pubkey, signature: signature, b64Message: b64, mentionsJSON: mentions),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// Publishes a poll: the question is the post text (marker inside, like any post), the
+    /// options and closing time ride in the payload (KAPOSTS_INDEXER.md §5.9).
+    func submitPoll(question: String, options: [String], closesAt: Date, mentionedPubkeys: [String] = [], expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let b64 = KaPostsProtocol.b64(Self.kaChatMarker + question)
+        let csv = KaPostsProtocol.pollOptionsCSV(options)
+        let closesAtMs = Int64(closesAt.timeIntervalSince1970 * 1000)
+        let pubkey = try requesterPubkey()
+        let mentions = Self.mentionsJSON(mentionedPubkeys, me: pubkey)
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.pollSigningString(b64Question: b64, optionsCSV: csv, closesAtMs: closesAtMs, mentionsJSON: mentions),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.pollPayload(pubkey: pubkey, signature: signature, b64Question: b64, optionsCSV: csv, closesAtMs: closesAtMs, mentionsJSON: mentions),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// Votes in a poll - one vote per pubkey, the latest counts (§5.9).
+    func submitPollVote(pollId: String, optionIndex: Int, expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let pubkey = try requesterPubkey()
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.pollVoteSigningString(pollId: pollId, optionIndex: optionIndex),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.pollVotePayload(pubkey: pubkey, signature: signature, pollId: pollId, optionIndex: optionIndex),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// The mentions array a post, reply, edit or poll signs: valid shapes only, in order, one per
+    /// person, never self. Both checks are on the x-only key: a key worked out from an address is
+    /// "02" + x, so with exact matching an author holding an 03 key slipped past the self check,
+    /// and one person could be listed under both spellings.
+    static func mentionsJSON(_ mentionedPubkeys: [String], me: String) -> String {
+        let mine = KaPostsChainPosts.xOnly(me)
+        var seen = Set<String>()
+        let clean = mentionedPubkeys
+            .map { $0.lowercased() }
+            .filter {
+                $0.range(of: "^0[23][0-9a-f]{64}$", options: .regularExpression) != nil
+                    && KaPostsChainPosts.xOnly($0) != mine
+                    && seen.insert(KaPostsChainPosts.xOnly($0)).inserted
+            }
+        return "[" + clean.map { "\"\($0)\"" }.joined(separator: ",") + "]"
+    }
+
+    // MARK: - Scheduled posts (§5.10)
+
+    /// A post transaction built and signed NOW for submission later: the id it will have, the
+    /// coins it spends (kept reserved until then), and the REST-shaped JSON the indexer submits.
+    struct ScheduledTransaction {
+        let txId: String
+        let payload: String
+        let spentOutpoints: [String]
+        let restJSON: [String: Any]
+        let transaction: KaspaRpcTransaction
+    }
+
+    /// Builds and signs the post transaction for `text` without submitting it.
+    func buildScheduledPost(text: String, mentionedPubkeys: [String] = []) async throws -> ScheduledTransaction {
+        let marked = Self.kaChatMarker + text
+        let b64 = KaPostsProtocol.b64(marked)
+        let pubkey = try requesterPubkey()
+        let mentions = Self.mentionsJSON(mentionedPubkeys, me: pubkey)
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.postSigningString(b64Message: b64, mentionsJSON: mentions),
+            mode: .kaspaPersonalMessage
+        )
+        let payload = KaPostsProtocol.postPayload(pubkey: pubkey, signature: signature, b64Message: b64, mentionsJSON: mentions)
+        guard let wallet = WalletManager.shared.currentWallet,
+              let privateKey = WalletManager.shared.getPrivateKey() else {
+            throw KaPostsAPIError.missingWallet
+        }
+        if let script = KaspaAddress.scriptPublicKey(from: wallet.publicAddress),
+           !Self.payloadFitsOneTransaction(payload, scriptPubKey: script) {
+            throw KaPostsAPIError.tooLong
+        }
+        // Through the send queue, like every other send: built outside it, a like or tip made
+        // at the same moment could pick the same coin, and the scheduled post would then fail at
+        // its time. Its coins are held before the queue moves on; the scheduled store holds them
+        // for good once `add` records the entry, right after.
+        return try await ChatService.shared.enqueueOutgoingTxOperation {
+            let scheduled = try await Self.buildScheduledTransaction(
+                payload: payload, address: wallet.publicAddress, privateKey: privateKey
+            )
+            ChatService.shared.reserveOutpointKeys(scheduled.spentOutpoints)
+            return scheduled
+        }
+    }
+
+    /// A coin set aside for one scheduled post when the wallet would otherwise have to hand it
+    /// every coin it has: 1 KAS, well over any post's fee and big enough that its storage mass
+    /// stays small.
+    private static let scheduledPostCoinSompi: UInt64 = 100_000_000
+
+    @MainActor
+    private static func buildScheduledTransaction(payload: String, address: String, privateKey: Data) async throws -> ScheduledTransaction {
+        let payloadData = Data(payload.utf8)
+        // Nor coins a send still in flight spent.
+        let utxos = ChatService.shared.unreservedUtxos(KaPostsScheduledStore.shared.excludingReserved(
+            try await NodePoolService.shared.getUtxosByAddresses([address])
+        ))
+        // Confirmed coins only: a transaction that will sit for hours must not chain on an
+        // unconfirmed change output. And the SMALLEST single coin that can carry it: the
+        // coins it spends stay reserved until it goes out, so it must not tie up the wallet's
+        // biggest one (the builder's own choice is largest-first).
+        let confirmed = utxos.filter { $0.blockDaaScore > 0 && !$0.isCoinbase }.sorted { $0.amount < $1.amount }
+        var single: KaspaRpcTransaction?
+        var singleCoin: UTXO?
+        for candidate in confirmed {
+            if let tx = try? KasiaTransactionBuilder.buildPayloadSelfSendTx(
+                from: address, senderPrivateKey: privateKey, utxos: [candidate], payload: payloadData
+            ) {
+                single = tx
+                singleCoin = candidate
+                break
+            }
+        }
+
+        // The only way to carry it would hold every confirmed coin until the post's time - one
+        // coin, or all of them together: the whole balance frozen for hours. Split a small coin
+        // off first and schedule on that; the rest comes straight back as change.
+        let holdsEverything = single == nil || (confirmed.count == 1 && singleCoin != nil)
+        let total = confirmed.reduce(UInt64(0)) { ChatService.shared.addSompiSafely($0, $1.amount) }
+        if holdsEverything, total > scheduledPostCoinSompi * 2,
+           let coin = try? await splitOffScheduledPostCoin(from: confirmed, address: address, privateKey: privateKey),
+           let tx = try? KasiaTransactionBuilder.buildPayloadSelfSendTx(
+               from: address, senderPrivateKey: privateKey, utxos: [coin], payload: payloadData
+           ) {
+            return scheduledTransaction(tx, payload: payload)
+        }
+
+        let signedTx: KaspaRpcTransaction
+        if let single {
+            signedTx = single
+        } else {
+            signedTx = try KasiaTransactionBuilder.buildPayloadSelfSendTx(
+                from: address, senderPrivateKey: privateKey, utxos: confirmed, payload: payloadData
+            )
+        }
+        return scheduledTransaction(signedTx, payload: payload)
+    }
+
+    private static func scheduledTransaction(_ signedTx: KaspaRpcTransaction, payload: String) -> ScheduledTransaction {
+        let txId = KasiaTransactionBuilder.computeTransactionId(signedTx)
+        let spent = signedTx.inputs.map { "\($0.previousOutpoint.transactionId):\($0.previousOutpoint.index)" }
+        return ScheduledTransaction(txId: txId, payload: payload, spentOutpoints: spent, restJSON: restJSON(for: signedTx), transaction: signedTx)
+    }
+
+    /// Sends `scheduledPostCoinSompi` to this wallet's own address and returns that output as a
+    /// coin. It is unconfirmed for a second or so, which is fine: the post spending it goes out
+    /// hours later. Nil when the split couldn't be built or sent.
+    @MainActor
+    private static func splitOffScheduledPostCoin(from confirmed: [UTXO], address: String, privateKey: Data) async throws -> UTXO? {
+        guard let script = KaspaAddress.scriptPublicKey(from: address) else { return nil }
+        let split = try KasiaTransactionBuilder.buildPlainTransferTx(
+            from: address, to: address, amount: scheduledPostCoinSompi,
+            senderPrivateKey: privateKey, utxos: confirmed
+        )
+        guard let index = split.outputs.firstIndex(where: { $0.value == scheduledPostCoinSompi && $0.scriptPublicKey.script == script }) else {
+            return nil
+        }
+        let (txId, _) = try await NodePoolService.shared.submitTransaction(split, allowOrphan: false)
+        AppLog.log("[KaPosts] Split a coin off for a scheduled post: %@", String(txId.prefix(12)))
+        return UTXO(
+            address: address,
+            outpoint: UTXO.Outpoint(transactionId: txId, index: UInt32(index)),
+            amount: scheduledPostCoinSompi,
+            scriptPublicKey: script,
+            blockDaaScore: 0,
+            isCoinbase: false
+        )
+    }
+
+    /// The Kaspa REST `POST /transactions` body for a signed transaction - what the indexer
+    /// submits on the phone's behalf (§5.10).
+    static func restJSON(for tx: KaspaRpcTransaction) -> [String: Any] {
+        [
+            "transaction": [
+                "version": Int(tx.version),
+                "inputs": tx.inputs.map { input in
+                    [
+                        "previousOutpoint": ["transactionId": input.previousOutpoint.transactionId, "index": Int(input.previousOutpoint.index)],
+                        "signatureScript": input.signatureScript.hexString,
+                        "sequence": Int(input.sequence),
+                        "sigOpCount": Int(input.sigOpCount)
+                    ] as [String: Any]
+                },
+                "outputs": tx.outputs.map { output in
+                    [
+                        "amount": Int(output.value),
+                        "scriptPublicKey": ["version": Int(output.scriptPublicKey.version), "scriptPublicKey": output.scriptPublicKey.script.hexString]
+                    ] as [String: Any]
+                },
+                "lockTime": Int(tx.lockTime),
+                "subnetworkId": tx.subnetworkId.hexString,
+                "payload": tx.payload.hexString
+            ] as [String: Any]
+        ]
+    }
+
+    /// Hands a signed post to the indexer for submission at `notBefore`.
+    func scheduleOnServer(_ scheduled: ScheduledTransaction, notBefore: Date) async throws {
+        let pubkey = try requesterPubkey()
+        let notBeforeMs = Int64(notBefore.timeIntervalSince1970 * 1000)
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.scheduleSigningString(txId: scheduled.txId, notBeforeMs: notBeforeMs),
+            mode: .kaspaPersonalMessage
+        )
+        let body: [String: Any] = [
+            "pubkey": pubkey, "txId": scheduled.txId, "notBefore": notBeforeMs,
+            "signature": signature, "transaction": scheduled.restJSON
+        ]
+        _ = try await postJSON("schedule-post", body: body)
+    }
+
+    func cancelScheduledOnServer(txId: String) async throws {
+        let pubkey = try requesterPubkey()
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.cancelScheduleSigningString(txId: txId),
+            mode: .kaspaPersonalMessage
+        )
+        _ = try await postJSON("cancel-scheduled-post", body: ["pubkey": pubkey, "txId": txId, "signature": signature])
+    }
+
+    func fetchScheduledPosts() async throws -> [KScheduledPost] {
+        struct Page: Decodable { let posts: [KScheduledPost] }
+        let pubkey = try requesterPubkey()
+        let page: Page = try await get("scheduled-posts", query: ["pubkey": pubkey])
+        return page.posts
+    }
+
+    /// Submits a previously built transaction from the phone itself - the fallback when the
+    /// indexer could not be reached to schedule it, run once its time has come.
+    func submitScheduledLocally(_ transaction: KaspaRpcTransaction) async throws -> String {
+        let (txId, _) = try await NodePoolService.shared.submitTransaction(transaction, allowOrphan: false)
+        return txId
+    }
+
+    private func postJSON(_ path: String, body: [String: Any]) async throws -> Data {
+        var request = URLRequest(url: try baseURL().appendingPathComponent(path))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            KaPostsIndexerHealth.shared.note(error)
+            throw error
+        }
+        guard let http = response as? HTTPURLResponse else { throw KaPostsAPIError.badResponse }
+        if KaPostsIndexerHealth.meansDown(statusCode: http.statusCode) {
+            KaPostsIndexerHealth.shared.noteFailure()
+        } else {
+            KaPostsIndexerHealth.shared.noteAnswered()
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            if let body = try? JSONDecoder().decode(APIErrorBody.self, from: data) {
+                throw KaPostsAPIError.api(code: body.code, message: body.error)
+            }
+            throw KaPostsAPIError.badResponse
+        }
+        return data
+    }
+
+    /// The compressed KaPost pubkey (even-Y convention) for a Kaspa address, or nil. The whole
+    /// KaChat/Kasia stack is address-derived, so this mirrors desktop's kapostPubkeyForAddress and
+    /// lets us fill mentioned_pubkeys from a KNS-domain contact's address alone.
+    static func kapostPubkey(fromAddress address: String) -> String? {
+        guard let xOnly = KaspaAddress.publicKey(from: address), xOnly.count == 32 else { return nil }
+        return "02" + xOnly.hexString
+    }
+
+    /// Replies to a post (its K txid). mentioned_pubkeys carries the parent author (the spec's
+    /// reply-notification hook) PLUS any @mentions the comment text resolved to - same dedupe/
+    /// validate/self-drop rules as submitPost, so @someone works in comments exactly like in
+    /// top-level posts.
+    func submitReply(text: String, postId: String, parentAuthorPubkey: String?, mentionedPubkeys: [String] = [], expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let marked = Self.kaChatMarker + text
+        let b64 = KaPostsProtocol.b64(marked)
+        let pubkey = try requesterPubkey()
+        let mentions = Self.mentionsJSON([parentAuthorPubkey].compactMap { $0 } + mentionedPubkeys, me: pubkey)
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.replySigningString(postId: postId, b64Message: b64, mentionsJSON: mentions),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.replyPayload(pubkey: pubkey, signature: signature, postId: postId, b64Message: b64, mentionsJSON: mentions),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// How long after posting a post, reply or quote can still be edited. The indexer enforces
+    /// the same window on chain time; after it the text is permanent.
+    nonisolated static let editWindow: TimeInterval = 2 * 60 * 60
+
+    /// Replaces the text of one of our own posts/replies/quotes (KAPOSTS_INDEXER.md §5.7).
+    /// Same mention rules as a post, so an @mention added in the edit notifies.
+    func submitEdit(text: String, postId: String, mentionedPubkeys: [String] = [], expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let marked = Self.kaChatMarker + text
+        let b64 = KaPostsProtocol.b64(marked)
+        let pubkey = try requesterPubkey()
+        let mentions = Self.mentionsJSON(mentionedPubkeys, me: pubkey)
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.editSigningString(postId: postId, b64Message: b64, mentionsJSON: mentions),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.editPayload(pubkey: pubkey, signature: signature, postId: postId, b64Message: b64, mentionsJSON: mentions),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// Deletes one of our own posts/replies/quotes (KAPOSTS_INDEXER.md §5.8). The chain keeps
+    /// the bytes; the indexer stops serving the post.
+    func submitDelete(postId: String, expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let pubkey = try requesterPubkey()
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.deleteSigningString(postId: postId),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.deletePayload(pubkey: pubkey, signature: signature, postId: postId),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// Casts an upvote/downvote on a post. `submitUnvote` withdraws one.
+    func submitVote(postId: String, upvote: Bool, authorPubkey: String, expectedOwner: String? = nil) async throws -> String {
+        try await submitVoteAction(postId: postId, vote: upvote ? "upvote" : "downvote", authorPubkey: authorPubkey, expectedOwner: expectedOwner)
+    }
+
+    /// Removal counter-action (KaChat indexer fork): withdraws our existing up/down vote on a
+    /// post. The chain keeps both transactions; the indexer's interpretation nets them out.
+    func submitUnvote(postId: String, authorPubkey: String, expectedOwner: String? = nil) async throws -> String {
+        try await submitVoteAction(postId: postId, vote: "unvote", authorPubkey: authorPubkey, expectedOwner: expectedOwner)
+    }
+
+    private func submitVoteAction(postId: String, vote: String, authorPubkey: String, expectedOwner: String?) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let pubkey = try requesterPubkey()
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.voteSigningString(postId: postId, vote: vote, authorPubkey: authorPubkey),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.votePayload(pubkey: pubkey, signature: signature, postId: postId, vote: vote, authorPubkey: authorPubkey),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// Removal counter-action: withdraws our quote/repost of `contentId` (the quoted post's
+    /// id, same field meaning as in the quote payload).
+    func submitUnquote(contentId: String, expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let pubkey = try requesterPubkey()
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.unquoteSigningString(contentId: contentId),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.unquotePayload(pubkey: pubkey, signature: signature, contentId: contentId),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// Follows/unfollows a K identity (66-hex compressed pubkey - only available from post data,
+    /// which is why profile-sheet follows without a pubkey stay local-only).
+    func submitFollow(_ follow: Bool, followedPubkey: String, expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let action = follow ? "follow" : "unfollow"
+        let pubkey = try requesterPubkey()
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.followSigningString(action: action, followedPubkey: followedPubkey),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.followPayload(pubkey: pubkey, signature: signature, action: action, followedPubkey: followedPubkey),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// Quotes a post - K's repost mechanism (there is no separate repost action; quotesCount is
+    /// the live counter). A PLAIN repost is a quote whose message is just the KaChat marker; a
+    /// quote-with-commentary carries marker + text.
+    func submitQuote(text: String?, contentId: String, quotedAuthorPubkey: String, expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        let marked = Self.kaChatMarker + (text ?? "")
+        let b64 = KaPostsProtocol.b64(marked)
+        let pubkey = try requesterPubkey()
+        let signature = try WalletManager.shared.signArbitraryMessage(
+            KaPostsProtocol.quoteSigningString(contentId: contentId, b64Message: b64, quotedAuthorPubkey: quotedAuthorPubkey),
+            mode: .kaspaPersonalMessage
+        )
+        return try await submitPayloadTx(
+            KaPostsProtocol.quotePayload(pubkey: pubkey, signature: signature, contentId: contentId, b64Message: b64, quotedAuthorPubkey: quotedAuthorPubkey),
+            expectedOwner: expectedOwner
+        )
+    }
+
+    /// Live fee estimate for a post of `text` - builds the exact payload shape (dummy sig/pubkey
+    /// of the real fixed lengths, marker included) so the size-driven estimate matches what the
+    /// actual submit will pay with the typical single input.
+    static func estimatePostFee(text: String) -> UInt64? {
+        guard let wallet = WalletManager.shared.currentWallet,
+              let script = KaspaAddress.scriptPublicKey(from: wallet.publicAddress) else { return nil }
+        let b64 = KaPostsProtocol.b64(kaChatMarker + text)
+        let dummySignature = String(repeating: "0", count: 128)
+        let dummyPubkey = String(repeating: "0", count: 66)
+        let payload = KaPostsProtocol.postPayload(
+            pubkey: dummyPubkey, signature: dummySignature, b64Message: b64, mentionsJSON: "[]"
+        )
+        // No fee for a post no node would take.
+        guard payloadFitsOneTransaction(payload, scriptPubKey: script) else { return nil }
+        return KasiaTransactionBuilder.estimateContextualMessageFee(
+            payload: Data(payload.utf8), inputCount: 1, senderScriptPubKey: script
+        )
+    }
+
+    /// Whether `payload` fits one transaction with one input: its fee mass (2 grams a byte,
+    /// `KaspaFeePolicy`) within the node's 100,000-gram limit. The composer's byte cap
+    /// (`KaPostsView.postLength`) keeps posts well inside it; this stops anything that got past
+    /// it before a fee is shown or a coin is spent, with a reason instead of "too many coins".
+    static func payloadFitsOneTransaction(_ payload: String, scriptPubKey: Data) -> Bool {
+        let fee = KasiaTransactionBuilder.estimateContextualMessageFee(
+            payload: Data(payload.utf8), inputCount: 1, senderScriptPubKey: scriptPubKey
+        )
+        return fee / KaspaFeePolicy.minimumRelayFeePerGramSompi <= KasiaTransactionBuilder.maxStandardMass
+    }
+
+    /// Shared write core: build the self-send tx from the chatting address's UTXOs with the K
+    /// payload attached, sign, submit. The indexer ingests it from the chain (no REST submit).
+    /// When this account last put a post action on chain: your profile's pages loaded before it
+    /// are out of date (a new post, a delete, an edit).
+    private(set) static var ownActivityAt: Date?
+
+    /// Throws `accountChanged` when the action was made as `expectedOwner` and another account
+    /// is open now. nil skips the check (callers that don't track who made the action).
+    static func checkOwner(_ expectedOwner: String?) throws {
+        guard let expectedOwner else { return }
+        guard WalletManager.shared.currentWallet?.publicAddress == expectedOwner else {
+            throw KaPostsAPIError.accountChanged
+        }
+    }
+
+    private func submitPayloadTx(_ payload: String, expectedOwner: String? = nil) async throws -> String {
+        try Self.checkOwner(expectedOwner)
+        guard let wallet = WalletManager.shared.currentWallet,
+              let privateKey = WalletManager.shared.getPrivateKey() else {
+            throw KaPostsAPIError.missingWallet
+        }
+        if let script = KaspaAddress.scriptPublicKey(from: wallet.publicAddress),
+           !Self.payloadFitsOneTransaction(payload, scriptPubKey: script) {
+            throw KaPostsAPIError.tooLong
+        }
+        let chatService = ChatService.shared
+        // One outgoing transaction at a time, in line with rooms and sends: picking coins and
+        // recording what was spent can't interleave with another action's.
+        let txId: String = try await chatService.enqueueOutgoingTxOperation {
+            // The wait may have outlasted the account that signed this payload.
+            guard WalletManager.shared.currentWallet?.publicAddress == wallet.publicAddress else {
+                throw KaPostsAPIError.accountChanged
+            }
+            // The coins rooms and sends draw from too: ones a scheduled post is waiting for (§5.10),
+            // or that a send still in flight spent, are left out, and the change of the last post
+            // or room message is offered, so two quick likes don't pick the same coin.
+            let utxos = chatService.prepareMessageUtxos(
+                confirmed: try await NodePoolService.shared.getUtxosByAddresses([wallet.publicAddress])
+            )
+            let signedTx = try KasiaTransactionBuilder.buildPayloadSelfSendTx(
+                from: wallet.publicAddress,
+                senderPrivateKey: privateKey,
+                utxos: utxos,
+                payload: Data(payload.utf8)
+            )
+            let usesUnconfirmedInputs = chatService.spentMessageUtxos(from: signedTx, candidates: utxos)
+                .contains { $0.blockDaaScore == 0 }
+            let submitted: String
+            do {
+                (submitted, _) = try await NodePoolService.shared.submitTransaction(signedTx, allowOrphan: usesUnconfirmedInputs)
+            } catch let unknown as SendOutcomeUnknownError {
+                // It may land: its coins stay held.
+                chatService.recordPlainSend(signedTx, spent: utxos, txId: nil, changeScriptPubKey: nil)
+                throw unknown
+            }
+            chatService.recordPlainSend(signedTx, spent: utxos, txId: submitted,
+                                        changeScriptPubKey: KaspaAddress.scriptPublicKey(from: wallet.publicAddress))
+            // The id a scheduled post is keyed on (§5.10) is computed before submission; every real
+            // submit is a free check that the computation still agrees with the node.
+            let computed = KasiaTransactionBuilder.computeTransactionId(signedTx)
+            if computed != submitted {
+                AppLog.log("[KaPosts] computeTransactionId MISMATCH: computed %@, node %@", String(computed.prefix(12)), String(submitted.prefix(12)))
+            }
+            return submitted
+        }
+        // Only what shows on your profile: a post, reply, quote, edit, delete or poll.
+        let action = payload.split(separator: ":", maxSplits: 4).dropFirst(2).first.map(String.init)
+        if let action, ["post", "reply", "quote", "unquote", "edit", "delete", "poll"].contains(action) {
+            Self.ownActivityAt = Date()
+        }
+        AppLog.log("[KaPosts] Submitted %@ action tx %@", String(payload.prefix(12)), String(txId.prefix(12)))
+        // Refresh the wallet balance so the header updates live with the fee just spent - once
+        // immediately, once after the UTXO change settles (Kaspa blocks are ~1s, so the second
+        // pass reliably catches it).
+        Task { @MainActor in
+            _ = try? await WalletManager.shared.refreshBalance(force: true)
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            _ = try? await WalletManager.shared.refreshBalance(force: true)
+        }
+        return txId
+    }
+}
+
+
+// MARK: - KaPosts local notification pings
+
+/// While the app runs this polls the indexer's notification stream (30s) and keeps the bell's
+/// unseen count. Banners come from remote pushes alone (`ChatService.localBannersEnabled` is
+/// false), so the local-banner path below stays behind that switch, unused.
+@MainActor
+final class KaPostsNotificationService {
+    static let shared = KaPostsNotificationService()
+
+    private var pollTask: Task<Void, Never>?
+    private static let pollIntervalNanos: UInt64 = 30 * 1_000_000_000
+    /// How far back one poll follows the bell's count (50 a page).
+    private static let maxUnseenCountPages = 10
+
+    /// True while KaPostsNotificationsView is on screen - mirrors the open-conversation rule:
+    /// no banner for the very stream the user is looking at (set from that view's
+    /// onAppear/onDisappear; consulted by `AppDelegate.willPresent`).
+    var isNotificationsScreenVisible = false
+
+    private init() {}
+
+    // MARK: Displayed-action ledger (App Group)
+
+    /// Ledger of KaPosts ACTION txids already shown as a banner: a remote push the user tapped,
+    /// and this poller's local banners while `ChatService.localBannersEnabled` allows them. The
+    /// kaposts push carries no `tx_id` in userInfo, but its
+    /// `apns-collapse-id` IS the action's txid (PUSH_EXTENSIONS.md) and iOS surfaces that as
+    /// `UNNotificationRequest.identifier` - the stable key both sides share. Bounded FIFO,
+    /// mirroring `ChatService.localPostedTxIdsKey`.
+    ///
+    /// Residual race this cannot close: a push delivered while BACKGROUNDED never passes
+    /// through willPresent, so it is only recorded when tapped or while it still sits in
+    /// Notification Center (pollOnce checks deliveredNotifications). A background push the
+    /// user swipe-dismissed can therefore re-banner on the next foreground poll.
+    private static let displayedActionIdsKey = "kaposts_displayed_action_ids"
+
+    func hasDisplayed(actionId: String) -> Bool {
+        guard let defaults = UserDefaults(suiteName: "group.com.kachat.kaposts") else { return false }
+        return (defaults.stringArray(forKey: Self.displayedActionIdsKey) ?? []).contains(actionId)
+    }
+
+    func recordDisplayed(actionId: String) {
+        guard let defaults = UserDefaults(suiteName: "group.com.kachat.kaposts") else { return }
+        var displayed = defaults.stringArray(forKey: Self.displayedActionIdsKey) ?? []
+        guard !displayed.contains(actionId) else { return }
+        displayed.append(actionId)
+        if displayed.count > 300 { displayed.removeFirst(displayed.count - 300) }
+        defaults.set(displayed, forKey: Self.displayedActionIdsKey)
+    }
+
+    /// Last notification timestamp already surfaced (banner or Notifications screen), per
+    /// wallet - anything at or before this never pings.
+    private var lastSeenKey: String? {
+        guard let address = WalletManager.shared.currentWallet?.publicAddress else { return nil }
+        return "kaposts_notifications_last_seen_\(address)"
+    }
+
+    func start() {
+        // No KaPost indexer on this network (testnet): nothing to poll.
+        guard KaPostsAPIClient.hasIndexer else { return }
+        guard pollTask == nil else { return }
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.pollOnce()
+                try? await Task.sleep(nanoseconds: Self.pollIntervalNanos)
+            }
+        }
+    }
+
+    func stop() {
+        pollTask?.cancel()
+        pollTask = nil
+    }
+
+    /// The Notifications screen calls this with the newest timestamp it displayed - what the
+    /// user has seen on screen shouldn't ping later.
+    func markSeen(upTo timestamp: Int64) {
+        ChatService.clearDeliveredNotifications(threadIdentifier: "kaposts")
+        guard let key = lastSeenKey else { return }
+        let current = (UserDefaults.standard.object(forKey: key) as? NSNumber)?.int64Value ?? 0
+        if timestamp > current {
+            UserDefaults.standard.set(NSNumber(value: timestamp), forKey: key)
+        }
+    }
+
+    private func pollOnce() async {
+        let settings = AppSettings.load()
+        guard let pollAddress = WalletManager.shared.currentWallet?.publicAddress,
+              let key = lastSeenKey else { return }
+        // Notifications off: nothing here would be shown, so the indexer isn't asked.
+        guard settings.notificationsEnabled else { return }
+        do {
+            var page = try await KaPostsAPIClient.shared.fetchNotifications(limit: 50)
+            var notifications = page.notifications
+            // A long absence runs past the first page: the bell counts all of it, within reason.
+            if let seenUpTo = (UserDefaults.standard.object(forKey: key) as? NSNumber)?.int64Value {
+                var pages = 1
+                while pages < Self.maxUnseenCountPages,
+                      page.pagination?.hasMore == true, let cursor = page.pagination?.nextCursor, !cursor.isEmpty,
+                      let oldest = notifications.map(\.timestamp).min(), oldest > seenUpTo,
+                      let next = try? await KaPostsAPIClient.shared.fetchNotifications(limit: 50, before: cursor) {
+                    page = next
+                    notifications += next.notifications
+                    pages += 1
+                }
+            }
+            // The account may have changed while the pages loaded: these rows (and `key`) belong
+            // to the old one, and counting them now would add them to the new account's bell.
+            guard WalletManager.shared.currentWallet?.publicAddress == pollAddress else { return }
+            // Remote-push mode: the push service delivers KaPosts pings (registered via
+            // kaposts_pubkey) while the app is backgrounded or closed.
+            guard settings.notificationsEnabled else { return }
+            if settings.notificationMode == .remotePush,
+               UIApplication.shared.applicationState != .active { return }
+            guard let newest = notifications.map(\.timestamp).max() else { return }
+            guard let lastSeen = (UserDefaults.standard.object(forKey: key) as? NSNumber)?.int64Value else {
+                // First run for this wallet: baseline silently instead of replaying history.
+                UserDefaults.standard.set(NSNumber(value: newest), forKey: key)
+                return
+            }
+            // Per-type toggles (Settings > Notifications > KaPosts): disabled kinds are
+            // dropped HERE, after lastSeen already advanced past them above - silently
+            // skipped for good, never queued to ping later, and never eating a slot in the
+            // burst cap below.
+            let fresh = notifications.filter {
+                $0.timestamp > lastSeen &&
+                settings.shouldNotifyKaPostsAction(contentType: $0.contentType, voteType: $0.voteType)
+            }
+            guard !fresh.isEmpty else {
+                UserDefaults.standard.set(NSNumber(value: max(newest, lastSeen)), forKey: key)
+                return
+            }
+            UserDefaults.standard.set(NSNumber(value: max(newest, lastSeen)), forKey: key)
+            // The bell's unseen count: what arrived, less your own actions and hidden people.
+            // Nothing is unseen while the notifications screen is open.
+            let me = WalletManager.shared.currentWallet?.publicAddress
+            let arrivals = fresh.filter { notification in
+                guard let address = KaPostsAPIClient.kaspaAddress(fromPubkey: notification.userPublicKey) else { return false }
+                return address != me && !KaPostsModerationStore.shared.isHidden(address)
+            }
+            if isNotificationsScreenVisible {
+                KaPostsNotificationCenter.shared.markAllSeen()
+            } else {
+                KaPostsNotificationCenter.shared.recordArrivals(arrivals.count)
+            }
+            // Actions a remote push already bannered must not banner again: the ledger holds
+            // ids willPresent presented or the user tapped, and deliveredNotifications covers
+            // pushes delivered while backgrounded that still sit in Notification Center
+            // (their request identifier is the apns-collapse-id, i.e. the action's txid).
+            // Those get recorded into the ledger too, so clearing the center later doesn't
+            // resurrect them.
+            let deliveredIds = Set(
+                await UNUserNotificationCenter.current().deliveredNotifications()
+                    .filter { $0.request.content.threadIdentifier == "kaposts" }
+                    .map(\.request.identifier)
+            )
+            // Oldest first so banners arrive in order; cap a burst so a viral post doesn't
+            // fire fifty banners at once.
+            for notification in fresh.sorted(by: { $0.timestamp < $1.timestamp }).suffix(5) {
+                if deliveredIds.contains(notification.id) {
+                    recordDisplayed(actionId: notification.id)
+                    continue
+                }
+                guard !hasDisplayed(actionId: notification.id) else { continue }
+                // Claim BEFORE posting so a racing push in willPresent sees it.
+                recordDisplayed(actionId: notification.id)
+                await postLocal(notification)
+            }
+        } catch {
+            AppLog.log("[KaPosts] Notification poll failed: %@", error.localizedDescription)
+        }
+    }
+
+    /// Does the reader still want to hear about this kind of activity (Settings > Notifications)?
+    static func notificationsEnabled(for contentType: String?, voteType: String?) -> Bool {
+        AppSettings.load().shouldNotifyKaPostsAction(contentType: contentType, voteType: voteType)
+    }
+
+    private func postLocal(_ notification: KaPostsAPIClient.KNotification) async {
+        // The remote push is the only banner source - see `ChatService.localBannersEnabled`.
+        // The bell's count is fed by `pollOnce` (KaPostsNotificationCenter) and is unaffected.
+        guard ChatService.localBannersEnabled else { return }
+        guard let address = KaPostsAPIClient.kaspaAddress(fromPubkey: notification.userPublicKey),
+              address != WalletManager.shared.currentWallet?.publicAddress,
+              !KaPostsModerationStore.shared.isHidden(address) else { return }
+        guard Self.notificationsEnabled(for: notification.contentType, voteType: notification.voteType) else { return }
+
+        let text = KaPostsAPIClient.stripMarker(notification.decodedContent ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let action: String
+        switch notification.contentType {
+        case "vote": action = notification.voteType == "downvote" ? "disliked your post" : "liked your post"
+        case "tip":
+            action = notification.tipAmountSompi.map { "tipped your post: \(KaspaUnit.plain($0)) \(KaspaUnit.symbol)" }
+                ?? "tipped your post"
+        case "reply": action = "replied to your post"
+        case "quote": action = text.isEmpty ? "reposted your post" : "quoted your post"
+        case "follow": action = "followed you"
+        case "mention": action = "mentioned you in a post"
+        default: action = "interacted with your post"
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "KaPost"
+        content.body = "\(await actorName(for: address)) \(action)" + (text.isEmpty ? "" : ": \(text)")
+        content.sound = .default
+        content.threadIdentifier = "kaposts"
+        // A tap deep-opens the exact post/comment (KaChatApp reads userInfo["postId"]).
+        // Per-kind target rule matches the in-app notifications sheet: reply/quote-with-text
+        // open the reply itself; vote/mention open the containing post.
+        let targetTxId: String?
+        switch notification.contentType {
+        case "reply": targetTxId = notification.id
+        case "quote": targetTxId = text.isEmpty ? notification.contentId : notification.id
+        case "follow": targetTxId = nil
+        // A mention's acting content IS the post/comment mentioning you — fall back to the
+        // notification's own txid when contentId is empty, else the tap has no target.
+        case "mention": targetTxId = (notification.contentId?.isEmpty == false) ? notification.contentId : notification.id
+        default: targetTxId = notification.contentId
+        }
+        if let targetTxId, !targetTxId.isEmpty {
+            content.userInfo = ["postId": targetTxId]
+        }
+
+        let request = UNNotificationRequest(
+            identifier: "kaposts-\(notification.id)",
+            content: content,
+            trigger: nil
+        )
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            AppLog.log("[KaPosts] Failed to post local notification: %@", error.localizedDescription)
+        }
+    }
+
+    /// Contact alias > KNS primary domain (fetched when not cached) > shortened address - the
+    /// same identity chain as everywhere else in KaPosts; a domain keeps its .kas.
+    private func actorName(for address: String) async -> String {
+        if let alias = ContactsManager.shared.getContact(byAddress: address)?.alias,
+           !alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return KaPostsView.displayKasName(alias)
+        }
+        if KNSService.shared.profileCache[address] == nil {
+            _ = await KNSService.shared.fetchProfile(for: address)
+        }
+        if let domain = KNSService.shared.profileCache[address]?.domainName,
+           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return KaPostsView.displayKasName(domain)
+        }
+        return String(address.suffix(10))
+    }
+}
