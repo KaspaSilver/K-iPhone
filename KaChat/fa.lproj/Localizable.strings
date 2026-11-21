@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "کارمزد شبکه بیش از یک‌دهم مقداری است که جابه‌جا می‌شود.";
 "Swap Stablecoins" = "سوآپ استیبل‌کوین";
 "Which stablecoin?" = "کدام استیبل‌کوین؟";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "آن را روی یک نشانی تازه دریافت کنید، یا از «سوآپ استیبل‌کوین» در زبانهٔ کیف پول بخرید.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "آن را روی یک نشانی تازه دریافت کنید، یا از «سوآپ استیبل‌کوین» در زبانهٔ KaPay بخرید.";
 "Swapped %@ for %@" = "%@ با %@ سوآپ شد";
 "Swap sent: %@ for %@" = "سوآپ ارسال شد: %@ با %@";
 "Swap Complete" = "سوآپ کامل شد";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "با کد خود Trestly درون K ساخته و بررسی شده است. اگر استخر زودتر تغییر کند، دوباره قیمت می‌دهد: فقط با همین قیمت یا بهتر ادامه می‌دهد، برای کمتر دوباره می‌پرسد و هرگز زیر حداقل سایت نمی‌رود.";
 "More stablecoins will show here as K adds them." = "با اضافه شدن استیبل‌کوین‌های دیگر به K، اینجا نمایش داده می‌شوند.";
 "On Trestly, inside K" = "در Trestly، درون K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "برای مبادلهٔ KAS و kUSDT یا افزودن به استخر، در زبانهٔ کیف پول روی «سوآپ استیبل‌کوین» بزنید و kUSDT را انتخاب کنید. سایت خود Trestly درون K و متصل به نشانی انتخابی شما باز می‌شود.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "برای مبادلهٔ KAS و kUSDT یا افزودن به استخر، در زبانهٔ KaPay روی «سوآپ استیبل‌کوین» بزنید و kUSDT را انتخاب کنید. سایت خود Trestly درون K و متصل به نشانی انتخابی شما باز می‌شود.";
 "Trestly asks K to" = "Trestly از K می‌خواهد:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "برنامه‌های دیگر شما با همین کلمات همان kUSDT را نشان می‌دهند و می‌توانند آن را بفرستند. مبادله همین‌جا انجام می‌شود.";
 

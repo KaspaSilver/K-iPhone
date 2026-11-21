@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "Phí mạng lớn hơn một phần mười số tiền được chuyển.";
 "Swap Stablecoins" = "Hoán đổi stablecoin";
 "Which stablecoin?" = "Stablecoin nào?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "Nhận vào một địa chỉ mới, hoặc mua bằng Hoán đổi stablecoin ở tab Ví.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "Nhận vào một địa chỉ mới, hoặc mua bằng Hoán đổi stablecoin ở tab KaPay.";
 "Swapped %@ for %@" = "Đã hoán đổi %@ lấy %@";
 "Swap sent: %@ for %@" = "Đã gửi hoán đổi: %@ lấy %@";
 "Swap Complete" = "Hoán đổi hoàn tất";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Được tạo và kiểm tra bởi chính mã của Trestly trong K. Nếu pool thay đổi trước, giá sẽ được tính lại: chỉ tiếp tục ở giá này hoặc tốt hơn, hỏi lại nếu thấp hơn và không bao giờ dưới mức tối thiểu của trang.";
 "More stablecoins will show here as K adds them." = "Các stablecoin khác sẽ hiện ở đây khi K thêm vào.";
 "On Trestly, inside K" = "Trên Trestly, ngay trong K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Để hoán đổi KAS và kUSDT, hoặc thêm vào pool, hãy chạm Hoán đổi stablecoin ở tab Ví và chọn kUSDT. Trang của Trestly mở ngay trong K, kết nối với địa chỉ bạn chọn.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Để hoán đổi KAS và kUSDT, hoặc thêm vào pool, hãy chạm Hoán đổi stablecoin ở tab KaPay và chọn kUSDT. Trang của Trestly mở ngay trong K, kết nối với địa chỉ bạn chọn.";
 "Trestly asks K to" = "Trestly yêu cầu K";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Các ứng dụng khác của bạn dùng cùng bộ từ sẽ hiển thị cùng kUSDT và có thể gửi. Hoán đổi diễn ra ở đây.";
 

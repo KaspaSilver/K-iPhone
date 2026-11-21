@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "Ağ ücreti, taşınan miktarın onda birinden fazla.";
 "Swap Stablecoins" = "Stablecoin Takas Et";
 "Which stablecoin?" = "Hangi stablecoin?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "Yeni bir adrese alın ya da Cüzdan sekmesindeki Stablecoin Takas Et ile satın alın.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "Yeni bir adrese alın ya da KaPay sekmesindeki Stablecoin Takas Et ile satın alın.";
 "Swapped %@ for %@" = "%@, %@ ile takas edildi";
 "Swap sent: %@ for %@" = "Takas gönderildi: %@ → %@";
 "Swap Complete" = "Takas Tamamlandı";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "K içinde Trestly'nin kendi koduyla oluşturulup kontrol edildi. Havuz önce değişirse yeniden fiyat verir: yalnızca bu fiyat veya daha iyisiyle devam eder, daha azı için tekrar sorar ve sitenin minimumunun altına asla inmez.";
 "More stablecoins will show here as K adds them." = "K ekledikçe daha fazla stablecoin burada görünecek.";
 "On Trestly, inside K" = "Trestly'de, K içinde";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "KAS ile kUSDT takası yapmak veya havuza eklemek için Cüzdan sekmesinde Stablecoin Takas Et'a dokunup kUSDT'yi seçin. Trestly'nin kendi sitesi K içinde, seçtiğiniz adrese bağlı olarak açılır.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "KAS ile kUSDT takası yapmak veya havuza eklemek için KaPay sekmesinde Stablecoin Takas Et'a dokunup kUSDT'yi seçin. Trestly'nin kendi sitesi K içinde, seçtiğiniz adrese bağlı olarak açılır.";
 "Trestly asks K to" = "Trestly, K'den şunu istiyor:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Aynı kelimeleri kullanan diğer uygulamalarınız aynı kUSDT'yi gösterir ve gönderebilir. Takas burada yapılır.";
 

@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "नेटवर्क शुल्क इस राशि के दसवें हिस्से से ज़्यादा है।";
 "Swap Stablecoins" = "स्टेबलकॉइन स्वैप करें";
 "Which stablecoin?" = "कौन सा स्टेबलकॉइन?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "इसे नए पते पर पाएं, या वॉलेट टैब में स्टेबलकॉइन स्वैप करें से खरीदें।";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "इसे नए पते पर पाएं, या KaPay टैब में स्टेबलकॉइन स्वैप करें से खरीदें।";
 "Swapped %@ for %@" = "%@ को %@ से स्वैप किया";
 "Swap sent: %@ for %@" = "स्वैप भेजा गया: %@ के बदले %@";
 "Swap Complete" = "स्वैप पूरा हुआ";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "K के अंदर Trestly के अपने कोड से बना और जांचा गया। अगर पूल पहले बदलता है, तो फिर से भाव लिया जाता है: केवल इसी भाव या बेहतर पर आगे बढ़ता है, कम होने पर फिर पूछता है और साइट के न्यूनतम से नीचे कभी नहीं जाता।";
 "More stablecoins will show here as K adds them." = "K जैसे-जैसे और स्टेबलकॉइन जोड़ेगा, वे यहां दिखेंगे।";
 "On Trestly, inside K" = "Trestly पर, K के अंदर";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "KAS और kUSDT की अदला-बदली करने या पूल में जोड़ने के लिए वॉलेट टैब में स्टेबलकॉइन स्वैप करें पर टैप करें और kUSDT चुनें। Trestly की अपनी साइट K के अंदर, आपके चुने पते से जुड़ी हुई खुलती है।";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "KAS और kUSDT की अदला-बदली करने या पूल में जोड़ने के लिए KaPay टैब में स्टेबलकॉइन स्वैप करें पर टैप करें और kUSDT चुनें। Trestly की अपनी साइट K के अंदर, आपके चुने पते से जुड़ी हुई खुलती है।";
 "Trestly asks K to" = "Trestly, K से कह रहा है:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "उन्हीं शब्दों वाले आपके दूसरे ऐप वही kUSDT दिखाते हैं और भेज सकते हैं। स्वैप यहीं होता है।";
 

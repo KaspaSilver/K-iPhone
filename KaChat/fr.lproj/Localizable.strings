@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "Les frais de réseau dépassent un dixième de ce que cela déplace.";
 "Swap Stablecoins" = "Échanger des stablecoins";
 "Which stablecoin?" = "Quel stablecoin ?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "Recevez-en sur une nouvelle adresse, ou achetez-en avec Échanger des stablecoins dans l'onglet Portefeuille.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "Recevez-en sur une nouvelle adresse, ou achetez-en avec Échanger des stablecoins dans l'onglet KaPay.";
 "Swapped %@ for %@" = "%@ échangés contre %@";
 "Swap sent: %@ for %@" = "Échange envoyé : %@ contre %@";
 "Swap Complete" = "Échange terminé";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Construit et vérifié par le propre code de Trestly dans K. Si le pool bouge avant, il recote : il ne continue qu'à ce prix ou mieux, vous redemande pour moins, et ne descend jamais sous le minimum du site.";
 "More stablecoins will show here as K adds them." = "D'autres stablecoins apparaîtront ici quand K les ajoutera.";
 "On Trestly, inside K" = "Sur Trestly, dans K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Pour échanger des KAS et des kUSDT, ou ajouter au pool, touchez Échanger des stablecoins dans l'onglet Portefeuille et choisissez kUSDT. Le site de Trestly s'ouvre dans K, connecté à l'adresse choisie.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Pour échanger des KAS et des kUSDT, ou ajouter au pool, touchez Échanger des stablecoins dans l'onglet KaPay et choisissez kUSDT. Le site de Trestly s'ouvre dans K, connecté à l'adresse choisie.";
 "Trestly asks K to" = "Trestly demande à K de :";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Vos autres apps avec les mêmes mots affichent les mêmes kUSDT et peuvent les envoyer. L’échange se fait ici.";
 

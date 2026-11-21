@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "رسوم الشبكة أكثر من عُشر ما يُنقل.";
 "Swap Stablecoins" = "مبادلة العملات المستقرة";
 "Which stablecoin?" = "أي عملة مستقرة؟";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "استلمه على عنوان جديد، أو اشترِه من «مبادلة العملات المستقرة» في تبويب المحفظة.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "استلمه على عنوان جديد، أو اشترِه من «مبادلة العملات المستقرة» في تبويب KaPay.";
 "Swapped %@ for %@" = "تمت مبادلة %@ مقابل %@";
 "Swap sent: %@ for %@" = "أُرسلت المبادلة: %@ مقابل %@";
 "Swap Complete" = "اكتملت المبادلة";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "بُني وفُحص بشيفرة Trestly نفسها داخل K. إن تحرّك المجمع أولًا يُعاد التسعير: يمضي فقط بهذا السعر أو أفضل، ويسألك مجددًا إن قلّ، ولا ينزل أبدًا تحت الحد الأدنى للموقع.";
 "More stablecoins will show here as K adds them." = "ستظهر عملات مستقرة أخرى هنا عندما يضيفها K.";
 "On Trestly, inside K" = "على Trestly، داخل K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "لمبادلة KAS وkUSDT أو الإضافة إلى المجمع، اضغط «مبادلة العملات المستقرة» في تبويب المحفظة واختر kUSDT. يُفتح موقع Trestly نفسه داخل K، متصلًا بالعنوان الذي تختاره.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "لمبادلة KAS وkUSDT أو الإضافة إلى المجمع، اضغط «مبادلة العملات المستقرة» في تبويب KaPay واختر kUSDT. يُفتح موقع Trestly نفسه داخل K، متصلًا بالعنوان الذي تختاره.";
 "Trestly asks K to" = "يطلب Trestly من K:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "تطبيقاتك الأخرى بنفس الكلمات تعرض نفس kUSDT ويمكنها إرساله. التبديل يتم هنا.";
 

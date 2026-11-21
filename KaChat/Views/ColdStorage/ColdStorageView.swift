@@ -52,6 +52,8 @@ struct ColdStorageListView: View {
                 }
             }
         }
+        // a store not tied to the signed-in account shows nothing and saves nothing
+        .onAppear { manager.ensureTiedToSignedInAccount() }
         .listStyle(.plain)
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {

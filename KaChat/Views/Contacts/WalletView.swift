@@ -42,7 +42,7 @@ struct WalletView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PinnedListHeader(title: "Wallet")
+                PinnedListHeader(title: "KaPay")
                 ScrollView {
                     if let wallet = walletManager.currentWallet {
                         content(wallet)
@@ -51,7 +51,7 @@ struct WalletView: View {
                 .refreshable { await scanAndRefresh() }
             }
             .background(Color(UIColor.systemBackground).ignoresSafeArea())
-            .navigationTitle("Wallet")
+            .navigationTitle("KaPay")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "עמלת הרשת גבוהה מעשירית ממה שזה מעביר.";
 "Swap Stablecoins" = "החלפת מטבעות יציבים";
 "Which stablecoin?" = "איזה מטבע יציב?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "קבלו אותו בכתובת חדשה, או קנו דרך החלפת מטבעות יציבים בלשונית הארנק.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "קבלו אותו בכתובת חדשה, או קנו דרך החלפת מטבעות יציבים בלשונית KaPay.";
 "Swapped %@ for %@" = "הוחלפו %@ תמורת %@";
 "Swap sent: %@ for %@" = "ההחלפה נשלחה: %@ תמורת %@";
 "Swap Complete" = "ההחלפה הושלמה";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "נבנה ונבדק בקוד של Trestly עצמו בתוך K. אם המאגר זז קודם, מתקבלת הצעה חדשה: ממשיכים רק במחיר הזה או טוב יותר, שואלים שוב אם פחות, ואף פעם לא מתחת למינימום של האתר.";
 "More stablecoins will show here as K adds them." = "מטבעות יציבים נוספים יופיעו כאן כש-K יוסיף אותם.";
 "On Trestly, inside K" = "ב-Trestly, בתוך K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "כדי להחליף KAS ו-kUSDT או להוסיף למאגר, הקישו על החלפת מטבעות יציבים בלשונית הארנק ובחרו kUSDT. האתר של Trestly עצמו נפתח בתוך K, מחובר לכתובת שבחרתם.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "כדי להחליף KAS ו-kUSDT או להוסיף למאגר, הקישו על החלפת מטבעות יציבים בלשונית KaPay ובחרו kUSDT. האתר של Trestly עצמו נפתח בתוך K, מחובר לכתובת שבחרתם.";
 "Trestly asks K to" = "Trestly מבקש מ-K:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "האפליקציות האחרות שלך עם אותן מילים מציגות את אותם kUSDT ויכולות לשלוח אותם. ההחלפה נעשית כאן.";
 

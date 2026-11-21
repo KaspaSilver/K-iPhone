@@ -26,7 +26,7 @@ final class GlobalNotificationCenter: ObservableObject {
                 case .kaposts: return "KaPost"
                 case .group: return "Group"
                 case .publicChat: return "Public Chat"
-                case .wallet: return "Wallet"
+                case .wallet: return "KaPay"
                 case .kachat: return ".kachat"
                 case .token: return "Tokens"
                 }

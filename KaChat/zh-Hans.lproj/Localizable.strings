@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "网络费用超过所转移金额的十分之一。";
 "Swap Stablecoins" = "兑换稳定币";
 "Which stablecoin?" = "哪种稳定币？";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "可在新地址接收，或在“钱包”标签页用“兑换稳定币”购买。";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "可在新地址接收，或在“KaPay”标签页用“兑换稳定币”购买。";
 "Swapped %@ for %@" = "已将 %@ 兑换为 %@";
 "Swap sent: %@ for %@" = "兑换已发送：%@ → %@";
 "Swap Complete" = "兑换完成";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "由 Trestly 自己的代码在 K 内构建和检查。如果资金池先变动，会重新报价：只在此报价或更好时继续，更少时再次询问，绝不低于网站的最低值。";
 "More stablecoins will show here as K adds them." = "K 添加更多稳定币后，会显示在这里。";
 "On Trestly, inside K" = "在 K 内的 Trestly 上";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "要兑换 KAS 和 kUSDT，或向资金池添加，请在“钱包”标签页点按“兑换稳定币”并选择 kUSDT。Trestly 自己的网站会在 K 内打开，并连接到你选择的地址。";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "要兑换 KAS 和 kUSDT，或向资金池添加，请在“KaPay”标签页点按“兑换稳定币”并选择 kUSDT。Trestly 自己的网站会在 K 内打开，并连接到你选择的地址。";
 "Trestly asks K to" = "Trestly 请求 K：";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "使用相同助记词的其他应用会显示相同的 kUSDT，也能发送。兑换在这里进行。";
 

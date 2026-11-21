@@ -113,8 +113,16 @@ final class ColdStorageManager: ObservableObject {
 
     /// Re-importing an already-known kpub updates that account's name in place rather than
     /// creating a duplicate entry.
+    /// Ties the store to the signed-in account if that was missed. Untied, `saveAccounts` has no
+    /// key and writes nothing, so an import would last only until the app closed.
+    func ensureTiedToSignedInAccount() {
+        guard activeWalletAddress == nil, let wallet = WalletManager.shared.currentWallet?.publicAddress else { return }
+        setCurrentWallet(wallet)
+    }
+
     @discardableResult
     func importAccount(kpubString: String, label: String) -> Result<ColdStorageAccount, ColdStorageError> {
+        ensureTiedToSignedInAccount()
         let trimmedKpub = kpubString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard KaspaExtendedPublicKey(kpubString: trimmedKpub) != nil else {
             return .failure(.invalidKpub)

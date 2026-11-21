@@ -207,7 +207,7 @@ struct TokenManageView: View {
             TokenIcon(token: token, size: 48)
             Text(verbatim: String(format: AppLocalization.string("No %@ Yet"), token.symbol))
                 .font(.headline)
-            Text("Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab.")
+            Text("Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

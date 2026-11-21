@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "Комиссия сети больше десятой части перемещаемой суммы.";
 "Swap Stablecoins" = "Обменять стейблкоины";
 "Which stablecoin?" = "Какой стейблкоин?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "Получите его на новый адрес или купите через «Обменять стейблкоины» на вкладке «Кошелёк».";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "Получите его на новый адрес или купите через «Обменять стейблкоины» на вкладке «KaPay».";
 "Swapped %@ for %@" = "Обменяно %@ на %@";
 "Swap sent: %@ for %@" = "Обмен отправлен: %@ на %@";
 "Swap Complete" = "Обмен завершён";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Собрано и проверено собственным кодом Trestly внутри K. Если пул изменится раньше, котировка пересчитывается: сделка идёт только по этой цене или лучше, при меньшей K спросит снова и никогда не опустится ниже минимума сайта.";
 "More stablecoins will show here as K adds them." = "Другие стейблкоины появятся здесь, когда K их добавит.";
 "On Trestly, inside K" = "На Trestly, внутри K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Чтобы обменять KAS и kUSDT или добавить в пул, нажмите «Обменять стейблкоины» на вкладке «Кошелёк» и выберите kUSDT. Сайт Trestly откроется внутри K, подключённый к выбранному адресу.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Чтобы обменять KAS и kUSDT или добавить в пул, нажмите «Обменять стейблкоины» на вкладке «KaPay» и выберите kUSDT. Сайт Trestly откроется внутри K, подключённый к выбранному адресу.";
 "Trestly asks K to" = "Trestly просит K:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Другие ваши приложения с теми же словами показывают те же kUSDT и могут их отправлять. Обмен — здесь.";
 
