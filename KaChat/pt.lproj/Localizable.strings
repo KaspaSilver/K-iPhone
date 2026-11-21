@@ -247,7 +247,7 @@
 "Scan QR Code" = "Escanear codigo QR";
 "Search chats" = "Pesquisar chats";
 "Search emoji" = "Pesquisar emoji";
-"Secure messaging on Kaspa BlockDAG" = "Mensagens seguras na Kaspa BlockDAG";
+"Digital Freedom on the Kaspa Network" = "Liberdade digital na rede Kaspa";
 "Security Warning" = "Aviso de segurança";
 "12 or 24 Words" = "12 ou 24 palavras";
 "Words copied. Clipboard will clear in 30s." = "Palavras copiadas. A área de transferência será limpa em 30 s.";
@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "A taxa de rede passa de um décimo do que isto movimenta.";
 "Swap Stablecoins" = "Trocar stablecoins";
 "Which stablecoin?" = "Qual stablecoin?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "Receba em um endereço novo ou compre com Trocar stablecoins na aba KaPay.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "Receba em um endereço novo ou compre com Trocar stablecoins na aba Carteira.";
 "Swapped %@ for %@" = "Trocou %@ por %@";
 "Swap sent: %@ for %@" = "Troca enviada: %@ por %@";
 "Swap Complete" = "Troca concluída";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Montado e verificado pelo próprio código da Trestly dentro do K. Se o pool mudar antes, cota de novo: só segue nesta cotação ou melhor, pergunta de novo se for menos e nunca fica abaixo do mínimo do site.";
 "More stablecoins will show here as K adds them." = "Mais stablecoins aparecerão aqui conforme o K as adicionar.";
 "On Trestly, inside K" = "Na Trestly, dentro do K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Para trocar KAS e kUSDT, ou adicionar ao pool, toque em Trocar stablecoins na aba KaPay e escolha kUSDT. O site da Trestly abre dentro do K, conectado ao endereço que você escolher.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Para trocar KAS e kUSDT, ou adicionar ao pool, toque em Trocar stablecoins na aba Carteira e escolha kUSDT. O site da Trestly abre dentro do K, conectado ao endereço que você escolher.";
 "Trestly asks K to" = "A Trestly pede ao K para:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Seus outros apps com as mesmas palavras mostram os mesmos kUSDT e podem enviá-los. A troca acontece aqui.";
 

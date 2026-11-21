@@ -247,7 +247,7 @@
 "Scan QR Code" = "QR 코드 스캔";
 "Search chats" = "채팅 검색";
 "Search emoji" = "이모지 검색";
-"Secure messaging on Kaspa BlockDAG" = "Kaspa BlockDAG에서 안전한 메시징";
+"Digital Freedom on the Kaspa Network" = "Kaspa 네트워크 위의 디지털 자유";
 "Security Warning" = "보안 경고";
 "12 or 24 Words" = "12개 또는 24개 단어";
 "Words copied. Clipboard will clear in 30s." = "단어를 복사했습니다. 30초 후 클립보드가 지워집니다.";
@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "네트워크 수수료가 이동 금액의 10분의 1을 넘습니다.";
 "Swap Stablecoins" = "스테이블코인 스왑";
 "Which stablecoin?" = "어떤 스테이블코인?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "새 주소로 받거나 KaPay 탭의 스테이블코인 스왑으로 구매하세요.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "새 주소로 받거나 지갑 탭의 스테이블코인 스왑으로 구매하세요.";
 "Swapped %@ for %@" = "%@을(를) %@(으)로 스왑했습니다";
 "Swap sent: %@ for %@" = "스왑 전송됨: %@ → %@";
 "Swap Complete" = "스왑 완료";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "K 안에서 Trestly 자체 코드가 만들고 확인합니다. 풀이 먼저 움직이면 다시 견적을 내며, 이 견적 이상일 때만 진행하고, 더 적으면 다시 묻고, 사이트의 최소 아래로는 절대 가지 않습니다.";
 "More stablecoins will show here as K adds them." = "K가 추가하면 다른 스테이블코인도 여기에 표시됩니다.";
 "On Trestly, inside K" = "K 안의 Trestly에서";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "KAS와 kUSDT를 스왑하거나 풀에 추가하려면 KaPay 탭에서 스테이블코인 스왑을 누르고 kUSDT를 선택하세요. 선택한 주소에 연결된 Trestly 사이트가 K 안에서 열립니다.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "KAS와 kUSDT를 스왑하거나 풀에 추가하려면 지갑 탭에서 스테이블코인 스왑을 누르고 kUSDT를 선택하세요. 선택한 주소에 연결된 Trestly 사이트가 K 안에서 열립니다.";
 "Trestly asks K to" = "Trestly가 K에 요청:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "같은 단어를 쓰는 다른 앱에도 같은 kUSDT가 보이고 보낼 수 있습니다. 스왑은 여기서 합니다.";
 

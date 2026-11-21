@@ -2551,8 +2551,7 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         switch self {
         // "KaChat" (owner, 2026-11-21): the app itself is being rebranded as just "K"
         case .chats: return "KaChat"
-        // "KaPay" (owner, 2026-11-21): the wallet part of K, like KaChat for chats
-        case .wallet: return "KaPay"
+        case .wallet: return "Wallet"
         // "Contacts" (owner's call, 2026-10-28; "Addresses" before, as in the KaChat wallet app).
         case .addressBook: return "Contacts"
         case .profile: return "Profile"

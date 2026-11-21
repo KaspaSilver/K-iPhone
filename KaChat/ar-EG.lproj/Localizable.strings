@@ -247,7 +247,7 @@
 "Scan QR Code" = "مسح رمز QR";
 "Search chats" = "البحث في المحادثات";
 "Search emoji" = "البحث عن إيموجي";
-"Secure messaging on Kaspa BlockDAG" = "مراسلة آمنة على Kaspa BlockDAG";
+"Digital Freedom on the Kaspa Network" = "الحرية الرقمية على شبكة Kaspa";
 "Security Warning" = "تحذير أمني";
 "12 or 24 Words" = "12 أو 24 كلمة";
 "Words copied. Clipboard will clear in 30s." = "تم نسخ الكلمات. سيتم مسح الحافظة خلال 30 ثانية.";
@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "رسوم الشبكة أكثر من عُشر ما يُنقل.";
 "Swap Stablecoins" = "مبادلة العملات المستقرة";
 "Which stablecoin?" = "أنهي عملة مستقرة؟";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "استلمه على عنوان جديد، أو اشتريه من «مبادلة العملات المستقرة» في تبويب KaPay.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "استلمه على عنوان جديد، أو اشتريه من «مبادلة العملات المستقرة» في تبويب المحفظة.";
 "Swapped %@ for %@" = "اتبدّل %@ بـ %@";
 "Swap sent: %@ for %@" = "المبادلة اتبعتت: %@ بـ %@";
 "Swap Complete" = "المبادلة خلصت";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "بُني وفُحص بشيفرة Trestly نفسها داخل K. إن تحرّك المجمع أولًا يُعاد التسعير: يمضي فقط بهذا السعر أو أفضل، ويسألك مجددًا إن قلّ، ولا ينزل أبدًا تحت الحد الأدنى للموقع.";
 "More stablecoins will show here as K adds them." = "هتظهر هنا عملات مستقرة تانية لما K يضيفها.";
 "On Trestly, inside K" = "على Trestly، جوه K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "علشان تبدّل KAS وkUSDT أو تضيف للمجمع، دوس «مبادلة العملات المستقرة» في تبويب KaPay واختار kUSDT. موقع Trestly نفسه هيفتح جوه K، متوصل بالعنوان اللي تختاره.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "علشان تبدّل KAS وkUSDT أو تضيف للمجمع، دوس «مبادلة العملات المستقرة» في تبويب المحفظة واختار kUSDT. موقع Trestly نفسه هيفتح جوه K، متوصل بالعنوان اللي تختاره.";
 "Trestly asks K to" = "يطلب Trestly من K:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "تطبيقاتك التانية بنفس الكلمات بتظهر نفس kUSDT وتقدر تبعته. التبديل بيحصل هنا.";
 

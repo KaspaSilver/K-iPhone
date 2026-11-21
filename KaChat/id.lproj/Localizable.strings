@@ -247,7 +247,7 @@
 "Scan QR Code" = "Pindai Kode QR";
 "Search chats" = "Cari obrolan";
 "Search emoji" = "Cari emoji";
-"Secure messaging on Kaspa BlockDAG" = "Perpesanan aman di Kaspa BlockDAG";
+"Digital Freedom on the Kaspa Network" = "Kebebasan digital di jaringan Kaspa";
 "Security Warning" = "Peringatan Keamanan";
 "12 or 24 Words" = "12 atau 24 Kata";
 "Words copied. Clipboard will clear in 30s." = "Kata disalin. Papan klip akan dihapus dalam 30 detik.";
@@ -2279,7 +2279,7 @@
 "The network fee is more than a tenth of what this moves." = "Biaya jaringan lebih dari sepersepuluh dari yang dipindahkan.";
 "Swap Stablecoins" = "Tukar Stablecoin";
 "Which stablecoin?" = "Stablecoin yang mana?";
-"Receive it on a fresh address, or buy it with Swap Stablecoins on the KaPay tab." = "Terima di alamat baru, atau beli lewat Tukar Stablecoin di tab KaPay.";
+"Receive it on a fresh address, or buy it with Swap Stablecoins on the Wallet tab." = "Terima di alamat baru, atau beli lewat Tukar Stablecoin di tab Dompet.";
 "Swapped %@ for %@" = "Menukar %@ dengan %@";
 "Swap sent: %@ for %@" = "Penukaran dikirim: %@ dengan %@";
 "Swap Complete" = "Penukaran Selesai";
@@ -2288,7 +2288,7 @@
 "Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Dibuat dan diperiksa oleh kode Trestly sendiri di dalam K. Jika pool bergerak lebih dulu, harga dihitung ulang: hanya lanjut pada harga ini atau lebih baik, bertanya lagi jika lebih rendah, dan tidak pernah di bawah minimum situs.";
 "More stablecoins will show here as K adds them." = "Stablecoin lain akan muncul di sini saat K menambahkannya.";
 "On Trestly, inside K" = "Di Trestly, di dalam K";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the KaPay tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Untuk menukar KAS dan kUSDT, atau menambah ke pool, ketuk Tukar Stablecoin di tab KaPay dan pilih kUSDT. Situs Trestly terbuka di dalam K, terhubung ke alamat yang Anda pilih.";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Untuk menukar KAS dan kUSDT, atau menambah ke pool, ketuk Tukar Stablecoin di tab Dompet dan pilih kUSDT. Situs Trestly terbuka di dalam K, terhubung ke alamat yang Anda pilih.";
 "Trestly asks K to" = "Trestly meminta K untuk";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Aplikasi Anda yang lain dengan kata yang sama menampilkan kUSDT yang sama dan bisa mengirimnya. Penukaran dilakukan di sini.";
 

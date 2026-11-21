@@ -23,10 +23,12 @@ struct OnboardingView: View {
     @State private var renameText = ""
     @State private var showAppSettings = false
 
-    /// The brand's near-black with a green cast, taken from the KaChat banner rather than the
+    /// The near-black of the K app icon's dark version, with its green cast, rather than the
     /// app's usual true black. Scoped to this screen only, and applied in both appearances on
     /// purpose - it is the sign-in screen, the one place the product introduces itself.
-    private static let pageBackground = Color(red: 0.055, green: 0.086, blue: 0.078)
+    private static let pageBackground = Color(red: 0.027, green: 0.051, blue: 0.055)
+    /// The globe's teal (its nodes), for the glow behind the logo.
+    private static let logoGlow = Color(red: 0.42, green: 0.93, blue: 0.80)
     /// One step up from the page, same cast, for the account rows.
     private static let rowBackground = Color(red: 0.102, green: 0.149, blue: 0.141)
 
@@ -54,7 +56,19 @@ struct OnboardingView: View {
                         .padding(.bottom, 10)
                         .allowsHitTesting(false)
                 }
-                .background(Self.pageBackground.ignoresSafeArea())
+                .background(
+                    ZStack {
+                        Self.pageBackground
+                        // the icon's soft glow, centered on the logo's part of the page
+                        RadialGradient(
+                            colors: [Self.logoGlow.opacity(0.16), .clear],
+                            center: UnitPoint(x: 0.5, y: hasSavedAccounts ? 0.16 : 0.3),
+                            startRadius: 0,
+                            endRadius: proxy.size.width * 0.75
+                        )
+                    }
+                    .ignoresSafeArea()
+                )
                 // The background is dark in both appearances, so the system colors drawn on top
                 // of it have to be their dark variants too - otherwise `.primary` text renders
                 // black on near-black in light mode. Scoped to this subtree.
@@ -176,22 +190,19 @@ struct OnboardingView: View {
         isCreatingAccount || signingInAccountId != nil || isRemovingAccount
     }
 
-    /// Wordmark with the app mark beside it, matching Android. The tagline stays whether or not
-    /// there are accounts saved: it is what the screen is, and hiding it on a returning device
-    /// left the wordmark sitting on its own with nothing saying what it belongs to.
+    /// The K globe (the app icon's mark, `KLogo`), glowing like the icon, over the tagline. Smaller
+    /// when saved accounts share the page, so Create and Import keep their room. The tagline
+    /// stays whether or not there are accounts saved: it is what the screen is.
     private var titleSection: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Text(verbatim: "K")
-                    .font(.largeTitle.weight(.bold))
-                Image("KaChatLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 40, height: 40)
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-            }
+        VStack(spacing: hasSavedAccounts ? 12 : 20) {
+            Image("KLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: hasSavedAccounts ? 76 : 132, height: hasSavedAccounts ? 76 : 132)
+                .shadow(color: Self.logoGlow.opacity(0.45), radius: hasSavedAccounts ? 16 : 28)
+                .accessibilityLabel(Text(verbatim: "K"))
 
-            Text("Secure messaging on Kaspa BlockDAG")
+            Text("Digital Freedom on the Kaspa Network")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -265,7 +276,7 @@ struct OnboardingView: View {
         // Everything else on this page - compact title, section header, both buttons and the
         // spacing around them. Whatever is left after that is what the list may take, floored at
         // two rows so it is always obviously a list.
-        let reservedForRest: CGFloat = 340
+        let reservedForRest: CGFloat = 370
         let twoRows = 2 * Self.savedAccountRowHeight + Self.savedAccountRowSpacing
         let spare = max(availableHeight - reservedForRest, twoRows)
         let listHeight = min(cappedRows, spare)

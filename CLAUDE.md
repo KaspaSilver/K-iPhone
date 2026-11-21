@@ -16,15 +16,17 @@ each phase lands.
 **Name: "K" (owner, 2026-11-21).** The app is called K: the home-screen name
 (`INFOPLIST_KEY_CFBundleDisplayName`, app and share extension), the permission prompts and every
 sentence that means the app say "K", in all 19 languages. "KaChat" stays where it names something
-real: the chats tab (`AppTab.chats`) and its list (the wallet tab, `AppTab.wallet`, and its
-screen are "KaPay" the same way; Settings keeps its "Chats" and "Wallet" categories), .kachat names and profiles ("KaChat Profile",
+real: the chats tab (`AppTab.chats`) and its list (the wallet tab stays "Wallet": it was "KaPay"
+briefly on 2026-11-21 and the owner changed it back; Settings keeps its "Chats" category), .kachat names and profiles ("KaChat Profile",
 "KaChat Link", "Shared a KaChat profile"), KaChat Stats (the protocol's transactions), the Siri
 shortcuts, the KaChat-NFC applet, the "KaChat" Nextcloud folder and archive, and the name the
-Trestly provider announces. The project, targets, bundle id, URL schemes, logo and icon are unchanged.
+Trestly provider announces. The project, targets, bundle id and URL schemes are unchanged. The sign-in
+screen (`OnboardingView`) shows the K globe (`KLogo`, cut from the app icon) with a teal glow over
+"Digital Freedom on the Kaspa Network"; `KaChatLogo` (the chat bubble) is no longer on it.
 
 **Dock and Kaspa Hub (phase 1, 2026-11-20):** the dock is Kaspa Hub and Profile (both pinned,
 `AppTab.pinnedToDock`) plus up to three tabs the person picks (`DockLayout`, saved on the device;
-new installs: Kaspa Hub, KaPay (the `.wallet` tab, labeled "KaPay" since 2026-11-21), KaChat (the `.chats` tab, labeled "KaChat" since 2026-11-21 for the rebrand of the app as "K"), Profile, Settings), and every other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
+new installs: Kaspa Hub, Wallet, KaChat (the `.chats` tab, labeled "KaChat" since 2026-11-21 for the rebrand of the app as "K"), Profile, Settings), and every other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
 `Views/Ecosystem/KaspaHubView.swift`), where it opens full screen; tapping Kaspa Hub again goes back
 to the grid (`HubRouter`). Customize Dock (the Hub's slider button, or Settings > Customization)
 is a sheet with two drag lists. A tab's screen is the same in either place (`AppTabContent`);
