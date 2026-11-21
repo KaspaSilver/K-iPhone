@@ -334,6 +334,32 @@ extension ChatService {
         UserDefaults.standard.set(ids, forKey: key)
     }
 
+    // MARK: Token payment bubbles
+    //
+    // A token payment's txid is a covenant transaction: it spends a token coin (a P2SH input), so
+    // the contract filter (`isKachatContractTransaction`) hides it from payment chats for good, and
+    // `removeSuppressedPaymentMessages` then took the bubble with it - the payer's card showed and
+    // vanished once the chatting address's own transactions were read. The token bubbles are listed
+    // here, per wallet (the newest 2,000), and that cleanup leaves them alone.
+
+    nonisolated static func tokenBubblesKey(wallet: String) -> String {
+        "kachat_token_payment_bubbles_\(wallet.lowercased())"
+    }
+
+    /// The active wallet's token payment bubbles.
+    func tokenPaymentBubbleTxIds() -> Set<String> {
+        guard let wallet = WalletManager.shared.currentWallet else { return [] }
+        return Set(UserDefaults.standard.stringArray(forKey: Self.tokenBubblesKey(wallet: wallet.publicAddress)) ?? [])
+    }
+
+    func markTokenPaymentBubble(_ txId: String, wallet: String) {
+        let key = Self.tokenBubblesKey(wallet: wallet)
+        var ids = UserDefaults.standard.stringArray(forKey: key) ?? []
+        guard !ids.contains(txId.lowercased()) else { return }
+        ids.append(txId.lowercased())
+        UserDefaults.standard.set(Array(ids.suffix(2000)), forKey: key)
+    }
+
     private enum NoticeCheck {
         case valid
         case invalid(String)
@@ -430,6 +456,7 @@ extension ChatService {
     private func insertOwnTokenBubble(_ bubble: ChatMessage, contactAddress: String) {
         // deleted stays deleted, when our own notice is read back
         guard !DeletedMessageLog.contains(bubble.txId, kind: .chat) else { return }
+        markTokenPaymentBubble(bubble.txId, wallet: bubble.senderAddress)
         if let index = conversations.firstIndex(where: { $0.contact.address == contactAddress }) {
             guard !conversations[index].messages.contains(where: { $0.txId == bubble.txId }) else { return }
             updateConversation(at: index) { $0.messages.append(bubble) }
@@ -521,6 +548,7 @@ extension ChatService {
             }
             // the generic payment code leaves it to this notice to confirm
             self.markNoticeBubble(txId, wallet: walletAddress)
+            self.markTokenPaymentBubble(txId, wallet: walletAddress)
             self.addMessageToConversation(bubble(status), contactAddress: contactAddress)
             self.saveMessages()
             AppLog.log("[ChatService] Token payment %@ filed in its chat from a token_payment_notice (%@)",

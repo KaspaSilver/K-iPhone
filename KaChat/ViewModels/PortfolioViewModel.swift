@@ -1149,8 +1149,28 @@ final class PortfolioViewModel: ObservableObject {
     /// portfolio imported into becomes the active one. Timestamp-match-and-replace only considers
     /// the target portfolio's own rows - otherwise a row could get silently reassigned or
     /// overwritten across portfolios just because two unrelated ledgers share a timestamp.
+    /// The active portfolio, made if there is none: importing (or opening Portfolio) must never
+    /// fail for want of one. Ties Portfolio to the signed-in account if that was missed, picks
+    /// the first portfolio if none is active, and otherwise seeds an untouched "Portfolio 1" - which
+    /// a CSV that names its portfolio then renames to that name (`resolveImportPortfolio`).
+    @discardableResult
+    func ensureActivePortfolio() -> UUID? {
+        let manager = PortfolioManager.shared
+        if manager.activePortfolioId == nil, let wallet = WalletManager.shared.currentWallet?.publicAddress {
+            manager.setCurrentWallet(wallet)
+            setCurrentWallet(wallet)
+        }
+        if manager.activePortfolioId == nil, let first = manager.portfolios.first {
+            manager.setActivePortfolio(first.id)
+        }
+        if manager.activePortfolioId == nil {
+            manager.seedDefaultPortfolioIfEmpty()
+        }
+        return manager.activePortfolioId
+    }
+
     func importCsv(from url: URL) -> CsvImportResult {
-        guard let activePortfolioId = PortfolioManager.shared.activePortfolioId else { return CsvImportResult() }
+        guard let activePortfolioId = ensureActivePortfolio() else { return CsvImportResult() }
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }
 

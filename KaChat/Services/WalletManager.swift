@@ -269,6 +269,16 @@ final class WalletManager: ObservableObject {
 
     // MARK: - Public Methods
 
+    /// Portfolio and Cold Storage follow the signed-in account, as in KaPay (they came over with
+    /// phase 2 but this call didn't, so Portfolio had no active portfolio and Import CSV failed,
+    /// 2026-11-21). PortfolioManager first: it seeds "Portfolio 1", which the view model's ledger
+    /// load back-fills into.
+    private func setPortfolioAndColdStorageWallet(_ address: String?) {
+        ColdStorageManager.shared.setCurrentWallet(address)
+        PortfolioManager.shared.setCurrentWallet(address)
+        PortfolioViewModel.shared.setCurrentWallet(address)
+    }
+
     func loadWallet(force: Bool = false) async {
         isLoading = true
         defer { isLoading = false }
@@ -286,6 +296,7 @@ final class WalletManager: ObservableObject {
                     await MessageStore.shared.setCurrentWallet(nil)
                     GroupChatService.shared.setCurrentWallet(nil)
                     PublicChatService.shared.setCurrentWallet(nil)
+                    setPortfolioAndColdStorageWallet(nil)
                     KaPostsFollowStore.shared.setCurrentWallet(nil)
                     KaPostsModerationStore.shared.setCurrentWallet(nil)
                     NextcloudService.shared.setCurrentWallet(nil)
@@ -355,6 +366,7 @@ final class WalletManager: ObservableObject {
                 LaunchTrace.mark("loadWallet: services switched")
                 GroupChatService.shared.setCurrentWallet(canonicalWallet.publicAddress)
                 PublicChatService.shared.setCurrentWallet(canonicalWallet.publicAddress)
+                setPortfolioAndColdStorageWallet(canonicalWallet.publicAddress)
                 KaPostsFollowStore.shared.setCurrentWallet(canonicalWallet.publicAddress)
                 KaPostsModerationStore.shared.setCurrentWallet(canonicalWallet.publicAddress)
                 // Discover group invites for THIS account right away - switching accounts in-app
@@ -378,6 +390,7 @@ final class WalletManager: ObservableObject {
             await MessageStore.shared.setCurrentWallet(nil)
             GroupChatService.shared.setCurrentWallet(nil)
             PublicChatService.shared.setCurrentWallet(nil)
+            setPortfolioAndColdStorageWallet(nil)
             KaPostsFollowStore.shared.setCurrentWallet(nil)
             KaPostsModerationStore.shared.setCurrentWallet(nil)
             NextcloudService.shared.setCurrentWallet(nil)
@@ -541,6 +554,7 @@ final class WalletManager: ObservableObject {
         await MessageStore.shared.setCurrentWallet(wallet.publicAddress)
         GroupChatService.shared.setCurrentWallet(wallet.publicAddress)
         PublicChatService.shared.setCurrentWallet(wallet.publicAddress)
+        setPortfolioAndColdStorageWallet(wallet.publicAddress)
         KaPostsFollowStore.shared.setCurrentWallet(wallet.publicAddress)
         KaPostsModerationStore.shared.setCurrentWallet(wallet.publicAddress)
         // Discover group invites for this newly-activated account immediately (see the same
@@ -631,6 +645,7 @@ final class WalletManager: ObservableObject {
         await MessageStore.shared.setCurrentWallet(nil)
         GroupChatService.shared.setCurrentWallet(nil)
         PublicChatService.shared.setCurrentWallet(nil)
+        setPortfolioAndColdStorageWallet(nil)
         KaPostsFollowStore.shared.setCurrentWallet(nil)
         KaPostsModerationStore.shared.setCurrentWallet(nil)
         NextcloudService.shared.setCurrentWallet(nil)
@@ -748,6 +763,7 @@ final class WalletManager: ObservableObject {
                     await MessageStore.shared.setCurrentWallet(nil)
                     GroupChatService.shared.setCurrentWallet(nil)
                     PublicChatService.shared.setCurrentWallet(nil)
+                    setPortfolioAndColdStorageWallet(nil)
                     KaPostsFollowStore.shared.setCurrentWallet(nil)
                     KaPostsModerationStore.shared.setCurrentWallet(nil)
                 } else {
@@ -809,6 +825,7 @@ final class WalletManager: ObservableObject {
         await MessageStore.shared.setCurrentWallet(nil)
         GroupChatService.shared.setCurrentWallet(nil)
         PublicChatService.shared.setCurrentWallet(nil)
+        setPortfolioAndColdStorageWallet(nil)
         KaPostsFollowStore.shared.setCurrentWallet(nil)
         KaPostsModerationStore.shared.setCurrentWallet(nil)
         NextcloudService.shared.setCurrentWallet(nil)

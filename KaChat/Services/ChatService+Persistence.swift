@@ -1133,6 +1133,11 @@ extension ChatService {
         guard !txIds.isEmpty else { return 0 }
         guard !conversations.isEmpty else { return 0 }
 
+        // a token payment's covenant transaction is hidden as a KAS payment, but its own bubble
+        // (kUSDT sent or received in a chat) stays
+        let txIds = txIds.subtracting(tokenPaymentBubbleTxIds())
+        guard !txIds.isEmpty else { return 0 }
+
         var removedCount = 0
         var removedConversationCount = 0
 

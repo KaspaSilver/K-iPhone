@@ -144,8 +144,8 @@ struct PublicChatListView: View {
         // One page, no tabs: the curated Popular rooms pinned on top (enter/exit freely, no
         // leaving - they're permanent), then everything the user joined under Your Channels.
         combinedList
-        .kaPostsFixedTitle(embeddedInChats ? "Chats" : "Public Chats")
-        .navigationTitle(embeddedInChats ? "Chats" : "Public Chats")
+        .kaPostsFixedTitle(embeddedInChats ? "KaChat" : "Public Chats")
+        .navigationTitle(embeddedInChats ? "KaChat" : "Public Chats")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // Same header anatomy as every KaPosts screen: total balance dead-center, green

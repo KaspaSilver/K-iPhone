@@ -77,6 +77,18 @@ final class PortfolioManager: ObservableObject {
 
     /// `makeActive: false` adds it without switching to it (a CSV import naming a new portfolio).
     @discardableResult
+    /// The untouched "Portfolio 1" a wallet starts with, when it has none - saved unstamped like
+    /// the seed in `setCurrentWallet`, so it still counts as pristine and a CSV that names its
+    /// portfolio renames it instead of adding a second one beside it.
+    func seedDefaultPortfolioIfEmpty() {
+        guard portfolios.isEmpty, let wallet = activeWalletAddress else { return }
+        let seeded = Portfolio(id: UUID(), name: "Portfolio 1", sortOrder: 0, createdAt: Date())
+        portfolios = [seeded]
+        savedPortfolios = portfolios
+        PortfolioLedgerStore.savePortfolios(portfolios, walletAddress: wallet)
+        setActivePortfolio(seeded.id)
+    }
+
     func addPortfolio(name: String, makeActive: Bool = true) -> Portfolio? {
         guard portfolios.count < Self.maxPortfolios else { return nil }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)

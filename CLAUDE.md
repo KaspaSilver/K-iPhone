@@ -15,7 +15,7 @@ each phase lands.
 
 **Dock and Kaspa Hub (phase 1, 2026-11-20):** the dock is Kaspa Hub and Profile (both pinned,
 `AppTab.pinnedToDock`) plus up to three tabs the person picks (`DockLayout`, saved on the device;
-new installs: Kaspa Hub, Wallet, Chats, Profile, Settings), and every other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
+new installs: Kaspa Hub, Wallet, KaChat (the `.chats` tab, labeled "KaChat" since 2026-11-21 for the rebrand of the app as "K"), Profile, Settings), and every other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
 `Views/Ecosystem/KaspaHubView.swift`), where it opens full screen; tapping Kaspa Hub again goes back
 to the grid (`HubRouter`). Customize Dock (the Hub's slider button, or Settings > Customization)
 is a sheet with two drag lists. A tab's screen is the same in either place (`AppTabContent`);
