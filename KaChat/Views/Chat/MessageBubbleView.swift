@@ -1219,7 +1219,7 @@ struct KaChatInternalLinkCardView: View {
         switch match.link {
         case .profile(let address):
             let isContact = ContactsManager.shared.contacts.contains { $0.address.lowercased() == address }
-            return isContact ? "Tap to open your chat." : "Tap to start a chat on KaChat."
+            return isContact ? "Tap to open your chat." : "Tap to start a chat on K."
         case .paymentRequest(let request):
             let action = request.isOwn ? AppLocalization.string("Your payment request. Tap to view.") : AppLocalization.string("Tap to pay.")
             var lines: [String] = []
@@ -1305,7 +1305,7 @@ struct KaChatInternalLinkCardView: View {
     private var linkActions: [MessageAction] {
         var actions: [MessageAction] = [
             // KaPosts posts open in the app too since 2026-11-21
-            MessageAction(title: "Open in KaChat", subtitle: "Opens it right here in the app.", systemImage: "arrow.up.forward.app") {
+            MessageAction(title: "Open in K", subtitle: "Opens it right here in the app.", systemImage: "arrow.up.forward.app") {
                 KaChatLinkRouter.open(match.link, fromChat: true)
             },
             .copyLink { UIPasteboard.general.string = match.url.absoluteString }

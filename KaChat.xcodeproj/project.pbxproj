@@ -1940,7 +1940,7 @@
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(SRCROOT)/external/opus/Opus.xcframework/ios-arm64_x86_64-simulator/Headers";
 				"HEADER_SEARCH_PATHS[sdk=macosx*]" = "$(SRCROOT)/external/opus/Opus.xcframework/ios-arm64_x86_64-maccatalyst/Headers";
 				INFOPLIST_FILE = KaChat/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = KaChat;
+				INFOPLIST_KEY_CFBundleDisplayName = K;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Cyber Ventures. All rights reserved.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1990,7 +1990,7 @@
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(SRCROOT)/external/opus/Opus.xcframework/ios-arm64_x86_64-simulator/Headers";
 				"HEADER_SEARCH_PATHS[sdk=macosx*]" = "$(SRCROOT)/external/opus/Opus.xcframework/ios-arm64_x86_64-maccatalyst/Headers";
 				INFOPLIST_FILE = KaChat/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = KaChat;
+				INFOPLIST_KEY_CFBundleDisplayName = K;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Cyber Ventures. All rights reserved.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -2032,7 +2032,7 @@
 				DEVELOPMENT_TEAM = RP4Z22SFSD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KaChatShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = KaChatShareExtension;
+				INFOPLIST_KEY_CFBundleDisplayName = K;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 KaChat. All rights reserved.";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2066,7 +2066,7 @@
 				ENABLE_DEBUG_DYLIB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KaChatShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = KaChatShareExtension;
+				INFOPLIST_KEY_CFBundleDisplayName = K;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 KaChat. All rights reserved.";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -703,7 +703,7 @@ private struct ShareRootView: View {
 
     private var navigationTitle: String {
         switch viewModel.stage {
-        case .picking: return "Share to KaChat"
+        case .picking: return "Share to K"
         case .composing: return viewModel.selectedContact?.displayName ?? "New Message"
         case .queued: return ""
         }
@@ -733,7 +733,7 @@ private struct ShareRootView: View {
 
             Section("Choose Contact") {
                 if viewModel.contacts.isEmpty && viewModel.recentContacts.isEmpty {
-                    Text("No contacts available. Add contacts in KaChat first.")
+                    Text("No contacts available. Add contacts in K first.")
                         .foregroundStyle(.secondary)
                 } else {
                     TextField("Search", text: $viewModel.searchText)
@@ -843,14 +843,14 @@ private struct ShareRootView: View {
                 Button(action: onQueueForApp) {
                     HStack {
                         Spacer()
-                        Text("Edit in KaChat instead")
+                        Text("Edit in K instead")
                             .font(.subheadline)
                         Spacer()
                     }
                 }
                 .disabled(!viewModel.canSend)
             } footer: {
-                Text("Send queues the message; KaChat delivers it on-chain the moment it next opens.")
+                Text("Send queues the message; K delivers it on-chain the moment it next opens.")
             }
 
             if let errorMessage = viewModel.errorMessage {
@@ -950,8 +950,8 @@ final class ShareViewController: UIViewController {
         }
 
         viewModel.queuedConfirmationText = autoSend
-            ? "Queued - sends the moment KaChat opens."
-            : "Queued - KaChat opens this chat with your message ready to edit."
+            ? "Queued - sends the moment K opens."
+            : "Queued - K opens this chat with your message ready to edit."
         viewModel.stage = .queued
 
         var components = URLComponents()

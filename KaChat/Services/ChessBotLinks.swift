@@ -63,7 +63,7 @@ enum ChessBotLinks {
         guard let address = WalletManager.shared.currentWallet?.publicAddress,
               let challenge = challengeURL(bot: bot, moves: moves, by: address, gameId: gameId) else { return }
         let boast = String(
-            format: AppLocalization.string("I beat %@ (Level %lld) in %lld moves on KaChat. Think you can do it in fewer?"),
+            format: AppLocalization.string("I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?"),
             locale: AppLocalization.locale, bot.name, bot.level, moves
         )
         KaPostsDeepLink.pendingComposeText = "\(boast)\n\n\(challenge.absoluteString)"

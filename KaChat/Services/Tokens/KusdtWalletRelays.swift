@@ -51,7 +51,7 @@ final class KusdtNetRelay: NSObject, WKScriptMessageHandlerWithReply {
         }
         guard Self.allowed(url) else {
             AppLog.log("[kUSDT] wallet logic asked for %@: refused", url.host ?? "?")
-            return (["error": "KaChat doesn't let this reach \(url.host ?? "that address")."], nil)
+            return (["error": "K doesn't let this reach \(url.host ?? "that address")."], nil)
         }
         let method = ((body["method"] as? String) ?? "GET").uppercased()
         guard method == "GET" || method == "POST" else { return (["error": "method not allowed"], nil) }

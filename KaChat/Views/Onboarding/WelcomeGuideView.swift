@@ -114,7 +114,7 @@ struct WelcomeGuideView: View {
         case .welcome:
             scaffold(
                 icon: "hand.wave.fill",
-                title: "Welcome to KaChat",
+                title: "Welcome to K",
                 body: "Let's walk through the basics so you're ready to send your first message.",
                 buttonTitle: "Next",
                 extra: { EmptyView() }
@@ -129,8 +129,8 @@ struct WelcomeGuideView: View {
         case .fees:
             scaffold(
                 icon: "network",
-                title: "How KaChat Uses Kaspa",
-                body: "KaChat lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network.",
+                title: "How K Uses Kaspa",
+                body: "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network.",
                 buttonTitle: "Next",
                 extra: { EmptyView() }
             ) { step = .funding }
@@ -272,7 +272,7 @@ struct WelcomeGuideView: View {
                 .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
-            Text("Select the language you'd like to use in KaChat.")
+            Text("Select the language you'd like to use in K.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -446,7 +446,7 @@ struct WelcomeGuideView: View {
                         .font(.title2.weight(.bold))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
-                    Text("KaChat needs to connect to a node. How would you like to connect?")
+                    Text("K needs to connect to a node. How would you like to connect?")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -577,7 +577,7 @@ struct WelcomeGuideView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
 
-                    Text("Think of it like your phone number on KaChat.")
+                    Text("Think of it like your phone number on K.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

@@ -62,9 +62,9 @@ enum KusdtTransfer {
                     ? AppLocalization.string("This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours.")
                     : AppLocalization.string("This address needs a little KAS for the network fee.")
             case .noKey: return AppLocalization.string("This address's key isn't available on this phone.")
-            case .feeTooHigh: return AppLocalization.string("The network fee is above KaChat's safety limit. Nothing was sent.")
+            case .feeTooHigh: return AppLocalization.string("The network fee is above K's safety limit. Nothing was sent.")
             case .checkFailed: return AppLocalization.string("The built transaction didn't match what you approved, so nothing was sent.")
-            case .templateMissing: return AppLocalization.string("KaChat's kUSDT template is missing, so kUSDT can't be checked.")
+            case .templateMissing: return AppLocalization.string("K's kUSDT template is missing, so kUSDT can't be checked.")
             case .nothingToCombine: return AppLocalization.string("This address holds its kUSDT in one coin already.")
             }
         }

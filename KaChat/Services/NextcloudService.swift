@@ -102,7 +102,7 @@ enum NextcloudError: LocalizedError {
         case .badCredentials:
             return "Nextcloud rejected the username or app password."
         case .noActiveWallet:
-            return "Sign in to a KaChat account before connecting Nextcloud."
+            return "Sign in to a K account before connecting Nextcloud."
         case .offOnTestnet:
             return AppLocalization.string("Nextcloud is off while Testnet is on.")
         case .httpError(let code):
@@ -408,7 +408,7 @@ final class NextcloudService: ObservableObject {
         }
         // Removed here, still valid there: the person revokes it in Nextcloud themselves.
         appPasswordRevokeFailure = String(
-            format: AppLocalization.string("KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions."),
+            format: AppLocalization.string("K couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions."),
             server.host ?? server.absoluteString
         )
         return false

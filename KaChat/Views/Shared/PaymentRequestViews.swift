@@ -281,7 +281,7 @@ struct CreatePaymentRequestView: View {
                         .disabled(!canMake || isWorking)
                     }
 
-                    Text("Anyone who opens it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key).")
+                    Text("Anyone who opens it in K gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key).")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -432,7 +432,7 @@ private struct PaymentRequestQRSheet: View {
                     // white, with a quiet zone, so every camera reads it in dark mode too
                     .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.white))
 
-                    Text("Scan it with an iPhone's camera to pay in KaChat, with everything filled in.")
+                    Text("Scan it with an iPhone's camera to pay in K, with everything filled in.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

@@ -31,7 +31,7 @@ struct BuyStablecoinsSheet: View {
                     ForEach(tokens.tokens) { token in
                         row(token)
                     }
-                    Text("More stablecoins will show here as KaChat adds them.")
+                    Text("More stablecoins will show here as K adds them.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -71,7 +71,7 @@ struct BuyStablecoinsSheet: View {
                     Text(verbatim: token.symbol)
                         .font(.headline)
                         .foregroundColor(.primary)
-                    Text("On Trestly, inside KaChat")
+                    Text("On Trestly, inside K")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

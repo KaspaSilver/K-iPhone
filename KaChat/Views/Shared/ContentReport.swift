@@ -14,7 +14,7 @@ struct ContentReport: Identifiable {
         components.scheme = "mailto"
         components.path = Self.supportEmail
         components.queryItems = [
-            URLQueryItem(name: "subject", value: "KaChat report"),
+            URLQueryItem(name: "subject", value: "K report"),
             URLQueryItem(name: "body", value: body)
         ]
         return components.url

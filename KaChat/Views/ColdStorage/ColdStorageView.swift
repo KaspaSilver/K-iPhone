@@ -556,7 +556,7 @@ struct ColdStorageDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This only removes it from KaChat's watch list. It has no effect on the KasSigner device or any funds it holds.")
+            Text("This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds.")
         }
     }
 

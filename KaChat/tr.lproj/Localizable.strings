@@ -112,7 +112,7 @@
 "Group Info" = "Grup Bilgisi";
 "Hidden Users" = "Gizli Kullanicilar";
 "Hide User" = "Kullaniciyi Gizle";
-"How KaChat Uses Kaspa" = "KaChat, Kaspa'yi Nasil Kullanir";
+"How K Uses Kaspa" = "K, Kaspa'yi Nasil Kullanir";
 "IP Address Book" = "IP Adres Defteri";
 "If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Tap the fee amount to set a custom fee." = "Ag yogunsa, Hizli veya Oncelikli daha yuksek bir ucret oder ve daha hizli onaylanmasina yardimci olur. Ozel bir ucret belirlemek icin ucret tutarina dokunun.";
 "If the network is busy, a higher fee can help your transaction confirm faster." = "Ag yogunsa, daha yuksek bir ucret isleminizin daha hizli onaylanmasina yardimci olabilir.";
@@ -133,8 +133,8 @@
 "KNS profile update failed: %@" = "KNS profil güncellemesi başarısız oldu: %@";
 "KNS profile updated." = "KNS profili güncellendi.";
 "KaChat" = "KaChat";
-"KaChat lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "KaChat, mesajlarinizi dogrudan Kaspa agi uzerinden gondermenizi ve almanizi saglar. Mesajlarinizi gonderirken ucret odemek icin Kaspa gereklidir. Odediginiz ucret, agi guvence altina alan madencilere gider.";
-"KaChat needs to connect to a node. How would you like to connect?" = "KaChat'in bir duguma baglanmasi gerekiyor. Nasil baglanmak istersiniz?";
+"K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K, mesajlarinizi dogrudan Kaspa agi uzerinden gondermenizi ve almanizi saglar. Mesajlarinizi gonderirken ucret odemek icin Kaspa gereklidir. Odediginiz ucret, agi guvence altina alan madencilere gider.";
+"K needs to connect to a node. How would you like to connect?" = "K'in bir duguma baglanmasi gerekiyor. Nasil baglanmak istersiniz?";
 "Kaspa Explorer" = "Kaspa Kesif Motoru";
 "Kaspa Explorer API" = "Kaspa Explorer API";
 "Kaspa Node" = "Kaspa Dugumu";
@@ -253,7 +253,7 @@
 "Words copied. Clipboard will clear in 30s." = "Kelimeler kopyalandı. Pano 30 sn içinde temizlenecek.";
 "Select a chat" = "Bir sohbet seçin";
 "Select the currency you'd like prices displayed in." = "Fiyatlarin hangi para biriminde gosterilmesini istediginizi secin.";
-"Select the language you'd like to use in KaChat." = "KaChat'te kullanmak istediginiz dili secin.";
+"Select the language you'd like to use in K." = "K'te kullanmak istediginiz dili secin.";
 "Selected data is not a valid image" = "Seçilen veriler geçerli bir resim değil";
 "Send" = "Gonder";
 "Send Handshake" = "Iletisim Istegi Gonder";
@@ -308,7 +308,7 @@
 "Wallet not available." = "Cüzdan mevcut değil.";
 "Website" = "Web Sitesi";
 "Welcome Guide" = "Hos Geldiniz Rehberi";
-"Welcome to KaChat" = "KaChat'e Hos Geldiniz";
+"Welcome to K" = "K'e Hos Geldiniz";
 "Wipe and re-sync incoming messages" = "Gelen mesajları sil ve yeniden senkronize et";
 "X handle" = "X kolu";
 "fee: -- KAS" = "ucret: -- KAS";
@@ -341,8 +341,8 @@
 "Coming soon" = "Yakında";
 "Not available on this network" = "Bu ağda kullanılamıyor";
 "Testnet" = "Testnet";
-"Close KaChat completely and open it again to finish switching to Testnet." = "Testnet'e geçişi tamamlamak için KaChat'i tamamen kapatıp yeniden aç.";
-"Close KaChat completely and open it again to finish switching back to Mainnet." = "Mainnet'e dönüşü tamamlamak için KaChat'i tamamen kapatıp yeniden aç.";
+"Close K completely and open it again to finish switching to Testnet." = "Testnet'e geçişi tamamlamak için K'i tamamen kapatıp yeniden aç.";
+"Close K completely and open it again to finish switching back to Mainnet." = "Mainnet'e dönüşü tamamlamak için K'i tamamen kapatıp yeniden aç.";
 
 /* 5.2: Kaspa Hub > .kachat marketplace */
 
@@ -514,8 +514,8 @@
 "Passphrase" = "Parola ifadesi";
 
 /* Addresses of the other network are refused (IOS-003) */
-"This is a Testnet address. KaChat is on Mainnet." = "Bu bir Testnet adresi. KaChat Mainnet'te.";
-"This is a Mainnet address. KaChat is on Testnet." = "Bu bir Mainnet adresi. KaChat Testnet'te.";
+"This is a Testnet address. K is on Mainnet." = "Bu bir Testnet adresi. K Mainnet'te.";
+"This is a Mainnet address. K is on Testnet." = "Bu bir Mainnet adresi. K Testnet'te.";
 
 /* Siri / Shortcuts payments are confirmed (IOS-021) */
 "Send %@ to %@?" = "%2$@ kişisine %1$@ gönderilsin mi?";
@@ -558,7 +558,7 @@
 "How many words are you importing?" = "Kaç kelime içe aktarıyorsun?";
 "What are my 12 or 24 words?" = "12 veya 24 kelimem nedir?";
 "Your 12 or 24 words are ordinary words that work as the master key to your account. Your wallet, your chatting address and your messages all come from them." = "12 veya 24 kelimen, hesabının ana anahtarı olarak çalışan sıradan kelimelerdir. Cüzdanın, sohbet adresin ve mesajların hepsi bunlardan gelir.";
-"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even KaChat." = "Bu kelimelere sahip olan herkes hesabınızdaki her şeyi alabilir. Onları kaybeder ve bu cihazı da kaybederseniz, hesabınızı kimse geri getiremez, KaChat bile.";
+"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even K." = "Bu kelimelere sahip olan herkes hesabınızdaki her şeyi alabilir. Onları kaybeder ve bu cihazı da kaybederseniz, hesabınızı kimse geri getiremez, K bile.";
 "Write the words on paper, in order, and keep them somewhere safe and private. Never type them into a website, send them in a chat, or keep them in a screenshot or cloud notes." = "Kelimeleri sırasıyla kağıda yazın ve güvenli, özel bir yerde saklayın. Onları asla bir web sitesine yazmayın, sohbette göndermeyin ve ekran görüntüsünde ya da bulut notlarında tutmayın.";
 
 /* Onboarding: seed phrase explainer page headings */
@@ -626,18 +626,18 @@
 /* .kachat: fees, busy network, progress receipt */
 "Sent to the network" = "Ağa gönderildi";
 "In a block" = "Bir blokta";
-"Updated in KaChat" = "KaChat'te güncellendi";
+"Updated in K" = "K'te güncellendi";
 "Waiting for the network to put it in a block. Usually a few seconds; longer when it's busy." = "Ağın onu bir bloğa koyması bekleniyor. Genelde birkaç saniye; yoğunken daha uzun.";
-"It's in a block. Updating KaChat..." = "Bir blokta. KaChat güncelleniyor...";
-"Done. It shows in KaChat now." = "Tamam. Artık KaChat'te görünüyor.";
+"It's in a block. Updating K..." = "Bir blokta. K güncelleniyor...";
+"Done. It shows in K now." = "Tamam. Artık K'te görünüyor.";
 "The network hasn't taken it. Nothing was spent if it never lands - try again with a faster fee." = "Ağ henüz almadı. Hiç girmezse hiçbir şey harcanmaz - daha hızlı bir ücretle yeniden dene.";
 "Tap the transaction to open it in the explorer." = "Gezginde açmak için işleme dokun.";
 
 /* .kachat offers: tiles and half sheet */
 
 /* Audit run 3: Address Book network checks, .kachat fee re-check */
-"Every address in that file is a Mainnet address. KaChat is on Testnet." = "Bu dosyadaki tüm adresler Mainnet adresi. KaChat Testnet'te.";
-"Every address in that file is a Testnet address. KaChat is on Mainnet." = "Bu dosyadaki tüm adresler Testnet adresi. KaChat Mainnet'te.";
+"Every address in that file is a Mainnet address. K is on Testnet." = "Bu dosyadaki tüm adresler Mainnet adresi. K Testnet'te.";
+"Every address in that file is a Testnet address. K is on Mainnet." = "Bu dosyadaki tüm adresler Testnet adresi. K Mainnet'te.";
 "Skipped %lld from the other network." = "Diğer ağdan %lld adres atlandı.";
 
 /* .kachat registry v5 migration */
@@ -775,7 +775,7 @@
 /* User Info: look the person's avatar, banner and bio up again now */
 
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
-"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. KaChat tells them once your chatting address has some KAS." = "Sohbet adresinizde %@ kişisine bu ödemeyi bildirecek KAS yok, bu yüzden ödemeyi bilinmeyen bir adresten, not olmadan gelmiş olarak görür. Sohbet adresinize KAS gelince KaChat onlara bildirir.";
+"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "Sohbet adresinizde %@ kişisine bu ödemeyi bildirecek KAS yok, bu yüzden ödemeyi bilinmeyen bir adresten, not olmadan gelmiş olarak görür. Sohbet adresinize KAS gelince K onlara bildirir.";
 
 /* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
@@ -787,7 +787,7 @@
 "12 or 24 Words Needed" = "12 veya 24 Kelime Gerekli";
 "Enter 12 or 24 Words" = "12 veya 24 Kelime Gir";
 "%@ is on this iPhone, but its keys are not. That happens after restoring from a backup, because keys are locked to the phone they were made on. Enter the account's 12 or 24 words to sign in. Its history on this phone is kept." = "%@ bu iPhone'da ama anahtarları değil. Bu, yedekten geri yüklemeden sonra olur çünkü anahtarlar oluşturuldukları telefona bağlıdır. Giriş yapmak için hesabın 12 veya 24 kelimesini gir. Bu telefondaki geçmişi korunur.";
-"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because KaChat's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "Bu iPhone'da hesabın var ama anahtarları yok. Bu, telefonu yedekten geri yüklemeden sonra olur çünkü KaChat anahtarları oluşturuldukları cihaza bağlıdır. Burada kilidini açmak için 12 veya 24 kelimeni gir. Bu cihazdaki mesajların korunur.";
+"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because K's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "Bu iPhone'da hesabın var ama anahtarları yok. Bu, telefonu yedekten geri yüklemeden sonra olur çünkü K anahtarları oluşturuldukları cihaza bağlıdır. Burada kilidini açmak için 12 veya 24 kelimeni gir. Bu cihazdaki mesajların korunur.";
 
 
 /* The chat list's name for the chat with yourself */
@@ -875,7 +875,7 @@
 "How much?" = "Ne kadar?";
 "You're requesting" = "İstediğin tutar";
 "A brand-new address of yours that has never been used or handed out." = "Hiç kullanılmamış ve kimseye verilmemiş yepyeni bir adresin.";
-"Anyone who opens it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "KaChat'te açan herkes bu bilgilerle doldurulmuş Kaspa Gönder ekranını görür ve isteğin sohbet adresin tarafından yapıldığını (onun anahtarıyla imzalı) görür.";
+"Anyone who opens it in K gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "K'te açan herkes bu bilgilerle doldurulmuş Kaspa Gönder ekranını görür ve isteğin sohbet adresin tarafından yapıldığını (onun anahtarıyla imzalı) görür.";
 
 /* Contacts (was Address Book) */
 "Add to Contacts" = "Kişilere Ekle";
@@ -896,11 +896,11 @@
 "Edit Contact" = "Kişiyi Düzenle";
 "No contacts yet" = "Henüz kişi yok";
 "Delete %@ from your contacts?" = "%@ kişilerinden silinsin mi?";
-"Save the Kaspa addresses you use with a name you'll recognize. They stay in KaChat, for this wallet only, and never go into your phone's Contacts app." = "Kullandığın Kaspa adreslerini tanıyacağın bir adla kaydet. KaChat'te, yalnızca bu cüzdan için kalırlar ve telefonunun Kişiler uygulamasına asla girmezler.";
-"Saved in KaChat for this wallet only. Never added to your phone's Contacts app." = "Yalnızca bu cüzdan için KaChat'te kaydedilir. Telefonunun Kişiler uygulamasına asla eklenmez.";
+"Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "Kullandığın Kaspa adreslerini tanıyacağın bir adla kaydet. K'te, yalnızca bu cüzdan için kalırlar ve telefonunun Kişiler uygulamasına asla girmezler.";
+"Saved in K for this wallet only. Never added to your phone's Contacts app." = "Yalnızca bu cüzdan için K'te kaydedilir. Telefonunun Kişiler uygulamasına asla eklenmez.";
 "This is a fresh address, never used before." = "Bu, daha önce hiç kullanılmamış yeni bir adres.";
 "Use for chatting and acquiring .kachat domains." = "Sohbet etmek ve .kachat alan adları edinmek için kullanın.";
-"Think of it like your phone number on KaChat." = "Bunu KaChat'teki telefon numaran gibi düşün.";
+"Think of it like your phone number on K." = "Bunu K'teki telefon numaran gibi düşün.";
 "How People Reach You" = "Sana nasıl ulaşılır";
 "Share this address and people can message you. Only you can read what they send." = "Bu adresi paylaş, sana mesaj gönderebilsinler. Gönderilenleri yalnızca sen okuyabilirsin.";
 "Paying for Messages" = "Mesajların ödemesi";
@@ -939,7 +939,7 @@
 "Complete Your Backup" = "Yedeklemeni Tamamla";
 "Back Up to NFC Card" = "NFC Karta Yedekle";
 "Wipe and re-sync incoming messages?" = "Gelen mesajlar silinip yeniden senkronize edilsin mi?";
-"KaChat is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "KaChat şu anda senkronizasyonda sorun yaşıyor. Yeniden denemeye devam eder ve bağlantı geri geldiğinde mesajların kendiliğinden yetişir; bu yüzden silmen gerekmez.";
+"K is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "K şu anda senkronizasyonda sorun yaşıyor. Yeniden denemeye devam eder ve bağlantı geri geldiğinde mesajların kendiliğinden yetişir; bu yüzden silmen gerekmez.";
 "Privacy Policy" = "Gizlilik Politikası";
 "Open Source Licenses" = "Açık Kaynak Lisansları";
 "Appearance" = "Görünüm";
@@ -1014,7 +1014,7 @@
 "No emoji match that." = "Eşleşen emoji yok.";
 "%lld member%@" = "%lld üye%@";
 "Reply not sent" = "Yanıt gönderilmedi";
-"Your reply couldn't be sent. Open KaChat to try again." = "Yanıtın gönderilemedi. Tekrar denemek için KaChat'i aç.";
+"Your reply couldn't be sent. Open K to try again." = "Yanıtın gönderilemedi. Tekrar denemek için K'i aç.";
 "1 Reaction" = "1 Tepki";
 "%lld Reactions" = "%lld Tepki";
 "1 person" = "1 kişi";
@@ -1102,7 +1102,7 @@
 "These addresses couldn't be derived right now. Go back a page or reopen this screen to retry." = "Bu adresler şu anda türetilemedi. Bir sayfa geri git veya tekrar denemek için bu ekranı yeniden aç.";
 "Add, import or export" = "Ekle, içe aktar veya dışa aktar";
 "KaChat Contact" = "KaChat Kişisi";
-"KaChat is built with these open source libraries. Their authors ask that these notices travel with the app." = "KaChat bu açık kaynaklı kütüphanelerle geliştirildi. Yazarları, bu bildirimlerin uygulamayla birlikte bulunmasını istiyor.";
+"K is built with these open source libraries. Their authors ask that these notices travel with the app." = "K bu açık kaynaklı kütüphanelerle geliştirildi. Yazarları, bu bildirimlerin uygulamayla birlikte bulunmasını istiyor.";
 "24 words" = "24 kelime";
 "Enter your 12 or 24 words" = "12 veya 24 kelimeni gir";
 "More reactions" = "Daha fazla tepki";
@@ -1198,7 +1198,7 @@
 "Your phone can't be your only copy" = "Telefonun tek kopyan olamaz";
 "If you lose, break or replace this phone, these words are the only way back to your account." = "Bu telefonu kaybedersen, kırarsan veya değiştirirsen, bu kelimeler hesabına geri dönmenin tek yoludur.";
 "Nobody can reset them" = "Kimse sıfırlayamaz";
-"There is no password reset. KaChat never sees your words, so we can't recover them for you." = "Şifre sıfırlama yok. KaChat kelimelerini hiç görmez, bu yüzden onları senin için kurtaramayız.";
+"There is no password reset. K never sees your words, so we can't recover them for you." = "Şifre sıfırlama yok. K kelimelerini hiç görmez, bu yüzden onları senin için kurtaramayız.";
 "Get ready" = "Hazırlan";
 "Your secret words are next. Before you see them:" = "Sıradaki gizli kelimelerin. Onları görmeden önce:";
 "I have a pen and paper" = "Kalemim ve kâğıdım var";
@@ -1225,7 +1225,7 @@
 "Never keep it online" = "Asla internette tutma";
 "No photos, screenshots, cloud storage, notes apps, email or chats." = "Fotoğraf, ekran görüntüsü, bulut depolama, not uygulaması, e-posta veya sohbet olmasın.";
 "Never share it" = "Asla paylaşma";
-"Nobody needs your words. KaChat and real support will never ask for them. Anyone who asks is trying to take your funds." = "Kelimelerine kimsenin ihtiyacı yok. KaChat ve gerçek destek ekibi onları asla istemez. Soran herkes fonlarını almaya çalışıyordur.";
+"Nobody needs your words. K and real support will never ask for them. Anyone who asks is trying to take your funds." = "Kelimelerine kimsenin ihtiyacı yok. K ve gerçek destek ekibi onları asla istemez. Soran herkes fonlarını almaya çalışıyordur.";
 "Keep your passphrase apart" = "Parola ifadeni ayrı tut";
 "Store it away from your 12 or 24 words. You need both, and losing either one loses the account." = "Bunu 12 veya 24 kelimenden ayrı sakla. İkisine de ihtiyacın var; birini kaybedersen hesabı kaybedersin.";
 "You can see it again" = "Tekrar görebilirsin";
@@ -1409,7 +1409,7 @@
 "Notifications from this group resume, including mentions." = "Bahsetmeler dahil bu grubun bildirimleri yeniden başlar.";
 "One minute each, plus one second a move." = "Herkese bir dakika, hamle başına bir saniye.";
 "Open in Explorer" = "Gezginde Aç";
-"Open in KaChat" = "KaChat'te Aç";
+"Open in K" = "K'te Aç";
 "Open in KaPost" = "KaPost'ta Aç";
 "Open your chat with them in payment mode." = "Onunla olan sohbetinizi ödeme modunda açın.";
 "Opens in your browser." = "Tarayıcınızda açılır.";
@@ -1476,10 +1476,10 @@
 "Restoring messages... %d of %d conversations" = "Mesajlar geri yükleniyor... %d / %d sohbet";
 "Deletes %@ (%@) and its local data from this device." = "%@ (%@) ve yerel verilerini bu cihazdan siler.";
 "Passcode Required" = "Parola Gerekli";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "KaChat'te hesap silmek veya gizli anahtarları görmek için bu iPhone'da bir parola belirleyin (Ayarlar > Face ID ve Parola).";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "K'te hesap silmek veya gizli anahtarları görmek için bu iPhone'da bir parola belirleyin (Ayarlar > Face ID ve Parola).";
 "Waiting on opponent" = "Rakip bekleniyor";
 "Not sent: you switched accounts before this went out." = "Gönderilmedi: bu gitmeden önce hesap değiştirdiniz.";
-"The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "İki işlemden ilki gerçekleşti ama ikincisi gerçekleşmedi. KaChat bir sonraki açılışta tamamlayacak.";
+"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "İki işlemden ilki gerçekleşti ama ikincisi gerçekleşmedi. K bir sonraki açılışta tamamlayacak.";
 "A domain transfer's fee can be at most 1 KAS." = "Alan adı aktarım ücreti en fazla 1 KAS olabilir.";
 "Confirm setting this primary name" = "Bu birincil adı ayarlamayı onayla";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "Bu hesabın anahtarları hâlâ bu telefonda olabilir ama şu anda okunamıyor, bu yüzden hiçbir şey değiştirilmedi. Birazdan tekrar deneyin.";
@@ -1490,7 +1490,7 @@
 "Standard Kaspa Wallet" = "Standart Kaspa Cüzdanı";
 "Has history" = "Geçmişi var";
 "See Every Wallet Type" = "Tüm Cüzdan Türlerini Gör";
-"KaChat checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "KaChat kelimelerinizi her tür Kaspa cüzdanıyla karşılaştırır, bu yüzden hangi cüzdandan geldiklerini bilmeniz gerekmez.";
+"K checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "K kelimelerinizi her tür Kaspa cüzdanıyla karşılaştırır, bu yüzden hangi cüzdandan geldiklerini bilmeniz gerekmez.";
 "This address has history, so this looks like the right account." = "Bu adresin geçmişi var, yani doğru hesap gibi görünüyor.";
 "No funds or history on this address." = "Bu adreste bakiye veya geçmiş yok.";
 "We picked the most likely account. Tap another if that's not the one you use." = "En olası hesabı seçtik. Kullandığınız bu değilse başka birine dokunun.";
@@ -1519,14 +1519,14 @@
 "Tap Retry on the voice message to send the rest." = "Kalanını göndermek için sesli mesajda Tekrar dene'ye dokunun.";
 "Network fee: %@" = "Ağ ücreti: %@";
 "Couldn't Remove App Password" = "Uygulama Parolası Kaldırılamadı";
-"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat, %@ üzerindeki uygulama parolasını kaldıramadı. Bu telefondan silindi ama orada hâlâ oturum açabilir: Nextcloud'da Ayarlar > Güvenlik > Cihazlar ve oturumlar bölümünden silin.";
+"K couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "K, %@ üzerindeki uygulama parolasını kaldıramadı. Bu telefondan silindi ama orada hâlâ oturum açabilir: Nextcloud'da Ayarlar > Güvenlik > Cihazlar ve oturumlar bölümünden silin.";
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Sohbet adresiniz, %2$@ kişisini bu ödemeden haberdar etmek için ayrıca %1$@ KAS öder.";
 "Tap Retry on the photo to send the rest." = "Kalanını göndermek için fotoğrafta Tekrar dene'ye dokunun.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Bu mesaj tek bir işlem için çok fazla coin gerektiriyor. Sohbet adresinizde Compound UTXOs kullanın, sonra tekrar deneyin.";
 "Use Their Domain Name" = "Alan adını kullan";
 "Show Request As QR" = "İsteği QR olarak göster";
 "Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Her şey doldurulmuş olarak KaPay'de ödemek için iPhone kamerasıyla tarayın.";
-"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "Her şey doldurulmuş olarak KaChat'te ödemek için iPhone kamerasıyla tarayın.";
+"Scan it with an iPhone's camera to pay in K, with everything filled in." = "Her şey doldurulmuş olarak K'te ödemek için iPhone kamerasıyla tarayın.";
 "Get a .kachat domain" = ".kachat alan adı al";
 "Set as Name" = "Ad olarak ayarla";
 "Their Name" = "Adı";
@@ -1658,12 +1658,12 @@
 "kUSDT's transaction builder couldn't start." = "kUSDT işlem oluşturucusu başlatılamadı.";
 "kUSDT's transaction builder gave no answer." = "kUSDT işlem oluşturucusu yanıt vermedi.";
 "kUSDT's transaction builder isn't the pinned one, so it won't run." = "kUSDT işlem oluşturucusu sabitlenen değil, bu yüzden çalıştırılmayacak.";
-"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "KaChat’in kUSDT şablonu eksik, bu yüzden kUSDT kontrol edilemiyor.";
-"The network fee is above KaChat's safety limit. Nothing was sent." = "Ağ ücreti KaChat’in güvenlik sınırının üzerinde. Hiçbir şey gönderilmedi.";
+"K's kUSDT template is missing, so kUSDT can't be checked." = "K’in kUSDT şablonu eksik, bu yüzden kUSDT kontrol edilemiyor.";
+"The network fee is above K's safety limit. Nothing was sent." = "Ağ ücreti K’in güvenlik sınırının üzerinde. Hiçbir şey gönderilmedi.";
 "Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "Kendi yeni bir adresinde al. kUSDT alıp takas etmek KaPay’de yapılır.";
 "Release to Confirm" = "Onaylamak için bırak";
 "The transaction didn't go out." = "İşlem gönderilemedi.";
-"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "KaChat’in kUSDT’ni sorguladığı yer. Listelediği her coin sayılmadan önce Kaspa düğümünde kontrol edilir. Bu ağın varsayılanı için boş bırak.";
+"Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "K’in kUSDT’ni sorguladığı yer. Listelediği her coin sayılmadan önce Kaspa düğümünde kontrol edilir. Bu ağın varsayılanı için boş bırak.";
 "Fee %@" = "Ücret %@";
 
 /* Share Profile sheet (2026-11-20) */
@@ -1769,7 +1769,7 @@
 "How it works" = "Nasıl çalışır";
 "List" = "Satışa çıkar";
 "Trustless" = "Güvene gerek yok";
-"Set a price. The name waits in an on-chain covenant, not with KaChat or anyone else, until someone buys it or you take it back." = "Bir fiyat belirle. Ad, biri satın alana ya da sen geri alana kadar KaChat'te veya başkasında değil, zincir üstü bir covenant'ta bekler.";
+"Set a price. The name waits in an on-chain covenant, not with K or anyone else, until someone buys it or you take it back." = "Bir fiyat belirle. Ad, biri satın alana ya da sen geri alana kadar K'te veya başkasında değil, zincir üstü bir covenant'ta bekler.";
 "Pay the listed price. The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does." = "İlan fiyatını öde. Ödeme satıcıya, ad sana aynı işlemde ulaşır - ya ikisi de olur ya hiçbiri.";
 "No middleman and no escrow account: Kaspa's own rules enforce every sale." = "Aracı yok, emanet hesabı yok: her satışı Kaspa'nın kendi kuralları güvenceye alır.";
 "Nothing here is live yet." = "Burada henüz hiçbir şey canlı değil.";
@@ -1924,7 +1924,7 @@
 "Takes the name off the market." = "Adı piyasadan çeker.";
 "Puts the name up for sale at your price." = "Adı senin fiyatından satışa çıkarır.";
 "Sends the name to another address." = "Adı başka bir adrese gönderir.";
-"Shows you by this name across KaChat." = "Seni KaChat'in her yerinde bu adla gösterir.";
+"Shows you by this name across K." = "Seni K'in her yerinde bu adla gösterir.";
 "Gives the name up and returns its deposit." = "Adı bırakır ve depozitosunu iade eder.";
 "Expires in %@" = "%@ içinde sona eriyor";
 "Expired - returning to you" = "Süresi doldu - sana dönüyor";
@@ -2038,7 +2038,7 @@
 "Nothing can change now: this is the transaction KasSigner signed." = "Artık hiçbir şey değişemez: bu, KasSigner'ın imzaladığı işlemdir.";
 "Watch-only. This cannot spend, but it reveals every address in this account." = "Yalnızca izleme. Bununla harcama yapılamaz, ama bu hesaptaki her adresi gösterir.";
 "Your KAS is in many small coins. When you swipe, KaPay first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS'ın çok sayıda küçük coine bölünmüş. Kaydırdığında KaPay önce bunları birleştirir (kendi küçük ücretiyle ayrı bir işlem), sonra bunu gönderir.";
-"The price goes to the miners - KaChat takes nothing." = "Fiyat madencilere gider - KaChat hiçbir şey almaz.";
+"The price goes to the miners - K takes nothing." = "Fiyat madencilere gider - K hiçbir şey almaz.";
 "Length" = "Süre";
 "Claiming sends two transactions: the commit now, the registration about a minute later. Both pay this fee rate." = "Almak iki işlem gönderir: şimdi taahhüt, yaklaşık bir dakika sonra kayıt. İkisi de bu ücret oranını öder.";
 "The price changed. Check it and swipe again." = "Fiyat değişti. Kontrol edip tekrar kaydır.";
@@ -2223,11 +2223,11 @@
 "Import failed." = "İçe aktarma başarısız oldu.";
 
 /* Ported KaPay screens, named KaChat (2026-11-21) */
-"The commit has to age for about a minute before the name can be registered. Keep KaChat open - it registers by itself, and picks up where it left off if you leave." = "Adın kaydedilebilmesi için taahhüdün yaklaşık bir dakika beklemesi gerekir. KaChat'i açık tutun - kendiliğinden kaydeder ve çıkarsanız kaldığı yerden devam eder.";
-"Your KAS is in many small coins. KaChat combines them into one before registering, for a tiny extra network fee." = "KAS'ınız birçok küçük coine dağılmış. KaChat kayıttan önce bunları çok küçük ek bir ağ ücretiyle tek bir coinde birleştirir.";
-"Your KAS is in many small coins. When you swipe, KaChat first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS'ın çok sayıda küçük coine bölünmüş. Kaydırdığında KaChat önce bunları birleştirir (kendi küçük ücretiyle ayrı bir işlem), sonra bunu gönderir.";
-"This only removes it from KaChat's watch list. It has no effect on the KasSigner device or any funds it holds." = "Bu, yalnizca KaChat'in izleme listesinden kaldirir. KasSigner cihazi veya tuttugu fonlar uzerinde hicbir etkisi yoktur.";
-"Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "KaChat'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.";
+"The commit has to age for about a minute before the name can be registered. Keep K open - it registers by itself, and picks up where it left off if you leave." = "Adın kaydedilebilmesi için taahhüdün yaklaşık bir dakika beklemesi gerekir. K'i açık tutun - kendiliğinden kaydeder ve çıkarsanız kaldığı yerden devam eder.";
+"Your KAS is in many small coins. K combines them into one before registering, for a tiny extra network fee." = "KAS'ınız birçok küçük coine dağılmış. K kayıttan önce bunları çok küçük ek bir ağ ücretiyle tek bir coinde birleştirir.";
+"Your KAS is in many small coins. When you swipe, K first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS'ın çok sayıda küçük coine bölünmüş. Kaydırdığında K önce bunları birleştirir (kendi küçük ücretiyle ayrı bir işlem), sonra bunu gönderir.";
+"This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds." = "Bu, yalnizca K'in izleme listesinden kaldirir. KasSigner cihazi veya tuttugu fonlar uzerinde hicbir etkisi yoktur.";
+"Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "K'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.";
 
 /* Trestly inside KaChat, from KaPay (2026-11-21) */
 "Sent %@ on %@" = "%@ gönderildi (%@)";
@@ -2284,18 +2284,18 @@
 "Swap sent: %@ for %@" = "Takas gönderildi: %@ → %@";
 "Swap Complete" = "Takas Tamamlandı";
 "Swap Sent" = "Takas Gönderildi";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first and gives less, KaChat asks you again; it never takes below 99% of this quote." = "KaChat içinde Trestly'nin kendi koduyla oluşturulup kontrol edildi. Havuz önce değişip daha az verirse KaChat tekrar sorar; bu teklifin %99'unun altını asla kabul etmez.";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "KaChat içinde Trestly'nin kendi koduyla oluşturulup kontrol edildi. Havuz önce değişirse yeniden fiyat verir: yalnızca bu fiyat veya daha iyisiyle devam eder, daha azı için tekrar sorar ve sitenin minimumunun altına asla inmez.";
-"More stablecoins will show here as KaChat adds them." = "KaChat ekledikçe daha fazla stablecoin burada görünecek.";
-"On Trestly, inside KaChat" = "Trestly'de, KaChat içinde";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside KaChat, connected to the address you pick." = "KAS ile kUSDT takası yapmak veya havuza eklemek için Cüzdan sekmesinde Stablecoin Takas Et'a dokunup kUSDT'yi seçin. Trestly'nin kendi sitesi KaChat içinde, seçtiğiniz adrese bağlı olarak açılır.";
-"Trestly asks KaChat to" = "Trestly, KaChat'den şunu istiyor:";
+"Built and checked by Trestly's own code inside K. If the pool moves first and gives less, K asks you again; it never takes below 99% of this quote." = "K içinde Trestly'nin kendi koduyla oluşturulup kontrol edildi. Havuz önce değişip daha az verirse K tekrar sorar; bu teklifin %99'unun altını asla kabul etmez.";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "K içinde Trestly'nin kendi koduyla oluşturulup kontrol edildi. Havuz önce değişirse yeniden fiyat verir: yalnızca bu fiyat veya daha iyisiyle devam eder, daha azı için tekrar sorar ve sitenin minimumunun altına asla inmez.";
+"More stablecoins will show here as K adds them." = "K ekledikçe daha fazla stablecoin burada görünecek.";
+"On Trestly, inside K" = "Trestly'de, K içinde";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "KAS ile kUSDT takası yapmak veya havuza eklemek için Cüzdan sekmesinde Stablecoin Takas Et'a dokunup kUSDT'yi seçin. Trestly'nin kendi sitesi K içinde, seçtiğiniz adrese bağlı olarak açılır.";
+"Trestly asks K to" = "Trestly, K'den şunu istiyor:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Aynı kelimeleri kullanan diğer uygulamalarınız aynı kUSDT'yi gösterir ve gönderebilir. Takas burada yapılır.";
 
 /* Trestly site setting (2026-11-21) */
 "Trestly Site URL" = "Trestly Site URL'si";
 "Trestly Site" = "Trestly Sitesi";
-"The site Swap Stablecoins shows inside KaChat, connected to the address you choose. Leave it blank for this network's default." = "Stablecoin Takası'nın KaChat içinde gösterdiği site, seçtiğiniz adrese bağlı. Bu ağın varsayılanı için boş bırakın.";
+"The site Swap Stablecoins shows inside K, connected to the address you choose. Leave it blank for this network's default." = "Stablecoin Takası'nın K içinde gösterdiği site, seçtiğiniz adrese bağlı. Bu ağın varsayılanı için boş bırakın.";
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
@@ -2662,15 +2662,15 @@
 "KaPost isn't available on Testnet yet" = "KaPost henüz Testnet'te kullanılamıyor";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "Testnet için bir KaPost dizinleyicisi yok. Mainnet'te okumak ve paylaşmak için Ayarlar > Bağlantı bölümünden Testnet'i kapatın.";
 "KaChat Profile" = "KaChat Profili";
-"Your post is ready to go out. Open KaChat to send it." = "Gönderiniz gönderilmeye hazır. Göndermek için KaChat'u açın.";
+"Your post is ready to go out. Open K to send it." = "Gönderiniz gönderilmeye hazır. Göndermek için K'u açın.";
 "KaPost Settings" = "KaPost Ayarları";
 "Search KaPost" = "KaPost'ta ara";
-"Sharing sends a link that opens this room in KaChat, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Paylaşmak, bu odayı KaChat'ta açan bir bağlantı ve uygulamaya sahip olmayanlar için bir web bağlantısı gönderir. Gizleme odaya özeldir: burada gizlenen biri diğer tüm odalarda görünmeye devam eder.";
+"Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Paylaşmak, bu odayı K'ta açan bir bağlantı ve uygulamaya sahip olmayanlar için bir web bağlantısı gönderir. Gizleme odaya özeldir: burada gizlenen biri diğer tüm odalarda görünmeye devam eder.";
 "Their KaPost profile: posts, replies and followers." = "KaPost profili: gönderiler, yanıtlar ve takipçiler.";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPost sunucusu yanıt vermiyor. Kayıtlı gönderiler ve ağdan gelen yeni gönderiler gösteriliyor.";
-"Trestly's pool code couldn't start in KaChat." = "Trestly'nin havuz kodu KaChat'de başlatılamadı.";
+"Trestly's pool code couldn't start in K." = "Trestly'nin havuz kodu K'de başlatılamadı.";
 "Set what Tip sends in KaPost Settings > Tip In." = "Bahşişin ne göndereceğini KaPost Ayarları > Bahşiş Birimi'nden seçin.";
 "Tip didn't send: the smallest tip the network takes is %@. Change your default tip in KaPost Settings." = "Bahşiş gönderilmedi: ağın kabul ettiği en küçük bahşiş %@. Varsayılan bahşişinizi KaPost Ayarları'ndan değiştirin.";
 "Posting poll" = "Anket gönderiliyor";
@@ -2980,9 +2980,9 @@
 "Play %@" = "%@ ile oyna";
 "Players (%lld of %lld)" = "Oyuncular (%lld / %lld)";
 "The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "Oluşturan kişinin paylaştığı sekiz karakterlik kod. Katılmak tek bir işlemdir (ücret: %@).";
-"Play me at chess in KaChat: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "KaChat'te benimle satranç oyna: KaPlay > Satranç > 1v1 > Kodla katıl'ı aç ve %@ kodunu gir.";
-"Join my chess tournament in KaChat: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "KaChat'teki satranç turnuvama katıl: KaPlay > Satranç > Turnuvalar > Kodla katıl'ı aç ve %@ kodunu gir.";
-"I beat %@ (Level %lld) in %lld moves on KaChat. Think you can do it in fewer?" = "KaChat'te %@ rakibini (Seviye %lld) %lld hamlede yendim. Daha azında yapabilir misin?";
+"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "K'te benimle satranç oyna: KaPlay > Satranç > 1v1 > Kodla katıl'ı aç ve %@ kodunu gir.";
+"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "K'teki satranç turnuvama katıl: KaPlay > Satranç > Turnuvalar > Kodla katıl'ı aç ve %@ kodunu gir.";
+"I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "K'te %@ rakibini (Seviye %lld) %lld hamlede yendim. Daha azında yapabilir misin?";
 "Share to KaPost" = "KaPost'ta paylaş";
 "Games" = "Oyunlar";
 "Chess Challenge" = "Satranç Meydan Okuması";
@@ -3050,9 +3050,9 @@
 "How a name works" = "Bir ad nasıl çalışır";
 "Claiming takes two quick transactions: the first keeps your pick secret, the second registers it." = "Almak iki hızlı işlem gerektirir: ilki seçiminizi gizli tutar, ikincisi kaydeder.";
 "You pay for one period at a time. Shorter names cost more." = "Her seferinde bir dönem için ödersiniz. Kısa adlar daha pahalıdır.";
-"The price goes to the network's miners, not to KaChat." = "Ücret KaChat'e değil, ağın madencilerine gider.";
+"The price goes to the network's miners, not to K." = "Ücret K'e değil, ağın madencilerine gider.";
 "Make it your name" = "Adınız yapın";
-"Set it as your primary name and it's how you appear everywhere in KaChat." = "Birincil adınız yapın; KaChat'in her yerinde bu adla görünürsünüz.";
+"Set it as your primary name and it's how you appear everywhere in K." = "Birincil adınız yapın; K'in her yerinde bu adla görünürsünüz.";
 "They can send you Kaspa to yourname.kachat instead of a long address." = "Uzun bir adres yerine adiniz.kachat'e Kaspa gönderebilirler.";
 "Your profile link shows your name." = "Profil bağlantınız adınızı gösterir.";
 "Renew before it expires. It shows when, on each name." = "Süresi dolmadan yenileyin. Her adın üzerinde tarihi görünür.";
@@ -3063,21 +3063,21 @@
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "Adınız Kaspa ağında yaşar ve sohbet adresiniz tarafından tutulur. Sizin olduğu sürece kimse onu alamaz veya değiştiremez.";
 "Search for the name you want in the .kachat tab, then claim it." = "İstediğin adı .kachat sekmesinde ara, sonra al.";
 "What kUSDT is, where it lives, and how sending and swapping work." = "kUSDT nedir, nerede durur, gönderme ve takas nasıl çalışır.";
-"It's the name people see you as across KaChat and on your profile link. Without one, people see your address." = "İnsanların seni KaChat genelinde ve profil bağlantında gördüğü ad budur. Olmazsa adresini görürler.";
+"It's the name people see you as across K and on your profile link. Without one, people see your address." = "İnsanların seni K genelinde ve profil bağlantında gördüğü ad budur. Olmazsa adresini görürler.";
 "People can find you by typing your name." = "İnsanlar adını yazarak seni bulabilir.";
 "Your names are in Wallet > Your Domains > .kachat." = "Adların Cüzdan > Alan Adların > .kachat içinde.";
 "Claim your name in the .kachat tab whenever you're ready." = "Hazır olduğunda adını .kachat sekmesinden al.";
 "I Agree" = "Kabul Ediyorum";
-"KaChat has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what KaChat shows, without notice." = "KaChat, rahatsız edici içeriğe ve kötü niyetli kullanıcılara tolerans göstermez. Yasa dışı hiçbir şey, çocukları içeren cinsel içerik, nefret söylemi, tehdit, taciz, şiddeti ya da kendine zarar vermeyi teşvik eden içerik veya dolandırıcılık paylaşamazsın. Bunu yapan hesaplar, önceden haber verilmeden KaChat'un gösterdiklerinden kaldırılabilir.";
-"KaChat is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and KaChat's developer, not Apple." = "KaChat olduğu gibi, garanti verilmeden sunulur ve yasaların izin verdiği ölçüde, kullanımından ya da diğer kullanıcıların paylaştıklarından doğan kayıplardan sorumlu değiliz. Bu şartlar sen ile KaChat'un geliştiricisi arasındadır, Apple ile değil.";
+"K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "K, rahatsız edici içeriğe ve kötü niyetli kullanıcılara tolerans göstermez. Yasa dışı hiçbir şey, çocukları içeren cinsel içerik, nefret söylemi, tehdit, taciz, şiddeti ya da kendine zarar vermeyi teşvik eden içerik veya dolandırıcılık paylaşamazsın. Bunu yapan hesaplar, önceden haber verilmeden K'un gösterdiklerinden kaldırılabilir.";
+"K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K olduğu gibi, garanti verilmeden sunulur ve yasaların izin verdiği ölçüde, kullanımından ya da diğer kullanıcıların paylaştıklarından doğan kayıplardan sorumlu değiliz. Bu şartlar sen ile K'un geliştiricisi arasındadır, Apple ile değil.";
 "No objectionable content or abuse" = "Rahatsız edici içerik ve kötüye kullanım yok";
 "No warranty" = "Garanti yok";
-"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from KaChat, but nobody can erase a transaction from the network." = "Gönderiler, yanıtlar, beğeniler ve oda mesajları Kaspa ağında herkese açık işlemlerdir. Paylaştıklarından sen sorumlusun. Bir gönderiyi silmek onu KaChat'tan kaldırır ama hiç kimse bir işlemi ağdan silemez.";
+"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from K, but nobody can erase a transaction from the network." = "Gönderiler, yanıtlar, beğeniler ve oda mesajları Kaspa ağında herkese açık işlemlerdir. Paylaştıklarından sen sorumlusun. Bir gönderiyi silmek onu K'tan kaldırır ama hiç kimse bir işlemi ağdan silemez.";
 "Questions and reports: %@" = "Sorular ve bildirimler: %@";
 "Reporting and blocking" = "Bildirme ve engelleme";
 "Terms of Use" = "Kullanım Şartları";
-"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the KaChat indexer, which KaChat reads by default." = "Rahatsız edici içeriği bize bildirmek için bir gönderide veya oda mesajında Bildir'i kullan; her bildirimi bir insan okur. Bir hesabın gönderilerini ve oda mesajlarını görmeyi bırakmak için Engelle'yi kullan. İçerikleri ve hesapları, KaChat'un varsayılan olarak okuduğu KaChat dizinleyicisinden kaldırabiliriz.";
-"You need to agree to use KaChat." = "KaChat'u kullanmak için kabul etmen gerekir.";
+"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the K indexer, which K reads by default." = "Rahatsız edici içeriği bize bildirmek için bir gönderide veya oda mesajında Bildir'i kullan; her bildirimi bir insan okur. Bir hesabın gönderilerini ve oda mesajlarını görmeyi bırakmak için Engelle'yi kullan. İçerikleri ve hesapları, K'un varsayılan olarak okuduğu K dizinleyicisinden kaldırabiliriz.";
+"You need to agree to use K." = "K'u kullanmak için kabul etmen gerekir.";
 "Your account and your funds" = "Hesabın ve paran";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "Hesabın, cihazında saklanan 12 veya 24 kelimedir. Onlara hiçbir zaman sahip olmayız; bu yüzden kaybolanları kurtaramaz ya da bir işlemi geri alamayız. Paylaşım yapmak KAS cinsinden bir ağ ücreti öder ve elindeki ve gönderdiğin fonlardan sen sorumlusun.";
 "Your posts are public and permanent" = "Gönderilerin herkese açık ve kalıcıdır";

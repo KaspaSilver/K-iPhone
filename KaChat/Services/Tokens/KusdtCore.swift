@@ -151,7 +151,7 @@ final class KusdtCore: NSObject {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: Self.startTimeout)
             guard let self, !self.walletReady, self.walletError == nil, !self.walletWaiting.isEmpty || self.ready else { return }
-            self.finishWallet(error: AppLocalization.string("Trestly's pool code couldn't start in KaChat."))
+            self.finishWallet(error: AppLocalization.string("Trestly's pool code couldn't start in K."))
         }
     }
 
@@ -290,7 +290,7 @@ final class KusdtCore: NSObject {
             finishWallet(error: nil)
         } else if let error = message["walletError"] as? String {
             AppLog.log("[kUSDT] Trestly's wallet logic failed to load: %@", error)
-            finishWallet(error: AppLocalization.string("Trestly's pool code couldn't start in KaChat."))
+            finishWallet(error: AppLocalization.string("Trestly's pool code couldn't start in K."))
         } else if let error = message["error"] as? String {
             AppLog.log("[kUSDT] builder failed to start: %@", error)
             finish(error: AppLocalization.string("kUSDT's transaction builder couldn't start."))
@@ -349,7 +349,7 @@ extension KusdtCore: WKNavigationDelegate {
         for c in continuations { c.resume(throwing: CoreError.unavailable(AppLocalization.string("kUSDT's transaction builder couldn't start."))) }
         let walletContinuations = walletWaiting
         walletWaiting = []
-        for c in walletContinuations { c.resume(throwing: CoreError.unavailable(AppLocalization.string("Trestly's pool code couldn't start in KaChat."))) }
+        for c in walletContinuations { c.resume(throwing: CoreError.unavailable(AppLocalization.string("Trestly's pool code couldn't start in K."))) }
     }
 }
 

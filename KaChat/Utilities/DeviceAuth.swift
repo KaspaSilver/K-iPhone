@@ -58,7 +58,7 @@ enum DeviceAuth {
 
         let alert = UIAlertController(
             title: AppLocalization.string("Passcode Required"),
-            message: AppLocalization.string("Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat."),
+            message: AppLocalization.string("Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K."),
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: AppLocalization.string("OK"), style: .default) { _ in

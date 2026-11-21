@@ -74,7 +74,7 @@ struct TrestlyApprovalSheet: View {
                     HStack(spacing: 10) {
                         TokenIcon(token: .kusdt, size: 36)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Trestly asks KaChat to")
+                            Text("Trestly asks K to")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Text(title)
@@ -207,8 +207,8 @@ struct TrestlyApprovalSheet: View {
 
     private var note: String {
         request.method == "kusdt_swap"
-            ? AppLocalization.string("Built and checked by Trestly's own code inside KaChat. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum.")
-            : AppLocalization.string("Built and checked by Trestly's own code inside KaChat. If the pool moves first and gives less, KaChat asks you again; it never takes below 99% of this quote.")
+            ? AppLocalization.string("Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum.")
+            : AppLocalization.string("Built and checked by Trestly's own code inside K. If the pool moves first and gives less, K asks you again; it never takes below 99% of this quote.")
     }
 
     private func line(_ title: LocalizedStringKey, _ value: Text, bold: Bool = false) -> some View {

@@ -69,7 +69,7 @@ struct KachatSetupGuideView: View {
         case .claim:
             stepHeader(
                 title: "Claim your .kachat name",
-                subtitle: "It's the name people see you as across KaChat and on your profile link. Without one, people see your address."
+                subtitle: "It's the name people see you as across K and on your profile link. Without one, people see your address."
             ) {
                 KachatTabIcon.view(side: 56)
             }
@@ -101,13 +101,13 @@ struct KachatSetupGuideView: View {
             bulletList([
                 "Claiming takes two quick transactions: the first keeps your pick secret, the second registers it.",
                 "You pay for one period at a time. Shorter names cost more.",
-                "The price goes to the network's miners, not to KaChat."
+                "The price goes to the network's miners, not to K."
             ])
 
         case .useIt:
             stepHeader(
                 title: "Make it your name",
-                subtitle: "Set it as your primary name and it's how you appear everywhere in KaChat."
+                subtitle: "Set it as your primary name and it's how you appear everywhere in K."
             ) {
                 Image(systemName: "person.text.rectangle")
                     .font(.system(size: 46, weight: .regular))

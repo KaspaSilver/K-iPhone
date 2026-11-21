@@ -571,7 +571,7 @@ struct SettingsView: View {
 
             // Only while a sync is failing. It clears on its own after the next complete sync.
             if syncTroubleActive {
-                Label("KaChat is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe.", systemImage: "exclamationmark.triangle.fill")
+                Label("K is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
                     .foregroundColor(.orange)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -958,8 +958,8 @@ struct ConnectionHubPage: View {
                 if settingsViewModel.selectedNetworkType != settingsViewModel.launchNetworkType {
                     Label {
                         Text(settingsViewModel.selectedNetworkType == .testnet
-                             ? LocalizedStringKey("Close KaChat completely and open it again to finish switching to Testnet.")
-                             : LocalizedStringKey("Close KaChat completely and open it again to finish switching back to Mainnet."))
+                             ? LocalizedStringKey("Close K completely and open it again to finish switching to Testnet.")
+                             : LocalizedStringKey("Close K completely and open it again to finish switching back to Mainnet."))
                     } icon: {
                         Image(systemName: "arrow.clockwise.circle.fill")
                             .foregroundColor(.orange)
@@ -2376,7 +2376,7 @@ struct ConnectionSettingsView: View {
         } header: {
             Text("kUSDT Balances")
         } footer: {
-            Text("Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default.")
+            Text("Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default.")
         }
         Section {
             VStack(alignment: .leading, spacing: 4) {
@@ -2393,7 +2393,7 @@ struct ConnectionSettingsView: View {
         } header: {
             Text("Trestly Site")
         } footer: {
-            Text("The site Swap Stablecoins shows inside KaChat, connected to the address you choose. Leave it blank for this network's default.")
+            Text("The site Swap Stablecoins shows inside K, connected to the address you choose. Leave it blank for this network's default.")
         }
     }
 

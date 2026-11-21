@@ -27,7 +27,7 @@ struct WalletRecoveryView: View {
                     Text("12 or 24 Words Needed")
                         .font(.title2.weight(.bold))
                         .multilineTextAlignment(.center)
-                    Text("This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because KaChat's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept.")
+                    Text("This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because K's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

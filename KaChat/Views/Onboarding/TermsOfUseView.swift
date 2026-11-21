@@ -11,15 +11,15 @@ enum KaChatTerms {
     static let sections: [(title: String, text: String)] = [
         (
             "No objectionable content or abuse",
-            "KaChat has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what KaChat shows, without notice."
+            "K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice."
         ),
         (
             "Your posts are public and permanent",
-            "Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from KaChat, but nobody can erase a transaction from the network."
+            "Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from K, but nobody can erase a transaction from the network."
         ),
         (
             "Reporting and blocking",
-            "Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the KaChat indexer, which KaChat reads by default."
+            "Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the K indexer, which K reads by default."
         ),
         (
             "Your account and your funds",
@@ -27,7 +27,7 @@ enum KaChatTerms {
         ),
         (
             "No warranty",
-            "KaChat is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and KaChat's developer, not Apple."
+            "K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple."
         ),
         (
             "Contact",
@@ -85,7 +85,7 @@ struct TermsAcceptanceView: View {
             }
             Divider()
             VStack(spacing: 10) {
-                Text("You need to agree to use KaChat.")
+                Text("You need to agree to use K.")
                     .font(.footnote)
                     .foregroundColor(.secondary)
                 Button(action: onAgree) {

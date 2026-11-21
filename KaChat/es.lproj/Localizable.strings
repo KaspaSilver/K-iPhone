@@ -112,7 +112,7 @@
 "Group Info" = "Informacion del grupo";
 "Hidden Users" = "Usuarios ocultos";
 "Hide User" = "Ocultar usuario";
-"How KaChat Uses Kaspa" = "Como usa Kaspa KaChat";
+"How K Uses Kaspa" = "Como usa Kaspa K";
 "IP Address Book" = "Libreta de direcciones IP";
 "If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Tap the fee amount to set a custom fee." = "Si la red esta ocupada, Rapida o Prioritaria paga una comision mayor para ayudar a que esto confirme antes. Toca el monto de la comision para establecer una comision personalizada.";
 "If the network is busy, a higher fee can help your transaction confirm faster." = "Si la red esta ocupada, una comision mayor puede ayudar a que tu transaccion confirme mas rapido.";
@@ -133,8 +133,8 @@
 "KNS profile update failed: %@" = "KNS error en la actualización del perfil: %@";
 "KNS profile updated." = "Perfil KNS actualizado.";
 "KaChat" = "KaChat";
-"KaChat lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "KaChat te permite enviar y recibir mensajes en la propia red de Kaspa. Se requiere Kaspa para pagar las comisiones al enviar tus mensajes. La comision que pagas va a los mineros que protegen la red.";
-"KaChat needs to connect to a node. How would you like to connect?" = "KaChat necesita conectarse a un nodo. ¿Como te gustaria conectarte?";
+"K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K te permite enviar y recibir mensajes en la propia red de Kaspa. Se requiere Kaspa para pagar las comisiones al enviar tus mensajes. La comision que pagas va a los mineros que protegen la red.";
+"K needs to connect to a node. How would you like to connect?" = "K necesita conectarse a un nodo. ¿Como te gustaria conectarte?";
 "Kaspa Explorer" = "Explorador de Kaspa";
 "Kaspa Explorer API" = "Kaspa Explorer API";
 "Kaspa Node" = "Nodo de Kaspa";
@@ -253,7 +253,7 @@
 "Words copied. Clipboard will clear in 30s." = "Palabras copiadas. El portapapeles se borrará en 30 s.";
 "Select a chat" = "Selecciona un chat";
 "Select the currency you'd like prices displayed in." = "Selecciona la moneda en la que te gustaria ver los precios.";
-"Select the language you'd like to use in KaChat." = "Selecciona el idioma que te gustaria usar en KaChat.";
+"Select the language you'd like to use in K." = "Selecciona el idioma que te gustaria usar en K.";
 "Selected data is not a valid image" = "Los datos seleccionados no son una imagen válida.";
 "Send" = "Enviar";
 "Send Handshake" = "Enviar solicitud de comunicacion";
@@ -308,7 +308,7 @@
 "Wallet not available." = "Cartera no disponible.";
 "Website" = "Sitio web";
 "Welcome Guide" = "Guia de bienvenida";
-"Welcome to KaChat" = "Bienvenido a KaChat";
+"Welcome to K" = "Bienvenido a K";
 "Wipe and re-sync incoming messages" = "Borrar y re-sincronizar mensajes entrantes";
 "X handle" = "mango en X";
 "fee: -- KAS" = "comision: -- KAS";
@@ -341,8 +341,8 @@
 "Coming soon" = "Próximamente";
 "Not available on this network" = "No disponible en esta red";
 "Testnet" = "Testnet";
-"Close KaChat completely and open it again to finish switching to Testnet." = "Cierra KaChat por completo y ábrelo de nuevo para terminar de cambiar a Testnet.";
-"Close KaChat completely and open it again to finish switching back to Mainnet." = "Cierra KaChat por completo y ábrelo de nuevo para terminar de volver a Mainnet.";
+"Close K completely and open it again to finish switching to Testnet." = "Cierra K por completo y ábrelo de nuevo para terminar de cambiar a Testnet.";
+"Close K completely and open it again to finish switching back to Mainnet." = "Cierra K por completo y ábrelo de nuevo para terminar de volver a Mainnet.";
 
 /* 5.2: Kaspa Hub > .kachat marketplace */
 
@@ -514,8 +514,8 @@
 "Passphrase" = "Frase de contraseña";
 
 /* Addresses of the other network are refused (IOS-003) */
-"This is a Testnet address. KaChat is on Mainnet." = "Esta es una dirección de Testnet. KaChat está en Mainnet.";
-"This is a Mainnet address. KaChat is on Testnet." = "Esta es una dirección de Mainnet. KaChat está en Testnet.";
+"This is a Testnet address. K is on Mainnet." = "Esta es una dirección de Testnet. K está en Mainnet.";
+"This is a Mainnet address. K is on Testnet." = "Esta es una dirección de Mainnet. K está en Testnet.";
 
 /* Siri / Shortcuts payments are confirmed (IOS-021) */
 "Send %@ to %@?" = "¿Enviar %1$@ a %2$@?";
@@ -558,7 +558,7 @@
 "How many words are you importing?" = "¿Cuántas palabras vas a importar?";
 "What are my 12 or 24 words?" = "¿Qué son mis 12 o 24 palabras?";
 "Your 12 or 24 words are ordinary words that work as the master key to your account. Your wallet, your chatting address and your messages all come from them." = "Tus 12 o 24 palabras son palabras comunes que funcionan como la llave maestra de tu cuenta. Tu monedero, tu dirección de chat y tus mensajes provienen de ellas.";
-"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even KaChat." = "Cualquiera que tenga estas palabras puede llevarse todo lo de tu cuenta. Si las pierdes y también pierdes este dispositivo, nadie podrá recuperar tu cuenta, ni siquiera KaChat.";
+"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even K." = "Cualquiera que tenga estas palabras puede llevarse todo lo de tu cuenta. Si las pierdes y también pierdes este dispositivo, nadie podrá recuperar tu cuenta, ni siquiera K.";
 "Write the words on paper, in order, and keep them somewhere safe and private. Never type them into a website, send them in a chat, or keep them in a screenshot or cloud notes." = "Escribe las palabras en papel, en orden, y guárdalas en un lugar seguro y privado. Nunca las escribas en un sitio web, no las envíes por chat y no las guardes en una captura de pantalla ni en notas en la nube.";
 
 /* Onboarding: seed phrase explainer page headings */
@@ -626,18 +626,18 @@
 /* .kachat: fees, busy network, progress receipt */
 "Sent to the network" = "Enviada a la red";
 "In a block" = "En un bloque";
-"Updated in KaChat" = "Actualizada en KaChat";
+"Updated in K" = "Actualizada en K";
 "Waiting for the network to put it in a block. Usually a few seconds; longer when it's busy." = "Esperando a que la red la incluya en un bloque. Suele tardar unos segundos; más si está saturada.";
-"It's in a block. Updating KaChat..." = "Está en un bloque. Actualizando KaChat...";
-"Done. It shows in KaChat now." = "Listo. Ya se ve en KaChat.";
+"It's in a block. Updating K..." = "Está en un bloque. Actualizando K...";
+"Done. It shows in K now." = "Listo. Ya se ve en K.";
 "The network hasn't taken it. Nothing was spent if it never lands - try again with a faster fee." = "La red aún no la ha tomado. Si nunca entra, no se gasta nada - inténtalo con una comisión más rápida.";
 "Tap the transaction to open it in the explorer." = "Toca la transacción para abrirla en el explorador.";
 
 /* .kachat offers: tiles and half sheet */
 
 /* Audit run 3: Address Book network checks, .kachat fee re-check */
-"Every address in that file is a Mainnet address. KaChat is on Testnet." = "Todas las direcciones de ese archivo son de Mainnet. KaChat está en Testnet.";
-"Every address in that file is a Testnet address. KaChat is on Mainnet." = "Todas las direcciones de ese archivo son de Testnet. KaChat está en Mainnet.";
+"Every address in that file is a Mainnet address. K is on Testnet." = "Todas las direcciones de ese archivo son de Mainnet. K está en Testnet.";
+"Every address in that file is a Testnet address. K is on Mainnet." = "Todas las direcciones de ese archivo son de Testnet. K está en Mainnet.";
 "Skipped %lld from the other network." = "Se omitieron %lld de la otra red.";
 
 /* .kachat registry v5 migration */
@@ -775,7 +775,7 @@
 /* User Info: look the person's avatar, banner and bio up again now */
 
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
-"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. KaChat tells them once your chatting address has some KAS." = "Tu dirección de chat no tiene KAS para avisar a %@ de este pago, así que lo verá como un pago de una dirección desconocida, sin la nota. KaChat le avisará cuando tu dirección de chat tenga algo de KAS.";
+"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "Tu dirección de chat no tiene KAS para avisar a %@ de este pago, así que lo verá como un pago de una dirección desconocida, sin la nota. K le avisará cuando tu dirección de chat tenga algo de KAS.";
 
 /* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
@@ -787,7 +787,7 @@
 "12 or 24 Words Needed" = "Se necesitan 12 o 24 palabras";
 "Enter 12 or 24 Words" = "Introducir 12 o 24 palabras";
 "%@ is on this iPhone, but its keys are not. That happens after restoring from a backup, because keys are locked to the phone they were made on. Enter the account's 12 or 24 words to sign in. Its history on this phone is kept." = "%@ está en este iPhone, pero sus claves no. Esto ocurre al restaurar desde una copia de seguridad, porque las claves están ligadas al teléfono en que se crearon. Introduce las 12 o 24 palabras de la cuenta para iniciar sesión. Su historial en este teléfono se conserva.";
-"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because KaChat's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "Este iPhone tiene tu cuenta, pero no sus claves. Esto ocurre al restaurar un teléfono desde una copia de seguridad, porque las claves de KaChat están ligadas al dispositivo en que se crearon. Introduce tus 12 o 24 palabras para desbloquearla aquí. Tus mensajes en este dispositivo se conservan.";
+"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because K's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "Este iPhone tiene tu cuenta, pero no sus claves. Esto ocurre al restaurar un teléfono desde una copia de seguridad, porque las claves de K están ligadas al dispositivo en que se crearon. Introduce tus 12 o 24 palabras para desbloquearla aquí. Tus mensajes en este dispositivo se conservan.";
 
 
 /* The chat list's name for the chat with yourself */
@@ -875,7 +875,7 @@
 "How much?" = "¿Cuánto?";
 "You're requesting" = "Vas a solicitar";
 "A brand-new address of yours that has never been used or handed out." = "Una dirección tuya completamente nueva que nunca se ha usado ni compartido.";
-"Anyone who opens it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "Quien la abra en KaChat verá Enviar Kaspa con estos datos ya puestos y que la creó tu dirección de chat (firmada con su clave).";
+"Anyone who opens it in K gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "Quien la abra en K verá Enviar Kaspa con estos datos ya puestos y que la creó tu dirección de chat (firmada con su clave).";
 
 /* Contacts (was Address Book) */
 "Add to Contacts" = "Añadir a Contactos";
@@ -896,11 +896,11 @@
 "Edit Contact" = "Editar contacto";
 "No contacts yet" = "Aún no hay contactos";
 "Delete %@ from your contacts?" = "¿Eliminar a %@ de tus contactos?";
-"Save the Kaspa addresses you use with a name you'll recognize. They stay in KaChat, for this wallet only, and never go into your phone's Contacts app." = "Guarda las direcciones Kaspa que usas con un nombre que reconozcas. Se quedan en KaChat, solo para esta billetera, y nunca van a la app Contactos de tu teléfono.";
-"Saved in KaChat for this wallet only. Never added to your phone's Contacts app." = "Guardado en KaChat solo para esta billetera. Nunca se añade a la app Contactos de tu teléfono.";
+"Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "Guarda las direcciones Kaspa que usas con un nombre que reconozcas. Se quedan en K, solo para esta billetera, y nunca van a la app Contactos de tu teléfono.";
+"Saved in K for this wallet only. Never added to your phone's Contacts app." = "Guardado en K solo para esta billetera. Nunca se añade a la app Contactos de tu teléfono.";
 "This is a fresh address, never used before." = "Esta es una dirección nueva, nunca usada.";
 "Use for chatting and acquiring .kachat domains." = "Úsala para chatear y obtener dominios .kachat.";
-"Think of it like your phone number on KaChat." = "Piensa en ella como tu número de teléfono en KaChat.";
+"Think of it like your phone number on K." = "Piensa en ella como tu número de teléfono en K.";
 "How People Reach You" = "Cómo te contactan";
 "Share this address and people can message you. Only you can read what they send." = "Comparte esta dirección y podrán escribirte. Solo tú puedes leer lo que te envían.";
 "Paying for Messages" = "Pagar los mensajes";
@@ -939,7 +939,7 @@
 "Complete Your Backup" = "Completa tu respaldo";
 "Back Up to NFC Card" = "Respaldar en tarjeta NFC";
 "Wipe and re-sync incoming messages?" = "¿Borrar y volver a sincronizar los mensajes entrantes?";
-"KaChat is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "KaChat tiene problemas para sincronizar ahora mismo. Sigue reintentando y tus mensajes se pondrán al día solos cuando vuelva la conexión, así que no deberías tener que borrar nada.";
+"K is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "K tiene problemas para sincronizar ahora mismo. Sigue reintentando y tus mensajes se pondrán al día solos cuando vuelva la conexión, así que no deberías tener que borrar nada.";
 "Privacy Policy" = "Política de privacidad";
 "Open Source Licenses" = "Licencias de código abierto";
 "Appearance" = "Apariencia";
@@ -1014,7 +1014,7 @@
 "No emoji match that." = "Ningún emoji coincide.";
 "%lld member%@" = "%lld miembro%@";
 "Reply not sent" = "Respuesta no enviada";
-"Your reply couldn't be sent. Open KaChat to try again." = "No se pudo enviar tu respuesta. Abre KaChat para reintentarlo.";
+"Your reply couldn't be sent. Open K to try again." = "No se pudo enviar tu respuesta. Abre K para reintentarlo.";
 "1 Reaction" = "1 reacción";
 "%lld Reactions" = "%lld reacciones";
 "1 person" = "1 persona";
@@ -1102,7 +1102,7 @@
 "These addresses couldn't be derived right now. Go back a page or reopen this screen to retry." = "Estas direcciones no se pudieron derivar ahora mismo. Vuelve una página atrás o reabre esta pantalla para reintentar.";
 "Add, import or export" = "Agregar, importar o exportar";
 "KaChat Contact" = "Contacto de KaChat";
-"KaChat is built with these open source libraries. Their authors ask that these notices travel with the app." = "KaChat está hecho con estas bibliotecas de código abierto. Sus autores piden que estos avisos acompañen a la app.";
+"K is built with these open source libraries. Their authors ask that these notices travel with the app." = "K está hecho con estas bibliotecas de código abierto. Sus autores piden que estos avisos acompañen a la app.";
 "24 words" = "24 palabras";
 "Enter your 12 or 24 words" = "Introduce tus 12 o 24 palabras";
 "More reactions" = "Más reacciones";
@@ -1198,7 +1198,7 @@
 "Your phone can't be your only copy" = "Tu teléfono no puede ser tu única copia";
 "If you lose, break or replace this phone, these words are the only way back to your account." = "Si pierdes, rompes o cambias este teléfono, estas palabras son la única forma de volver a tu cuenta.";
 "Nobody can reset them" = "Nadie puede restablecerlas";
-"There is no password reset. KaChat never sees your words, so we can't recover them for you." = "No hay restablecimiento de contraseña. KaChat nunca ve tus palabras, así que no podemos recuperarlas por ti.";
+"There is no password reset. K never sees your words, so we can't recover them for you." = "No hay restablecimiento de contraseña. K nunca ve tus palabras, así que no podemos recuperarlas por ti.";
 "Get ready" = "Prepárate";
 "Your secret words are next. Before you see them:" = "Tus palabras secretas son lo siguiente. Antes de verlas:";
 "I have a pen and paper" = "Tengo lápiz y papel";
@@ -1225,7 +1225,7 @@
 "Never keep it online" = "Nunca la guardes en internet";
 "No photos, screenshots, cloud storage, notes apps, email or chats." = "Nada de fotos, capturas de pantalla, almacenamiento en la nube, apps de notas, correo ni chats.";
 "Never share it" = "Nunca la compartas";
-"Nobody needs your words. KaChat and real support will never ask for them. Anyone who asks is trying to take your funds." = "Nadie necesita tus palabras. KaChat y el soporte real nunca te las pedirán. Quien te las pida intenta quedarse con tus fondos.";
+"Nobody needs your words. K and real support will never ask for them. Anyone who asks is trying to take your funds." = "Nadie necesita tus palabras. K y el soporte real nunca te las pedirán. Quien te las pida intenta quedarse con tus fondos.";
 "Keep your passphrase apart" = "Guarda tu frase de contraseña aparte";
 "Store it away from your 12 or 24 words. You need both, and losing either one loses the account." = "Guárdala aparte de tus 12 o 24 palabras. Necesitas ambas, y perder cualquiera de las dos hace perder la cuenta.";
 "You can see it again" = "Puedes verlas otra vez";
@@ -1409,7 +1409,7 @@
 "Notifications from this group resume, including mentions." = "Se reanudan las notificaciones de este grupo, incluidas las menciones.";
 "One minute each, plus one second a move." = "Un minuto cada uno, más un segundo por jugada.";
 "Open in Explorer" = "Abrir en el explorador";
-"Open in KaChat" = "Abrir en KaChat";
+"Open in K" = "Abrir en K";
 "Open in KaPost" = "Abrir en KaPost";
 "Open your chat with them in payment mode." = "Abre tu chat con esa persona en modo de pago.";
 "Opens in your browser." = "Se abre en tu navegador.";
@@ -1476,10 +1476,10 @@
 "Restoring messages... %d of %d conversations" = "Restaurando mensajes... %d de %d conversaciones";
 "Deletes %@ (%@) and its local data from this device." = "Elimina %@ (%@) y sus datos locales de este dispositivo.";
 "Passcode Required" = "Código necesario";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "Configura un código en este iPhone (Ajustes > Face ID y código) para eliminar una cuenta o ver claves secretas en KaChat.";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "Configura un código en este iPhone (Ajustes > Face ID y código) para eliminar una cuenta o ver claves secretas en K.";
 "Waiting on opponent" = "Esperando al oponente";
 "Not sent: you switched accounts before this went out." = "No enviado: cambiaste de cuenta antes de que saliera.";
-"The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "La primera de las dos transacciones se completó, pero la segunda no. KaChat la terminará la próxima vez que se abra.";
+"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "La primera de las dos transacciones se completó, pero la segunda no. K la terminará la próxima vez que se abra.";
 "A domain transfer's fee can be at most 1 KAS." = "La comisión de una transferencia de dominio puede ser como máximo de 1 KAS.";
 "Confirm setting this primary name" = "Confirmar este nombre principal";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "Puede que las claves de esta cuenta sigan en este teléfono, pero ahora no se pueden leer, así que no se cambió nada. Inténtalo de nuevo en un momento.";
@@ -1490,7 +1490,7 @@
 "Standard Kaspa Wallet" = "Billetera Kaspa estándar";
 "Has history" = "Tiene historial";
 "See Every Wallet Type" = "Ver todos los tipos de billetera";
-"KaChat checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "KaChat comprueba tus palabras con todos los tipos de billetera Kaspa, así que no necesitas saber de cuál proceden.";
+"K checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "K comprueba tus palabras con todos los tipos de billetera Kaspa, así que no necesitas saber de cuál proceden.";
 "This address has history, so this looks like the right account." = "Esta dirección tiene historial, así que parece la cuenta correcta.";
 "No funds or history on this address." = "No hay fondos ni historial en esta dirección.";
 "We picked the most likely account. Tap another if that's not the one you use." = "Elegimos la cuenta más probable. Toca otra si no es la que usas.";
@@ -1519,14 +1519,14 @@
 "Tap Retry on the voice message to send the rest." = "Toca Reintentar en el mensaje de voz para enviar el resto.";
 "Network fee: %@" = "Comisión de red: %@";
 "Couldn't Remove App Password" = "No se pudo quitar la contraseña de app";
-"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat no pudo quitar su contraseña de app de %@. Ya no está en este teléfono, pero aún puede iniciar sesión allí: bórrala en Nextcloud, en Ajustes > Seguridad > Dispositivos y sesiones.";
+"K couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "K no pudo quitar su contraseña de app de %@. Ya no está en este teléfono, pero aún puede iniciar sesión allí: bórrala en Nextcloud, en Ajustes > Seguridad > Dispositivos y sesiones.";
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Tu dirección de chat también paga %@ KAS para avisar a %@ de este pago.";
 "Tap Retry on the photo to send the rest." = "Toca Reintentar en la foto para enviar el resto.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Este mensaje necesita demasiadas monedas para una transacción. Usa Compound UTXOs en tu dirección de chat y vuelve a intentarlo.";
 "Use Their Domain Name" = "Usar su nombre de dominio";
 "Show Request As QR" = "Mostrar solicitud como QR";
 "Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Escanéalo con la cámara de un iPhone para pagar en KaPay con todo ya rellenado.";
-"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "Escanéalo con la cámara de un iPhone para pagar en KaChat con todo ya rellenado.";
+"Scan it with an iPhone's camera to pay in K, with everything filled in." = "Escanéalo con la cámara de un iPhone para pagar en K con todo ya rellenado.";
 "Get a .kachat domain" = "Consigue un dominio .kachat";
 "Set as Name" = "Usar como nombre";
 "Their Name" = "Su nombre";
@@ -1658,12 +1658,12 @@
 "kUSDT's transaction builder couldn't start." = "El generador de transacciones de kUSDT no pudo iniciarse.";
 "kUSDT's transaction builder gave no answer." = "El generador de transacciones de kUSDT no respondió.";
 "kUSDT's transaction builder isn't the pinned one, so it won't run." = "El generador de transacciones de kUSDT no es el fijado, así que no se ejecutará.";
-"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "Falta la plantilla de kUSDT de KaChat, así que no se puede comprobar kUSDT.";
-"The network fee is above KaChat's safety limit. Nothing was sent." = "La comisión de red supera el límite de seguridad de KaChat. No se envió nada.";
+"K's kUSDT template is missing, so kUSDT can't be checked." = "Falta la plantilla de kUSDT de K, así que no se puede comprobar kUSDT.";
+"The network fee is above K's safety limit. Nothing was sent." = "La comisión de red supera el límite de seguridad de K. No se envió nada.";
 "Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "Recíbelo en una dirección nueva tuya. Comprar e intercambiar kUSDT se hace en KaPay.";
 "Release to Confirm" = "Suelta para confirmar";
 "The transaction didn't go out." = "La transacción no salió.";
-"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Donde KaChat consulta tus kUSDT. Cada moneda que lista se comprueba en el nodo de Kaspa antes de contar. Déjalo en blanco para usar el predeterminado de esta red.";
+"Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Donde K consulta tus kUSDT. Cada moneda que lista se comprueba en el nodo de Kaspa antes de contar. Déjalo en blanco para usar el predeterminado de esta red.";
 "Fee %@" = "Comisión %@";
 
 /* Share Profile sheet (2026-11-20) */
@@ -1769,7 +1769,7 @@
 "How it works" = "Cómo funciona";
 "List" = "Vender";
 "Trustless" = "Sin intermediarios";
-"Set a price. The name waits in an on-chain covenant, not with KaChat or anyone else, until someone buys it or you take it back." = "Fija un precio. El nombre espera en un covenant en la cadena, no en KaChat ni con nadie, hasta que alguien lo compre o lo retires.";
+"Set a price. The name waits in an on-chain covenant, not with K or anyone else, until someone buys it or you take it back." = "Fija un precio. El nombre espera en un covenant en la cadena, no en K ni con nadie, hasta que alguien lo compre o lo retires.";
 "Pay the listed price. The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does." = "Paga el precio publicado. El pago llega al vendedor y el nombre llega a ti en la misma transacción: ocurren ambos o ninguno.";
 "No middleman and no escrow account: Kaspa's own rules enforce every sale." = "Sin intermediarios ni cuentas de custodia: las propias reglas de Kaspa garantizan cada venta.";
 "Nothing here is live yet." = "Aquí aún no hay nada activo.";
@@ -1924,7 +1924,7 @@
 "Takes the name off the market." = "Retira el nombre del mercado.";
 "Puts the name up for sale at your price." = "Pone el nombre a la venta a tu precio.";
 "Sends the name to another address." = "Envía el nombre a otra dirección.";
-"Shows you by this name across KaChat." = "Te muestra con este nombre en todo KaChat.";
+"Shows you by this name across K." = "Te muestra con este nombre en todo K.";
 "Gives the name up and returns its deposit." = "Renuncia al nombre y devuelve su depósito.";
 "Expires in %@" = "Vence en %@";
 "Expired - returning to you" = "Vencida: vuelve a ti";
@@ -2038,7 +2038,7 @@
 "Nothing can change now: this is the transaction KasSigner signed." = "Ya no puede cambiar nada: esta es la transacción que firmó KasSigner.";
 "Watch-only. This cannot spend, but it reveals every address in this account." = "Solo lectura. Esto no puede gastar, pero revela todas las direcciones de esta cuenta.";
 "Your KAS is in many small coins. When you swipe, KaPay first combines them into one (a separate transaction with its own small fee), then sends this." = "Tus KAS están en muchas monedas pequeñas. Al deslizar, KaPay primero las combina en una sola (una transacción aparte con su propia comisión pequeña) y luego envía esto.";
-"The price goes to the miners - KaChat takes nothing." = "El precio va a los mineros - KaChat no se queda con nada.";
+"The price goes to the miners - K takes nothing." = "El precio va a los mineros - K no se queda con nada.";
 "Length" = "Duración";
 "Claiming sends two transactions: the commit now, the registration about a minute later. Both pay this fee rate." = "Reclamar envía dos transacciones: el commit ahora y el registro aproximadamente un minuto después. Ambas pagan esta tarifa.";
 "The price changed. Check it and swipe again." = "El precio cambió. Revísalo y desliza de nuevo.";
@@ -2223,11 +2223,11 @@
 "Import failed." = "La importación falló.";
 
 /* Ported KaPay screens, named KaChat (2026-11-21) */
-"The commit has to age for about a minute before the name can be registered. Keep KaChat open - it registers by itself, and picks up where it left off if you leave." = "El commit debe madurar alrededor de un minuto antes de registrar el nombre. Deja KaChat abierto: se registra solo y continúa donde lo dejó si sales.";
-"Your KAS is in many small coins. KaChat combines them into one before registering, for a tiny extra network fee." = "Tus KAS están en muchas monedas pequeñas. KaChat las combina en una antes de registrar, por una comisión de red extra mínima.";
-"Your KAS is in many small coins. When you swipe, KaChat first combines them into one (a separate transaction with its own small fee), then sends this." = "Tus KAS están en muchas monedas pequeñas. Al deslizar, KaChat primero las combina en una sola (una transacción aparte con su propia comisión pequeña) y luego envía esto.";
-"This only removes it from KaChat's watch list. It has no effect on the KasSigner device or any funds it holds." = "Esto solo lo elimina de la lista de vigilancia de KaChat. No tiene ningun efecto en el dispositivo KasSigner ni en los fondos que contiene.";
-"Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "Mantén KaChat abierto: el nombre se registra aproximadamente un minuto después de que se confirme el compromiso oculto. Si sales, continuará donde lo dejó cuando vuelvas.";
+"The commit has to age for about a minute before the name can be registered. Keep K open - it registers by itself, and picks up where it left off if you leave." = "El commit debe madurar alrededor de un minuto antes de registrar el nombre. Deja K abierto: se registra solo y continúa donde lo dejó si sales.";
+"Your KAS is in many small coins. K combines them into one before registering, for a tiny extra network fee." = "Tus KAS están en muchas monedas pequeñas. K las combina en una antes de registrar, por una comisión de red extra mínima.";
+"Your KAS is in many small coins. When you swipe, K first combines them into one (a separate transaction with its own small fee), then sends this." = "Tus KAS están en muchas monedas pequeñas. Al deslizar, K primero las combina en una sola (una transacción aparte con su propia comisión pequeña) y luego envía esto.";
+"This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds." = "Esto solo lo elimina de la lista de vigilancia de K. No tiene ningun efecto en el dispositivo KasSigner ni en los fondos que contiene.";
+"Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "Mantén K abierto: el nombre se registra aproximadamente un minuto después de que se confirme el compromiso oculto. Si sales, continuará donde lo dejó cuando vuelvas.";
 
 /* Trestly inside KaChat, from KaPay (2026-11-21) */
 "Sent %@ on %@" = "Enviado %@ el %@";
@@ -2284,18 +2284,18 @@
 "Swap sent: %@ for %@" = "Intercambio enviado: %@ por %@";
 "Swap Complete" = "Intercambio completado";
 "Swap Sent" = "Intercambio enviado";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first and gives less, KaChat asks you again; it never takes below 99% of this quote." = "Creado y comprobado por el propio código de Trestly dentro de KaChat. Si el pool se mueve antes y da menos, KaChat te pregunta otra vez; nunca acepta menos del 99% de esta cotización.";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Creado y comprobado por el propio código de Trestly dentro de KaChat. Si el pool se mueve antes, cotiza de nuevo: solo sigue con esta cotización o una mejor, te pregunta otra vez si es menos y nunca baja del mínimo de la web.";
-"More stablecoins will show here as KaChat adds them." = "Aquí aparecerán más stablecoins cuando KaChat las añada.";
-"On Trestly, inside KaChat" = "En Trestly, dentro de KaChat";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside KaChat, connected to the address you pick." = "Para intercambiar KAS y kUSDT, o añadir al pool, toca Intercambiar stablecoins en la pestaña Billetera y elige kUSDT. La web de Trestly se abre dentro de KaChat, conectada a la dirección que elijas.";
-"Trestly asks KaChat to" = "Trestly pide a KaChat:";
+"Built and checked by Trestly's own code inside K. If the pool moves first and gives less, K asks you again; it never takes below 99% of this quote." = "Creado y comprobado por el propio código de Trestly dentro de K. Si el pool se mueve antes y da menos, K te pregunta otra vez; nunca acepta menos del 99% de esta cotización.";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Creado y comprobado por el propio código de Trestly dentro de K. Si el pool se mueve antes, cotiza de nuevo: solo sigue con esta cotización o una mejor, te pregunta otra vez si es menos y nunca baja del mínimo de la web.";
+"More stablecoins will show here as K adds them." = "Aquí aparecerán más stablecoins cuando K las añada.";
+"On Trestly, inside K" = "En Trestly, dentro de K";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Para intercambiar KAS y kUSDT, o añadir al pool, toca Intercambiar stablecoins en la pestaña Billetera y elige kUSDT. La web de Trestly se abre dentro de K, conectada a la dirección que elijas.";
+"Trestly asks K to" = "Trestly pide a K:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Tus otras apps con las mismas palabras muestran los mismos kUSDT y pueden enviarlos. El intercambio se hace aquí.";
 
 /* Trestly site setting (2026-11-21) */
 "Trestly Site URL" = "URL del sitio de Trestly";
 "Trestly Site" = "Sitio de Trestly";
-"The site Swap Stablecoins shows inside KaChat, connected to the address you choose. Leave it blank for this network's default." = "El sitio que muestra Intercambiar stablecoins dentro de KaChat, conectado a la dirección que elijas. Déjalo vacío para usar el predeterminado de esta red.";
+"The site Swap Stablecoins shows inside K, connected to the address you choose. Leave it blank for this network's default." = "El sitio que muestra Intercambiar stablecoins dentro de K, conectado a la dirección que elijas. Déjalo vacío para usar el predeterminado de esta red.";
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
@@ -2662,15 +2662,15 @@
 "KaPost isn't available on Testnet yet" = "KaPost aún no está disponible en Testnet";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "No hay un indexador de KaPost para testnet. Desactiva Testnet en Ajustes > Conexión para leer y publicar en mainnet.";
 "KaChat Profile" = "Perfil de KaChat";
-"Your post is ready to go out. Open KaChat to send it." = "Tu publicación está lista para salir. Abre KaChat para enviarla.";
+"Your post is ready to go out. Open K to send it." = "Tu publicación está lista para salir. Abre K para enviarla.";
 "KaPost Settings" = "Ajustes de KaPost";
 "Search KaPost" = "Buscar en KaPost";
-"Sharing sends a link that opens this room in KaChat, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Compartir envía un enlace que abre esta sala en KaChat, y un enlace web para quien no lo tenga. Ocultar es por sala: alguien oculto aquí sigue apareciendo en las demás salas.";
+"Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Compartir envía un enlace que abre esta sala en K, y un enlace web para quien no lo tenga. Ocultar es por sala: alguien oculto aquí sigue apareciendo en las demás salas.";
 "Their KaPost profile: posts, replies and followers." = "Su perfil de KaPost: publicaciones, respuestas y seguidores.";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "El servidor de KaPost no responde. Se muestran publicaciones guardadas y nuevas de la red.";
-"Trestly's pool code couldn't start in KaChat." = "El código del pool de Trestly no pudo iniciarse en KaChat.";
+"Trestly's pool code couldn't start in K." = "El código del pool de Trestly no pudo iniciarse en K.";
 "Set what Tip sends in KaPost Settings > Tip In." = "Elige qué envía Propina en Ajustes de KaPost > Propina en.";
 "Tip didn't send: the smallest tip the network takes is %@. Change your default tip in KaPost Settings." = "La propina no se envió: la propina más pequeña que acepta la red es %@. Cambia tu propina predeterminada en Ajustes de KaPost.";
 "Posting poll" = "Publicando encuesta";
@@ -2980,9 +2980,9 @@
 "Play %@" = "Jugar contra %@";
 "Players (%lld of %lld)" = "Jugadores (%lld de %lld)";
 "The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "El código de ocho caracteres que compartió el creador. Unirse es una transacción (tarifa: %@).";
-"Play me at chess in KaChat: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Juega al ajedrez conmigo en KaChat: abre KaPlay > Ajedrez > 1v1 > Unirse con un código e ingresa %@.";
-"Join my chess tournament in KaChat: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Únete a mi torneo de ajedrez en KaChat: abre KaPlay > Ajedrez > Torneos > Unirse con un código e ingresa %@.";
-"I beat %@ (Level %lld) in %lld moves on KaChat. Think you can do it in fewer?" = "Vencí a %@ (nivel %lld) en %lld jugadas en KaChat. ¿Crees que puedes hacerlo en menos?";
+"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Juega al ajedrez conmigo en K: abre KaPlay > Ajedrez > 1v1 > Unirse con un código e ingresa %@.";
+"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Únete a mi torneo de ajedrez en K: abre KaPlay > Ajedrez > Torneos > Unirse con un código e ingresa %@.";
+"I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Vencí a %@ (nivel %lld) en %lld jugadas en K. ¿Crees que puedes hacerlo en menos?";
 "Share to KaPost" = "Compartir en KaPost";
 "Games" = "Juegos";
 "Chess Challenge" = "Reto de ajedrez";
@@ -3050,9 +3050,9 @@
 "How a name works" = "Cómo funciona un nombre";
 "Claiming takes two quick transactions: the first keeps your pick secret, the second registers it." = "Reclamarlo lleva dos transacciones rápidas: la primera mantiene tu elección en secreto y la segunda lo registra.";
 "You pay for one period at a time. Shorter names cost more." = "Pagas un periodo cada vez. Los nombres más cortos cuestan más.";
-"The price goes to the network's miners, not to KaChat." = "El precio va a los mineros de la red, no a KaChat.";
+"The price goes to the network's miners, not to K." = "El precio va a los mineros de la red, no a K.";
 "Make it your name" = "Hazlo tu nombre";
-"Set it as your primary name and it's how you appear everywhere in KaChat." = "Ponlo como tu nombre principal y así aparecerás en todo KaChat.";
+"Set it as your primary name and it's how you appear everywhere in K." = "Ponlo como tu nombre principal y así aparecerás en todo K.";
 "They can send you Kaspa to yourname.kachat instead of a long address." = "Pueden enviarte Kaspa a tunombre.kachat en lugar de a una dirección larga.";
 "Your profile link shows your name." = "Tu enlace de perfil muestra tu nombre.";
 "Renew before it expires. It shows when, on each name." = "Renuévalo antes de que caduque. Cada nombre muestra cuándo.";
@@ -3063,21 +3063,21 @@
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "Tu nombre vive en la red Kaspa, en manos de tu dirección de chat. Nadie puede quitártelo ni cambiarlo mientras sea tuyo.";
 "Search for the name you want in the .kachat tab, then claim it." = "Busca el nombre que quieres en la pestaña .kachat y luego reclámalo.";
 "What kUSDT is, where it lives, and how sending and swapping work." = "Qué es kUSDT, dónde se guarda y cómo funcionan los envíos y los intercambios.";
-"It's the name people see you as across KaChat and on your profile link. Without one, people see your address." = "Es el nombre con el que te ven en todo KaChat y en el enlace de tu perfil. Sin él, ven tu dirección.";
+"It's the name people see you as across K and on your profile link. Without one, people see your address." = "Es el nombre con el que te ven en todo K y en el enlace de tu perfil. Sin él, ven tu dirección.";
 "People can find you by typing your name." = "La gente puede encontrarte escribiendo tu nombre.";
 "Your names are in Wallet > Your Domains > .kachat." = "Tus nombres están en Billetera > Tus dominios > .kachat.";
 "Claim your name in the .kachat tab whenever you're ready." = "Reclama tu nombre en la pestaña .kachat cuando quieras.";
 "I Agree" = "Acepto";
-"KaChat has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what KaChat shows, without notice." = "KaChat no tolera contenido ofensivo ni usuarios abusivos. No puedes publicar nada ilegal, contenido sexual con menores, discurso de odio, amenazas, acoso, contenido que incite a la violencia o a las autolesiones, ni estafas. Las cuentas que lo hagan pueden ser eliminadas de lo que muestra KaChat, sin previo aviso.";
-"KaChat is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and KaChat's developer, not Apple." = "KaChat se ofrece tal cual, sin garantía, y, en la medida que permita la ley, no somos responsables de las pérdidas derivadas de usarlo ni de lo que publiquen otros usuarios. Estos términos son entre tú y el desarrollador de KaChat, no Apple.";
+"K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "K no tolera contenido ofensivo ni usuarios abusivos. No puedes publicar nada ilegal, contenido sexual con menores, discurso de odio, amenazas, acoso, contenido que incite a la violencia o a las autolesiones, ni estafas. Las cuentas que lo hagan pueden ser eliminadas de lo que muestra K, sin previo aviso.";
+"K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K se ofrece tal cual, sin garantía, y, en la medida que permita la ley, no somos responsables de las pérdidas derivadas de usarlo ni de lo que publiquen otros usuarios. Estos términos son entre tú y el desarrollador de K, no Apple.";
 "No objectionable content or abuse" = "Sin contenido ofensivo ni abusos";
 "No warranty" = "Sin garantía";
-"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from KaChat, but nobody can erase a transaction from the network." = "Las publicaciones, respuestas, me gusta y mensajes de sala son transacciones públicas en la red de Kaspa. Eres responsable de lo que publicas. Eliminar una publicación la quita de KaChat, pero nadie puede borrar una transacción de la red.";
+"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from K, but nobody can erase a transaction from the network." = "Las publicaciones, respuestas, me gusta y mensajes de sala son transacciones públicas en la red de Kaspa. Eres responsable de lo que publicas. Eliminar una publicación la quita de K, pero nadie puede borrar una transacción de la red.";
 "Questions and reports: %@" = "Preguntas e informes: %@";
 "Reporting and blocking" = "Denuncias y bloqueos";
 "Terms of Use" = "Términos de uso";
-"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the KaChat indexer, which KaChat reads by default." = "Usa Denunciar en una publicación o mensaje de sala para informarnos de contenido ofensivo; una persona lee cada denuncia. Usa Bloquear para dejar de ver las publicaciones y mensajes de sala de una cuenta. Podemos eliminar contenido y cuentas del indexador de KaChat, que KaChat lee por defecto.";
-"You need to agree to use KaChat." = "Debes aceptar para usar KaChat.";
+"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the K indexer, which K reads by default." = "Usa Denunciar en una publicación o mensaje de sala para informarnos de contenido ofensivo; una persona lee cada denuncia. Usa Bloquear para dejar de ver las publicaciones y mensajes de sala de una cuenta. Podemos eliminar contenido y cuentas del indexador de K, que K lee por defecto.";
+"You need to agree to use K." = "Debes aceptar para usar K.";
 "Your account and your funds" = "Tu cuenta y tus fondos";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "Tu cuenta son 12 o 24 palabras guardadas en tu dispositivo. Nunca las tenemos, así que no podemos recuperar las perdidas ni revertir una transacción. Publicar paga una comisión de red en KAS, y eres responsable de los fondos que tienes y envías.";
 "Your posts are public and permanent" = "Tus publicaciones son públicas y permanentes";

@@ -241,7 +241,7 @@ struct AccountBackupView: View {
             point("iphone.slash", "Your phone can't be your only copy",
                   "If you lose, break or replace this phone, these words are the only way back to your account.")
             point("person.fill.xmark", "Nobody can reset them",
-                  "There is no password reset. KaChat never sees your words, so we can't recover them for you.")
+                  "There is no password reset. K never sees your words, so we can't recover them for you.")
             NavigationLink {
                 SeedPhraseExplainerPage()
             } label: {
@@ -455,7 +455,7 @@ struct AccountBackupView: View {
             point("icloud.slash.fill", "Never keep it online",
                   "No photos, screenshots, cloud storage, notes apps, email or chats.")
             point("hand.raised.fill", "Never share it",
-                  "Nobody needs your words. KaChat and real support will never ask for them. Anyone who asks is trying to take your funds.")
+                  "Nobody needs your words. K and real support will never ask for them. Anyone who asks is trying to take your funds.")
             if passphrase != nil {
                 point("square.split.2x1.fill", "Keep your passphrase apart",
                       "Store it away from your 12 or 24 words. You need both, and losing either one loses the account.")

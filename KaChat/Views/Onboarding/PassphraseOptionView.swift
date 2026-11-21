@@ -262,7 +262,7 @@ struct PassphraseOptionView: View {
                 Text("Your Account")
                     .font(.title3.weight(.bold))
 
-                Text("KaChat checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from.")
+                Text("K checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

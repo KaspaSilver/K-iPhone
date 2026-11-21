@@ -45,7 +45,7 @@ enum KusdtBalances {
 
         var errorDescription: String? {
             switch self {
-            case .templateMissing: return AppLocalization.string("KaChat's kUSDT template is missing, so kUSDT can't be checked.")
+            case .templateMissing: return AppLocalization.string("K's kUSDT template is missing, so kUSDT can't be checked.")
             case .api(let why): return why
             }
         }

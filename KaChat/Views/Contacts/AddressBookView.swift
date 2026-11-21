@@ -284,7 +284,7 @@ struct AddressBookView: View {
                 .foregroundColor(.accentColor)
             Text("No contacts yet")
                 .font(.headline)
-            Text("Save the Kaspa addresses you use with a name you'll recognize. They stay in KaChat, for this wallet only, and never go into your phone's Contacts app.")
+            Text("Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -666,7 +666,7 @@ struct AddressBookEntryEditor: View {
                     TextField("Note (optional)", text: $note, axis: .vertical)
                         .lineLimit(1...4)
                 } footer: {
-                    Text("Saved in KaChat for this wallet only. Never added to your phone's Contacts app.")
+                    Text("Saved in K for this wallet only. Never added to your phone's Contacts app.")
                 }
 
                 if let error {

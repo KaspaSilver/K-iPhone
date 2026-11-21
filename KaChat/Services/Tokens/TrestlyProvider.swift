@@ -168,7 +168,7 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
         let origin = frame.securityOrigin
         let port = origin.port == 0 ? 443 : origin.port
         guard frame.isMainFrame, origin.protocol == "https", origin.host.lowercased() == allowedOrigin.host, port == allowedOrigin.port else {
-            return (Self.errorAnswer(ProviderError(code: Code.unauthorized, message: "This page can't use KaChat.")), nil)
+            return (Self.errorAnswer(ProviderError(code: Code.unauthorized, message: "This page can't use K.")), nil)
         }
         guard let request = message.body as? [String: Any], let method = request["method"] as? String, method.count <= 64 else {
             return (Self.errorAnswer(ProviderError(code: Code.invalid, message: "Expected { method, params }.")), nil)
@@ -184,7 +184,7 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
             }
         }
         guard running < 8 else {
-            return (Self.errorAnswer(ProviderError(code: Code.busy, message: "KaChat is still answering this page's earlier requests.")), nil)
+            return (Self.errorAnswer(ProviderError(code: Code.busy, message: "K is still answering this page's earlier requests.")), nil)
         }
         running += 1
         defer { running -= 1 }
@@ -206,25 +206,25 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
         case "kaspa_getNetwork":
             return Self.networkName
         case "kaspa_switchNetwork":
-            guard connected else { throw ProviderError(code: Code.unauthorized, message: "Connect KaChat to this site first.") }
+            guard connected else { throw ProviderError(code: Code.unauthorized, message: "Connect K to this site first.") }
             guard let network = (params as? [String: Any])?["network"] as? String,
                   ["mainnet", "testnet-10", "simnet"].contains(network) else {
                 throw ProviderError(code: Code.invalid, message: "Expected { network }.")
             }
             guard network == Self.networkName else {
-                throw ProviderError(code: Code.unsupported, message: "KaChat changes networks only in its own Settings.")
+                throw ProviderError(code: Code.unsupported, message: "K changes networks only in its own Settings.")
             }
             return network
         case "kusdt_getBalances":
-            guard connected else { throw ProviderError(code: Code.unauthorized, message: "Connect KaChat to this site first.") }
+            guard connected else { throw ProviderError(code: Code.unauthorized, message: "Connect K to this site first.") }
             return try await balances()
         case "kusdt_capabilities":
             return Self.methods
         case _ where Self.tradeMethods.contains(method):
-            guard connected else { throw ProviderError(code: Code.unauthorized, message: "Connect KaChat to this site first.") }
+            guard connected else { throw ProviderError(code: Code.unauthorized, message: "Connect K to this site first.") }
             return try await trade(method, params: params)
         default:
-            throw ProviderError(code: Code.unsupported, message: "KaChat doesn't support \(method) here.")
+            throw ProviderError(code: Code.unsupported, message: "K doesn't support \(method) here.")
         }
     }
 
@@ -235,17 +235,17 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
     /// sign and send (`execute`). A pool that moved to a worse quote comes back as a requote, shown
     /// again; their code never goes below the site's minimum.
     private func trade(_ method: String, params: Any?) async throws -> Any? {
-        guard !closed else { throw ProviderError(code: Code.unauthorized, message: "KaChat closed this page.") }
+        guard !closed else { throw ProviderError(code: Code.unauthorized, message: "K closed this page.") }
         guard !tradeInFlight, approval == nil else {
-            throw ProviderError(code: Code.busy, message: "KaChat is already working on a request from this page.")
+            throw ProviderError(code: Code.busy, message: "K is already working on a request from this page.")
         }
         if let declinedAt, Date().timeIntervalSince(declinedAt) < 3 {
-            throw ProviderError(code: Code.rejected, message: "You declined in KaChat a moment ago.")
+            throw ProviderError(code: Code.rejected, message: "You declined in K a moment ago.")
         }
         tradeInFlight = true
         defer { tradeInFlight = false }
         guard let owner = Kusdt.schnorrOwner(of: target.address) else {
-            throw ProviderError(code: Code.failed, message: "KaChat can't trade from this kind of address.")
+            throw ProviderError(code: Code.failed, message: "K can't trade from this kind of address.")
         }
         let paramsJSON: Any = params ?? NSNull()
         var wallet: [String: Any] = [
@@ -261,11 +261,11 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
             let approved = await ask(TrestlyApproval(method: method, prepared: prepared, seen: seen, from: target.label))
             guard approved, !closed else {
                 declinedAt = Date()
-                throw ProviderError(code: Code.rejected, message: "You declined in KaChat. Nothing was sent.")
+                throw ProviderError(code: Code.rejected, message: "You declined in K. Nothing was sent.")
             }
 
             guard let secret = target.spendingIndex.map({ WalletManager.shared.spendingPrivateKey(at: $0) }) ?? WalletManager.shared.getPrivateKey() else {
-                throw ProviderError(code: Code.failed, message: "KaChat couldn't unlock this address's key.")
+                throw ProviderError(code: Code.failed, message: "K couldn't unlock this address's key.")
             }
             wallet["secret"] = Kusdt.hex(secret)
             var request: [String: Any] = ["method": method, "params": paramsJSON, "wallet": wallet,
@@ -382,14 +382,14 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
         do {
             utxos = try await NodePoolService.shared.getUtxosByAddresses([target.address], allowRestFallback: false)
         } catch {
-            throw ProviderError(code: Code.failed, message: "KaChat couldn't read this address's KAS just now.")
+            throw ProviderError(code: Code.failed, message: "K couldn't read this address's KAS just now.")
         }
         let kas = utxos.filter { $0.covenantId == nil }.reduce(UInt64(0)) { $0 &+ $1.amount }
 
         let tokens = TokenWallet.shared
         await tokens.refreshIfStale()
         guard tokens.balance(of: .kusdt) != nil else {
-            throw ProviderError(code: Code.failed, message: tokens.lastError ?? "KaChat couldn't check this address's kUSDT just now.")
+            throw ProviderError(code: Code.failed, message: tokens.lastError ?? "K couldn't check this address's kUSDT just now.")
         }
         let kusdt = tokens.holdings(of: .kusdt).first(where: { $0.address == target.address })?.units ?? 0
         return ["kas": String(kas), "kusdt": String(kusdt)]

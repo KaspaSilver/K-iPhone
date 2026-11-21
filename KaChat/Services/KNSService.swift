@@ -1769,7 +1769,7 @@ enum KNSRevealRecovery {
             throw unknown
         } catch {
             AppLog.log("[KNS_REVEAL] reveal of %@ failed, kept for the next launch: %@", String(reveal.commitTxId.prefix(12)), error.localizedDescription)
-            throw KasiaError.apiError(AppLocalization.string("The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens."))
+            throw KasiaError.apiError(AppLocalization.string("The first of two transactions went through, but the second didn't. K will finish it the next time it opens."))
         }
     }
 

@@ -13,6 +13,14 @@ from KaChat itself (Stats, Kaspa Websites, the widget, Simple Mode, calls), in p
 apps get retired. Port from their current code; the "Removed from the app" list below shrinks as
 each phase lands.
 
+**Name: "K" (owner, 2026-11-21).** The app is called K: the home-screen name
+(`INFOPLIST_KEY_CFBundleDisplayName`, app and share extension), the permission prompts and every
+sentence that means the app say "K", in all 19 languages. "KaChat" stays where it names something
+real: the chats tab (`AppTab.chats`) and its list, .kachat names and profiles ("KaChat Profile",
+"KaChat Link", "Shared a KaChat profile"), KaChat Stats (the protocol's transactions), the Siri
+shortcuts, the KaChat-NFC applet, the "KaChat" Nextcloud folder and archive, and the name the
+Trestly provider announces. The project, targets, bundle id, URL schemes, logo and icon are unchanged.
+
 **Dock and Kaspa Hub (phase 1, 2026-11-20):** the dock is Kaspa Hub and Profile (both pinned,
 `AppTab.pinnedToDock`) plus up to three tabs the person picks (`DockLayout`, saved on the device;
 new installs: Kaspa Hub, Wallet, KaChat (the `.chats` tab, labeled "KaChat" since 2026-11-21 for the rebrand of the app as "K"), Profile, Settings), and every other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,

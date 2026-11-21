@@ -101,7 +101,7 @@ private struct KachatHowItWorksPage: View {
                 step(icon: "arrow.clockwise", title: "Renew",
                      detail: "Renew before it expires to keep it. An expired name waits for its owner to renew it for a while before anyone else can claim it.")
                 step(icon: "tag", title: "List",
-                     detail: "Set a price. The name waits in an on-chain covenant, not with KaChat or anyone else, until someone buys it or you take it back.")
+                     detail: "Set a price. The name waits in an on-chain covenant, not with K or anyone else, until someone buys it or you take it back.")
                 step(icon: "cart", title: "Buy",
                      detail: "Pay the listed price. The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does.")
                 step(icon: "hand.raised", title: "Offer",
@@ -188,7 +188,7 @@ private struct KachatPricingPage: View {
                 priceTable
 
                 info(icon: "leaf", title: "Where the price goes",
-                     text: AppLocalization.string("The price goes to the miners - KaChat takes nothing."))
+                     text: AppLocalization.string("The price goes to the miners - K takes nothing."))
                 info(icon: "lock", title: "Locked, not spent",
                      text: String(format: AppLocalization.string("%@ stays locked with your name while you hold it (bond + registry deposit). You get it back when you release the name."),
                                   KaspaUnit.amount(lockedSompi)))

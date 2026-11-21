@@ -112,7 +112,7 @@
 "Group Info" = "群组信息";
 "Hidden Users" = "隐藏的用户";
 "Hide User" = "隐藏用户";
-"How KaChat Uses Kaspa" = "KaChat 如何使用 Kaspa";
+"How K Uses Kaspa" = "K 如何使用 Kaspa";
 "IP Address Book" = "IP 地址簿";
 "If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Tap the fee amount to set a custom fee." = "如果网络繁忙,快速或优先选项会支付更高的费用以帮助更快确认。点击费用金额可设置自定义费用。";
 "If the network is busy, a higher fee can help your transaction confirm faster." = "如果网络繁忙,更高的手续费可以帮助您的交易更快确认。";
@@ -133,8 +133,8 @@
 "KNS profile update failed: %@" = "KNS 配置文件更新失败：%@";
 "KNS profile updated." = "KNS 个人资料已更新。";
 "KaChat" = "KaChat";
-"KaChat lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "KaChat 让您可以直接在 Kaspa 网络上发送和接收消息。发送消息时需要使用 Kaspa 支付手续费。您支付的手续费将支付给保护网络安全的矿工。";
-"KaChat needs to connect to a node. How would you like to connect?" = "KaChat 需要连接到一个节点。您希望如何连接?";
+"K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K 让您可以直接在 Kaspa 网络上发送和接收消息。发送消息时需要使用 Kaspa 支付手续费。您支付的手续费将支付给保护网络安全的矿工。";
+"K needs to connect to a node. How would you like to connect?" = "K 需要连接到一个节点。您希望如何连接?";
 "Kaspa Explorer" = "Kaspa 浏览器";
 "Kaspa Explorer API" = "Kaspa Explorer API";
 "Kaspa Node" = "Kaspa 节点";
@@ -253,7 +253,7 @@
 "Words copied. Clipboard will clear in 30s." = "单词已复制。剪贴板将在 30 秒后清除。";
 "Select a chat" = "选择聊天";
 "Select the currency you'd like prices displayed in." = "选择您希望以哪种货币显示价格。";
-"Select the language you'd like to use in KaChat." = "选择您想在 KaChat 中使用的语言。";
+"Select the language you'd like to use in K." = "选择您想在 K 中使用的语言。";
 "Selected data is not a valid image" = "所选数据不是有效图像";
 "Send" = "发送";
 "Send Handshake" = "发送通信请求";
@@ -308,7 +308,7 @@
 "Wallet not available." = "钱包不可用。";
 "Website" = "网站";
 "Welcome Guide" = "欢迎指南";
-"Welcome to KaChat" = "欢迎使用 KaChat";
+"Welcome to K" = "欢迎使用 K";
 "Wipe and re-sync incoming messages" = "清除并重新同步接收消息";
 "X handle" = "X手柄";
 "fee: -- KAS" = "手续费: -- KAS";
@@ -341,8 +341,8 @@
 "Coming soon" = "即将推出";
 "Not available on this network" = "此网络不可用";
 "Testnet" = "测试网";
-"Close KaChat completely and open it again to finish switching to Testnet." = "请完全关闭 KaChat 后重新打开，以完成切换到测试网。";
-"Close KaChat completely and open it again to finish switching back to Mainnet." = "请完全关闭 KaChat 后重新打开，以完成切换回主网。";
+"Close K completely and open it again to finish switching to Testnet." = "请完全关闭 K 后重新打开，以完成切换到测试网。";
+"Close K completely and open it again to finish switching back to Mainnet." = "请完全关闭 K 后重新打开，以完成切换回主网。";
 
 /* 5.2: Kaspa Hub > .kachat marketplace */
 
@@ -514,8 +514,8 @@
 "Passphrase" = "密码短语";
 
 /* Addresses of the other network are refused (IOS-003) */
-"This is a Testnet address. KaChat is on Mainnet." = "这是 Testnet 地址。KaChat 正在 Mainnet 上运行。";
-"This is a Mainnet address. KaChat is on Testnet." = "这是 Mainnet 地址。KaChat 正在 Testnet 上运行。";
+"This is a Testnet address. K is on Mainnet." = "这是 Testnet 地址。K 正在 Mainnet 上运行。";
+"This is a Mainnet address. K is on Testnet." = "这是 Mainnet 地址。K 正在 Testnet 上运行。";
 
 /* Siri / Shortcuts payments are confirmed (IOS-021) */
 "Send %@ to %@?" = "要向 %2$@ 发送 %1$@ 吗？";
@@ -558,7 +558,7 @@
 "How many words are you importing?" = "你要导入多少个单词？";
 "What are my 12 or 24 words?" = "什么是我的 12 或 24 个单词？";
 "Your 12 or 24 words are ordinary words that work as the master key to your account. Your wallet, your chatting address and your messages all come from them." = "你的 12 或 24 个单词是普通单词，相当于账户的万能钥匙。你的钱包、聊天地址和消息都来自它们。";
-"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even KaChat." = "任何拿到这些单词的人都能拿走你账户里的一切。如果你丢了这些单词，又丢了这台设备，没有人能找回你的账户，KaChat 也不行。";
+"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even K." = "任何拿到这些单词的人都能拿走你账户里的一切。如果你丢了这些单词，又丢了这台设备，没有人能找回你的账户，K 也不行。";
 "Write the words on paper, in order, and keep them somewhere safe and private. Never type them into a website, send them in a chat, or keep them in a screenshot or cloud notes." = "把这些单词按顺序写在纸上，放在安全、私密的地方。永远不要在网站上输入它们，不要在聊天里发送，也不要存在截图或云笔记里。";
 
 /* Onboarding: seed phrase explainer page headings */
@@ -626,18 +626,18 @@
 /* .kachat: fees, busy network, progress receipt */
 "Sent to the network" = "已发送到网络";
 "In a block" = "已进入区块";
-"Updated in KaChat" = "已在 KaChat 更新";
+"Updated in K" = "已在 K 更新";
 "Waiting for the network to put it in a block. Usually a few seconds; longer when it's busy." = "正在等待网络将其打包进区块。通常几秒钟；繁忙时更久。";
-"It's in a block. Updating KaChat..." = "已进入区块。正在更新 KaChat...";
-"Done. It shows in KaChat now." = "完成。现在已在 KaChat 中显示。";
+"It's in a block. Updating K..." = "已进入区块。正在更新 K...";
+"Done. It shows in K now." = "完成。现在已在 K 中显示。";
 "The network hasn't taken it. Nothing was spent if it never lands - try again with a faster fee." = "网络尚未接收。如果始终未上链，不会花费任何东西——请用更快的费用重试。";
 "Tap the transaction to open it in the explorer." = "点按交易可在浏览器中打开。";
 
 /* .kachat offers: tiles and half sheet */
 
 /* Audit run 3: Address Book network checks, .kachat fee re-check */
-"Every address in that file is a Mainnet address. KaChat is on Testnet." = "该文件中的所有地址都是 Mainnet 地址。KaChat 当前在 Testnet。";
-"Every address in that file is a Testnet address. KaChat is on Mainnet." = "该文件中的所有地址都是 Testnet 地址。KaChat 当前在 Mainnet。";
+"Every address in that file is a Mainnet address. K is on Testnet." = "该文件中的所有地址都是 Mainnet 地址。K 当前在 Testnet。";
+"Every address in that file is a Testnet address. K is on Mainnet." = "该文件中的所有地址都是 Testnet 地址。K 当前在 Mainnet。";
 "Skipped %lld from the other network." = "已跳过另一网络的 %lld 个地址。";
 
 /* .kachat registry v5 migration */
@@ -775,7 +775,7 @@
 /* User Info: look the person's avatar, banner and bio up again now */
 
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
-"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. KaChat tells them once your chatting address has some KAS." = "你的聊天地址没有 KAS，无法告知 %@ 这笔付款，因此对方会看到一笔来自未知地址、没有备注的付款。等你的聊天地址有 KAS 后，KaChat 会告知对方。";
+"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "你的聊天地址没有 KAS，无法告知 %@ 这笔付款，因此对方会看到一笔来自未知地址、没有备注的付款。等你的聊天地址有 KAS 后，K 会告知对方。";
 
 /* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
@@ -787,7 +787,7 @@
 "12 or 24 Words Needed" = "需要 12 或 24 个单词";
 "Enter 12 or 24 Words" = "输入 12 或 24 个单词";
 "%@ is on this iPhone, but its keys are not. That happens after restoring from a backup, because keys are locked to the phone they were made on. Enter the account's 12 or 24 words to sign in. Its history on this phone is kept." = "%@ 在这台 iPhone 上，但其密钥不在。从备份恢复后会出现这种情况，因为密钥绑定在创建它们的手机上。请输入该账户的 12 或 24 个单词以登录。它在这台手机上的记录会保留。";
-"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because KaChat's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "这台 iPhone 上有你的账户，但没有其密钥。从备份恢复手机后会出现这种情况，因为 KaChat 的密钥绑定在创建它们的设备上。请输入你的 12 或 24 个单词以在此解锁。此设备上的消息会保留。";
+"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because K's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "这台 iPhone 上有你的账户，但没有其密钥。从备份恢复手机后会出现这种情况，因为 K 的密钥绑定在创建它们的设备上。请输入你的 12 或 24 个单词以在此解锁。此设备上的消息会保留。";
 
 
 /* The chat list's name for the chat with yourself */
@@ -875,7 +875,7 @@
 "How much?" = "多少？";
 "You're requesting" = "你要请求";
 "A brand-new address of yours that has never been used or handed out." = "一个从未使用或分享过的全新地址。";
-"Anyone who opens it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "任何人在 KaChat 中打开它，都会看到已填好的“发送 Kaspa”，并看到它由你的聊天地址创建（用其密钥签名）。";
+"Anyone who opens it in K gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "任何人在 K 中打开它，都会看到已填好的“发送 Kaspa”，并看到它由你的聊天地址创建（用其密钥签名）。";
 
 /* Contacts (was Address Book) */
 "Add to Contacts" = "添加到联系人";
@@ -896,11 +896,11 @@
 "Edit Contact" = "编辑联系人";
 "No contacts yet" = "还没有联系人";
 "Delete %@ from your contacts?" = "要从联系人中删除 %@ 吗？";
-"Save the Kaspa addresses you use with a name you'll recognize. They stay in KaChat, for this wallet only, and never go into your phone's Contacts app." = "用你认得出的名字保存你常用的 Kaspa 地址。它们只保存在 KaChat 中、仅限此钱包，绝不会进入手机的通讯录应用。";
-"Saved in KaChat for this wallet only. Never added to your phone's Contacts app." = "仅为此钱包保存在 KaChat 中。绝不会添加到手机的通讯录应用。";
+"Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "用你认得出的名字保存你常用的 Kaspa 地址。它们只保存在 K 中、仅限此钱包，绝不会进入手机的通讯录应用。";
+"Saved in K for this wallet only. Never added to your phone's Contacts app." = "仅为此钱包保存在 K 中。绝不会添加到手机的通讯录应用。";
 "This is a fresh address, never used before." = "这是一个从未使用过的新地址。";
 "Use for chatting and acquiring .kachat domains." = "用于聊天和获取 .kachat 域名。";
-"Think of it like your phone number on KaChat." = "可以把它看作你在 KaChat 上的电话号码。";
+"Think of it like your phone number on K." = "可以把它看作你在 K 上的电话号码。";
 "How People Reach You" = "别人如何联系你";
 "Share this address and people can message you. Only you can read what they send." = "分享这个地址，别人就能给你发消息。只有你能读取他们发送的内容。";
 "Paying for Messages" = "消息费用";
@@ -939,7 +939,7 @@
 "Complete Your Backup" = "完成备份";
 "Back Up to NFC Card" = "备份到 NFC 卡";
 "Wipe and re-sync incoming messages?" = "要清除并重新同步接收的消息吗？";
-"KaChat is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "KaChat 目前同步遇到问题。它会不断重试，连接恢复后你的消息会自动补上，所以你应该不需要清除。";
+"K is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "K 目前同步遇到问题。它会不断重试，连接恢复后你的消息会自动补上，所以你应该不需要清除。";
 "Privacy Policy" = "隐私政策";
 "Open Source Licenses" = "开源许可";
 "Appearance" = "外观";
@@ -1014,7 +1014,7 @@
 "No emoji match that." = "没有匹配的表情符号。";
 "%lld member%@" = "%lld 位成员%@";
 "Reply not sent" = "回复未发送";
-"Your reply couldn't be sent. Open KaChat to try again." = "你的回复未能发送。请打开 KaChat 重试。";
+"Your reply couldn't be sent. Open K to try again." = "你的回复未能发送。请打开 K 重试。";
 "1 Reaction" = "1 个回应";
 "%lld Reactions" = "%lld 个回应";
 "1 person" = "1 人";
@@ -1102,7 +1102,7 @@
 "These addresses couldn't be derived right now. Go back a page or reopen this screen to retry." = "暂时无法推导出这些地址。请返回上一页，或重新打开此页面再试。";
 "Add, import or export" = "添加、导入或导出";
 "KaChat Contact" = "KaChat 联系人";
-"KaChat is built with these open source libraries. Their authors ask that these notices travel with the app." = "KaChat 使用这些开源库构建。它们的作者要求这些声明随 App 一同提供。";
+"K is built with these open source libraries. Their authors ask that these notices travel with the app." = "K 使用这些开源库构建。它们的作者要求这些声明随 App 一同提供。";
 "24 words" = "24 个单词";
 "Enter your 12 or 24 words" = "输入你的 12 或 24 个单词";
 "More reactions" = "更多回应";
@@ -1198,7 +1198,7 @@
 "Your phone can't be your only copy" = "手机不能是你唯一的副本";
 "If you lose, break or replace this phone, these words are the only way back to your account." = "如果你丢失、摔坏或更换了这部手机，这些单词是回到账户的唯一方式。";
 "Nobody can reset them" = "没有人能重置它们";
-"There is no password reset. KaChat never sees your words, so we can't recover them for you." = "没有重置密码的功能。KaChat 看不到你的单词，所以我们无法为你找回。";
+"There is no password reset. K never sees your words, so we can't recover them for you." = "没有重置密码的功能。K 看不到你的单词，所以我们无法为你找回。";
 "Get ready" = "做好准备";
 "Your secret words are next. Before you see them:" = "接下来是你的秘密单词。在查看之前：";
 "I have a pen and paper" = "我有纸和笔";
@@ -1225,7 +1225,7 @@
 "Never keep it online" = "绝不要存到网上";
 "No photos, screenshots, cloud storage, notes apps, email or chats." = "不要放在照片、截图、云存储、备忘录 App、邮件或聊天里。";
 "Never share it" = "绝不要分享";
-"Nobody needs your words. KaChat and real support will never ask for them. Anyone who asks is trying to take your funds." = "没有人需要你的单词。KaChat 和真正的客服绝不会向你索要。任何向你索要的人都是想夺取你的资金。";
+"Nobody needs your words. K and real support will never ask for them. Anyone who asks is trying to take your funds." = "没有人需要你的单词。K 和真正的客服绝不会向你索要。任何向你索要的人都是想夺取你的资金。";
 "Keep your passphrase apart" = "密码短语要分开保管";
 "Store it away from your 12 or 24 words. You need both, and losing either one loses the account." = "请与你的 12 或 24 个单词分开保存。两者缺一不可，丢了任何一个都会丢掉账户。";
 "You can see it again" = "你可以再次查看";
@@ -1409,7 +1409,7 @@
 "Notifications from this group resume, including mentions." = "恢复此群组的通知，包括提及。";
 "One minute each, plus one second a move." = "每方一分钟，每步加一秒。";
 "Open in Explorer" = "在区块浏览器中打开";
-"Open in KaChat" = "在 KaChat 中打开";
+"Open in K" = "在 K 中打开";
 "Open in KaPost" = "在 KaPost 中打开";
 "Open your chat with them in payment mode." = "以付款模式打开你与对方的聊天。";
 "Opens in your browser." = "在你的浏览器中打开。";
@@ -1476,10 +1476,10 @@
 "Restoring messages... %d of %d conversations" = "正在恢复消息... %d/%d 个会话";
 "Deletes %@ (%@) and its local data from this device." = "从此设备删除 %@（%@）及其本地数据。";
 "Passcode Required" = "需要密码";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "请在此 iPhone 上设置密码（设置 > 面容 ID 与密码），才能在 KaChat 中删除账户或查看私钥。";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "请在此 iPhone 上设置密码（设置 > 面容 ID 与密码），才能在 K 中删除账户或查看私钥。";
 "Waiting on opponent" = "正在等待对手";
 "Not sent: you switched accounts before this went out." = "未发送：发送前你切换了账户。";
-"The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "两笔交易中的第一笔已完成，但第二笔未完成。KaChat 下次打开时会完成它。";
+"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "两笔交易中的第一笔已完成，但第二笔未完成。K 下次打开时会完成它。";
 "A domain transfer's fee can be at most 1 KAS." = "域名转移手续费最多为 1 KAS。";
 "Confirm setting this primary name" = "确认设置此主名称";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "此账户的密钥可能仍在这部手机上，但目前无法读取，因此未做任何更改。请稍后再试。";
@@ -1490,7 +1490,7 @@
 "Standard Kaspa Wallet" = "标准 Kaspa 钱包";
 "Has history" = "有历史记录";
 "See Every Wallet Type" = "查看所有钱包类型";
-"KaChat checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "KaChat 会用你的助记词核对每一种 Kaspa 钱包，所以你不需要知道它们来自哪个钱包。";
+"K checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "K 会用你的助记词核对每一种 Kaspa 钱包，所以你不需要知道它们来自哪个钱包。";
 "This address has history, so this looks like the right account." = "此地址有历史记录，看起来是正确的账户。";
 "No funds or history on this address." = "此地址没有资金或历史记录。";
 "We picked the most likely account. Tap another if that's not the one you use." = "我们选择了最可能的账户。如果这不是你使用的账户，请点按其他账户。";
@@ -1519,14 +1519,14 @@
 "Tap Retry on the voice message to send the rest." = "点击语音消息上的“重试”以发送其余部分。";
 "Network fee: %@" = "网络手续费：%@";
 "Couldn't Remove App Password" = "无法删除应用密码";
-"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat 无法从 %@ 删除其应用密码。它已从此手机删除，但仍可在那里登录：请在 Nextcloud 的“设置 > 安全 > 设备与会话”中删除它。";
+"K couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "K 无法从 %@ 删除其应用密码。它已从此手机删除，但仍可在那里登录：请在 Nextcloud 的“设置 > 安全 > 设备与会话”中删除它。";
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "你的聊天地址还会支付 %@ KAS，用于告知 %@ 这笔付款。";
 "Tap Retry on the photo to send the rest." = "点击照片上的“重试”以发送其余部分。";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "这条消息在一笔交易中需要的币太多。请在你的聊天地址上使用 Compound UTXOs，然后重试。";
 "Use Their Domain Name" = "使用对方的域名";
 "Show Request As QR" = "以二维码显示请求";
 "Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "用 iPhone 相机扫描，即可在 KaPay 中付款，所有信息都已填好。";
-"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "用 iPhone 相机扫描，即可在 KaChat 中付款，所有信息都已填好。";
+"Scan it with an iPhone's camera to pay in K, with everything filled in." = "用 iPhone 相机扫描，即可在 K 中付款，所有信息都已填好。";
 "Get a .kachat domain" = "获取 .kachat 域名";
 "Set as Name" = "设为名称";
 "Their Name" = "对方名称";
@@ -1658,12 +1658,12 @@
 "kUSDT's transaction builder couldn't start." = "kUSDT 交易构建器无法启动。";
 "kUSDT's transaction builder gave no answer." = "kUSDT 交易构建器没有响应。";
 "kUSDT's transaction builder isn't the pinned one, so it won't run." = "kUSDT 交易构建器不是固定的那个，因此不会运行。";
-"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "KaChat 缺少 kUSDT 模板，无法核对 kUSDT。";
-"The network fee is above KaChat's safety limit. Nothing was sent." = "网络费超过 KaChat 的安全上限。没有发送任何内容。";
+"K's kUSDT template is missing, so kUSDT can't be checked." = "K 缺少 kUSDT 模板，无法核对 kUSDT。";
+"The network fee is above K's safety limit. Nothing was sent." = "网络费超过 K 的安全上限。没有发送任何内容。";
 "Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "用你的新地址接收。kUSDT 的购买和兑换在 KaPay 中进行。";
 "Release to Confirm" = "松开即确认";
 "The transaction didn't go out." = "交易未发出。";
-"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "KaChat 查询你的 kUSDT 的地方。它列出的每枚币在计入前都会在 Kaspa 节点上核对。留空则使用此网络的默认值。";
+"Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "K 查询你的 kUSDT 的地方。它列出的每枚币在计入前都会在 Kaspa 节点上核对。留空则使用此网络的默认值。";
 "Fee %@" = "手续费 %@";
 
 /* Share Profile sheet (2026-11-20) */
@@ -1769,7 +1769,7 @@
 "How it works" = "运作方式";
 "List" = "挂单";
 "Trustless" = "无需信任";
-"Set a price. The name waits in an on-chain covenant, not with KaChat or anyone else, until someone buys it or you take it back." = "设定价格。名称存放在链上契约中——不在 KaChat 或任何人手里——直到有人买下或你撤回。";
+"Set a price. The name waits in an on-chain covenant, not with K or anyone else, until someone buys it or you take it back." = "设定价格。名称存放在链上契约中——不在 K 或任何人手里——直到有人买下或你撤回。";
 "Pay the listed price. The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does." = "支付挂出的价格。付款到达卖家、名称到达你，都在同一笔交易中完成——要么两者都发生，要么都不发生。";
 "No middleman and no escrow account: Kaspa's own rules enforce every sale." = "没有中间人，也没有托管账户：每笔交易都由 Kaspa 自身的规则保障。";
 "Nothing here is live yet." = "这里还没有任何功能上线。";
@@ -1924,7 +1924,7 @@
 "Takes the name off the market." = "将名称从市场下架。";
 "Puts the name up for sale at your price." = "以你的价格出售该名称。";
 "Sends the name to another address." = "将名称发送到另一个地址。";
-"Shows you by this name across KaChat." = "在整个 KaChat 中以此名称显示你。";
+"Shows you by this name across K." = "在整个 K 中以此名称显示你。";
 "Gives the name up and returns its deposit." = "放弃该名称并退还押金。";
 "Expires in %@" = "%@后到期";
 "Expired - returning to you" = "已过期 - 正在退还给你";
@@ -2038,7 +2038,7 @@
 "Nothing can change now: this is the transaction KasSigner signed." = "现在无法再更改：这就是 KasSigner 签名的交易。";
 "Watch-only. This cannot spend, but it reveals every address in this account." = "仅观察。这无法花费，但会显示此账户中的所有地址。";
 "Your KAS is in many small coins. When you swipe, KaPay first combines them into one (a separate transaction with its own small fee), then sends this." = "你的 KAS 分散在许多小币中。滑动时，KaPay 会先将它们合并为一个（一笔单独的交易，需支付小额手续费），然后再发送此笔。";
-"The price goes to the miners - KaChat takes nothing." = "价格归矿工所有 - KaChat 不收取任何费用。";
+"The price goes to the miners - K takes nothing." = "价格归矿工所有 - K 不收取任何费用。";
 "Length" = "时长";
 "Claiming sends two transactions: the commit now, the registration about a minute later. Both pay this fee rate." = "认领会发送两笔交易：现在发送承诺，大约一分钟后发送注册。两笔都按此费率支付。";
 "The price changed. Check it and swipe again." = "价格已更改。请核对后重新滑动。";
@@ -2223,11 +2223,11 @@
 "Import failed." = "导入失败。";
 
 /* Ported KaPay screens, named KaChat (2026-11-21) */
-"The commit has to age for about a minute before the name can be registered. Keep KaChat open - it registers by itself, and picks up where it left off if you leave." = "承诺需要等待约一分钟才能注册名称。请保持 KaChat 打开 - 它会自动注册，离开后也会从中断处继续。";
-"Your KAS is in many small coins. KaChat combines them into one before registering, for a tiny extra network fee." = "你的 KAS 分散在许多小额币中。KaChat 会在注册前将它们合并为一枚,只需极少的额外网络费用。";
-"Your KAS is in many small coins. When you swipe, KaChat first combines them into one (a separate transaction with its own small fee), then sends this." = "你的 KAS 分散在许多小币中。滑动时，KaChat 会先将它们合并为一个（一笔单独的交易，需支付小额手续费），然后再发送此笔。";
-"This only removes it from KaChat's watch list. It has no effect on the KasSigner device or any funds it holds." = "这只会将其从 KaChat 的监视列表中移除。对 KasSigner 设备或其持有的任何资金没有任何影响。";
-"Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "请保持 KaChat 打开：隐藏承诺确认约一分钟后名称即会注册。如果你离开，回来时会从中断处继续。";
+"The commit has to age for about a minute before the name can be registered. Keep K open - it registers by itself, and picks up where it left off if you leave." = "承诺需要等待约一分钟才能注册名称。请保持 K 打开 - 它会自动注册，离开后也会从中断处继续。";
+"Your KAS is in many small coins. K combines them into one before registering, for a tiny extra network fee." = "你的 KAS 分散在许多小额币中。K 会在注册前将它们合并为一枚,只需极少的额外网络费用。";
+"Your KAS is in many small coins. When you swipe, K first combines them into one (a separate transaction with its own small fee), then sends this." = "你的 KAS 分散在许多小币中。滑动时，K 会先将它们合并为一个（一笔单独的交易，需支付小额手续费），然后再发送此笔。";
+"This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds." = "这只会将其从 K 的监视列表中移除。对 KasSigner 设备或其持有的任何资金没有任何影响。";
+"Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "请保持 K 打开：隐藏承诺确认约一分钟后名称即会注册。如果你离开，回来时会从中断处继续。";
 
 /* Trestly inside KaChat, from KaPay (2026-11-21) */
 "Sent %@ on %@" = "已发送 %@（%@）";
@@ -2284,18 +2284,18 @@
 "Swap sent: %@ for %@" = "兑换已发送：%@ → %@";
 "Swap Complete" = "兑换完成";
 "Swap Sent" = "兑换已发送";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first and gives less, KaChat asks you again; it never takes below 99% of this quote." = "由 Trestly 自己的代码在 KaChat 内构建和检查。如果资金池先变动且给出更少，KaChat 会再次询问；绝不低于此报价的 99%。";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "由 Trestly 自己的代码在 KaChat 内构建和检查。如果资金池先变动，会重新报价：只在此报价或更好时继续，更少时再次询问，绝不低于网站的最低值。";
-"More stablecoins will show here as KaChat adds them." = "KaChat 添加更多稳定币后，会显示在这里。";
-"On Trestly, inside KaChat" = "在 KaChat 内的 Trestly 上";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside KaChat, connected to the address you pick." = "要兑换 KAS 和 kUSDT，或向资金池添加，请在“钱包”标签页点按“兑换稳定币”并选择 kUSDT。Trestly 自己的网站会在 KaChat 内打开，并连接到你选择的地址。";
-"Trestly asks KaChat to" = "Trestly 请求 KaChat：";
+"Built and checked by Trestly's own code inside K. If the pool moves first and gives less, K asks you again; it never takes below 99% of this quote." = "由 Trestly 自己的代码在 K 内构建和检查。如果资金池先变动且给出更少，K 会再次询问；绝不低于此报价的 99%。";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "由 Trestly 自己的代码在 K 内构建和检查。如果资金池先变动，会重新报价：只在此报价或更好时继续，更少时再次询问，绝不低于网站的最低值。";
+"More stablecoins will show here as K adds them." = "K 添加更多稳定币后，会显示在这里。";
+"On Trestly, inside K" = "在 K 内的 Trestly 上";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "要兑换 KAS 和 kUSDT，或向资金池添加，请在“钱包”标签页点按“兑换稳定币”并选择 kUSDT。Trestly 自己的网站会在 K 内打开，并连接到你选择的地址。";
+"Trestly asks K to" = "Trestly 请求 K：";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "使用相同助记词的其他应用会显示相同的 kUSDT，也能发送。兑换在这里进行。";
 
 /* Trestly site setting (2026-11-21) */
 "Trestly Site URL" = "Trestly 网站 URL";
 "Trestly Site" = "Trestly 网站";
-"The site Swap Stablecoins shows inside KaChat, connected to the address you choose. Leave it blank for this network's default." = "“兑换稳定币”在 KaChat 内打开的网站，连接到你选择的地址。留空则使用此网络的默认值。";
+"The site Swap Stablecoins shows inside K, connected to the address you choose. Leave it blank for this network's default." = "“兑换稳定币”在 K 内打开的网站，连接到你选择的地址。留空则使用此网络的默认值。";
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
@@ -2662,15 +2662,15 @@
 "KaPost isn't available on Testnet yet" = "KaPost 暂不支持测试网";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "测试网还没有 KaPost 索引器。在“设置 > 连接”中关闭测试网，即可在主网阅读和发帖。";
 "KaChat Profile" = "KaChat 主页";
-"Your post is ready to go out. Open KaChat to send it." = "你的帖子已准备好发送。打开 KaChat 即可发送。";
+"Your post is ready to go out. Open K to send it." = "你的帖子已准备好发送。打开 K 即可发送。";
 "KaPost Settings" = "KaPost 设置";
 "Search KaPost" = "搜索 KaPost";
-"Sharing sends a link that opens this room in KaChat, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "分享会发送一个在 KaChat 中打开此房间的链接，以及供没有安装它的人使用的网页链接。隐藏仅对单个房间有效：在这里被隐藏的人仍会显示在其他所有房间中。";
+"Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "分享会发送一个在 K 中打开此房间的链接，以及供没有安装它的人使用的网页链接。隐藏仅对单个房间有效：在这里被隐藏的人仍会显示在其他所有房间中。";
 "Their KaPost profile: posts, replies and followers." = "对方的 KaPost 个人资料：帖子、回复和粉丝。";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPost 服务器没有响应。正在显示已保存的帖子和来自网络的新帖子。";
-"Trestly's pool code couldn't start in KaChat." = "Trestly 的资金池代码无法在 KaChat 中启动。";
+"Trestly's pool code couldn't start in K." = "Trestly 的资金池代码无法在 K 中启动。";
 "Set what Tip sends in KaPost Settings > Tip In." = "在 KaPost 设置 > 打赏币种 中选择打赏发送的内容。";
 "Tip didn't send: the smallest tip the network takes is %@. Change your default tip in KaPost Settings." = "打赏未发送：网络接受的最小打赏为 %@。请在 KaPost 设置中更改默认打赏。";
 "Posting poll" = "正在发布投票";
@@ -2980,9 +2980,9 @@
 "Play %@" = "挑战 %@";
 "Players (%lld of %lld)" = "玩家（%lld/%lld）";
 "The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "创建者分享的 8 位代码。加入需要一笔交易（手续费：%@）。";
-"Play me at chess in KaChat: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "来 KaChat 和我下棋吧：打开 KaPlay > 国际象棋 > 1v1 > 用代码加入，然后输入 %@。";
-"Join my chess tournament in KaChat: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "来 KaChat 参加我的国际象棋锦标赛吧：打开 KaPlay > 国际象棋 > 锦标赛 > 用代码加入，然后输入 %@。";
-"I beat %@ (Level %lld) in %lld moves on KaChat. Think you can do it in fewer?" = "我在 KaChat 上战胜了 %@（等级 %lld），只用了 %lld 步。你能用更少的步数做到吗？";
+"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "来 K 和我下棋吧：打开 KaPlay > 国际象棋 > 1v1 > 用代码加入，然后输入 %@。";
+"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "来 K 参加我的国际象棋锦标赛吧：打开 KaPlay > 国际象棋 > 锦标赛 > 用代码加入，然后输入 %@。";
+"I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "我在 K 上战胜了 %@（等级 %lld），只用了 %lld 步。你能用更少的步数做到吗？";
 "Share to KaPost" = "分享到 KaPost";
 "Games" = "游戏";
 "Chess Challenge" = "国际象棋挑战";
@@ -3050,9 +3050,9 @@
 "How a name works" = "名称如何运作";
 "Claiming takes two quick transactions: the first keeps your pick secret, the second registers it." = "认领需要两笔很快的交易：第一笔为你的选择保密，第二笔完成注册。";
 "You pay for one period at a time. Shorter names cost more." = "每次支付一个周期。越短的名称越贵。";
-"The price goes to the network's miners, not to KaChat." = "费用付给网络矿工，而不是 KaChat。";
+"The price goes to the network's miners, not to K." = "费用付给网络矿工，而不是 K。";
 "Make it your name" = "让它成为你的名字";
-"Set it as your primary name and it's how you appear everywhere in KaChat." = "设为主名称后，你在 KaChat 各处都以它显示。";
+"Set it as your primary name and it's how you appear everywhere in K." = "设为主名称后，你在 K 各处都以它显示。";
 "They can send you Kaspa to yourname.kachat instead of a long address." = "他们可以把 Kaspa 发到 yourname.kachat，而不是一长串地址。";
 "Your profile link shows your name." = "你的个人资料链接显示你的名称。";
 "Renew before it expires. It shows when, on each name." = "请在到期前续期。每个名称都会显示到期时间。";
@@ -3063,21 +3063,21 @@
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "你的名称存在于 Kaspa 网络上，由你的聊天地址持有。只要归你所有，谁也不能拿走或更改。";
 "Search for the name you want in the .kachat tab, then claim it." = "在 .kachat 标签页中搜索你想要的名称，然后认领。";
 "What kUSDT is, where it lives, and how sending and swapping work." = "kUSDT 是什么、存放在哪里，以及发送和兑换如何进行。";
-"It's the name people see you as across KaChat and on your profile link. Without one, people see your address." = "这是大家在 KaChat 各处和你的资料链接中看到的你的名称。没有它，大家只会看到你的地址。";
+"It's the name people see you as across K and on your profile link. Without one, people see your address." = "这是大家在 K 各处和你的资料链接中看到的你的名称。没有它，大家只会看到你的地址。";
 "People can find you by typing your name." = "别人输入你的名称就能找到你。";
 "Your names are in Wallet > Your Domains > .kachat." = "你的名称在 钱包 > 你的域名 > .kachat 中。";
 "Claim your name in the .kachat tab whenever you're ready." = "准备好后，随时在 .kachat 标签页认领你的名称。";
 "I Agree" = "我同意";
-"KaChat has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what KaChat shows, without notice." = "KaChat 对不良内容和滥用用户零容忍。你不得发布任何违法内容、涉及儿童的性内容、仇恨言论、威胁、骚扰、鼓励暴力或自残的内容，或诈骗信息。违规账户可能会被从 KaChat 显示的内容中移除，恕不另行通知。";
-"KaChat is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and KaChat's developer, not Apple." = "KaChat 按“现状”提供，不作任何保证；在法律允许的范围内，对因使用 KaChat 或其他用户发布的内容而造成的损失，我们概不负责。本条款是你与 KaChat 开发者之间的约定，与 Apple 无关。";
+"K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "K 对不良内容和滥用用户零容忍。你不得发布任何违法内容、涉及儿童的性内容、仇恨言论、威胁、骚扰、鼓励暴力或自残的内容，或诈骗信息。违规账户可能会被从 K 显示的内容中移除，恕不另行通知。";
+"K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K 按“现状”提供，不作任何保证；在法律允许的范围内，对因使用 K 或其他用户发布的内容而造成的损失，我们概不负责。本条款是你与 K 开发者之间的约定，与 Apple 无关。";
 "No objectionable content or abuse" = "禁止不良内容和滥用行为";
 "No warranty" = "不作保证";
-"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from KaChat, but nobody can erase a transaction from the network." = "帖子、回复、点赞和房间消息都是 Kaspa 网络上的公开交易。你需要对自己发布的内容负责。删除帖子会将其从 KaChat 中移除，但没有人能从网络上抹去一笔交易。";
+"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from K, but nobody can erase a transaction from the network." = "帖子、回复、点赞和房间消息都是 Kaspa 网络上的公开交易。你需要对自己发布的内容负责。删除帖子会将其从 K 中移除，但没有人能从网络上抹去一笔交易。";
 "Questions and reports: %@" = "问题与举报：%@";
 "Reporting and blocking" = "举报与屏蔽";
 "Terms of Use" = "使用条款";
-"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the KaChat indexer, which KaChat reads by default." = "请在帖子或房间消息上使用“举报”向我们反馈不良内容，每一份举报都会由人工审核。使用“屏蔽”可不再看到某个账户的帖子和房间消息。我们可以从 KaChat 默认读取的 KaChat 索引器中移除内容和账户。";
-"You need to agree to use KaChat." = "你需要同意后才能使用 KaChat。";
+"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the K indexer, which K reads by default." = "请在帖子或房间消息上使用“举报”向我们反馈不良内容，每一份举报都会由人工审核。使用“屏蔽”可不再看到某个账户的帖子和房间消息。我们可以从 K 默认读取的 K 索引器中移除内容和账户。";
+"You need to agree to use K." = "你需要同意后才能使用 K。";
 "Your account and your funds" = "你的账户和资金";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "你的账户就是保存在你设备上的 12 或 24 个单词。我们从不持有它们，因此无法找回丢失的单词，也无法撤销交易。发帖需要用 KAS 支付网络费，你需自行对持有和发送的资金负责。";
 "Your posts are public and permanent" = "你的帖子是公开且永久的";

@@ -89,7 +89,7 @@ enum NFCCardError: LocalizedError {
         case .noPassphrase:
             return "This account has no passphrase, so it can't be backed up to a card."
         case .unreadableBackup:
-            return "This backup can't be read. It may have been made by a newer version of KaChat."
+            return "This backup can't be read. It may have been made by a newer version of K."
         case .saveNotConfirmed:
             return "The save couldn't be confirmed, so don't rely on this card. Try again."
         case .seedUnavailable:

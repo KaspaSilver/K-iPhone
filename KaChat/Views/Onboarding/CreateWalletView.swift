@@ -118,7 +118,7 @@ struct SeedPhraseExplainerPage: View {
                 section("The short version",
                         "Your 12 or 24 words are ordinary words that work as the master key to your account. Your wallet, your chatting address and your messages all come from them.")
                 section("Anyone with it can take everything",
-                        "Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even KaChat.")
+                        "Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even K.")
                 section("How to keep it safe",
                         "Write the words on paper, in order, and keep them somewhere safe and private. Never type them into a website, send them in a chat, or keep them in a screenshot or cloud notes.")
             }

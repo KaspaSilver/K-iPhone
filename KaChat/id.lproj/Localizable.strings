@@ -112,7 +112,7 @@
 "Group Info" = "Info Grup";
 "Hidden Users" = "Pengguna Tersembunyi";
 "Hide User" = "Sembunyikan Pengguna";
-"How KaChat Uses Kaspa" = "Cara KaChat Menggunakan Kaspa";
+"How K Uses Kaspa" = "Cara K Menggunakan Kaspa";
 "IP Address Book" = "Buku Alamat IP";
 "If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Tap the fee amount to set a custom fee." = "Jika jaringan sedang sibuk, Cepat atau Prioritas membayar biaya lebih tinggi agar konfirmasi lebih cepat. Ketuk jumlah biaya untuk mengatur biaya kustom.";
 "If the network is busy, a higher fee can help your transaction confirm faster." = "Jika jaringan sedang sibuk, biaya lebih tinggi dapat membantu transaksi Anda terkonfirmasi lebih cepat.";
@@ -133,8 +133,8 @@
 "KNS profile update failed: %@" = "Pembaruan profil KNS gagal: %@";
 "KNS profile updated." = "Profil KNS diperbarui.";
 "KaChat" = "KaChat";
-"KaChat lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "KaChat memungkinkan Anda mengirim dan menerima pesan di jaringan Kaspa itu sendiri. Kaspa diperlukan untuk membayar biaya saat mengirim pesan. Biaya yang Anda bayar diberikan kepada penambang yang mengamankan jaringan.";
-"KaChat needs to connect to a node. How would you like to connect?" = "KaChat perlu terhubung ke sebuah node. Bagaimana Anda ingin terhubung?";
+"K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K memungkinkan Anda mengirim dan menerima pesan di jaringan Kaspa itu sendiri. Kaspa diperlukan untuk membayar biaya saat mengirim pesan. Biaya yang Anda bayar diberikan kepada penambang yang mengamankan jaringan.";
+"K needs to connect to a node. How would you like to connect?" = "K perlu terhubung ke sebuah node. Bagaimana Anda ingin terhubung?";
 "Kaspa Explorer" = "Penjelajah Kaspa";
 "Kaspa Explorer API" = "API Penjelajah Kaspa";
 "Kaspa Node" = "Node Kaspa";
@@ -253,7 +253,7 @@
 "Words copied. Clipboard will clear in 30s." = "Kata disalin. Papan klip akan dihapus dalam 30 detik.";
 "Select a chat" = "Pilih obrolan";
 "Select the currency you'd like prices displayed in." = "Pilih mata uang yang ingin ditampilkan.";
-"Select the language you'd like to use in KaChat." = "Pilih bahasa yang ingin digunakan di KaChat.";
+"Select the language you'd like to use in K." = "Pilih bahasa yang ingin digunakan di K.";
 "Selected data is not a valid image" = "Data yang dipilih bukan gambar yang valid";
 "Send" = "Kirim";
 "Send Handshake" = "Kirim Handshake";
@@ -308,7 +308,7 @@
 "Wallet not available." = "Dompet tidak tersedia.";
 "Website" = "Situs Web";
 "Welcome Guide" = "Panduan Selamat Datang";
-"Welcome to KaChat" = "Selamat Datang di KaChat";
+"Welcome to K" = "Selamat Datang di K";
 "Wipe and re-sync incoming messages" = "Hapus bersih dan sinkronkan ulang pesan masuk";
 "X handle" = "Handle X";
 "fee: -- KAS" = "biaya: -- KAS";
@@ -341,8 +341,8 @@
 "Coming soon" = "Segera hadir";
 "Not available on this network" = "Tidak tersedia di jaringan ini";
 "Testnet" = "Testnet";
-"Close KaChat completely and open it again to finish switching to Testnet." = "Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan peralihan ke Testnet.";
-"Close KaChat completely and open it again to finish switching back to Mainnet." = "Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan kembali ke Mainnet.";
+"Close K completely and open it again to finish switching to Testnet." = "Tutup K sepenuhnya lalu buka lagi untuk menyelesaikan peralihan ke Testnet.";
+"Close K completely and open it again to finish switching back to Mainnet." = "Tutup K sepenuhnya lalu buka lagi untuk menyelesaikan kembali ke Mainnet.";
 
 /* 5.2: Kaspa Hub > .kachat marketplace */
 
@@ -514,8 +514,8 @@
 "Passphrase" = "Frasa sandi";
 
 /* Addresses of the other network are refused (IOS-003) */
-"This is a Testnet address. KaChat is on Mainnet." = "Ini alamat Testnet. KaChat sedang di Mainnet.";
-"This is a Mainnet address. KaChat is on Testnet." = "Ini alamat Mainnet. KaChat sedang di Testnet.";
+"This is a Testnet address. K is on Mainnet." = "Ini alamat Testnet. K sedang di Mainnet.";
+"This is a Mainnet address. K is on Testnet." = "Ini alamat Mainnet. K sedang di Testnet.";
 
 /* Siri / Shortcuts payments are confirmed (IOS-021) */
 "Send %@ to %@?" = "Kirim %1$@ ke %2$@?";
@@ -558,7 +558,7 @@
 "How many words are you importing?" = "Berapa kata yang Anda impor?";
 "What are my 12 or 24 words?" = "Apa itu 12 atau 24 kata saya?";
 "Your 12 or 24 words are ordinary words that work as the master key to your account. Your wallet, your chatting address and your messages all come from them." = "12 atau 24 kata Anda adalah kata-kata biasa yang berfungsi sebagai kunci utama akun Anda. Dompet, alamat obrolan, dan pesan Anda semuanya berasal darinya.";
-"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even KaChat." = "Siapa pun yang memiliki kata-kata ini dapat mengambil semua isi akun Anda. Jika Anda kehilangannya dan juga kehilangan perangkat ini, tidak ada yang bisa mengembalikan akun Anda, bahkan KaChat.";
+"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even K." = "Siapa pun yang memiliki kata-kata ini dapat mengambil semua isi akun Anda. Jika Anda kehilangannya dan juga kehilangan perangkat ini, tidak ada yang bisa mengembalikan akun Anda, bahkan K.";
 "Write the words on paper, in order, and keep them somewhere safe and private. Never type them into a website, send them in a chat, or keep them in a screenshot or cloud notes." = "Tulis kata-katanya di kertas secara berurutan dan simpan di tempat yang aman dan pribadi. Jangan pernah mengetiknya di situs web, mengirimnya lewat chat, atau menyimpannya di tangkapan layar atau catatan cloud.";
 
 /* Onboarding: seed phrase explainer page headings */
@@ -626,18 +626,18 @@
 /* .kachat: fees, busy network, progress receipt */
 "Sent to the network" = "Dikirim ke jaringan";
 "In a block" = "Di dalam blok";
-"Updated in KaChat" = "Diperbarui di KaChat";
+"Updated in K" = "Diperbarui di K";
 "Waiting for the network to put it in a block. Usually a few seconds; longer when it's busy." = "Menunggu jaringan memasukkannya ke blok. Biasanya beberapa detik; lebih lama saat sibuk.";
-"It's in a block. Updating KaChat..." = "Sudah di dalam blok. Memperbarui KaChat...";
-"Done. It shows in KaChat now." = "Selesai. Sekarang tampil di KaChat.";
+"It's in a block. Updating K..." = "Sudah di dalam blok. Memperbarui K...";
+"Done. It shows in K now." = "Selesai. Sekarang tampil di K.";
 "The network hasn't taken it. Nothing was spent if it never lands - try again with a faster fee." = "Jaringan belum menerimanya. Jika tidak pernah masuk, tidak ada yang terpakai - coba lagi dengan biaya lebih cepat.";
 "Tap the transaction to open it in the explorer." = "Ketuk transaksi untuk membukanya di explorer.";
 
 /* .kachat offers: tiles and half sheet */
 
 /* Audit run 3: Address Book network checks, .kachat fee re-check */
-"Every address in that file is a Mainnet address. KaChat is on Testnet." = "Semua alamat dalam file itu adalah alamat Mainnet. KaChat ada di Testnet.";
-"Every address in that file is a Testnet address. KaChat is on Mainnet." = "Semua alamat dalam file itu adalah alamat Testnet. KaChat ada di Mainnet.";
+"Every address in that file is a Mainnet address. K is on Testnet." = "Semua alamat dalam file itu adalah alamat Mainnet. K ada di Testnet.";
+"Every address in that file is a Testnet address. K is on Mainnet." = "Semua alamat dalam file itu adalah alamat Testnet. K ada di Mainnet.";
 "Skipped %lld from the other network." = "%lld dari jaringan lain dilewati.";
 
 /* .kachat registry v5 migration */
@@ -775,7 +775,7 @@
 /* User Info: look the person's avatar, banner and bio up again now */
 
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
-"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. KaChat tells them once your chatting address has some KAS." = "Alamat chat Anda tidak punya KAS untuk memberi tahu %@ tentang pembayaran ini, jadi mereka melihatnya sebagai pembayaran dari alamat tak dikenal, tanpa catatan. KaChat akan memberi tahu mereka setelah alamat chat Anda punya KAS.";
+"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "Alamat chat Anda tidak punya KAS untuk memberi tahu %@ tentang pembayaran ini, jadi mereka melihatnya sebagai pembayaran dari alamat tak dikenal, tanpa catatan. K akan memberi tahu mereka setelah alamat chat Anda punya KAS.";
 
 /* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
@@ -787,7 +787,7 @@
 "12 or 24 Words Needed" = "Perlu 12 atau 24 Kata";
 "Enter 12 or 24 Words" = "Masukkan 12 atau 24 Kata";
 "%@ is on this iPhone, but its keys are not. That happens after restoring from a backup, because keys are locked to the phone they were made on. Enter the account's 12 or 24 words to sign in. Its history on this phone is kept." = "%@ ada di iPhone ini, tetapi kuncinya tidak. Ini terjadi setelah memulihkan dari cadangan, karena kunci terikat pada ponsel tempat kunci dibuat. Masukkan 12 atau 24 kata akun untuk masuk. Riwayatnya di ponsel ini tetap disimpan.";
-"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because KaChat's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "iPhone ini memiliki akun Anda tetapi tidak kuncinya. Ini terjadi setelah memulihkan ponsel dari cadangan, karena kunci KaChat terikat pada perangkat tempat kunci dibuat. Masukkan 12 atau 24 kata Anda untuk membukanya di sini. Pesan Anda di perangkat ini tetap disimpan.";
+"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because K's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "iPhone ini memiliki akun Anda tetapi tidak kuncinya. Ini terjadi setelah memulihkan ponsel dari cadangan, karena kunci K terikat pada perangkat tempat kunci dibuat. Masukkan 12 atau 24 kata Anda untuk membukanya di sini. Pesan Anda di perangkat ini tetap disimpan.";
 
 
 /* The chat list's name for the chat with yourself */
@@ -875,7 +875,7 @@
 "How much?" = "Berapa?";
 "You're requesting" = "Kamu meminta";
 "A brand-new address of yours that has never been used or handed out." = "Alamat baru milikmu yang belum pernah dipakai atau dibagikan.";
-"Anyone who opens it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "Siapa pun yang membukanya di KaChat mendapat Kirim Kaspa yang sudah terisi, dan melihat bahwa ini dibuat oleh alamat chat-mu (ditandatangani dengan kuncinya).";
+"Anyone who opens it in K gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "Siapa pun yang membukanya di K mendapat Kirim Kaspa yang sudah terisi, dan melihat bahwa ini dibuat oleh alamat chat-mu (ditandatangani dengan kuncinya).";
 
 /* Contacts (was Address Book) */
 "Add to Contacts" = "Tambahkan ke Kontak";
@@ -896,11 +896,11 @@
 "Edit Contact" = "Edit Kontak";
 "No contacts yet" = "Belum ada kontak";
 "Delete %@ from your contacts?" = "Hapus %@ dari kontakmu?";
-"Save the Kaspa addresses you use with a name you'll recognize. They stay in KaChat, for this wallet only, and never go into your phone's Contacts app." = "Simpan alamat Kaspa yang kamu pakai dengan nama yang mudah dikenali. Alamat tetap di KaChat, hanya untuk dompet ini, dan tidak pernah masuk ke app Kontak di ponselmu.";
-"Saved in KaChat for this wallet only. Never added to your phone's Contacts app." = "Disimpan di KaChat hanya untuk dompet ini. Tidak pernah ditambahkan ke app Kontak di ponselmu.";
+"Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "Simpan alamat Kaspa yang kamu pakai dengan nama yang mudah dikenali. Alamat tetap di K, hanya untuk dompet ini, dan tidak pernah masuk ke app Kontak di ponselmu.";
+"Saved in K for this wallet only. Never added to your phone's Contacts app." = "Disimpan di K hanya untuk dompet ini. Tidak pernah ditambahkan ke app Kontak di ponselmu.";
 "This is a fresh address, never used before." = "Ini alamat baru yang belum pernah digunakan.";
 "Use for chatting and acquiring .kachat domains." = "Gunakan untuk mengobrol dan mendapatkan domain .kachat.";
-"Think of it like your phone number on KaChat." = "Anggap saja ini nomor telepon Anda di KaChat.";
+"Think of it like your phone number on K." = "Anggap saja ini nomor telepon Anda di K.";
 "How People Reach You" = "Cara orang menghubungi Anda";
 "Share this address and people can message you. Only you can read what they send." = "Bagikan alamat ini agar orang bisa mengirim pesan kepada Anda. Hanya Anda yang bisa membaca isinya.";
 "Paying for Messages" = "Membayar pesan";
@@ -939,7 +939,7 @@
 "Complete Your Backup" = "Selesaikan Cadangan Anda";
 "Back Up to NFC Card" = "Cadangkan ke Kartu NFC";
 "Wipe and re-sync incoming messages?" = "Hapus bersih dan sinkronkan ulang pesan masuk?";
-"KaChat is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "KaChat sedang mengalami masalah sinkronisasi saat ini. Aplikasi terus mencoba lagi, dan pesan Anda akan menyusul sendiri setelah koneksi kembali, jadi Anda tidak perlu menghapus.";
+"K is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "K sedang mengalami masalah sinkronisasi saat ini. Aplikasi terus mencoba lagi, dan pesan Anda akan menyusul sendiri setelah koneksi kembali, jadi Anda tidak perlu menghapus.";
 "Privacy Policy" = "Kebijakan Privasi";
 "Open Source Licenses" = "Lisensi Sumber Terbuka";
 "Appearance" = "Tampilan";
@@ -1014,7 +1014,7 @@
 "No emoji match that." = "Tidak ada emoji yang cocok.";
 "%lld member%@" = "%lld anggota%@";
 "Reply not sent" = "Balasan tidak terkirim";
-"Your reply couldn't be sent. Open KaChat to try again." = "Balasan Anda tidak dapat dikirim. Buka KaChat untuk mencoba lagi.";
+"Your reply couldn't be sent. Open K to try again." = "Balasan Anda tidak dapat dikirim. Buka K untuk mencoba lagi.";
 "1 Reaction" = "1 Reaksi";
 "%lld Reactions" = "%lld Reaksi";
 "1 person" = "1 orang";
@@ -1102,7 +1102,7 @@
 "These addresses couldn't be derived right now. Go back a page or reopen this screen to retry." = "Alamat-alamat ini tidak dapat diturunkan saat ini. Kembali satu halaman atau buka ulang layar ini untuk mencoba lagi.";
 "Add, import or export" = "Tambah, impor, atau ekspor";
 "KaChat Contact" = "Kontak KaChat";
-"KaChat is built with these open source libraries. Their authors ask that these notices travel with the app." = "KaChat dibangun dengan pustaka sumber terbuka ini. Para pembuatnya meminta agar pemberitahuan ini disertakan bersama aplikasi.";
+"K is built with these open source libraries. Their authors ask that these notices travel with the app." = "K dibangun dengan pustaka sumber terbuka ini. Para pembuatnya meminta agar pemberitahuan ini disertakan bersama aplikasi.";
 "24 words" = "24 kata";
 "Enter your 12 or 24 words" = "Masukkan 12 atau 24 kata Anda";
 "More reactions" = "Reaksi lainnya";
@@ -1198,7 +1198,7 @@
 "Your phone can't be your only copy" = "Ponsel Anda tidak boleh jadi satu-satunya salinan";
 "If you lose, break or replace this phone, these words are the only way back to your account." = "Jika Anda kehilangan, merusak, atau mengganti ponsel ini, kata-kata ini adalah satu-satunya jalan kembali ke akun Anda.";
 "Nobody can reset them" = "Tidak ada yang bisa meresetnya";
-"There is no password reset. KaChat never sees your words, so we can't recover them for you." = "Tidak ada reset kata sandi. KaChat tidak pernah melihat kata-kata Anda, jadi kami tidak dapat memulihkannya untuk Anda.";
+"There is no password reset. K never sees your words, so we can't recover them for you." = "Tidak ada reset kata sandi. K tidak pernah melihat kata-kata Anda, jadi kami tidak dapat memulihkannya untuk Anda.";
 "Get ready" = "Bersiaplah";
 "Your secret words are next. Before you see them:" = "Kata-kata rahasia Anda berikutnya. Sebelum Anda melihatnya:";
 "I have a pen and paper" = "Saya punya pena dan kertas";
@@ -1225,7 +1225,7 @@
 "Never keep it online" = "Jangan pernah simpan online";
 "No photos, screenshots, cloud storage, notes apps, email or chats." = "Jangan di foto, tangkapan layar, penyimpanan cloud, aplikasi catatan, email, atau obrolan.";
 "Never share it" = "Jangan pernah bagikan";
-"Nobody needs your words. KaChat and real support will never ask for them. Anyone who asks is trying to take your funds." = "Tidak ada yang membutuhkan kata-kata Anda. KaChat dan dukungan asli tidak akan pernah memintanya. Siapa pun yang meminta sedang berusaha mengambil dana Anda.";
+"Nobody needs your words. K and real support will never ask for them. Anyone who asks is trying to take your funds." = "Tidak ada yang membutuhkan kata-kata Anda. K dan dukungan asli tidak akan pernah memintanya. Siapa pun yang meminta sedang berusaha mengambil dana Anda.";
 "Keep your passphrase apart" = "Simpan frasa sandi Anda terpisah";
 "Store it away from your 12 or 24 words. You need both, and losing either one loses the account." = "Simpan terpisah dari 12 atau 24 kata Anda. Anda membutuhkan keduanya, dan kehilangan salah satunya berarti kehilangan akun.";
 "You can see it again" = "Anda bisa melihatnya lagi";
@@ -1409,7 +1409,7 @@
 "Notifications from this group resume, including mentions." = "Notifikasi dari grup ini berlanjut, termasuk sebutan.";
 "One minute each, plus one second a move." = "Masing-masing satu menit, ditambah satu detik per langkah.";
 "Open in Explorer" = "Buka di Penjelajah";
-"Open in KaChat" = "Buka di KaChat";
+"Open in K" = "Buka di K";
 "Open in KaPost" = "Buka di KaPost";
 "Open your chat with them in payment mode." = "Buka obrolan Anda dengan mereka dalam mode pembayaran.";
 "Opens in your browser." = "Terbuka di peramban Anda.";
@@ -1476,10 +1476,10 @@
 "Restoring messages... %d of %d conversations" = "Memulihkan pesan... %d dari %d percakapan";
 "Deletes %@ (%@) and its local data from this device." = "Menghapus %@ (%@) dan data lokalnya dari perangkat ini.";
 "Passcode Required" = "Kode Sandi Diperlukan";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "Atur kode sandi di iPhone ini (Pengaturan > Face ID & Kode Sandi) untuk menghapus akun atau melihat kunci rahasia di KaChat.";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "Atur kode sandi di iPhone ini (Pengaturan > Face ID & Kode Sandi) untuk menghapus akun atau melihat kunci rahasia di K.";
 "Waiting on opponent" = "Menunggu lawan";
 "Not sent: you switched accounts before this went out." = "Tidak terkirim: Anda berganti akun sebelum ini terkirim.";
-"The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "Yang pertama dari dua transaksi berhasil, tetapi yang kedua tidak. KaChat akan menyelesaikannya saat dibuka berikutnya.";
+"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "Yang pertama dari dua transaksi berhasil, tetapi yang kedua tidak. K akan menyelesaikannya saat dibuka berikutnya.";
 "A domain transfer's fee can be at most 1 KAS." = "Biaya transfer domain paling banyak 1 KAS.";
 "Confirm setting this primary name" = "Konfirmasi pengaturan nama utama ini";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "Kunci akun ini mungkin masih ada di ponsel ini, tetapi saat ini tidak dapat dibaca, jadi tidak ada yang diubah. Coba lagi sebentar lagi.";
@@ -1490,7 +1490,7 @@
 "Standard Kaspa Wallet" = "Dompet Kaspa Standar";
 "Has history" = "Ada riwayat";
 "See Every Wallet Type" = "Lihat Semua Jenis Dompet";
-"KaChat checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "KaChat memeriksa kata-kata Anda pada setiap jenis dompet Kaspa, jadi Anda tidak perlu tahu asalnya dari dompet mana.";
+"K checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "K memeriksa kata-kata Anda pada setiap jenis dompet Kaspa, jadi Anda tidak perlu tahu asalnya dari dompet mana.";
 "This address has history, so this looks like the right account." = "Alamat ini punya riwayat, jadi sepertinya ini akun yang benar.";
 "No funds or history on this address." = "Tidak ada dana atau riwayat di alamat ini.";
 "We picked the most likely account. Tap another if that's not the one you use." = "Kami memilih akun yang paling mungkin. Ketuk yang lain jika bukan ini yang Anda gunakan.";
@@ -1519,14 +1519,14 @@
 "Tap Retry on the voice message to send the rest." = "Ketuk Coba lagi pada pesan suara untuk mengirim sisanya.";
 "Network fee: %@" = "Biaya jaringan: %@";
 "Couldn't Remove App Password" = "Kata Sandi Aplikasi Tidak Terhapus";
-"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat tidak bisa menghapus kata sandi aplikasinya dari %@. Kata sandi itu sudah hilang dari ponsel ini, tetapi masih bisa masuk di sana: hapus di Nextcloud lewat Pengaturan > Keamanan > Perangkat & sesi.";
+"K couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "K tidak bisa menghapus kata sandi aplikasinya dari %@. Kata sandi itu sudah hilang dari ponsel ini, tetapi masih bisa masuk di sana: hapus di Nextcloud lewat Pengaturan > Keamanan > Perangkat & sesi.";
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Alamat chat Anda juga membayar %@ KAS untuk memberi tahu %@ tentang pembayaran ini.";
 "Tap Retry on the photo to send the rest." = "Ketuk Coba lagi pada foto untuk mengirim sisanya.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Pesan ini butuh terlalu banyak koin untuk satu transaksi. Gunakan Compound UTXOs pada alamat chat Anda, lalu coba lagi.";
 "Use Their Domain Name" = "Gunakan nama domainnya";
 "Show Request As QR" = "Tampilkan permintaan sebagai QR";
 "Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Pindai dengan kamera iPhone untuk membayar di KaPay, semuanya sudah terisi.";
-"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "Pindai dengan kamera iPhone untuk membayar di KaChat, semuanya sudah terisi.";
+"Scan it with an iPhone's camera to pay in K, with everything filled in." = "Pindai dengan kamera iPhone untuk membayar di K, semuanya sudah terisi.";
 "Get a .kachat domain" = "Dapatkan domain .kachat";
 "Set as Name" = "Jadikan nama";
 "Their Name" = "Namanya";
@@ -1658,12 +1658,12 @@
 "kUSDT's transaction builder couldn't start." = "Pembuat transaksi kUSDT tidak bisa dimulai.";
 "kUSDT's transaction builder gave no answer." = "Pembuat transaksi kUSDT tidak memberi jawaban.";
 "kUSDT's transaction builder isn't the pinned one, so it won't run." = "Pembuat transaksi kUSDT bukan yang dipatok, jadi tidak akan dijalankan.";
-"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "Template kUSDT KaChat hilang, jadi kUSDT tidak bisa diperiksa.";
-"The network fee is above KaChat's safety limit. Nothing was sent." = "Biaya jaringan melebihi batas keamanan KaChat. Tidak ada yang dikirim.";
+"K's kUSDT template is missing, so kUSDT can't be checked." = "Template kUSDT K hilang, jadi kUSDT tidak bisa diperiksa.";
+"The network fee is above K's safety limit. Nothing was sent." = "Biaya jaringan melebihi batas keamanan K. Tidak ada yang dikirim.";
 "Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "Terima di alamat baru milikmu. Membeli dan menukar kUSDT dilakukan di KaPay.";
 "Release to Confirm" = "Lepaskan untuk konfirmasi";
 "The transaction didn't go out." = "Transaksi tidak terkirim.";
-"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Tempat KaChat mencari kUSDT-mu. Setiap koin yang dicantumkan diperiksa di node Kaspa sebelum dihitung. Biarkan kosong untuk bawaan jaringan ini.";
+"Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Tempat K mencari kUSDT-mu. Setiap koin yang dicantumkan diperiksa di node Kaspa sebelum dihitung. Biarkan kosong untuk bawaan jaringan ini.";
 "Fee %@" = "Biaya %@";
 
 /* Share Profile sheet (2026-11-20) */
@@ -1769,7 +1769,7 @@
 "How it works" = "Cara kerjanya";
 "List" = "Jual";
 "Trustless" = "Tanpa perantara";
-"Set a price. The name waits in an on-chain covenant, not with KaChat or anyone else, until someone buys it or you take it back." = "Tentukan harga. Nama menunggu di covenant on-chain - bukan di KaChat atau siapa pun - sampai ada yang membelinya atau kamu menariknya kembali.";
+"Set a price. The name waits in an on-chain covenant, not with K or anyone else, until someone buys it or you take it back." = "Tentukan harga. Nama menunggu di covenant on-chain - bukan di K atau siapa pun - sampai ada yang membelinya atau kamu menariknya kembali.";
 "Pay the listed price. The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does." = "Bayar harga yang tertera. Pembayaran sampai ke penjual dan nama sampai kepadamu dalam transaksi yang sama - keduanya terjadi, atau tidak sama sekali.";
 "No middleman and no escrow account: Kaspa's own rules enforce every sale." = "Tanpa perantara dan tanpa rekening escrow: aturan Kaspa sendiri yang menjamin setiap penjualan.";
 "Nothing here is live yet." = "Belum ada yang aktif di sini.";
@@ -1924,7 +1924,7 @@
 "Takes the name off the market." = "Menarik nama dari pasar.";
 "Puts the name up for sale at your price." = "Menjual nama dengan harga Anda.";
 "Sends the name to another address." = "Mengirim nama ke alamat lain.";
-"Shows you by this name across KaChat." = "Menampilkan Anda dengan nama ini di seluruh KaChat.";
+"Shows you by this name across K." = "Menampilkan Anda dengan nama ini di seluruh K.";
 "Gives the name up and returns its deposit." = "Melepas nama dan mengembalikan depositnya.";
 "Expires in %@" = "Berakhir dalam %@";
 "Expired - returning to you" = "Kedaluwarsa - kembali ke Anda";
@@ -2038,7 +2038,7 @@
 "Nothing can change now: this is the transaction KasSigner signed." = "Tidak ada yang bisa berubah sekarang: ini adalah transaksi yang ditandatangani KasSigner.";
 "Watch-only. This cannot spend, but it reveals every address in this account." = "Hanya pantau. Ini tidak dapat membelanjakan, tetapi menampilkan setiap alamat di akun ini.";
 "Your KAS is in many small coins. When you swipe, KaPay first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS Anda tersebar dalam banyak koin kecil. Saat Anda menggeser, KaPay menggabungkannya dulu menjadi satu (transaksi terpisah dengan biaya kecilnya sendiri), lalu mengirim ini.";
-"The price goes to the miners - KaChat takes nothing." = "Harganya untuk para penambang - KaChat tidak mengambil apa pun.";
+"The price goes to the miners - K takes nothing." = "Harganya untuk para penambang - K tidak mengambil apa pun.";
 "Length" = "Durasi";
 "Claiming sends two transactions: the commit now, the registration about a minute later. Both pay this fee rate." = "Klaim mengirim dua transaksi: komitmen sekarang, pendaftaran sekitar satu menit kemudian. Keduanya membayar tarif biaya ini.";
 "The price changed. Check it and swipe again." = "Harga berubah. Periksa lalu geser lagi.";
@@ -2223,11 +2223,11 @@
 "Import failed." = "Impor gagal.";
 
 /* Ported KaPay screens, named KaChat (2026-11-21) */
-"The commit has to age for about a minute before the name can be registered. Keep KaChat open - it registers by itself, and picks up where it left off if you leave." = "Komitmen harus berumur sekitar satu menit sebelum nama bisa didaftarkan. Biarkan KaChat terbuka - ia mendaftar sendiri, dan melanjutkan dari titik terakhir jika Anda keluar.";
-"Your KAS is in many small coins. KaChat combines them into one before registering, for a tiny extra network fee." = "KAS Anda tersebar di banyak koin kecil. KaChat menggabungkannya jadi satu sebelum mendaftar, dengan biaya jaringan tambahan yang sangat kecil.";
-"Your KAS is in many small coins. When you swipe, KaChat first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS Anda tersebar dalam banyak koin kecil. Saat Anda menggeser, KaChat menggabungkannya dulu menjadi satu (transaksi terpisah dengan biaya kecilnya sendiri), lalu mengirim ini.";
-"This only removes it from KaChat's watch list. It has no effect on the KasSigner device or any funds it holds." = "Ini hanya menghapusnya dari daftar pantau KaChat. Tidak berpengaruh pada perangkat KasSigner atau dana yang dimilikinya.";
-"Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "Biarkan KaChat tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.";
+"The commit has to age for about a minute before the name can be registered. Keep K open - it registers by itself, and picks up where it left off if you leave." = "Komitmen harus berumur sekitar satu menit sebelum nama bisa didaftarkan. Biarkan K terbuka - ia mendaftar sendiri, dan melanjutkan dari titik terakhir jika Anda keluar.";
+"Your KAS is in many small coins. K combines them into one before registering, for a tiny extra network fee." = "KAS Anda tersebar di banyak koin kecil. K menggabungkannya jadi satu sebelum mendaftar, dengan biaya jaringan tambahan yang sangat kecil.";
+"Your KAS is in many small coins. When you swipe, K first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS Anda tersebar dalam banyak koin kecil. Saat Anda menggeser, K menggabungkannya dulu menjadi satu (transaksi terpisah dengan biaya kecilnya sendiri), lalu mengirim ini.";
+"This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds." = "Ini hanya menghapusnya dari daftar pantau K. Tidak berpengaruh pada perangkat KasSigner atau dana yang dimilikinya.";
+"Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "Biarkan K tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.";
 
 /* Trestly inside KaChat, from KaPay (2026-11-21) */
 "Sent %@ on %@" = "Mengirim %@ pada %@";
@@ -2284,18 +2284,18 @@
 "Swap sent: %@ for %@" = "Penukaran dikirim: %@ dengan %@";
 "Swap Complete" = "Penukaran Selesai";
 "Swap Sent" = "Penukaran Terkirim";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first and gives less, KaChat asks you again; it never takes below 99% of this quote." = "Dibuat dan diperiksa oleh kode Trestly sendiri di dalam KaChat. Jika pool bergerak lebih dulu dan memberi lebih sedikit, KaChat bertanya lagi; tidak pernah di bawah 99% dari penawaran ini.";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Dibuat dan diperiksa oleh kode Trestly sendiri di dalam KaChat. Jika pool bergerak lebih dulu, harga dihitung ulang: hanya lanjut pada harga ini atau lebih baik, bertanya lagi jika lebih rendah, dan tidak pernah di bawah minimum situs.";
-"More stablecoins will show here as KaChat adds them." = "Stablecoin lain akan muncul di sini saat KaChat menambahkannya.";
-"On Trestly, inside KaChat" = "Di Trestly, di dalam KaChat";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside KaChat, connected to the address you pick." = "Untuk menukar KAS dan kUSDT, atau menambah ke pool, ketuk Tukar Stablecoin di tab Dompet dan pilih kUSDT. Situs Trestly terbuka di dalam KaChat, terhubung ke alamat yang Anda pilih.";
-"Trestly asks KaChat to" = "Trestly meminta KaChat untuk";
+"Built and checked by Trestly's own code inside K. If the pool moves first and gives less, K asks you again; it never takes below 99% of this quote." = "Dibuat dan diperiksa oleh kode Trestly sendiri di dalam K. Jika pool bergerak lebih dulu dan memberi lebih sedikit, K bertanya lagi; tidak pernah di bawah 99% dari penawaran ini.";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Dibuat dan diperiksa oleh kode Trestly sendiri di dalam K. Jika pool bergerak lebih dulu, harga dihitung ulang: hanya lanjut pada harga ini atau lebih baik, bertanya lagi jika lebih rendah, dan tidak pernah di bawah minimum situs.";
+"More stablecoins will show here as K adds them." = "Stablecoin lain akan muncul di sini saat K menambahkannya.";
+"On Trestly, inside K" = "Di Trestly, di dalam K";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Untuk menukar KAS dan kUSDT, atau menambah ke pool, ketuk Tukar Stablecoin di tab Dompet dan pilih kUSDT. Situs Trestly terbuka di dalam K, terhubung ke alamat yang Anda pilih.";
+"Trestly asks K to" = "Trestly meminta K untuk";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Aplikasi Anda yang lain dengan kata yang sama menampilkan kUSDT yang sama dan bisa mengirimnya. Penukaran dilakukan di sini.";
 
 /* Trestly site setting (2026-11-21) */
 "Trestly Site URL" = "URL Situs Trestly";
 "Trestly Site" = "Situs Trestly";
-"The site Swap Stablecoins shows inside KaChat, connected to the address you choose. Leave it blank for this network's default." = "Situs yang ditampilkan Tukar Stablecoin di dalam KaChat, terhubung ke alamat yang Anda pilih. Kosongkan untuk bawaan jaringan ini.";
+"The site Swap Stablecoins shows inside K, connected to the address you choose. Leave it blank for this network's default." = "Situs yang ditampilkan Tukar Stablecoin di dalam K, terhubung ke alamat yang Anda pilih. Kosongkan untuk bawaan jaringan ini.";
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
@@ -2662,15 +2662,15 @@
 "KaPost isn't available on Testnet yet" = "KaPost belum tersedia di Testnet";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "Belum ada indexer KaPost untuk testnet. Matikan Testnet di Pengaturan > Koneksi untuk membaca dan memposting di mainnet.";
 "KaChat Profile" = "Profil KaChat";
-"Your post is ready to go out. Open KaChat to send it." = "Postingan Anda siap dikirim. Buka KaChat untuk mengirimnya.";
+"Your post is ready to go out. Open K to send it." = "Postingan Anda siap dikirim. Buka K untuk mengirimnya.";
 "KaPost Settings" = "Pengaturan KaPost";
 "Search KaPost" = "Cari KaPost";
-"Sharing sends a link that opens this room in KaChat, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Berbagi mengirim tautan yang membuka ruang ini di KaChat, dan tautan web untuk yang belum punya aplikasinya. Menyembunyikan berlaku per ruang: orang yang disembunyikan di sini tetap muncul di ruang lainnya.";
+"Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Berbagi mengirim tautan yang membuka ruang ini di K, dan tautan web untuk yang belum punya aplikasinya. Menyembunyikan berlaku per ruang: orang yang disembunyikan di sini tetap muncul di ruang lainnya.";
 "Their KaPost profile: posts, replies and followers." = "Profil KaPost mereka: postingan, balasan, dan pengikut.";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "Server KaPost tidak merespons. Menampilkan postingan tersimpan dan yang baru dari jaringan.";
-"Trestly's pool code couldn't start in KaChat." = "Kode pool Trestly tidak dapat dimulai di KaChat.";
+"Trestly's pool code couldn't start in K." = "Kode pool Trestly tidak dapat dimulai di K.";
 "Set what Tip sends in KaPost Settings > Tip In." = "Atur apa yang dikirim Tip di Pengaturan KaPost > Tip Dalam.";
 "Tip didn't send: the smallest tip the network takes is %@. Change your default tip in KaPost Settings." = "Tip tidak terkirim: tip terkecil yang diterima jaringan adalah %@. Ubah tip default Anda di Pengaturan KaPost.";
 "Posting poll" = "Memposting polling";
@@ -2980,9 +2980,9 @@
 "Play %@" = "Lawan %@";
 "Players (%lld of %lld)" = "Pemain (%lld dari %lld)";
 "The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "Kode delapan karakter yang dibagikan pembuat. Bergabung adalah satu transaksi (biaya: %@).";
-"Play me at chess in KaChat: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Ayo main catur denganku di KaChat: buka KaPlay > Catur > 1v1 > Gabung dengan kode, lalu masukkan %@.";
-"Join my chess tournament in KaChat: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Ikuti turnamen caturku di KaChat: buka KaPlay > Catur > Turnamen > Gabung dengan kode, lalu masukkan %@.";
-"I beat %@ (Level %lld) in %lld moves on KaChat. Think you can do it in fewer?" = "Saya mengalahkan %@ (Level %lld) dalam %lld langkah di KaChat. Bisakah Anda lebih sedikit?";
+"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Ayo main catur denganku di K: buka KaPlay > Catur > 1v1 > Gabung dengan kode, lalu masukkan %@.";
+"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Ikuti turnamen caturku di K: buka KaPlay > Catur > Turnamen > Gabung dengan kode, lalu masukkan %@.";
+"I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Saya mengalahkan %@ (Level %lld) dalam %lld langkah di K. Bisakah Anda lebih sedikit?";
 "Share to KaPost" = "Bagikan ke KaPost";
 "Games" = "Game";
 "Chess Challenge" = "Tantangan Catur";
@@ -3050,9 +3050,9 @@
 "How a name works" = "Cara kerja nama";
 "Claiming takes two quick transactions: the first keeps your pick secret, the second registers it." = "Klaim butuh dua transaksi cepat: yang pertama merahasiakan pilihan Anda, yang kedua mendaftarkannya.";
 "You pay for one period at a time. Shorter names cost more." = "Anda membayar satu periode setiap kali. Nama yang lebih pendek lebih mahal.";
-"The price goes to the network's miners, not to KaChat." = "Harganya untuk penambang jaringan, bukan untuk KaChat.";
+"The price goes to the network's miners, not to K." = "Harganya untuk penambang jaringan, bukan untuk K.";
 "Make it your name" = "Jadikan nama Anda";
-"Set it as your primary name and it's how you appear everywhere in KaChat." = "Jadikan nama utama, dan begitulah Anda tampil di seluruh KaChat.";
+"Set it as your primary name and it's how you appear everywhere in K." = "Jadikan nama utama, dan begitulah Anda tampil di seluruh K.";
 "They can send you Kaspa to yourname.kachat instead of a long address." = "Mereka bisa mengirim Kaspa ke namaanda.kachat alih-alih alamat yang panjang.";
 "Your profile link shows your name." = "Tautan profil Anda menampilkan nama Anda.";
 "Renew before it expires. It shows when, on each name." = "Perpanjang sebelum kedaluwarsa. Tanggalnya tampil di setiap nama.";
@@ -3063,21 +3063,21 @@
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "Nama Anda ada di jaringan Kaspa, dipegang oleh alamat obrolan Anda. Selama milik Anda, tak ada yang bisa mengambil atau mengubahnya.";
 "Search for the name you want in the .kachat tab, then claim it." = "Cari nama yang Anda inginkan di tab .kachat, lalu klaim.";
 "What kUSDT is, where it lives, and how sending and swapping work." = "Apa itu kUSDT, di mana disimpan, dan cara kerja kirim dan tukar.";
-"It's the name people see you as across KaChat and on your profile link. Without one, people see your address." = "Inilah nama yang dilihat orang di seluruh KaChat dan di tautan profil Anda. Tanpanya, orang melihat alamat Anda.";
+"It's the name people see you as across K and on your profile link. Without one, people see your address." = "Inilah nama yang dilihat orang di seluruh K dan di tautan profil Anda. Tanpanya, orang melihat alamat Anda.";
 "People can find you by typing your name." = "Orang bisa menemukan Anda dengan mengetik nama Anda.";
 "Your names are in Wallet > Your Domains > .kachat." = "Nama Anda ada di Dompet > Domain Anda > .kachat.";
 "Claim your name in the .kachat tab whenever you're ready." = "Klaim nama Anda di tab .kachat kapan pun Anda siap.";
 "I Agree" = "Saya Setuju";
-"KaChat has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what KaChat shows, without notice." = "KaChat tidak menoleransi konten yang tidak pantas atau pengguna yang kasar. Anda tidak boleh memposting apa pun yang ilegal, konten seksual yang melibatkan anak-anak, ujaran kebencian, ancaman, pelecehan, konten yang mendorong kekerasan atau menyakiti diri sendiri, atau penipuan. Akun yang melakukannya dapat dihapus dari apa yang ditampilkan KaChat, tanpa pemberitahuan.";
-"KaChat is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and KaChat's developer, not Apple." = "KaChat disediakan apa adanya, tanpa jaminan, dan sejauh diizinkan hukum kami tidak bertanggung jawab atas kerugian akibat penggunaannya atau akibat apa yang diposting pengguna lain. Ketentuan ini antara Anda dan pengembang KaChat, bukan Apple.";
+"K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "K tidak menoleransi konten yang tidak pantas atau pengguna yang kasar. Anda tidak boleh memposting apa pun yang ilegal, konten seksual yang melibatkan anak-anak, ujaran kebencian, ancaman, pelecehan, konten yang mendorong kekerasan atau menyakiti diri sendiri, atau penipuan. Akun yang melakukannya dapat dihapus dari apa yang ditampilkan K, tanpa pemberitahuan.";
+"K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K disediakan apa adanya, tanpa jaminan, dan sejauh diizinkan hukum kami tidak bertanggung jawab atas kerugian akibat penggunaannya atau akibat apa yang diposting pengguna lain. Ketentuan ini antara Anda dan pengembang K, bukan Apple.";
 "No objectionable content or abuse" = "Tanpa konten tidak pantas atau kekerasan";
 "No warranty" = "Tanpa jaminan";
-"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from KaChat, but nobody can erase a transaction from the network." = "Postingan, balasan, suka, dan pesan ruang adalah transaksi publik di jaringan Kaspa. Anda bertanggung jawab atas apa yang Anda posting. Menghapus postingan akan menghilangkannya dari KaChat, tetapi tidak ada yang bisa menghapus transaksi dari jaringan.";
+"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from K, but nobody can erase a transaction from the network." = "Postingan, balasan, suka, dan pesan ruang adalah transaksi publik di jaringan Kaspa. Anda bertanggung jawab atas apa yang Anda posting. Menghapus postingan akan menghilangkannya dari K, tetapi tidak ada yang bisa menghapus transaksi dari jaringan.";
 "Questions and reports: %@" = "Pertanyaan dan laporan: %@";
 "Reporting and blocking" = "Melaporkan dan memblokir";
 "Terms of Use" = "Ketentuan Penggunaan";
-"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the KaChat indexer, which KaChat reads by default." = "Gunakan Laporkan pada postingan atau pesan ruang untuk memberi tahu kami tentang konten yang tidak pantas; seseorang membaca setiap laporan. Gunakan Blokir untuk berhenti melihat postingan dan pesan ruang suatu akun. Kami bisa menghapus konten dan akun dari pengindeks KaChat, yang dibaca KaChat secara default.";
-"You need to agree to use KaChat." = "Anda perlu menyetujui untuk memakai KaChat.";
+"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the K indexer, which K reads by default." = "Gunakan Laporkan pada postingan atau pesan ruang untuk memberi tahu kami tentang konten yang tidak pantas; seseorang membaca setiap laporan. Gunakan Blokir untuk berhenti melihat postingan dan pesan ruang suatu akun. Kami bisa menghapus konten dan akun dari pengindeks K, yang dibaca K secara default.";
+"You need to agree to use K." = "Anda perlu menyetujui untuk memakai K.";
 "Your account and your funds" = "Akun dan dana Anda";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "Akun Anda adalah 12 atau 24 kata yang disimpan di perangkat Anda. Kami tidak pernah memilikinya, jadi kami tidak bisa memulihkan kata yang hilang atau membatalkan transaksi. Memposting membayar biaya jaringan dalam KAS, dan Anda bertanggung jawab atas dana yang Anda simpan dan kirim.";
 "Your posts are public and permanent" = "Postingan Anda bersifat publik dan permanen";

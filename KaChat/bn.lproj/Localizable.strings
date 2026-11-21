@@ -112,7 +112,7 @@
 "Group Info" = "গ্রুপ তথ্য";
 "Hidden Users" = "লুকানো ব্যবহারকারী";
 "Hide User" = "ব্যবহারকারী লুকান";
-"How KaChat Uses Kaspa" = "KaChat কীভাবে Kaspa ব্যবহার করে";
+"How K Uses Kaspa" = "K কীভাবে Kaspa ব্যবহার করে";
 "IP Address Book" = "IP ঠিকানা বই";
 "If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Tap the fee amount to set a custom fee." = "নেটওয়ার্ক ব্যস্ত থাকলে, দ্রুত বা অগ্রাধিকার এটি দ্রুত নিশ্চিত হতে সাহায্য করতে বেশি ফি দেয়। কাস্টম ফি সেট করতে ফি পরিমাণে ট্যাপ করুন।";
 "If the network is busy, a higher fee can help your transaction confirm faster." = "নেটওয়ার্ক ব্যস্ত থাকলে, বেশি ফি আপনার লেনদেন দ্রুত নিশ্চিত হতে সাহায্য করতে পারে।";
@@ -133,8 +133,8 @@
 "KNS profile update failed: %@" = "KNS প্রোফাইল আপডেট ব্যর্থ হয়েছে: %@";
 "KNS profile updated." = "KNS প্রোফাইল আপডেট করা হয়েছে।";
 "KaChat" = "KaChat";
-"KaChat lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "KaChat আপনাকে সরাসরি Kaspa নেটওয়ার্কে বার্তা পাঠাতে ও গ্রহণ করতে দেয়। আপনার বার্তা পাঠানোর সময় ফি পরিশোধ করতে Kaspa প্রয়োজন। আপনি যে ফি প্রদান করেন তা নেটওয়ার্ক সুরক্ষিত রাখা মাইনারদের কাছে যায়।";
-"KaChat needs to connect to a node. How would you like to connect?" = "KaChat-কে একটি নোডের সাথে সংযোগ করতে হবে। আপনি কীভাবে সংযোগ করতে চান?";
+"K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K আপনাকে সরাসরি Kaspa নেটওয়ার্কে বার্তা পাঠাতে ও গ্রহণ করতে দেয়। আপনার বার্তা পাঠানোর সময় ফি পরিশোধ করতে Kaspa প্রয়োজন। আপনি যে ফি প্রদান করেন তা নেটওয়ার্ক সুরক্ষিত রাখা মাইনারদের কাছে যায়।";
+"K needs to connect to a node. How would you like to connect?" = "K-কে একটি নোডের সাথে সংযোগ করতে হবে। আপনি কীভাবে সংযোগ করতে চান?";
 "Kaspa Explorer" = "কাস্পা এক্সপ্লোরার";
 "Kaspa Explorer API" = "Kaspa Explorer API";
 "Kaspa Node" = "কাস্পা নোড";
@@ -253,7 +253,7 @@
 "Words copied. Clipboard will clear in 30s." = "শব্দ কপি হয়েছে। ৩০ সেকেন্ডে ক্লিপবোর্ড মুছে যাবে।";
 "Select a chat" = "একটি চ্যাট নির্বাচন করুন";
 "Select the currency you'd like prices displayed in." = "যে মুদ্রায় আপনি মূল্য দেখতে চান তা নির্বাচন করুন।";
-"Select the language you'd like to use in KaChat." = "KaChat-এ আপনি যে ভাষা ব্যবহার করতে চান তা নির্বাচন করুন।";
+"Select the language you'd like to use in K." = "K-এ আপনি যে ভাষা ব্যবহার করতে চান তা নির্বাচন করুন।";
 "Selected data is not a valid image" = "নির্বাচিত ডেটা একটি বৈধ ছবি নয়";
 "Send" = "পাঠান";
 "Send Handshake" = "যোগাযোগের অনুরোধ পাঠান";
@@ -308,7 +308,7 @@
 "Wallet not available." = "ওয়ালেট পাওয়া যাচ্ছে না।";
 "Website" = "ওয়েবসাইট";
 "Welcome Guide" = "স্বাগত গাইড";
-"Welcome to KaChat" = "KaChat-এ স্বাগতম";
+"Welcome to K" = "K-এ স্বাগতম";
 "Wipe and re-sync incoming messages" = "আগত বার্তা মুছুন এবং পুনরায় সিংক করুন";
 "X handle" = "এক্স হ্যান্ডেল";
 "fee: -- KAS" = "ফি: -- KAS";
@@ -341,8 +341,8 @@
 "Coming soon" = "শীঘ্রই আসছে";
 "Not available on this network" = "এই নেটওয়ার্কে উপলব্ধ নয়";
 "Testnet" = "টেস্টনেট";
-"Close KaChat completely and open it again to finish switching to Testnet." = "টেস্টনেটে বদল শেষ করতে KaChat পুরোপুরি বন্ধ করে আবার খুলুন।";
-"Close KaChat completely and open it again to finish switching back to Mainnet." = "মেইননেটে ফেরা শেষ করতে KaChat পুরোপুরি বন্ধ করে আবার খুলুন।";
+"Close K completely and open it again to finish switching to Testnet." = "টেস্টনেটে বদল শেষ করতে K পুরোপুরি বন্ধ করে আবার খুলুন।";
+"Close K completely and open it again to finish switching back to Mainnet." = "মেইননেটে ফেরা শেষ করতে K পুরোপুরি বন্ধ করে আবার খুলুন।";
 
 /* 5.2: Kaspa Hub > .kachat marketplace */
 
@@ -514,8 +514,8 @@
 "Passphrase" = "পাসফ্রেজ";
 
 /* Addresses of the other network are refused (IOS-003) */
-"This is a Testnet address. KaChat is on Mainnet." = "এটি একটি Testnet ঠিকানা। KaChat এখন Mainnet-এ আছে।";
-"This is a Mainnet address. KaChat is on Testnet." = "এটি একটি Mainnet ঠিকানা। KaChat এখন Testnet-এ আছে।";
+"This is a Testnet address. K is on Mainnet." = "এটি একটি Testnet ঠিকানা। K এখন Mainnet-এ আছে।";
+"This is a Mainnet address. K is on Testnet." = "এটি একটি Mainnet ঠিকানা। K এখন Testnet-এ আছে।";
 
 /* Siri / Shortcuts payments are confirmed (IOS-021) */
 "Send %@ to %@?" = "%2$@-কে %1$@ পাঠাবেন?";
@@ -558,7 +558,7 @@
 "How many words are you importing?" = "আপনি কতগুলো শব্দ ইম্পোর্ট করছেন?";
 "What are my 12 or 24 words?" = "আমার ১২ বা ২৪টি শব্দ কী?";
 "Your 12 or 24 words are ordinary words that work as the master key to your account. Your wallet, your chatting address and your messages all come from them." = "আপনার ১২ বা ২৪টি শব্দ হলো সাধারণ শব্দ, যা আপনার অ্যাকাউন্টের মাস্টার কী হিসেবে কাজ করে। আপনার ওয়ালেট, চ্যাট ঠিকানা ও মেসেজ সবই এগুলো থেকে আসে।";
-"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even KaChat." = "যার কাছে এই শব্দগুলো থাকবে সে আপনার অ্যাকাউন্টের সবকিছু নিয়ে নিতে পারবে। আপনি এগুলো হারালে আর এই ডিভাইসও হারালে কেউ আপনার অ্যাকাউন্ট ফেরত দিতে পারবে না, KaChat-ও না।";
+"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even K." = "যার কাছে এই শব্দগুলো থাকবে সে আপনার অ্যাকাউন্টের সবকিছু নিয়ে নিতে পারবে। আপনি এগুলো হারালে আর এই ডিভাইসও হারালে কেউ আপনার অ্যাকাউন্ট ফেরত দিতে পারবে না, K-ও না।";
 "Write the words on paper, in order, and keep them somewhere safe and private. Never type them into a website, send them in a chat, or keep them in a screenshot or cloud notes." = "শব্দগুলো ক্রমানুসারে কাগজে লিখে কোনো নিরাপদ ও ব্যক্তিগত জায়গায় রাখুন। কখনো কোনো ওয়েবসাইটে টাইপ করবেন না, চ্যাটে পাঠাবেন না, বা স্ক্রিনশট বা ক্লাউড নোটে রাখবেন না।";
 
 /* Onboarding: seed phrase explainer page headings */
@@ -626,18 +626,18 @@
 /* .kachat: fees, busy network, progress receipt */
 "Sent to the network" = "নেটওয়ার্কে পাঠানো হয়েছে";
 "In a block" = "একটি ব্লকে";
-"Updated in KaChat" = "KaChat-এ হালনাগাদ";
+"Updated in K" = "K-এ হালনাগাদ";
 "Waiting for the network to put it in a block. Usually a few seconds; longer when it's busy." = "নেটওয়ার্ক একে ব্লকে রাখার অপেক্ষায়। সাধারণত কয়েক সেকেন্ড; ব্যস্ত থাকলে বেশি।";
-"It's in a block. Updating KaChat..." = "এটি ব্লকে আছে। KaChat হালনাগাদ হচ্ছে...";
-"Done. It shows in KaChat now." = "সম্পন্ন। এখন KaChat-এ দেখা যাচ্ছে।";
+"It's in a block. Updating K..." = "এটি ব্লকে আছে। K হালনাগাদ হচ্ছে...";
+"Done. It shows in K now." = "সম্পন্ন। এখন K-এ দেখা যাচ্ছে।";
 "The network hasn't taken it. Nothing was spent if it never lands - try again with a faster fee." = "নেটওয়ার্ক এখনো নেয়নি। কখনো না পৌঁছালে কিছুই খরচ হয়নি - দ্রুত ফি দিয়ে আবার চেষ্টা করুন।";
 "Tap the transaction to open it in the explorer." = "এক্সপ্লোরারে খুলতে লেনদেনে ট্যাপ করুন।";
 
 /* .kachat offers: tiles and half sheet */
 
 /* Audit run 3: Address Book network checks, .kachat fee re-check */
-"Every address in that file is a Mainnet address. KaChat is on Testnet." = "এই ফাইলের প্রতিটি ঠিকানা Mainnet-এর। KaChat এখন Testnet-এ।";
-"Every address in that file is a Testnet address. KaChat is on Mainnet." = "এই ফাইলের প্রতিটি ঠিকানা Testnet-এর। KaChat এখন Mainnet-এ।";
+"Every address in that file is a Mainnet address. K is on Testnet." = "এই ফাইলের প্রতিটি ঠিকানা Mainnet-এর। K এখন Testnet-এ।";
+"Every address in that file is a Testnet address. K is on Mainnet." = "এই ফাইলের প্রতিটি ঠিকানা Testnet-এর। K এখন Mainnet-এ।";
 "Skipped %lld from the other network." = "অন্য নেটওয়ার্কের %lldটি বাদ দেওয়া হয়েছে।";
 
 /* .kachat registry v5 migration */
@@ -775,7 +775,7 @@
 /* User Info: look the person's avatar, banner and bio up again now */
 
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
-"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. KaChat tells them once your chatting address has some KAS." = "এই পেমেন্টের কথা %@ কে জানাতে আপনার চ্যাটিং ঠিকানায় কোনো KAS নেই, তাই তারা এটিকে মেমো ছাড়া একটি অজানা ঠিকানা থেকে আসা পেমেন্ট হিসেবে দেখবে। আপনার চ্যাটিং ঠিকানায় কিছু KAS এলে KaChat তাদের জানাবে।";
+"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "এই পেমেন্টের কথা %@ কে জানাতে আপনার চ্যাটিং ঠিকানায় কোনো KAS নেই, তাই তারা এটিকে মেমো ছাড়া একটি অজানা ঠিকানা থেকে আসা পেমেন্ট হিসেবে দেখবে। আপনার চ্যাটিং ঠিকানায় কিছু KAS এলে K তাদের জানাবে।";
 
 /* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
@@ -787,7 +787,7 @@
 "12 or 24 Words Needed" = "১২ বা ২৪টি শব্দ প্রয়োজন";
 "Enter 12 or 24 Words" = "১২ বা ২৪টি শব্দ লিখুন";
 "%@ is on this iPhone, but its keys are not. That happens after restoring from a backup, because keys are locked to the phone they were made on. Enter the account's 12 or 24 words to sign in. Its history on this phone is kept." = "%@ এই iPhone-এ আছে, কিন্তু এর কী নেই। ব্যাকআপ থেকে রিস্টোর করার পর এমন হয়, কারণ কী যে ফোনে তৈরি হয়েছে সেই ফোনেই আবদ্ধ থাকে। সাইন ইন করতে অ্যাকাউন্টের ১২ বা ২৪টি শব্দ লিখুন। এই ফোনে এর ইতিহাস থাকবে।";
-"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because KaChat's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "এই iPhone-এ আপনার অ্যাকাউন্ট আছে, কিন্তু এর কী নেই। ব্যাকআপ থেকে ফোন রিস্টোর করার পর এমন হয়, কারণ KaChat-এর কী যে ডিভাইসে তৈরি হয়েছে সেখানেই আবদ্ধ থাকে। এখানে আনলক করতে আপনার ১২ বা ২৪টি শব্দ লিখুন। এই ডিভাইসে আপনার মেসেজ থাকবে।";
+"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because K's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "এই iPhone-এ আপনার অ্যাকাউন্ট আছে, কিন্তু এর কী নেই। ব্যাকআপ থেকে ফোন রিস্টোর করার পর এমন হয়, কারণ K-এর কী যে ডিভাইসে তৈরি হয়েছে সেখানেই আবদ্ধ থাকে। এখানে আনলক করতে আপনার ১২ বা ২৪টি শব্দ লিখুন। এই ডিভাইসে আপনার মেসেজ থাকবে।";
 
 
 /* The chat list's name for the chat with yourself */
@@ -875,7 +875,7 @@
 "How much?" = "কত?";
 "You're requesting" = "আপনি চাইছেন";
 "A brand-new address of yours that has never been used or handed out." = "আপনার একেবারে নতুন ঠিকানা, যা কখনো ব্যবহার বা শেয়ার করা হয়নি।";
-"Anyone who opens it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "যে কেউ এটি KaChat-এ খুললে এই তথ্য ভরা Kaspa পাঠান স্ক্রিন পাবে, এবং দেখবে এটি আপনার চ্যাট ঠিকানা তৈরি করেছে (এর কী দিয়ে স্বাক্ষরিত)।";
+"Anyone who opens it in K gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "যে কেউ এটি K-এ খুললে এই তথ্য ভরা Kaspa পাঠান স্ক্রিন পাবে, এবং দেখবে এটি আপনার চ্যাট ঠিকানা তৈরি করেছে (এর কী দিয়ে স্বাক্ষরিত)।";
 
 /* Contacts (was Address Book) */
 "Add to Contacts" = "পরিচিতিতে যোগ করুন";
@@ -896,11 +896,11 @@
 "Edit Contact" = "পরিচিতি সম্পাদনা করুন";
 "No contacts yet" = "এখনো কোনো পরিচিতি নেই";
 "Delete %@ from your contacts?" = "%@ কে আপনার পরিচিতি থেকে মুছবেন?";
-"Save the Kaspa addresses you use with a name you'll recognize. They stay in KaChat, for this wallet only, and never go into your phone's Contacts app." = "যে Kaspa ঠিকানাগুলো ব্যবহার করেন সেগুলো চেনা নামে সংরক্ষণ করুন। এগুলো শুধু এই ওয়ালেটের জন্য KaChat-এ থাকে এবং কখনো আপনার ফোনের পরিচিতি অ্যাপে যায় না।";
-"Saved in KaChat for this wallet only. Never added to your phone's Contacts app." = "শুধু এই ওয়ালেটের জন্য KaChat-এ সংরক্ষিত। কখনো আপনার ফোনের পরিচিতি অ্যাপে যোগ হয় না।";
+"Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "যে Kaspa ঠিকানাগুলো ব্যবহার করেন সেগুলো চেনা নামে সংরক্ষণ করুন। এগুলো শুধু এই ওয়ালেটের জন্য K-এ থাকে এবং কখনো আপনার ফোনের পরিচিতি অ্যাপে যায় না।";
+"Saved in K for this wallet only. Never added to your phone's Contacts app." = "শুধু এই ওয়ালেটের জন্য K-এ সংরক্ষিত। কখনো আপনার ফোনের পরিচিতি অ্যাপে যোগ হয় না।";
 "This is a fresh address, never used before." = "এটি একটি নতুন ঠিকানা, আগে কখনো ব্যবহৃত হয়নি।";
 "Use for chatting and acquiring .kachat domains." = "চ্যাট করতে এবং .kachat ডোমেইন পেতে ব্যবহার করুন।";
-"Think of it like your phone number on KaChat." = "এটিকে KaChat-এ আপনার ফোন নম্বরের মতো ভাবুন।";
+"Think of it like your phone number on K." = "এটিকে K-এ আপনার ফোন নম্বরের মতো ভাবুন।";
 "How People Reach You" = "লোকেরা কীভাবে আপনার সাথে যোগাযোগ করে";
 "Share this address and people can message you. Only you can read what they send." = "এই ঠিকানা শেয়ার করলে লোকেরা আপনাকে মেসেজ করতে পারবে। তারা যা পাঠায় তা শুধু আপনিই পড়তে পারেন।";
 "Paying for Messages" = "মেসেজের খরচ";
@@ -939,7 +939,7 @@
 "Complete Your Backup" = "আপনার ব্যাকআপ সম্পূর্ণ করুন";
 "Back Up to NFC Card" = "NFC কার্ডে ব্যাকআপ নিন";
 "Wipe and re-sync incoming messages?" = "আগত বার্তা মুছে রি-সিংক করবেন?";
-"KaChat is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "KaChat এখন সিংক করতে সমস্যায় পড়ছে। এটি চেষ্টা করতে থাকে, আর সংযোগ ফিরলে আপনার বার্তা নিজে থেকেই হালনাগাদ হয়ে যায়, তাই আপনাকে মুছতে হওয়ার কথা নয়।";
+"K is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "K এখন সিংক করতে সমস্যায় পড়ছে। এটি চেষ্টা করতে থাকে, আর সংযোগ ফিরলে আপনার বার্তা নিজে থেকেই হালনাগাদ হয়ে যায়, তাই আপনাকে মুছতে হওয়ার কথা নয়।";
 "Privacy Policy" = "গোপনীয়তা নীতি";
 "Open Source Licenses" = "ওপেন সোর্স লাইসেন্স";
 "Appearance" = "চেহারা";
@@ -1014,7 +1014,7 @@
 "No emoji match that." = "এর সাথে মেলে এমন কোনো ইমোজি নেই।";
 "%lld member%@" = "%lld সদস্য%@";
 "Reply not sent" = "উত্তর পাঠানো হয়নি";
-"Your reply couldn't be sent. Open KaChat to try again." = "আপনার উত্তর পাঠানো যায়নি। আবার চেষ্টা করতে KaChat খুলুন।";
+"Your reply couldn't be sent. Open K to try again." = "আপনার উত্তর পাঠানো যায়নি। আবার চেষ্টা করতে K খুলুন।";
 "1 Reaction" = "১টি প্রতিক্রিয়া";
 "%lld Reactions" = "%lldটি প্রতিক্রিয়া";
 "1 person" = "১ জন";
@@ -1102,7 +1102,7 @@
 "These addresses couldn't be derived right now. Go back a page or reopen this screen to retry." = "এই ঠিকানাগুলো এখন বের করা যায়নি। এক পাতা পিছনে যান অথবা আবার চেষ্টা করতে এই স্ক্রিনটি আবার খুলুন।";
 "Add, import or export" = "যোগ করুন, ইমপোর্ট বা এক্সপোর্ট করুন";
 "KaChat Contact" = "KaChat কন্টাক্ট";
-"KaChat is built with these open source libraries. Their authors ask that these notices travel with the app." = "KaChat এই ওপেন সোর্স লাইব্রেরিগুলো দিয়ে তৈরি। এগুলোর লেখকরা চান এই নোটিশগুলো অ্যাপের সাথে থাকুক।";
+"K is built with these open source libraries. Their authors ask that these notices travel with the app." = "K এই ওপেন সোর্স লাইব্রেরিগুলো দিয়ে তৈরি। এগুলোর লেখকরা চান এই নোটিশগুলো অ্যাপের সাথে থাকুক।";
 "24 words" = "২৪টি শব্দ";
 "Enter your 12 or 24 words" = "আপনার ১২ বা ২৪টি শব্দ লিখুন";
 "More reactions" = "আরও প্রতিক্রিয়া";
@@ -1198,7 +1198,7 @@
 "Your phone can't be your only copy" = "আপনার ফোনই আপনার একমাত্র কপি হতে পারে না";
 "If you lose, break or replace this phone, these words are the only way back to your account." = "এই ফোন হারালে, ভাঙলে বা বদলালে, এই শব্দগুলোই আপনার অ্যাকাউন্টে ফেরার একমাত্র উপায়।";
 "Nobody can reset them" = "কেউ এগুলো রিসেট করতে পারে না";
-"There is no password reset. KaChat never sees your words, so we can't recover them for you." = "পাসওয়ার্ড রিসেট করার কোনো উপায় নেই। KaChat আপনার শব্দ কখনও দেখে না, তাই আমরা আপনার জন্য সেগুলো ফিরিয়ে আনতে পারি না।";
+"There is no password reset. K never sees your words, so we can't recover them for you." = "পাসওয়ার্ড রিসেট করার কোনো উপায় নেই। K আপনার শব্দ কখনও দেখে না, তাই আমরা আপনার জন্য সেগুলো ফিরিয়ে আনতে পারি না।";
 "Get ready" = "তৈরি হয়ে নিন";
 "Your secret words are next. Before you see them:" = "এরপরেই আপনার গোপন শব্দগুলো। সেগুলো দেখার আগে:";
 "I have a pen and paper" = "আমার কাছে কলম ও কাগজ আছে";
@@ -1225,7 +1225,7 @@
 "Never keep it online" = "এটি কখনও অনলাইনে রাখবেন না";
 "No photos, screenshots, cloud storage, notes apps, email or chats." = "ছবির গ্যালারি, স্ক্রিনশট, ক্লাউড স্টোরেজ, নোট অ্যাপ, ইমেল বা চ্যাটে নয়।";
 "Never share it" = "এটি কখনও শেয়ার করবেন না";
-"Nobody needs your words. KaChat and real support will never ask for them. Anyone who asks is trying to take your funds." = "আপনার শব্দ কারও দরকার নেই। KaChat ও আসল সাপোর্ট কখনও সেগুলো চাইবে না। যে চায়, সে আপনার ফান্ড নেওয়ার চেষ্টা করছে।";
+"Nobody needs your words. K and real support will never ask for them. Anyone who asks is trying to take your funds." = "আপনার শব্দ কারও দরকার নেই। K ও আসল সাপোর্ট কখনও সেগুলো চাইবে না। যে চায়, সে আপনার ফান্ড নেওয়ার চেষ্টা করছে।";
 "Keep your passphrase apart" = "আপনার পাসফ্রেজ আলাদা রাখুন";
 "Store it away from your 12 or 24 words. You need both, and losing either one loses the account." = "এটি আপনার ১২ বা ২৪টি শব্দ থেকে আলাদা জায়গায় রাখুন। দুটোই লাগে, আর একটি হারালে অ্যাকাউন্ট হারিয়ে যায়।";
 "You can see it again" = "আপনি এটি আবার দেখতে পারবেন";
@@ -1409,7 +1409,7 @@
 "Notifications from this group resume, including mentions." = "এই গ্রুপের বিজ্ঞপ্তি আবার চালু হবে, উল্লেখ সহ।";
 "One minute each, plus one second a move." = "প্রত্যেকের এক মিনিট, প্রতি চালে এক সেকেন্ড যোগ।";
 "Open in Explorer" = "এক্সপ্লোরারে খুলুন";
-"Open in KaChat" = "KaChat-এ খুলুন";
+"Open in K" = "K-এ খুলুন";
 "Open in KaPost" = "KaPost-এ খুলুন";
 "Open your chat with them in payment mode." = "তাদের সাথে আপনার চ্যাট পেমেন্ট মোডে খুলুন।";
 "Opens in your browser." = "আপনার ব্রাউজারে খোলে।";
@@ -1476,10 +1476,10 @@
 "Restoring messages... %d of %d conversations" = "বার্তা পুনরুদ্ধার হচ্ছে... %d / %d কথোপকথন";
 "Deletes %@ (%@) and its local data from this device." = "এই ডিভাইস থেকে %@ (%@) এবং এর স্থানীয় ডেটা মুছে দেয়।";
 "Passcode Required" = "পাসকোড প্রয়োজন";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "KaChat-এ অ্যাকাউন্ট মুছতে বা গোপন কী দেখতে এই iPhone-এ একটি পাসকোড সেট করুন (সেটিংস > Face ID ও পাসকোড)।";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "K-এ অ্যাকাউন্ট মুছতে বা গোপন কী দেখতে এই iPhone-এ একটি পাসকোড সেট করুন (সেটিংস > Face ID ও পাসকোড)।";
 "Waiting on opponent" = "প্রতিপক্ষের জন্য অপেক্ষা";
 "Not sent: you switched accounts before this went out." = "পাঠানো হয়নি: পাঠানোর আগে আপনি অ্যাকাউন্ট বদলেছেন।";
-"The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "দুটি লেনদেনের প্রথমটি সম্পন্ন হয়েছে, কিন্তু দ্বিতীয়টি হয়নি। KaChat পরের বার খুললে এটি শেষ করবে।";
+"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "দুটি লেনদেনের প্রথমটি সম্পন্ন হয়েছে, কিন্তু দ্বিতীয়টি হয়নি। K পরের বার খুললে এটি শেষ করবে।";
 "A domain transfer's fee can be at most 1 KAS." = "ডোমেন স্থানান্তরের ফি সর্বোচ্চ 1 KAS হতে পারে।";
 "Confirm setting this primary name" = "এই প্রাথমিক নাম সেট করা নিশ্চিত করুন";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "এই অ্যাকাউন্টের কী হয়তো এখনও এই ফোনে আছে, কিন্তু এখন পড়া যাচ্ছে না, তাই কিছুই বদলানো হয়নি। একটু পরে আবার চেষ্টা করুন।";
@@ -1490,7 +1490,7 @@
 "Standard Kaspa Wallet" = "স্ট্যান্ডার্ড Kaspa ওয়ালেট";
 "Has history" = "ইতিহাস আছে";
 "See Every Wallet Type" = "সব ধরনের ওয়ালেট দেখুন";
-"KaChat checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "KaChat আপনার শব্দগুলো সব ধরনের Kaspa ওয়ালেটের সাথে মিলিয়ে দেখে, তাই সেগুলো কোন ওয়ালেট থেকে এসেছে তা আপনাকে জানতে হবে না।";
+"K checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "K আপনার শব্দগুলো সব ধরনের Kaspa ওয়ালেটের সাথে মিলিয়ে দেখে, তাই সেগুলো কোন ওয়ালেট থেকে এসেছে তা আপনাকে জানতে হবে না।";
 "This address has history, so this looks like the right account." = "এই ঠিকানার ইতিহাস আছে, তাই এটিই সঠিক অ্যাকাউন্ট বলে মনে হচ্ছে।";
 "No funds or history on this address." = "এই ঠিকানায় কোনো তহবিল বা ইতিহাস নেই।";
 "We picked the most likely account. Tap another if that's not the one you use." = "আমরা সবচেয়ে সম্ভাব্য অ্যাকাউন্টটি বেছে নিয়েছি। এটি আপনার না হলে অন্যটিতে ট্যাপ করুন।";
@@ -1519,14 +1519,14 @@
 "Tap Retry on the voice message to send the rest." = "বাকিটা পাঠাতে ভয়েস মেসেজে আবার চেষ্টা করুন ট্যাপ করুন।";
 "Network fee: %@" = "নেটওয়ার্ক ফি: %@";
 "Couldn't Remove App Password" = "অ্যাপ পাসওয়ার্ড সরানো যায়নি";
-"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat %@ থেকে তার অ্যাপ পাসওয়ার্ড সরাতে পারেনি। এটি এই ফোন থেকে মুছে গেছে, তবে সেখানে এখনও সাইন ইন করতে পারে: Nextcloud-এ সেটিংস > নিরাপত্তা > ডিভাইস ও সেশন থেকে এটি মুছুন।";
+"K couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "K %@ থেকে তার অ্যাপ পাসওয়ার্ড সরাতে পারেনি। এটি এই ফোন থেকে মুছে গেছে, তবে সেখানে এখনও সাইন ইন করতে পারে: Nextcloud-এ সেটিংস > নিরাপত্তা > ডিভাইস ও সেশন থেকে এটি মুছুন।";
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "এই পেমেন্টের কথা %2$@-কে জানাতে আপনার চ্যাটিং ঠিকানা আরও %1$@ KAS দেয়।";
 "Tap Retry on the photo to send the rest." = "বাকিটা পাঠাতে ছবিতে আবার চেষ্টা করুন ট্যাপ করুন।";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "এই মেসেজের জন্য একটি ট্রানজ্যাকশনে অনেক বেশি কয়েন লাগে। আপনার চ্যাটিং ঠিকানায় Compound UTXOs ব্যবহার করে আবার চেষ্টা করুন।";
 "Use Their Domain Name" = "তাদের ডোমেইন নাম ব্যবহার করুন";
 "Show Request As QR" = "অনুরোধ QR হিসেবে দেখান";
 "Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "সবকিছু পূরণ করা অবস্থায় KaPay-এ পেমেন্ট করতে iPhone-এর ক্যামেরা দিয়ে স্ক্যান করুন।";
-"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "সবকিছু পূরণ করা অবস্থায় KaChat-এ পেমেন্ট করতে iPhone-এর ক্যামেরা দিয়ে স্ক্যান করুন।";
+"Scan it with an iPhone's camera to pay in K, with everything filled in." = "সবকিছু পূরণ করা অবস্থায় K-এ পেমেন্ট করতে iPhone-এর ক্যামেরা দিয়ে স্ক্যান করুন।";
 "Get a .kachat domain" = ".kachat ডোমেইন নিন";
 "Set as Name" = "নাম হিসেবে সেট করুন";
 "Their Name" = "তাদের নাম";
@@ -1658,12 +1658,12 @@
 "kUSDT's transaction builder couldn't start." = "kUSDT-র লেনদেন নির্মাতা চালু হতে পারেনি।";
 "kUSDT's transaction builder gave no answer." = "kUSDT-র লেনদেন নির্মাতা উত্তর দেয়নি।";
 "kUSDT's transaction builder isn't the pinned one, so it won't run." = "kUSDT-র লেনদেন নির্মাতা পিন করাটি নয়, তাই চালানো হবে না।";
-"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "KaChat-এর kUSDT টেমপ্লেট নেই, তাই kUSDT যাচাই করা যাচ্ছে না।";
-"The network fee is above KaChat's safety limit. Nothing was sent." = "নেটওয়ার্ক ফি KaChat-এর নিরাপত্তা সীমার বেশি। কিছু পাঠানো হয়নি।";
+"K's kUSDT template is missing, so kUSDT can't be checked." = "K-এর kUSDT টেমপ্লেট নেই, তাই kUSDT যাচাই করা যাচ্ছে না।";
+"The network fee is above K's safety limit. Nothing was sent." = "নেটওয়ার্ক ফি K-এর নিরাপত্তা সীমার বেশি। কিছু পাঠানো হয়নি।";
 "Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "আপনার একটি নতুন ঠিকানায় এটি গ্রহণ করুন। kUSDT কেনা ও বদলানো হয় KaPay-তে।";
 "Release to Confirm" = "নিশ্চিত করতে ছেড়ে দিন";
 "The transaction didn't go out." = "লেনদেনটি পাঠানো হয়নি।";
-"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "যেখানে KaChat আপনার kUSDT খোঁজে। এটি যে প্রতিটি কয়েন দেখায় তা গণনার আগে Kaspa নোডে যাচাই করা হয়। এই নেটওয়ার্কের ডিফল্টের জন্য ফাঁকা রাখুন।";
+"Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "যেখানে K আপনার kUSDT খোঁজে। এটি যে প্রতিটি কয়েন দেখায় তা গণনার আগে Kaspa নোডে যাচাই করা হয়। এই নেটওয়ার্কের ডিফল্টের জন্য ফাঁকা রাখুন।";
 "Fee %@" = "ফি %@";
 
 /* Share Profile sheet (2026-11-20) */
@@ -1769,7 +1769,7 @@
 "How it works" = "কীভাবে কাজ করে";
 "List" = "বিক্রি করুন";
 "Trustless" = "আস্থার প্রয়োজন নেই";
-"Set a price. The name waits in an on-chain covenant, not with KaChat or anyone else, until someone buys it or you take it back." = "একটি দাম ঠিক করুন। নামটি অন-চেইন কভেন্যান্টে অপেক্ষা করে - KaChat বা অন্য কারও কাছে নয় - যতক্ষণ না কেউ কেনে বা আপনি ফিরিয়ে নেন।";
+"Set a price. The name waits in an on-chain covenant, not with K or anyone else, until someone buys it or you take it back." = "একটি দাম ঠিক করুন। নামটি অন-চেইন কভেন্যান্টে অপেক্ষা করে - K বা অন্য কারও কাছে নয় - যতক্ষণ না কেউ কেনে বা আপনি ফিরিয়ে নেন।";
 "Pay the listed price. The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does." = "তালিকাভুক্ত দাম দিন। পেমেন্ট বিক্রেতার কাছে আর নাম আপনার কাছে একই লেনদেনে পৌঁছায় - দুটোই ঘটে, নয়তো কোনোটাই নয়।";
 "No middleman and no escrow account: Kaspa's own rules enforce every sale." = "কোনো মধ্যস্থতাকারী নেই, কোনো এসক্রো অ্যাকাউন্ট নেই: প্রতিটি বিক্রি Kaspa-র নিজস্ব নিয়মে নিশ্চিত হয়।";
 "Nothing here is live yet." = "এখানে এখনো কিছুই চালু নেই।";
@@ -1924,7 +1924,7 @@
 "Takes the name off the market." = "নামটি বাজার থেকে সরিয়ে নেয়।";
 "Puts the name up for sale at your price." = "আপনার দামে নামটি বিক্রির জন্য তোলে।";
 "Sends the name to another address." = "নামটি অন্য ঠিকানায় পাঠায়।";
-"Shows you by this name across KaChat." = "KaChat জুড়ে আপনাকে এই নামে দেখায়।";
+"Shows you by this name across K." = "K জুড়ে আপনাকে এই নামে দেখায়।";
 "Gives the name up and returns its deposit." = "নামটি ছেড়ে দেয় এবং এর জামানত ফেরত দেয়।";
 "Expires in %@" = "%@ পরে মেয়াদ শেষ";
 "Expired - returning to you" = "মেয়াদ শেষ - আপনার কাছে ফিরছে";
@@ -2038,7 +2038,7 @@
 "Nothing can change now: this is the transaction KasSigner signed." = "এখন আর কিছু বদলানো যাবে না: এটিই KasSigner-এর স্বাক্ষর করা লেনদেন।";
 "Watch-only. This cannot spend, but it reveals every address in this account." = "শুধু পর্যবেক্ষণ। এটি খরচ করতে পারে না, তবে এই অ্যাকাউন্টের প্রতিটি ঠিকানা প্রকাশ করে।";
 "Your KAS is in many small coins. When you swipe, KaPay first combines them into one (a separate transaction with its own small fee), then sends this." = "আপনার KAS অনেক ছোট ছোট কয়েনে ভাগ করা আছে। সোয়াইপ করলে KaPay প্রথমে সেগুলো একটিতে একত্র করবে (নিজস্ব ছোট ফি সহ আলাদা একটি লেনদেন), তারপর এটি পাঠাবে।";
-"The price goes to the miners - KaChat takes nothing." = "দাম মাইনারদের কাছে যায় - KaChat কিছুই নেয় না।";
+"The price goes to the miners - K takes nothing." = "দাম মাইনারদের কাছে যায় - K কিছুই নেয় না।";
 "Length" = "মেয়াদ";
 "Claiming sends two transactions: the commit now, the registration about a minute later. Both pay this fee rate." = "দাবি করলে দুটি লেনদেন পাঠানো হয়: এখন কমিট, প্রায় এক মিনিট পরে নিবন্ধন। দুটিই এই ফি হারে দেয়।";
 "The price changed. Check it and swipe again." = "দাম বদলে গেছে। দেখে নিয়ে আবার সোয়াইপ করুন।";
@@ -2223,11 +2223,11 @@
 "Import failed." = "ইমপোর্ট ব্যর্থ হয়েছে।";
 
 /* Ported KaPay screens, named KaChat (2026-11-21) */
-"The commit has to age for about a minute before the name can be registered. Keep KaChat open - it registers by itself, and picks up where it left off if you leave." = "নাম নিবন্ধনের আগে কমিটকে প্রায় এক মিনিট পুরোনো হতে হবে। KaChat খোলা রাখুন - এটি নিজেই নিবন্ধন করবে, আর আপনি বেরিয়ে গেলে যেখানে থেমেছিল সেখান থেকে চালিয়ে যাবে।";
-"Your KAS is in many small coins. KaChat combines them into one before registering, for a tiny extra network fee." = "আপনার KAS অনেক ছোট কয়েনে ভাগ হয়ে আছে। নিবন্ধনের আগে KaChat সেগুলো একটিতে মেলায়, সামান্য অতিরিক্ত নেটওয়ার্ক ফিতে।";
-"Your KAS is in many small coins. When you swipe, KaChat first combines them into one (a separate transaction with its own small fee), then sends this." = "আপনার KAS অনেক ছোট ছোট কয়েনে ভাগ করা আছে। সোয়াইপ করলে KaChat প্রথমে সেগুলো একটিতে একত্র করবে (নিজস্ব ছোট ফি সহ আলাদা একটি লেনদেন), তারপর এটি পাঠাবে।";
-"This only removes it from KaChat's watch list. It has no effect on the KasSigner device or any funds it holds." = "এটি শুধুমাত্র KaChat-এর ওয়াচ তালিকা থেকে এটি সরায়। এর KasSigner ডিভাইস বা এতে থাকা কোনো তহবিলের উপর কোনো প্রভাব নেই।";
-"Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "KaChat খোলা রাখুন: গোপন প্রতিশ্রুতি নিশ্চিত হওয়ার প্রায় এক মিনিট পরে নামটি নিবন্ধিত হয়। আপনি চলে গেলে, ফিরে এলে যেখানে থেমেছিল সেখান থেকে চলবে।";
+"The commit has to age for about a minute before the name can be registered. Keep K open - it registers by itself, and picks up where it left off if you leave." = "নাম নিবন্ধনের আগে কমিটকে প্রায় এক মিনিট পুরোনো হতে হবে। K খোলা রাখুন - এটি নিজেই নিবন্ধন করবে, আর আপনি বেরিয়ে গেলে যেখানে থেমেছিল সেখান থেকে চালিয়ে যাবে।";
+"Your KAS is in many small coins. K combines them into one before registering, for a tiny extra network fee." = "আপনার KAS অনেক ছোট কয়েনে ভাগ হয়ে আছে। নিবন্ধনের আগে K সেগুলো একটিতে মেলায়, সামান্য অতিরিক্ত নেটওয়ার্ক ফিতে।";
+"Your KAS is in many small coins. When you swipe, K first combines them into one (a separate transaction with its own small fee), then sends this." = "আপনার KAS অনেক ছোট ছোট কয়েনে ভাগ করা আছে। সোয়াইপ করলে K প্রথমে সেগুলো একটিতে একত্র করবে (নিজস্ব ছোট ফি সহ আলাদা একটি লেনদেন), তারপর এটি পাঠাবে।";
+"This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds." = "এটি শুধুমাত্র K-এর ওয়াচ তালিকা থেকে এটি সরায়। এর KasSigner ডিভাইস বা এতে থাকা কোনো তহবিলের উপর কোনো প্রভাব নেই।";
+"Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "K খোলা রাখুন: গোপন প্রতিশ্রুতি নিশ্চিত হওয়ার প্রায় এক মিনিট পরে নামটি নিবন্ধিত হয়। আপনি চলে গেলে, ফিরে এলে যেখানে থেমেছিল সেখান থেকে চলবে।";
 
 /* Trestly inside KaChat, from KaPay (2026-11-21) */
 "Sent %@ on %@" = "%@ পাঠানো হয়েছে (%@)";
@@ -2284,18 +2284,18 @@
 "Swap sent: %@ for %@" = "সোয়াপ পাঠানো হয়েছে: %@ → %@";
 "Swap Complete" = "সোয়াপ সম্পন্ন";
 "Swap Sent" = "সোয়াপ পাঠানো হয়েছে";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first and gives less, KaChat asks you again; it never takes below 99% of this quote." = "KaChat-এর ভেতরে Trestly-র নিজস্ব কোড দিয়ে তৈরি ও যাচাই। পুল আগে বদলে কম দিলে KaChat আবার জিজ্ঞেস করে; এই দামের 99%-এর কম কখনো নয়।";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "KaChat-এর ভেতরে Trestly-র নিজস্ব কোড দিয়ে তৈরি ও যাচাই। পুল আগে বদলালে আবার দাম নেয়: শুধু এই দাম বা ভালো হলে এগোয়, কম হলে আবার জিজ্ঞেস করে এবং সাইটের ন্যূনতমের নিচে কখনো যায় না।";
-"More stablecoins will show here as KaChat adds them." = "KaChat আরও স্টেবলকয়েন যোগ করলে সেগুলো এখানে দেখাবে।";
-"On Trestly, inside KaChat" = "Trestly-তে, KaChat-এর ভেতরে";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside KaChat, connected to the address you pick." = "KAS ও kUSDT অদলবদল করতে বা পুলে যোগ করতে ওয়ালেট ট্যাবে স্টেবলকয়েন সোয়াপ করুন ট্যাপ করে kUSDT বেছে নিন। Trestly-র নিজস্ব সাইট KaChat-এর ভেতরে আপনার বেছে নেওয়া ঠিকানার সাথে যুক্ত হয়ে খোলে।";
-"Trestly asks KaChat to" = "Trestly, KaChat-কে বলছে:";
+"Built and checked by Trestly's own code inside K. If the pool moves first and gives less, K asks you again; it never takes below 99% of this quote." = "K-এর ভেতরে Trestly-র নিজস্ব কোড দিয়ে তৈরি ও যাচাই। পুল আগে বদলে কম দিলে K আবার জিজ্ঞেস করে; এই দামের 99%-এর কম কখনো নয়।";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "K-এর ভেতরে Trestly-র নিজস্ব কোড দিয়ে তৈরি ও যাচাই। পুল আগে বদলালে আবার দাম নেয়: শুধু এই দাম বা ভালো হলে এগোয়, কম হলে আবার জিজ্ঞেস করে এবং সাইটের ন্যূনতমের নিচে কখনো যায় না।";
+"More stablecoins will show here as K adds them." = "K আরও স্টেবলকয়েন যোগ করলে সেগুলো এখানে দেখাবে।";
+"On Trestly, inside K" = "Trestly-তে, K-এর ভেতরে";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "KAS ও kUSDT অদলবদল করতে বা পুলে যোগ করতে ওয়ালেট ট্যাবে স্টেবলকয়েন সোয়াপ করুন ট্যাপ করে kUSDT বেছে নিন। Trestly-র নিজস্ব সাইট K-এর ভেতরে আপনার বেছে নেওয়া ঠিকানার সাথে যুক্ত হয়ে খোলে।";
+"Trestly asks K to" = "Trestly, K-কে বলছে:";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "একই শব্দের আপনার অন্য অ্যাপগুলো একই kUSDT দেখায় ও পাঠাতে পারে। সোয়াপ এখানেই হয়।";
 
 /* Trestly site setting (2026-11-21) */
 "Trestly Site URL" = "Trestly সাইট URL";
 "Trestly Site" = "Trestly সাইট";
-"The site Swap Stablecoins shows inside KaChat, connected to the address you choose. Leave it blank for this network's default." = "স্টেবলকয়েন সোয়াপ KaChat-এর ভেতরে যে সাইট দেখায়, আপনার বেছে নেওয়া ঠিকানার সঙ্গে যুক্ত। এই নেটওয়ার্কের ডিফল্টের জন্য খালি রাখুন।";
+"The site Swap Stablecoins shows inside K, connected to the address you choose. Leave it blank for this network's default." = "স্টেবলকয়েন সোয়াপ K-এর ভেতরে যে সাইট দেখায়, আপনার বেছে নেওয়া ঠিকানার সঙ্গে যুক্ত। এই নেটওয়ার্কের ডিফল্টের জন্য খালি রাখুন।";
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
@@ -2662,15 +2662,15 @@
 "KaPost isn't available on Testnet yet" = "KaPost এখনও টেস্টনেটে উপলব্ধ নয়";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "টেস্টনেটের জন্য কোনো KaPost ইনডেক্সার নেই। মেইননেটে পড়তে ও পোস্ট করতে সেটিংস > সংযোগ থেকে টেস্টনেট বন্ধ করুন।";
 "KaChat Profile" = "KaChat প্রোফাইল";
-"Your post is ready to go out. Open KaChat to send it." = "আপনার পোস্ট পাঠানোর জন্য প্রস্তুত। পাঠাতে KaChat খুলুন।";
+"Your post is ready to go out. Open K to send it." = "আপনার পোস্ট পাঠানোর জন্য প্রস্তুত। পাঠাতে K খুলুন।";
 "KaPost Settings" = "KaPost সেটিংস";
 "Search KaPost" = "KaPost-এ খুঁজুন";
-"Sharing sends a link that opens this room in KaChat, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "শেয়ার করলে একটি লিংক যায় যা এই রুম KaChat-এ খোলে, আর যাদের অ্যাপ নেই তাদের জন্য একটি ওয়েব লিংক। লুকানো প্রতিটি রুমের জন্য আলাদা: এখানে লুকানো কেউ অন্য সব রুমে তবুও দেখা যায়।";
+"Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "শেয়ার করলে একটি লিংক যায় যা এই রুম K-এ খোলে, আর যাদের অ্যাপ নেই তাদের জন্য একটি ওয়েব লিংক। লুকানো প্রতিটি রুমের জন্য আলাদা: এখানে লুকানো কেউ অন্য সব রুমে তবুও দেখা যায়।";
 "Their KaPost profile: posts, replies and followers." = "তাদের KaPost প্রোফাইল: পোস্ট, উত্তর ও ফলোয়ার।";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPost-এর সার্ভার সাড়া দিচ্ছে না। সংরক্ষিত পোস্ট এবং নেটওয়ার্ক থেকে নতুন পোস্ট দেখানো হচ্ছে।";
-"Trestly's pool code couldn't start in KaChat." = "Trestly-র পুল কোড KaChat-তে চালু হতে পারেনি।";
+"Trestly's pool code couldn't start in K." = "Trestly-র পুল কোড K-তে চালু হতে পারেনি।";
 "Set what Tip sends in KaPost Settings > Tip In." = "টিপ কী পাঠাবে তা KaPost সেটিংস > টিপ ইন-এ ঠিক করুন।";
 "Tip didn't send: the smallest tip the network takes is %@. Change your default tip in KaPost Settings." = "টিপ পাঠানো হয়নি: নেটওয়ার্ক সবচেয়ে ছোট যে টিপ নেয় তা %@। KaPost সেটিংসে আপনার ডিফল্ট টিপ বদলান।";
 "Posting poll" = "পোল পোস্ট হচ্ছে";
@@ -2980,9 +2980,9 @@
 "Play %@" = "%@-এর সঙ্গে খেলুন";
 "Players (%lld of %lld)" = "খেলোয়াড় (%lld/%lld)";
 "The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "নির্মাতার শেয়ার করা আট অক্ষরের কোড। যোগ দেওয়া একটি লেনদেন (ফি: %@)।";
-"Play me at chess in KaChat: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "KaChat-তে আমার সঙ্গে দাবা খেলুন: KaPlay > দাবা > 1v1 > কোড দিয়ে যোগ দিন খুলে %@ লিখুন।";
-"Join my chess tournament in KaChat: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "KaChat-তে আমার দাবা টুর্নামেন্টে যোগ দিন: KaPlay > দাবা > টুর্নামেন্ট > কোড দিয়ে যোগ দিন খুলে %@ লিখুন।";
-"I beat %@ (Level %lld) in %lld moves on KaChat. Think you can do it in fewer?" = "আমি KaChat-তে %@ (লেভেল %lld)-কে %lld চালে হারিয়েছি। আপনি কি এর চেয়ে কম চালে পারবেন?";
+"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "K-তে আমার সঙ্গে দাবা খেলুন: KaPlay > দাবা > 1v1 > কোড দিয়ে যোগ দিন খুলে %@ লিখুন।";
+"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "K-তে আমার দাবা টুর্নামেন্টে যোগ দিন: KaPlay > দাবা > টুর্নামেন্ট > কোড দিয়ে যোগ দিন খুলে %@ লিখুন।";
+"I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "আমি K-তে %@ (লেভেল %lld)-কে %lld চালে হারিয়েছি। আপনি কি এর চেয়ে কম চালে পারবেন?";
 "Share to KaPost" = "KaPost-এ শেয়ার করুন";
 "Games" = "গেম";
 "Chess Challenge" = "দাবা চ্যালেঞ্জ";
@@ -3050,9 +3050,9 @@
 "How a name works" = "নাম যেভাবে কাজ করে";
 "Claiming takes two quick transactions: the first keeps your pick secret, the second registers it." = "দাবি করতে দুটি দ্রুত লেনদেন লাগে: প্রথমটি আপনার পছন্দ গোপন রাখে, দ্বিতীয়টি নিবন্ধন করে।";
 "You pay for one period at a time. Shorter names cost more." = "একবারে এক মেয়াদের জন্য অর্থ দেন। ছোট নামের দাম বেশি।";
-"The price goes to the network's miners, not to KaChat." = "দাম নেটওয়ার্কের মাইনারদের কাছে যায়, KaChat-এর কাছে নয়।";
+"The price goes to the network's miners, not to K." = "দাম নেটওয়ার্কের মাইনারদের কাছে যায়, K-এর কাছে নয়।";
 "Make it your name" = "এটিকে আপনার নাম করুন";
-"Set it as your primary name and it's how you appear everywhere in KaChat." = "প্রাথমিক নাম হিসেবে সেট করুন, KaChat-এর সব জায়গায় এই নামেই দেখা যাবেন।";
+"Set it as your primary name and it's how you appear everywhere in K." = "প্রাথমিক নাম হিসেবে সেট করুন, K-এর সব জায়গায় এই নামেই দেখা যাবেন।";
 "They can send you Kaspa to yourname.kachat instead of a long address." = "লম্বা ঠিকানার বদলে তারা yourname.kachat-এ Kaspa পাঠাতে পারে।";
 "Your profile link shows your name." = "আপনার প্রোফাইল লিংকে আপনার নাম দেখায়।";
 "Renew before it expires. It shows when, on each name." = "মেয়াদ শেষের আগে নবায়ন করুন। প্রতিটি নামে তারিখ দেখায়।";
@@ -3063,21 +3063,21 @@
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "আপনার নাম Kaspa নেটওয়ার্কে থাকে, আপনার চ্যাটিং ঠিকানার কাছে। আপনার থাকা অবস্থায় কেউ তা নিতে বা বদলাতে পারে না।";
 "Search for the name you want in the .kachat tab, then claim it." = ".kachat ট্যাবে আপনার পছন্দের নাম খুঁজুন, তারপর দাবি করুন।";
 "What kUSDT is, where it lives, and how sending and swapping work." = "kUSDT কী, কোথায় থাকে, আর পাঠানো ও বিনিময় কীভাবে হয়।";
-"It's the name people see you as across KaChat and on your profile link. Without one, people see your address." = "KaChat জুড়ে আর আপনার প্রোফাইল লিংকে মানুষ আপনাকে এই নামেই দেখে। না থাকলে আপনার ঠিকানা দেখে।";
+"It's the name people see you as across K and on your profile link. Without one, people see your address." = "K জুড়ে আর আপনার প্রোফাইল লিংকে মানুষ আপনাকে এই নামেই দেখে। না থাকলে আপনার ঠিকানা দেখে।";
 "People can find you by typing your name." = "আপনার নাম টাইপ করে মানুষ আপনাকে খুঁজে পাবে।";
 "Your names are in Wallet > Your Domains > .kachat." = "আপনার নামগুলো আছে ওয়ালেট > আপনার ডোমেইন > .kachat-এ।";
 "Claim your name in the .kachat tab whenever you're ready." = "যখন প্রস্তুত, .kachat ট্যাবে আপনার নাম দাবি করুন।";
 "I Agree" = "আমি সম্মত";
-"KaChat has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what KaChat shows, without notice." = "KaChat আপত্তিকর কনটেন্ট বা অপব্যবহারকারী ব্যবহারকারীদের একেবারেই সহ্য করে না। আপনি অবৈধ কিছু, শিশুদের জড়িত যৌন কনটেন্ট, ঘৃণামূলক বক্তব্য, হুমকি, হয়রানি, সহিংসতা বা আত্মক্ষতিতে উৎসাহ দেওয়া কনটেন্ট, বা প্রতারণা পোস্ট করতে পারবেন না। যে অ্যাকাউন্ট এমন করে সেগুলো আগাম নোটিশ ছাড়াই KaChat যা দেখায় তা থেকে সরানো হতে পারে।";
-"KaChat is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and KaChat's developer, not Apple." = "KaChat যেমন আছে তেমনই, কোনো ওয়ারেন্টি ছাড়া দেওয়া হয়, এবং আইন যতটা অনুমতি দেয়, এটি ব্যবহার বা অন্য ব্যবহারকারীদের পোস্ট থেকে হওয়া ক্ষতির জন্য আমরা দায়ী নই। এই শর্তগুলো আপনার এবং KaChat-এর ডেভেলপারের মধ্যে, Apple-এর সাথে নয়।";
+"K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "K আপত্তিকর কনটেন্ট বা অপব্যবহারকারী ব্যবহারকারীদের একেবারেই সহ্য করে না। আপনি অবৈধ কিছু, শিশুদের জড়িত যৌন কনটেন্ট, ঘৃণামূলক বক্তব্য, হুমকি, হয়রানি, সহিংসতা বা আত্মক্ষতিতে উৎসাহ দেওয়া কনটেন্ট, বা প্রতারণা পোস্ট করতে পারবেন না। যে অ্যাকাউন্ট এমন করে সেগুলো আগাম নোটিশ ছাড়াই K যা দেখায় তা থেকে সরানো হতে পারে।";
+"K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K যেমন আছে তেমনই, কোনো ওয়ারেন্টি ছাড়া দেওয়া হয়, এবং আইন যতটা অনুমতি দেয়, এটি ব্যবহার বা অন্য ব্যবহারকারীদের পোস্ট থেকে হওয়া ক্ষতির জন্য আমরা দায়ী নই। এই শর্তগুলো আপনার এবং K-এর ডেভেলপারের মধ্যে, Apple-এর সাথে নয়।";
 "No objectionable content or abuse" = "কোনো আপত্তিকর কনটেন্ট বা অপব্যবহার নয়";
 "No warranty" = "কোনো ওয়ারেন্টি নেই";
-"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from KaChat, but nobody can erase a transaction from the network." = "পোস্ট, উত্তর, লাইক ও রুমের বার্তা Kaspa নেটওয়ার্কে সর্বজনীন লেনদেন। আপনি যা পোস্ট করেন তার দায় আপনার। পোস্ট মুছলে তা KaChat থেকে সরে যায়, কিন্তু নেটওয়ার্ক থেকে কেউ কোনো লেনদেন মুছতে পারে না।";
+"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from K, but nobody can erase a transaction from the network." = "পোস্ট, উত্তর, লাইক ও রুমের বার্তা Kaspa নেটওয়ার্কে সর্বজনীন লেনদেন। আপনি যা পোস্ট করেন তার দায় আপনার। পোস্ট মুছলে তা K থেকে সরে যায়, কিন্তু নেটওয়ার্ক থেকে কেউ কোনো লেনদেন মুছতে পারে না।";
 "Questions and reports: %@" = "প্রশ্ন ও রিপোর্ট: %@";
 "Reporting and blocking" = "রিপোর্ট ও ব্লক করা";
 "Terms of Use" = "ব্যবহারের শর্তাবলী";
-"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the KaChat indexer, which KaChat reads by default." = "কোনো পোস্ট বা রুমের বার্তায় রিপোর্ট ব্যবহার করে আমাদের আপত্তিকর কনটেন্টের কথা জানান; প্রতিটি রিপোর্ট একজন মানুষ পড়েন। কোনো অ্যাকাউন্টের পোস্ট ও রুমের বার্তা দেখা বন্ধ করতে ব্লক ব্যবহার করুন। আমরা KaChat ইনডেক্সার থেকে কনটেন্ট ও অ্যাকাউন্ট সরাতে পারি, যা KaChat ডিফল্টভাবে পড়ে।";
-"You need to agree to use KaChat." = "KaChat ব্যবহার করতে আপনাকে সম্মত হতে হবে।";
+"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the K indexer, which K reads by default." = "কোনো পোস্ট বা রুমের বার্তায় রিপোর্ট ব্যবহার করে আমাদের আপত্তিকর কনটেন্টের কথা জানান; প্রতিটি রিপোর্ট একজন মানুষ পড়েন। কোনো অ্যাকাউন্টের পোস্ট ও রুমের বার্তা দেখা বন্ধ করতে ব্লক ব্যবহার করুন। আমরা K ইনডেক্সার থেকে কনটেন্ট ও অ্যাকাউন্ট সরাতে পারি, যা K ডিফল্টভাবে পড়ে।";
+"You need to agree to use K." = "K ব্যবহার করতে আপনাকে সম্মত হতে হবে।";
 "Your account and your funds" = "আপনার অ্যাকাউন্ট ও আপনার অর্থ";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "আপনার অ্যাকাউন্ট হলো আপনার ডিভাইসে রাখা 12 বা 24 শব্দ। সেগুলো আমাদের কাছে কখনো থাকে না, তাই আমরা হারানো শব্দ ফিরিয়ে দিতে বা কোনো লেনদেন ফেরাতে পারি না। পোস্ট করতে KAS-এ নেটওয়ার্ক ফি লাগে, এবং আপনি যে অর্থ রাখেন ও পাঠান তার দায় আপনার।";
 "Your posts are public and permanent" = "আপনার পোস্ট সর্বজনীন ও স্থায়ী";

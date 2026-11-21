@@ -2239,8 +2239,8 @@ extension KaspaAddress {
         guard isValid(trimmed), let network = NetworkType(address: trimmed),
               network != AppSettings.load().networkType else { return nil }
         return AppLocalization.string(network == .testnet
-            ? "This is a Testnet address. KaChat is on Mainnet."
-            : "This is a Mainnet address. KaChat is on Testnet.")
+            ? "This is a Testnet address. K is on Mainnet."
+            : "This is a Mainnet address. K is on Testnet.")
     }
 
     /// The line under an address field: "Valid address", the other-network reason, or "Invalid

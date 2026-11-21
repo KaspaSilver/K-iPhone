@@ -32,7 +32,7 @@ struct TokenGuideView: View {
                 card(icon: "arrow.triangle.merge", title: "Combine Coins",
                      detail: "Each payment you receive is its own coin with its own 1.5 KAS. Combine Coins, in an address's menu, merges them into one and gives the extra KAS back.")
                 card(icon: "arrow.triangle.2.circlepath", title: "Swapping",
-                     detail: "To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside KaChat, connected to the address you pick.")
+                     detail: "To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick.")
                 card(icon: "apps.iphone", title: "Your Other Apps",
                      detail: "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here.")
                 card(icon: "clock", title: "History",

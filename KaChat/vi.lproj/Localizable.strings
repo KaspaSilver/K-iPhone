@@ -112,7 +112,7 @@
 "Group Info" = "Thông tin nhóm";
 "Hidden Users" = "Người dùng đã ẩn";
 "Hide User" = "Ẩn người dùng";
-"How KaChat Uses Kaspa" = "Cach KaChat su dung Kaspa";
+"How K Uses Kaspa" = "Cach K su dung Kaspa";
 "IP Address Book" = "Sổ địa chỉ IP";
 "If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Tap the fee amount to set a custom fee." = "Nếu mạng bận, tùy chọn Nhanh hoặc Ưu tiên sẽ trả phí cao hơn để giúp xác nhận nhanh hơn. Chạm vào số tiền phí để đặt phí tùy chỉnh.";
 "If the network is busy, a higher fee can help your transaction confirm faster." = "Nếu mạng bận, phí cao hơn có thể giúp giao dịch của bạn xác nhận nhanh hơn.";
@@ -133,8 +133,8 @@
 "KNS profile update failed: %@" = "KNS cập nhật hồ sơ không thành công: %@";
 "KNS profile updated." = "KNS đã cập nhật hồ sơ.";
 "KaChat" = "KaChat";
-"KaChat lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "KaChat cho phep ban gui va nhan tin nhan truc tiep tren mang luoi Kaspa. Can co Kaspa de tra phi khi gui tin nhan cua ban. Phi ban tra se den tay cac thợ dao bao mat mang luoi.";
-"KaChat needs to connect to a node. How would you like to connect?" = "KaChat cần kết nối với một nút. Bạn muốn kết nối như thế nào?";
+"K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K cho phep ban gui va nhan tin nhan truc tiep tren mang luoi Kaspa. Can co Kaspa de tra phi khi gui tin nhan cua ban. Phi ban tra se den tay cac thợ dao bao mat mang luoi.";
+"K needs to connect to a node. How would you like to connect?" = "K cần kết nối với một nút. Bạn muốn kết nối như thế nào?";
 "Kaspa Explorer" = "Trình khám phá Kaspa";
 "Kaspa Explorer API" = "Kaspa Explorer API";
 "Kaspa Node" = "Nút Kaspa";
@@ -253,7 +253,7 @@
 "Words copied. Clipboard will clear in 30s." = "Đã sao chép các từ. Bộ nhớ tạm sẽ bị xóa sau 30 giây.";
 "Select a chat" = "Chọn một cuộc trò chuyện";
 "Select the currency you'd like prices displayed in." = "Chon loai tien te ban muon hien thi gia.";
-"Select the language you'd like to use in KaChat." = "Chon ngon ngu ban muon su dung trong KaChat.";
+"Select the language you'd like to use in K." = "Chon ngon ngu ban muon su dung trong K.";
 "Selected data is not a valid image" = "Dữ liệu đã chọn không phải là hình ảnh hợp lệ";
 "Send" = "Gửi";
 "Send Handshake" = "Gửi yêu cầu liên lạc";
@@ -308,7 +308,7 @@
 "Wallet not available." = "Ví không có sẵn.";
 "Website" = "Trang web";
 "Welcome Guide" = "Hướng dẫn chào mừng";
-"Welcome to KaChat" = "Chao mung ban den voi KaChat";
+"Welcome to K" = "Chao mung ban den voi K";
 "Wipe and re-sync incoming messages" = "Xóa và đồng bộ lại tin nhắn đến";
 "X handle" = "Tay cầm chữ X";
 "fee: -- KAS" = "phí: -- KAS";
@@ -341,8 +341,8 @@
 "Coming soon" = "Sắp ra mắt";
 "Not available on this network" = "Không khả dụng trên mạng này";
 "Testnet" = "Testnet";
-"Close KaChat completely and open it again to finish switching to Testnet." = "Đóng hẳn KaChat rồi mở lại để hoàn tất chuyển sang Testnet.";
-"Close KaChat completely and open it again to finish switching back to Mainnet." = "Đóng hẳn KaChat rồi mở lại để hoàn tất quay về Mainnet.";
+"Close K completely and open it again to finish switching to Testnet." = "Đóng hẳn K rồi mở lại để hoàn tất chuyển sang Testnet.";
+"Close K completely and open it again to finish switching back to Mainnet." = "Đóng hẳn K rồi mở lại để hoàn tất quay về Mainnet.";
 
 /* 5.2: Kaspa Hub > .kachat marketplace */
 
@@ -514,8 +514,8 @@
 "Passphrase" = "Cụm mật khẩu";
 
 /* Addresses of the other network are refused (IOS-003) */
-"This is a Testnet address. KaChat is on Mainnet." = "Đây là địa chỉ Testnet. KaChat đang ở Mainnet.";
-"This is a Mainnet address. KaChat is on Testnet." = "Đây là địa chỉ Mainnet. KaChat đang ở Testnet.";
+"This is a Testnet address. K is on Mainnet." = "Đây là địa chỉ Testnet. K đang ở Mainnet.";
+"This is a Mainnet address. K is on Testnet." = "Đây là địa chỉ Mainnet. K đang ở Testnet.";
 
 /* Siri / Shortcuts payments are confirmed (IOS-021) */
 "Send %@ to %@?" = "Gửi %1$@ cho %2$@?";
@@ -558,7 +558,7 @@
 "How many words are you importing?" = "Bạn đang nhập bao nhiêu từ?";
 "What are my 12 or 24 words?" = "12 hoặc 24 từ của tôi là gì?";
 "Your 12 or 24 words are ordinary words that work as the master key to your account. Your wallet, your chatting address and your messages all come from them." = "12 hoặc 24 từ của bạn là những từ bình thường đóng vai trò chìa khóa chính của tài khoản. Ví, địa chỉ trò chuyện và tin nhắn của bạn đều đến từ chúng.";
-"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even KaChat." = "Bất kỳ ai có các từ này đều có thể lấy hết mọi thứ trong tài khoản của bạn. Nếu bạn làm mất chúng và cũng mất thiết bị này, không ai có thể khôi phục tài khoản cho bạn, kể cả KaChat.";
+"Anyone who has these words can take everything in your account. If you lose them and lose this device, nobody can get your account back, not even K." = "Bất kỳ ai có các từ này đều có thể lấy hết mọi thứ trong tài khoản của bạn. Nếu bạn làm mất chúng và cũng mất thiết bị này, không ai có thể khôi phục tài khoản cho bạn, kể cả K.";
 "Write the words on paper, in order, and keep them somewhere safe and private. Never type them into a website, send them in a chat, or keep them in a screenshot or cloud notes." = "Hãy viết các từ ra giấy theo đúng thứ tự và cất ở nơi an toàn, riêng tư. Đừng bao giờ gõ chúng vào trang web, gửi qua tin nhắn, hay lưu trong ảnh chụp màn hình hoặc ghi chú trên đám mây.";
 
 /* Onboarding: seed phrase explainer page headings */
@@ -626,18 +626,18 @@
 /* .kachat: fees, busy network, progress receipt */
 "Sent to the network" = "Đã gửi lên mạng";
 "In a block" = "Trong một khối";
-"Updated in KaChat" = "Đã cập nhật trong KaChat";
+"Updated in K" = "Đã cập nhật trong K";
 "Waiting for the network to put it in a block. Usually a few seconds; longer when it's busy." = "Đang chờ mạng đưa vào khối. Thường vài giây; lâu hơn khi mạng bận.";
-"It's in a block. Updating KaChat..." = "Đã vào khối. Đang cập nhật KaChat...";
-"Done. It shows in KaChat now." = "Xong. Giờ đã hiển thị trong KaChat.";
+"It's in a block. Updating K..." = "Đã vào khối. Đang cập nhật K...";
+"Done. It shows in K now." = "Xong. Giờ đã hiển thị trong K.";
 "The network hasn't taken it. Nothing was spent if it never lands - try again with a faster fee." = "Mạng chưa nhận giao dịch. Nếu nó không bao giờ vào, không có gì bị tiêu - hãy thử lại với phí nhanh hơn.";
 "Tap the transaction to open it in the explorer." = "Chạm vào giao dịch để mở trong trình khám phá.";
 
 /* .kachat offers: tiles and half sheet */
 
 /* Audit run 3: Address Book network checks, .kachat fee re-check */
-"Every address in that file is a Mainnet address. KaChat is on Testnet." = "Mọi địa chỉ trong tệp đó đều là địa chỉ Mainnet. KaChat đang ở Testnet.";
-"Every address in that file is a Testnet address. KaChat is on Mainnet." = "Mọi địa chỉ trong tệp đó đều là địa chỉ Testnet. KaChat đang ở Mainnet.";
+"Every address in that file is a Mainnet address. K is on Testnet." = "Mọi địa chỉ trong tệp đó đều là địa chỉ Mainnet. K đang ở Testnet.";
+"Every address in that file is a Testnet address. K is on Mainnet." = "Mọi địa chỉ trong tệp đó đều là địa chỉ Testnet. K đang ở Mainnet.";
 "Skipped %lld from the other network." = "Đã bỏ qua %lld địa chỉ của mạng khác.";
 
 /* .kachat registry v5 migration */
@@ -775,7 +775,7 @@
 /* User Info: look the person's avatar, banner and bio up again now */
 
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
-"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. KaChat tells them once your chatting address has some KAS." = "Địa chỉ trò chuyện của bạn không có KAS để báo cho %@ về khoản thanh toán này, nên họ sẽ thấy đây là khoản thanh toán từ một địa chỉ lạ, không có ghi chú. KaChat sẽ báo cho họ khi địa chỉ trò chuyện của bạn có KAS.";
+"Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "Địa chỉ trò chuyện của bạn không có KAS để báo cho %@ về khoản thanh toán này, nên họ sẽ thấy đây là khoản thanh toán từ một địa chỉ lạ, không có ghi chú. K sẽ báo cho họ khi địa chỉ trò chuyện của bạn có KAS.";
 
 /* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
@@ -787,7 +787,7 @@
 "12 or 24 Words Needed" = "Cần 12 hoặc 24 từ";
 "Enter 12 or 24 Words" = "Nhập 12 hoặc 24 từ";
 "%@ is on this iPhone, but its keys are not. That happens after restoring from a backup, because keys are locked to the phone they were made on. Enter the account's 12 or 24 words to sign in. Its history on this phone is kept." = "%@ có trên iPhone này nhưng khóa của nó thì không. Điều này xảy ra sau khi khôi phục từ bản sao lưu, vì khóa gắn với điện thoại đã tạo ra chúng. Nhập 12 hoặc 24 từ của tài khoản để đăng nhập. Lịch sử của nó trên điện thoại này được giữ lại.";
-"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because KaChat's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "iPhone này có tài khoản của bạn nhưng không có khóa. Điều này xảy ra sau khi khôi phục điện thoại từ bản sao lưu, vì khóa của KaChat gắn với thiết bị đã tạo ra chúng. Nhập 12 hoặc 24 từ của bạn để mở khóa tại đây. Tin nhắn của bạn trên thiết bị này được giữ lại.";
+"This iPhone has your account but not its keys. That happens after restoring a phone from a backup, because K's keys are locked to the device they were created on. Enter your 12 or 24 words to unlock it here. Your messages on this device are kept." = "iPhone này có tài khoản của bạn nhưng không có khóa. Điều này xảy ra sau khi khôi phục điện thoại từ bản sao lưu, vì khóa của K gắn với thiết bị đã tạo ra chúng. Nhập 12 hoặc 24 từ của bạn để mở khóa tại đây. Tin nhắn của bạn trên thiết bị này được giữ lại.";
 
 
 /* The chat list's name for the chat with yourself */
@@ -875,7 +875,7 @@
 "How much?" = "Bao nhiêu?";
 "You're requesting" = "Bạn đang yêu cầu";
 "A brand-new address of yours that has never been used or handed out." = "Một địa chỉ hoàn toàn mới của bạn, chưa từng được dùng hay chia sẻ.";
-"Anyone who opens it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "Ai mở nó trong KaChat sẽ thấy màn hình Gửi Kaspa đã điền sẵn và biết yêu cầu này do địa chỉ trò chuyện của bạn tạo (ký bằng khóa của nó).";
+"Anyone who opens it in K gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key)." = "Ai mở nó trong K sẽ thấy màn hình Gửi Kaspa đã điền sẵn và biết yêu cầu này do địa chỉ trò chuyện của bạn tạo (ký bằng khóa của nó).";
 
 /* Contacts (was Address Book) */
 "Add to Contacts" = "Thêm vào Danh bạ";
@@ -896,11 +896,11 @@
 "Edit Contact" = "Sửa liên hệ";
 "No contacts yet" = "Chưa có liên hệ";
 "Delete %@ from your contacts?" = "Xóa %@ khỏi danh bạ?";
-"Save the Kaspa addresses you use with a name you'll recognize. They stay in KaChat, for this wallet only, and never go into your phone's Contacts app." = "Lưu các địa chỉ Kaspa bạn dùng với tên dễ nhận ra. Chúng ở lại trong KaChat, chỉ cho ví này, và không bao giờ vào ứng dụng Danh bạ của điện thoại.";
-"Saved in KaChat for this wallet only. Never added to your phone's Contacts app." = "Lưu trong KaChat chỉ cho ví này. Không bao giờ thêm vào ứng dụng Danh bạ của điện thoại.";
+"Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "Lưu các địa chỉ Kaspa bạn dùng với tên dễ nhận ra. Chúng ở lại trong K, chỉ cho ví này, và không bao giờ vào ứng dụng Danh bạ của điện thoại.";
+"Saved in K for this wallet only. Never added to your phone's Contacts app." = "Lưu trong K chỉ cho ví này. Không bao giờ thêm vào ứng dụng Danh bạ của điện thoại.";
 "This is a fresh address, never used before." = "Đây là địa chỉ mới, chưa từng được sử dụng.";
 "Use for chatting and acquiring .kachat domains." = "Dùng để trò chuyện và nhận tên miền .kachat.";
-"Think of it like your phone number on KaChat." = "Hãy xem nó như số điện thoại của bạn trên KaChat.";
+"Think of it like your phone number on K." = "Hãy xem nó như số điện thoại của bạn trên K.";
 "How People Reach You" = "Cách mọi người liên hệ với bạn";
 "Share this address and people can message you. Only you can read what they send." = "Chia sẻ địa chỉ này để mọi người có thể nhắn tin cho bạn. Chỉ bạn mới đọc được nội dung họ gửi.";
 "Paying for Messages" = "Trả phí tin nhắn";
@@ -939,7 +939,7 @@
 "Complete Your Backup" = "Hoàn tất sao lưu";
 "Back Up to NFC Card" = "Sao lưu vào thẻ NFC";
 "Wipe and re-sync incoming messages?" = "Xóa và đồng bộ lại tin nhắn đến?";
-"KaChat is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "KaChat đang gặp sự cố đồng bộ. Ứng dụng vẫn tiếp tục thử lại và tin nhắn của bạn sẽ tự cập nhật khi có kết nối trở lại, nên bạn không cần xóa.";
+"K is having trouble syncing right now. It keeps retrying, and your messages catch up on their own once the connection is back, so you shouldn't need to wipe." = "K đang gặp sự cố đồng bộ. Ứng dụng vẫn tiếp tục thử lại và tin nhắn của bạn sẽ tự cập nhật khi có kết nối trở lại, nên bạn không cần xóa.";
 "Privacy Policy" = "Chính sách quyền riêng tư";
 "Open Source Licenses" = "Giấy phép mã nguồn mở";
 "Appearance" = "Giao diện";
@@ -1014,7 +1014,7 @@
 "No emoji match that." = "Không có emoji nào khớp.";
 "%lld member%@" = "%lld thành viên%@";
 "Reply not sent" = "Chưa gửi được câu trả lời";
-"Your reply couldn't be sent. Open KaChat to try again." = "Không gửi được câu trả lời của bạn. Hãy mở KaChat để thử lại.";
+"Your reply couldn't be sent. Open K to try again." = "Không gửi được câu trả lời của bạn. Hãy mở K để thử lại.";
 "1 Reaction" = "1 lượt cảm xúc";
 "%lld Reactions" = "%lld lượt cảm xúc";
 "1 person" = "1 người";
@@ -1102,7 +1102,7 @@
 "These addresses couldn't be derived right now. Go back a page or reopen this screen to retry." = "Hiện chưa thể tạo các địa chỉ này. Hãy quay lại một trang hoặc mở lại màn hình này để thử lại.";
 "Add, import or export" = "Thêm, nhập hoặc xuất";
 "KaChat Contact" = "Liên hệ KaChat";
-"KaChat is built with these open source libraries. Their authors ask that these notices travel with the app." = "KaChat được xây dựng bằng các thư viện mã nguồn mở này. Tác giả của chúng yêu cầu các thông báo này đi kèm với ứng dụng.";
+"K is built with these open source libraries. Their authors ask that these notices travel with the app." = "K được xây dựng bằng các thư viện mã nguồn mở này. Tác giả của chúng yêu cầu các thông báo này đi kèm với ứng dụng.";
 "24 words" = "24 từ";
 "Enter your 12 or 24 words" = "Nhập 12 hoặc 24 từ của bạn";
 "More reactions" = "Thêm cảm xúc";
@@ -1198,7 +1198,7 @@
 "Your phone can't be your only copy" = "Điện thoại không thể là bản sao duy nhất của bạn";
 "If you lose, break or replace this phone, these words are the only way back to your account." = "Nếu bạn làm mất, làm hỏng hoặc thay điện thoại này, những từ này là cách duy nhất để quay lại tài khoản của bạn.";
 "Nobody can reset them" = "Không ai có thể đặt lại chúng";
-"There is no password reset. KaChat never sees your words, so we can't recover them for you." = "Không có cách đặt lại mật khẩu. KaChat không bao giờ thấy các từ của bạn, nên chúng tôi không thể khôi phục chúng cho bạn.";
+"There is no password reset. K never sees your words, so we can't recover them for you." = "Không có cách đặt lại mật khẩu. K không bao giờ thấy các từ của bạn, nên chúng tôi không thể khôi phục chúng cho bạn.";
 "Get ready" = "Chuẩn bị";
 "Your secret words are next. Before you see them:" = "Tiếp theo là các từ bí mật của bạn. Trước khi xem:";
 "I have a pen and paper" = "Tôi có bút và giấy";
@@ -1225,7 +1225,7 @@
 "Never keep it online" = "Không bao giờ lưu trên mạng";
 "No photos, screenshots, cloud storage, notes apps, email or chats." = "Không ảnh, không ảnh chụp màn hình, không lưu trữ đám mây, không ứng dụng ghi chú, không email hay trò chuyện.";
 "Never share it" = "Không bao giờ chia sẻ";
-"Nobody needs your words. KaChat and real support will never ask for them. Anyone who asks is trying to take your funds." = "Không ai cần các từ của bạn. KaChat và bộ phận hỗ trợ thật sẽ không bao giờ hỏi chúng. Bất kỳ ai hỏi đều đang cố lấy tiền của bạn.";
+"Nobody needs your words. K and real support will never ask for them. Anyone who asks is trying to take your funds." = "Không ai cần các từ của bạn. K và bộ phận hỗ trợ thật sẽ không bao giờ hỏi chúng. Bất kỳ ai hỏi đều đang cố lấy tiền của bạn.";
 "Keep your passphrase apart" = "Giữ cụm mật khẩu riêng biệt";
 "Store it away from your 12 or 24 words. You need both, and losing either one loses the account." = "Hãy cất nó tách khỏi 12 hoặc 24 từ của bạn. Bạn cần cả hai, và mất một trong hai là mất tài khoản.";
 "You can see it again" = "Bạn có thể xem lại";
@@ -1409,7 +1409,7 @@
 "Notifications from this group resume, including mentions." = "Thông báo từ nhóm này được bật lại, bao gồm cả nhắc đến.";
 "One minute each, plus one second a move." = "Mỗi bên một phút, cộng một giây mỗi nước đi.";
 "Open in Explorer" = "Mở trong trình khám phá";
-"Open in KaChat" = "Mở trong KaChat";
+"Open in K" = "Mở trong K";
 "Open in KaPost" = "Mở trong KaPost";
 "Open your chat with them in payment mode." = "Mở cuộc trò chuyện với họ ở chế độ thanh toán.";
 "Opens in your browser." = "Mở trong trình duyệt của bạn.";
@@ -1476,10 +1476,10 @@
 "Restoring messages... %d of %d conversations" = "Đang khôi phục tin nhắn... %d/%d cuộc trò chuyện";
 "Deletes %@ (%@) and its local data from this device." = "Xóa %@ (%@) và dữ liệu cục bộ khỏi thiết bị này.";
 "Passcode Required" = "Cần mật mã";
-"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in KaChat." = "Hãy đặt mật mã trên iPhone này (Cài đặt > Face ID & Mật mã) để xóa tài khoản hoặc xem khóa bí mật trong KaChat.";
+"Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "Hãy đặt mật mã trên iPhone này (Cài đặt > Face ID & Mật mã) để xóa tài khoản hoặc xem khóa bí mật trong K.";
 "Waiting on opponent" = "Đang chờ đối thủ";
 "Not sent: you switched accounts before this went out." = "Chưa gửi: bạn đã đổi tài khoản trước khi gửi.";
-"The first of two transactions went through, but the second didn't. KaChat will finish it the next time it opens." = "Giao dịch đầu tiên trong hai giao dịch đã thành công, nhưng giao dịch thứ hai thì chưa. KaChat sẽ hoàn tất ở lần mở tiếp theo.";
+"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "Giao dịch đầu tiên trong hai giao dịch đã thành công, nhưng giao dịch thứ hai thì chưa. K sẽ hoàn tất ở lần mở tiếp theo.";
 "A domain transfer's fee can be at most 1 KAS." = "Phí chuyển tên miền tối đa là 1 KAS.";
 "Confirm setting this primary name" = "Xác nhận đặt tên chính này";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "Khóa của tài khoản này có thể vẫn còn trên điện thoại này, nhưng hiện không đọc được nên chưa có gì thay đổi. Hãy thử lại sau giây lát.";
@@ -1490,7 +1490,7 @@
 "Standard Kaspa Wallet" = "Ví Kaspa tiêu chuẩn";
 "Has history" = "Có lịch sử";
 "See Every Wallet Type" = "Xem mọi loại ví";
-"KaChat checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "KaChat đối chiếu các từ của bạn với mọi loại ví Kaspa, nên bạn không cần biết chúng đến từ ví nào.";
+"K checks your words against every kind of Kaspa wallet, so you don't need to know which one they came from." = "K đối chiếu các từ của bạn với mọi loại ví Kaspa, nên bạn không cần biết chúng đến từ ví nào.";
 "This address has history, so this looks like the right account." = "Địa chỉ này có lịch sử, nên có vẻ đây là tài khoản đúng.";
 "No funds or history on this address." = "Địa chỉ này không có tiền hoặc lịch sử.";
 "We picked the most likely account. Tap another if that's not the one you use." = "Chúng tôi đã chọn tài khoản có khả năng nhất. Hãy chạm vào tài khoản khác nếu đây không phải tài khoản bạn dùng.";
@@ -1519,14 +1519,14 @@
 "Tap Retry on the voice message to send the rest." = "Nhấn Thử lại trên tin nhắn thoại để gửi phần còn lại.";
 "Network fee: %@" = "Phí mạng: %@";
 "Couldn't Remove App Password" = "Không xoá được mật khẩu ứng dụng";
-"KaChat couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "KaChat không xoá được mật khẩu ứng dụng khỏi %@. Nó đã bị xoá khỏi điện thoại này nhưng vẫn có thể đăng nhập ở đó: hãy xoá nó trong Nextcloud tại Cài đặt > Bảo mật > Thiết bị & phiên.";
+"K couldn't remove its app password from %@. It is gone from this phone, but it can still sign in there: delete it in Nextcloud under Settings > Security > Devices & sessions." = "K không xoá được mật khẩu ứng dụng khỏi %@. Nó đã bị xoá khỏi điện thoại này nhưng vẫn có thể đăng nhập ở đó: hãy xoá nó trong Nextcloud tại Cài đặt > Bảo mật > Thiết bị & phiên.";
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Địa chỉ trò chuyện của bạn cũng trả %@ KAS để báo cho %@ về khoản thanh toán này.";
 "Tap Retry on the photo to send the rest." = "Nhấn Thử lại trên ảnh để gửi phần còn lại.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Tin nhắn này cần quá nhiều coin cho một giao dịch. Hãy dùng Compound UTXOs cho địa chỉ trò chuyện, rồi thử lại.";
 "Use Their Domain Name" = "Dùng tên miền của họ";
 "Show Request As QR" = "Hiện yêu cầu dưới dạng QR";
 "Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Quét bằng camera iPhone để thanh toán trong KaPay, mọi thứ đã được điền sẵn.";
-"Scan it with an iPhone's camera to pay in KaChat, with everything filled in." = "Quét bằng camera iPhone để thanh toán trong KaChat, mọi thứ đã được điền sẵn.";
+"Scan it with an iPhone's camera to pay in K, with everything filled in." = "Quét bằng camera iPhone để thanh toán trong K, mọi thứ đã được điền sẵn.";
 "Get a .kachat domain" = "Nhận tên miền .kachat";
 "Set as Name" = "Đặt làm tên";
 "Their Name" = "Tên của họ";
@@ -1658,12 +1658,12 @@
 "kUSDT's transaction builder couldn't start." = "Trình tạo giao dịch kUSDT không khởi động được.";
 "kUSDT's transaction builder gave no answer." = "Trình tạo giao dịch kUSDT không trả lời.";
 "kUSDT's transaction builder isn't the pinned one, so it won't run." = "Trình tạo giao dịch kUSDT không phải bản đã ghim, nên sẽ không chạy.";
-"KaChat's kUSDT template is missing, so kUSDT can't be checked." = "Thiếu mẫu kUSDT của KaChat, nên không kiểm tra được kUSDT.";
-"The network fee is above KaChat's safety limit. Nothing was sent." = "Phí mạng vượt giới hạn an toàn của KaChat. Không có gì được gửi.";
+"K's kUSDT template is missing, so kUSDT can't be checked." = "Thiếu mẫu kUSDT của K, nên không kiểm tra được kUSDT.";
+"The network fee is above K's safety limit. Nothing was sent." = "Phí mạng vượt giới hạn an toàn của K. Không có gì được gửi.";
 "Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "Nhận vào một địa chỉ mới của bạn. Mua và đổi kUSDT được thực hiện trong KaPay.";
 "Release to Confirm" = "Thả để xác nhận";
 "The transaction didn't go out." = "Giao dịch chưa được gửi đi.";
-"Where KaChat looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Nơi KaChat tra cứu kUSDT của bạn. Mỗi đồng được liệt kê đều được kiểm tra trên nút Kaspa trước khi tính. Để trống để dùng mặc định của mạng này.";
+"Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Nơi K tra cứu kUSDT của bạn. Mỗi đồng được liệt kê đều được kiểm tra trên nút Kaspa trước khi tính. Để trống để dùng mặc định của mạng này.";
 "Fee %@" = "Phí %@";
 
 /* Share Profile sheet (2026-11-20) */
@@ -1769,7 +1769,7 @@
 "How it works" = "Cách hoạt động";
 "List" = "Rao bán";
 "Trustless" = "Không cần tin cậy";
-"Set a price. The name waits in an on-chain covenant, not with KaChat or anyone else, until someone buys it or you take it back." = "Đặt giá. Tên chờ trong một covenant trên chuỗi - không nằm ở KaChat hay ai khác - cho đến khi có người mua hoặc bạn rút lại.";
+"Set a price. The name waits in an on-chain covenant, not with K or anyone else, until someone buys it or you take it back." = "Đặt giá. Tên chờ trong một covenant trên chuỗi - không nằm ở K hay ai khác - cho đến khi có người mua hoặc bạn rút lại.";
 "Pay the listed price. The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does." = "Trả giá niêm yết. Khoản thanh toán đến người bán và tên đến bạn trong cùng một giao dịch - hoặc cả hai xảy ra, hoặc không gì cả.";
 "No middleman and no escrow account: Kaspa's own rules enforce every sale." = "Không trung gian, không tài khoản ký quỹ: chính quy tắc của Kaspa bảo đảm mọi giao dịch.";
 "Nothing here is live yet." = "Chưa có gì hoạt động ở đây.";
@@ -1924,7 +1924,7 @@
 "Takes the name off the market." = "Gỡ tên khỏi chợ.";
 "Puts the name up for sale at your price." = "Rao bán tên với giá của bạn.";
 "Sends the name to another address." = "Gửi tên đến địa chỉ khác.";
-"Shows you by this name across KaChat." = "Hiển thị bạn bằng tên này trên toàn KaChat.";
+"Shows you by this name across K." = "Hiển thị bạn bằng tên này trên toàn K.";
 "Gives the name up and returns its deposit." = "Từ bỏ tên và hoàn lại tiền đặt cọc.";
 "Expires in %@" = "Hết hạn sau %@";
 "Expired - returning to you" = "Đã hết hạn - đang hoàn lại cho bạn";
@@ -2038,7 +2038,7 @@
 "Nothing can change now: this is the transaction KasSigner signed." = "Giờ không thể thay đổi gì nữa: đây là giao dịch KasSigner đã ký.";
 "Watch-only. This cannot spend, but it reveals every address in this account." = "Chỉ theo dõi. Không thể chi tiêu, nhưng sẽ hiển thị mọi địa chỉ trong tài khoản này.";
 "Your KAS is in many small coins. When you swipe, KaPay first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS của bạn đang chia thành nhiều đồng nhỏ. Khi bạn vuốt, KaPay sẽ gộp chúng thành một trước (một giao dịch riêng với phí nhỏ của nó), rồi gửi khoản này.";
-"The price goes to the miners - KaChat takes nothing." = "Giá trả cho thợ đào - KaChat không lấy gì cả.";
+"The price goes to the miners - K takes nothing." = "Giá trả cho thợ đào - K không lấy gì cả.";
 "Length" = "Thời hạn";
 "Claiming sends two transactions: the commit now, the registration about a minute later. Both pay this fee rate." = "Nhận tên sẽ gửi hai giao dịch: cam kết ngay bây giờ, đăng ký khoảng một phút sau. Cả hai đều trả theo mức phí này.";
 "The price changed. Check it and swipe again." = "Giá đã thay đổi. Hãy kiểm tra và vuốt lại.";
@@ -2223,11 +2223,11 @@
 "Import failed." = "Nhập thất bại.";
 
 /* Ported KaPay screens, named KaChat (2026-11-21) */
-"The commit has to age for about a minute before the name can be registered. Keep KaChat open - it registers by itself, and picks up where it left off if you leave." = "Cam kết cần chờ khoảng một phút trước khi tên có thể được đăng ký. Hãy để KaChat mở - ứng dụng tự đăng ký, và tiếp tục từ chỗ dừng nếu bạn rời đi.";
-"Your KAS is in many small coins. KaChat combines them into one before registering, for a tiny extra network fee." = "KAS của bạn nằm rải rác trong nhiều đồng nhỏ. KaChat gộp chúng thành một trước khi đăng ký, với một khoản phí mạng nhỏ thêm.";
-"Your KAS is in many small coins. When you swipe, KaChat first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS của bạn đang chia thành nhiều đồng nhỏ. Khi bạn vuốt, KaChat sẽ gộp chúng thành một trước (một giao dịch riêng với phí nhỏ của nó), rồi gửi khoản này.";
-"This only removes it from KaChat's watch list. It has no effect on the KasSigner device or any funds it holds." = "Điều này chỉ xóa nó khỏi danh sách theo dõi của KaChat. Nó không ảnh hưởng đến thiết bị KasSigner hoặc bất kỳ khoản tiền nào nó nắm giữ.";
-"Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "Hãy giữ KaChat mở: tên được đăng ký khoảng một phút sau khi cam kết ẩn được xác nhận. Nếu bạn rời đi, quá trình sẽ tiếp tục từ chỗ dừng khi bạn quay lại.";
+"The commit has to age for about a minute before the name can be registered. Keep K open - it registers by itself, and picks up where it left off if you leave." = "Cam kết cần chờ khoảng một phút trước khi tên có thể được đăng ký. Hãy để K mở - ứng dụng tự đăng ký, và tiếp tục từ chỗ dừng nếu bạn rời đi.";
+"Your KAS is in many small coins. K combines them into one before registering, for a tiny extra network fee." = "KAS của bạn nằm rải rác trong nhiều đồng nhỏ. K gộp chúng thành một trước khi đăng ký, với một khoản phí mạng nhỏ thêm.";
+"Your KAS is in many small coins. When you swipe, K first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS của bạn đang chia thành nhiều đồng nhỏ. Khi bạn vuốt, K sẽ gộp chúng thành một trước (một giao dịch riêng với phí nhỏ của nó), rồi gửi khoản này.";
+"This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds." = "Điều này chỉ xóa nó khỏi danh sách theo dõi của K. Nó không ảnh hưởng đến thiết bị KasSigner hoặc bất kỳ khoản tiền nào nó nắm giữ.";
+"Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "Hãy giữ K mở: tên được đăng ký khoảng một phút sau khi cam kết ẩn được xác nhận. Nếu bạn rời đi, quá trình sẽ tiếp tục từ chỗ dừng khi bạn quay lại.";
 
 /* Trestly inside KaChat, from KaPay (2026-11-21) */
 "Sent %@ on %@" = "Đã gửi %@ vào %@";
@@ -2284,18 +2284,18 @@
 "Swap sent: %@ for %@" = "Đã gửi hoán đổi: %@ lấy %@";
 "Swap Complete" = "Hoán đổi hoàn tất";
 "Swap Sent" = "Đã gửi hoán đổi";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first and gives less, KaChat asks you again; it never takes below 99% of this quote." = "Được tạo và kiểm tra bởi chính mã của Trestly trong KaChat. Nếu pool thay đổi trước và cho ít hơn, KaChat sẽ hỏi lại; không bao giờ dưới 99% mức báo giá này.";
-"Built and checked by Trestly's own code inside KaChat. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Được tạo và kiểm tra bởi chính mã của Trestly trong KaChat. Nếu pool thay đổi trước, giá sẽ được tính lại: chỉ tiếp tục ở giá này hoặc tốt hơn, hỏi lại nếu thấp hơn và không bao giờ dưới mức tối thiểu của trang.";
-"More stablecoins will show here as KaChat adds them." = "Các stablecoin khác sẽ hiện ở đây khi KaChat thêm vào.";
-"On Trestly, inside KaChat" = "Trên Trestly, ngay trong KaChat";
-"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside KaChat, connected to the address you pick." = "Để hoán đổi KAS và kUSDT, hoặc thêm vào pool, hãy chạm Hoán đổi stablecoin ở tab Ví và chọn kUSDT. Trang của Trestly mở ngay trong KaChat, kết nối với địa chỉ bạn chọn.";
-"Trestly asks KaChat to" = "Trestly yêu cầu KaChat";
+"Built and checked by Trestly's own code inside K. If the pool moves first and gives less, K asks you again; it never takes below 99% of this quote." = "Được tạo và kiểm tra bởi chính mã của Trestly trong K. Nếu pool thay đổi trước và cho ít hơn, K sẽ hỏi lại; không bao giờ dưới 99% mức báo giá này.";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum." = "Được tạo và kiểm tra bởi chính mã của Trestly trong K. Nếu pool thay đổi trước, giá sẽ được tính lại: chỉ tiếp tục ở giá này hoặc tốt hơn, hỏi lại nếu thấp hơn và không bao giờ dưới mức tối thiểu của trang.";
+"More stablecoins will show here as K adds them." = "Các stablecoin khác sẽ hiện ở đây khi K thêm vào.";
+"On Trestly, inside K" = "Trên Trestly, ngay trong K";
+"To swap KAS and kUSDT, or add to the pool, tap Swap Stablecoins on the Wallet tab and choose kUSDT. Trestly's own site opens inside K, connected to the address you pick." = "Để hoán đổi KAS và kUSDT, hoặc thêm vào pool, hãy chạm Hoán đổi stablecoin ở tab Ví và chọn kUSDT. Trang của Trestly mở ngay trong K, kết nối với địa chỉ bạn chọn.";
+"Trestly asks K to" = "Trestly yêu cầu K";
 "Your other apps on the same words show the same kUSDT and can send it. Swapping happens here." = "Các ứng dụng khác của bạn dùng cùng bộ từ sẽ hiển thị cùng kUSDT và có thể gửi. Hoán đổi diễn ra ở đây.";
 
 /* Trestly site setting (2026-11-21) */
 "Trestly Site URL" = "URL trang Trestly";
 "Trestly Site" = "Trang Trestly";
-"The site Swap Stablecoins shows inside KaChat, connected to the address you choose. Leave it blank for this network's default." = "Trang mà Hoán đổi stablecoin hiển thị trong KaChat, kết nối với địa chỉ bạn chọn. Để trống để dùng mặc định của mạng này.";
+"The site Swap Stablecoins shows inside K, connected to the address you choose. Leave it blank for this network's default." = "Trang mà Hoán đổi stablecoin hiển thị trong K, kết nối với địa chỉ bạn chọn. Để trống để dùng mặc định của mạng này.";
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
@@ -2662,15 +2662,15 @@
 "KaPost isn't available on Testnet yet" = "KaPost chưa khả dụng trên Testnet";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "Chưa có trình lập chỉ mục KaPost cho testnet. Tắt Testnet trong Cài đặt > Kết nối để đọc và đăng trên mainnet.";
 "KaChat Profile" = "Hồ sơ KaChat";
-"Your post is ready to go out. Open KaChat to send it." = "Bài đăng của bạn đã sẵn sàng. Mở KaChat để gửi.";
+"Your post is ready to go out. Open K to send it." = "Bài đăng của bạn đã sẵn sàng. Mở K để gửi.";
 "KaPost Settings" = "Cài đặt KaPost";
 "Search KaPost" = "Tìm trên KaPost";
-"Sharing sends a link that opens this room in KaChat, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Chia sẻ sẽ gửi một liên kết mở phòng này trong KaChat, và một liên kết web cho ai chưa có ứng dụng. Việc ẩn áp dụng theo từng phòng: người bị ẩn ở đây vẫn hiện ở mọi phòng khác.";
+"Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Chia sẻ sẽ gửi một liên kết mở phòng này trong K, và một liên kết web cho ai chưa có ứng dụng. Việc ẩn áp dụng theo từng phòng: người bị ẩn ở đây vẫn hiện ở mọi phòng khác.";
 "Their KaPost profile: posts, replies and followers." = "Hồ sơ KaPost của họ: bài đăng, trả lời và người theo dõi.";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "Máy chủ KaPost không phản hồi. Đang hiển thị bài đã lưu và bài mới từ mạng.";
-"Trestly's pool code couldn't start in KaChat." = "Mã pool của Trestly không thể khởi động trong KaChat.";
+"Trestly's pool code couldn't start in K." = "Mã pool của Trestly không thể khởi động trong K.";
 "Set what Tip sends in KaPost Settings > Tip In." = "Chọn Tip gửi gì trong Cài đặt KaPost > Tip bằng.";
 "Tip didn't send: the smallest tip the network takes is %@. Change your default tip in KaPost Settings." = "Chưa gửi tip: tip nhỏ nhất mạng nhận là %@. Đổi tip mặc định trong Cài đặt KaPost.";
 "Posting poll" = "Đang đăng bình chọn";
@@ -2980,9 +2980,9 @@
 "Play %@" = "Chơi với %@";
 "Players (%lld of %lld)" = "Người chơi (%lld/%lld)";
 "The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "Mã tám ký tự mà người tạo đã chia sẻ. Tham gia là một giao dịch (phí: %@).";
-"Play me at chess in KaChat: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Chơi cờ vua với tôi trên KaChat: mở KaPlay > Cờ vua > 1v1 > Tham gia bằng mã, rồi nhập %@.";
-"Join my chess tournament in KaChat: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Tham gia giải cờ vua của tôi trên KaChat: mở KaPlay > Cờ vua > Giải đấu > Tham gia bằng mã, rồi nhập %@.";
-"I beat %@ (Level %lld) in %lld moves on KaChat. Think you can do it in fewer?" = "Tôi đã thắng %@ (Cấp %lld) trong %lld nước trên KaChat. Bạn có làm được với ít nước hơn không?";
+"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Chơi cờ vua với tôi trên K: mở KaPlay > Cờ vua > 1v1 > Tham gia bằng mã, rồi nhập %@.";
+"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Tham gia giải cờ vua của tôi trên K: mở KaPlay > Cờ vua > Giải đấu > Tham gia bằng mã, rồi nhập %@.";
+"I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Tôi đã thắng %@ (Cấp %lld) trong %lld nước trên K. Bạn có làm được với ít nước hơn không?";
 "Share to KaPost" = "Chia sẻ lên KaPost";
 "Games" = "Trò chơi";
 "Chess Challenge" = "Thách đấu cờ vua";
@@ -3050,9 +3050,9 @@
 "How a name works" = "Tên hoạt động thế nào";
 "Claiming takes two quick transactions: the first keeps your pick secret, the second registers it." = "Nhận tên cần hai giao dịch nhanh: giao dịch đầu giữ bí mật lựa chọn, giao dịch thứ hai đăng ký.";
 "You pay for one period at a time. Shorter names cost more." = "Bạn trả cho từng kỳ một. Tên càng ngắn càng đắt.";
-"The price goes to the network's miners, not to KaChat." = "Khoản phí trả cho thợ đào của mạng, không phải cho KaChat.";
+"The price goes to the network's miners, not to K." = "Khoản phí trả cho thợ đào của mạng, không phải cho K.";
 "Make it your name" = "Biến nó thành tên của bạn";
-"Set it as your primary name and it's how you appear everywhere in KaChat." = "Đặt làm tên chính và bạn sẽ hiện với tên đó ở mọi nơi trong KaChat.";
+"Set it as your primary name and it's how you appear everywhere in K." = "Đặt làm tên chính và bạn sẽ hiện với tên đó ở mọi nơi trong K.";
 "They can send you Kaspa to yourname.kachat instead of a long address." = "Họ có thể gửi Kaspa tới tenban.kachat thay vì một địa chỉ dài.";
 "Your profile link shows your name." = "Liên kết hồ sơ của bạn hiển thị tên bạn.";
 "Renew before it expires. It shows when, on each name." = "Gia hạn trước khi hết hạn. Mỗi tên đều hiện ngày.";
@@ -3063,21 +3063,21 @@
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "Tên của bạn nằm trên mạng Kaspa, do địa chỉ trò chuyện của bạn nắm giữ. Khi còn là của bạn, không ai có thể lấy hay đổi nó.";
 "Search for the name you want in the .kachat tab, then claim it." = "Tìm tên bạn muốn trong thẻ .kachat, rồi nhận tên đó.";
 "What kUSDT is, where it lives, and how sending and swapping work." = "kUSDT là gì, nằm ở đâu, và cách gửi, hoán đổi.";
-"It's the name people see you as across KaChat and on your profile link. Without one, people see your address." = "Đây là tên mọi người thấy bạn trong KaChat và trên liên kết hồ sơ. Không có tên, mọi người sẽ thấy địa chỉ của bạn.";
+"It's the name people see you as across K and on your profile link. Without one, people see your address." = "Đây là tên mọi người thấy bạn trong K và trên liên kết hồ sơ. Không có tên, mọi người sẽ thấy địa chỉ của bạn.";
 "People can find you by typing your name." = "Mọi người có thể tìm bạn bằng cách gõ tên bạn.";
 "Your names are in Wallet > Your Domains > .kachat." = "Tên của bạn nằm ở Ví > Tên miền của bạn > .kachat.";
 "Claim your name in the .kachat tab whenever you're ready." = "Nhận tên của bạn trong thẻ .kachat bất cứ khi nào bạn sẵn sàng.";
 "I Agree" = "Tôi đồng ý";
-"KaChat has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what KaChat shows, without notice." = "KaChat không khoan nhượng với nội dung phản cảm hoặc người dùng lạm dụng. Bạn không được đăng bất cứ nội dung nào bất hợp pháp, nội dung tình dục liên quan đến trẻ em, ngôn từ thù ghét, đe dọa, quấy rối, nội dung cổ vũ bạo lực hoặc tự làm hại bản thân, hay lừa đảo. Các tài khoản vi phạm có thể bị loại khỏi nội dung KaChat hiển thị mà không cần báo trước.";
-"KaChat is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and KaChat's developer, not Apple." = "KaChat được cung cấp nguyên trạng, không có bảo hành, và trong phạm vi pháp luật cho phép, chúng tôi không chịu trách nhiệm về tổn thất do sử dụng KaChat hoặc do nội dung người dùng khác đăng. Các điều khoản này là giữa bạn và nhà phát triển KaChat, không phải Apple.";
+"K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "K không khoan nhượng với nội dung phản cảm hoặc người dùng lạm dụng. Bạn không được đăng bất cứ nội dung nào bất hợp pháp, nội dung tình dục liên quan đến trẻ em, ngôn từ thù ghét, đe dọa, quấy rối, nội dung cổ vũ bạo lực hoặc tự làm hại bản thân, hay lừa đảo. Các tài khoản vi phạm có thể bị loại khỏi nội dung K hiển thị mà không cần báo trước.";
+"K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K được cung cấp nguyên trạng, không có bảo hành, và trong phạm vi pháp luật cho phép, chúng tôi không chịu trách nhiệm về tổn thất do sử dụng K hoặc do nội dung người dùng khác đăng. Các điều khoản này là giữa bạn và nhà phát triển K, không phải Apple.";
 "No objectionable content or abuse" = "Không có nội dung phản cảm hay lạm dụng";
 "No warranty" = "Không bảo hành";
-"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from KaChat, but nobody can erase a transaction from the network." = "Bài đăng, trả lời, lượt thích và tin nhắn phòng là các giao dịch công khai trên mạng Kaspa. Bạn chịu trách nhiệm về những gì mình đăng. Xóa bài đăng sẽ gỡ nó khỏi KaChat, nhưng không ai có thể xóa một giao dịch khỏi mạng.";
+"Posts, replies, likes and room messages are public transactions on the Kaspa network. You are responsible for what you post. Deleting a post removes it from K, but nobody can erase a transaction from the network." = "Bài đăng, trả lời, lượt thích và tin nhắn phòng là các giao dịch công khai trên mạng Kaspa. Bạn chịu trách nhiệm về những gì mình đăng. Xóa bài đăng sẽ gỡ nó khỏi K, nhưng không ai có thể xóa một giao dịch khỏi mạng.";
 "Questions and reports: %@" = "Câu hỏi và báo cáo: %@";
 "Reporting and blocking" = "Báo cáo và chặn";
 "Terms of Use" = "Điều khoản sử dụng";
-"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the KaChat indexer, which KaChat reads by default." = "Dùng Báo cáo trên một bài đăng hoặc tin nhắn phòng để cho chúng tôi biết về nội dung phản cảm; có người đọc mọi báo cáo. Dùng Chặn để không còn thấy bài đăng và tin nhắn phòng của một tài khoản. Chúng tôi có thể gỡ nội dung và tài khoản khỏi bộ lập chỉ mục KaChat, mà KaChat đọc theo mặc định.";
-"You need to agree to use KaChat." = "Bạn cần đồng ý để dùng KaChat.";
+"Use Report on a post or room message to tell us about objectionable content; a person reads every report. Use Block to stop seeing an account's posts and room messages. We can remove content and accounts from the K indexer, which K reads by default." = "Dùng Báo cáo trên một bài đăng hoặc tin nhắn phòng để cho chúng tôi biết về nội dung phản cảm; có người đọc mọi báo cáo. Dùng Chặn để không còn thấy bài đăng và tin nhắn phòng của một tài khoản. Chúng tôi có thể gỡ nội dung và tài khoản khỏi bộ lập chỉ mục K, mà K đọc theo mặc định.";
+"You need to agree to use K." = "Bạn cần đồng ý để dùng K.";
 "Your account and your funds" = "Tài khoản và tiền của bạn";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "Tài khoản của bạn là 12 hoặc 24 từ được giữ trên thiết bị của bạn. Chúng tôi không bao giờ có chúng, nên không thể khôi phục các từ đã mất hay hoàn lại giao dịch. Đăng bài tốn phí mạng bằng KAS, và bạn chịu trách nhiệm về số tiền bạn giữ và gửi.";
 "Your posts are public and permanent" = "Bài đăng của bạn là công khai và vĩnh viễn";

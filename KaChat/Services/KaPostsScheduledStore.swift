@@ -364,7 +364,7 @@ final class KaPostsScheduledStore: ObservableObject {
     private func scheduleReminder(for entry: KaPostScheduledEntry) {
         let content = UNMutableNotificationContent()
         content.title = AppLocalization.string("Scheduled post")
-        content.body = AppLocalization.string("Your post is ready to go out. Open KaChat to send it.")
+        content.body = AppLocalization.string("Your post is ready to go out. Open K to send it.")
         content.sound = .default
         content.threadIdentifier = "kaposts-scheduled"
         let seconds = max(1, entry.notBefore.timeIntervalSinceNow)

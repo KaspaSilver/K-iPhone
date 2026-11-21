@@ -933,7 +933,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     private func postQuickReplyFailureNotification(threadIdentifier: String) {
         let content = UNMutableNotificationContent()
         content.title = AppLocalization.string("Reply not sent")
-        content.body = AppLocalization.string("Your reply couldn't be sent. Open KaChat to try again.")
+        content.body = AppLocalization.string("Your reply couldn't be sent. Open K to try again.")
         content.sound = .default
         content.threadIdentifier = threadIdentifier
         UNUserNotificationCenter.current().add(

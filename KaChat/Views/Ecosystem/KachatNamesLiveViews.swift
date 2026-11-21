@@ -690,8 +690,8 @@ struct KachatTxDoneSheet: View {
     private var stageText: LocalizedStringKey {
         switch stage {
         case .sent, .inMempool: return "Waiting for the network to put it in a block. Usually a few seconds; longer when it's busy."
-        case .accepted: return "It's in a block. Updating KaChat..."
-        case .shown: return "Done. It shows in KaChat now."
+        case .accepted: return "It's in a block. Updating K..."
+        case .shown: return "Done. It shows in K now."
         case .dropped: return "The network hasn't taken it. Nothing was spent if it never lands - try again with a faster fee."
         }
     }
@@ -713,7 +713,7 @@ struct KachatTxStageSteps: View {
         VStack(alignment: .leading, spacing: 10) {
             step("Sent to the network", done: true)
             step("In a block", done: inBlock, active: !inBlock && stage != .dropped)
-            step("Updated in KaChat", done: stage == .shown, active: stage == .accepted)
+            step("Updated in K", done: stage == .shown, active: stage == .accepted)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -761,7 +761,7 @@ struct KachatRegistrationProgressSheet: View {
                         .padding(.top, 22)
                     KachatRegistrationCard(registration: registration)
                     if registration.needsDriving {
-                        Text("Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.")
+                        Text("Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -843,7 +843,7 @@ struct KachatClaimsListSheet: View {
                     ForEach(actions.openRegistrations) { registration in
                         KachatRegistrationCard(registration: registration)
                     }
-                    Text("Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.")
+                    Text("Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -938,7 +938,7 @@ struct KachatRegistrationCard: View {
             if registration.commitDaa == nil {
                 Text("Waiting for the commit to confirm...")
             } else {
-                Text("The commit has to age for about a minute before the name can be registered. Keep KaChat open - it registers by itself, and picks up where it left off if you leave.")
+                Text("The commit has to age for about a minute before the name can be registered. Keep K open - it registers by itself, and picks up where it left off if you leave.")
             }
         case .registering: Text("Registering...")
         case .registered: Text("Registered. It's yours.")
@@ -1965,7 +1965,7 @@ struct KachatTxSheet<Inputs: View>: View {
 
                 if combinesCoins, plan != nil, txId == nil {
                     Label {
-                        Text("Your KAS is in many small coins. When you swipe, KaChat first combines them into one (a separate transaction with its own small fee), then sends this.")
+                        Text("Your KAS is in many small coins. When you swipe, K first combines them into one (a separate transaction with its own small fee), then sends this.")
                     } icon: { Image(systemName: "square.stack.3d.up") }
                         .font(.footnote)
                         .foregroundColor(.secondary)
@@ -2239,7 +2239,7 @@ struct KachatClaimSheet: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    Text("The price goes to the miners - KaChat takes nothing.")
+                    Text("The price goes to the miners - K takes nothing.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .padding(.top, 4)
@@ -2375,7 +2375,7 @@ struct KachatClaimSheet: View {
                         Spacer(minLength: 0)
                     }
                     if q.combinesCoins, q.affordable {
-                        Label("Your KAS is in many small coins. KaChat combines them into one before registering, for a tiny extra network fee.", systemImage: "arrow.triangle.merge")
+                        Label("Your KAS is in many small coins. K combines them into one before registering, for a tiny extra network fee.", systemImage: "arrow.triangle.merge")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -2470,7 +2470,7 @@ private struct KachatClaimOutcome: View {
             VStack(spacing: 12) {
                 KachatRegistrationCard(registration: registration)
                 if registration.needsDriving {
-                    Text("Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.")
+                    Text("Keep K open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -2781,7 +2781,7 @@ struct KachatLiveNameDetail: View {
         // The primary name is the chatting address's identity; a name on a spending address
         // can't be it.
         if mine {
-            items.append(ManageItem(title: "Set as Primary", subtitle: "Shows you by this name across KaChat.",
+            items.append(ManageItem(title: "Set as Primary", subtitle: "Shows you by this name across K.",
                                     icon: "person.crop.circle.badge.checkmark", disabled: status != .active) {
                 pendingPrimary = true
                 showManage = false

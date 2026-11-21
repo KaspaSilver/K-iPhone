@@ -5729,7 +5729,7 @@ struct KaPostsView: View {
         case .scheduled:
             // Past its time and not out yet: on its way as soon as the network answers.
             if entry.notBefore <= Date() { return "Sending as soon as the network answers" }
-            return entry.onServer ? "Goes out \(when)" : "Goes out \(when) - from this phone, so open KaChat around then"
+            return entry.onServer ? "Goes out \(when)" : "Goes out \(when) - from this phone, so open K around then"
         case .submitted: return "Posted \(entry.submittedAt.map { DateFormatter.localizedString(from: $0, dateStyle: .medium, timeStyle: .short) } ?? when)"
         case .failed: return "Failed to post at \(when)"
         case .cancelled: return "Cancelled"
