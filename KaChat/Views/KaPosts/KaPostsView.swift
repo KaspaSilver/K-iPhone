@@ -416,8 +416,11 @@ struct KaPostsView: View {
     @State private var isLoadingMyProfilePosts = false
     @State private var myProfileRemoteReplies: [DraftPost] = []
     @State private var myProfileFeedTab: ProfileFeedTab = .posts
+    /// How far your profile's posts sit sideways while a Posts/Replies swipe moves them.
+    @State private var myProfileSlide: CGFloat = 0
     @State private var posterProfileReplies: [DraftPost] = []
     @State private var posterProfileFeedTab: ProfileFeedTab = .posts
+    @State private var posterProfileSlide: CGFloat = 0
     /// Paging state for the four profile feeds (own Posts/Replies, poster Posts/Replies) and
     /// for every open reply thread (keyed by the thread root's local id - the detail sheet's
     /// comment list and each inline "View N replies" chain each get their own).
@@ -4633,6 +4636,7 @@ struct KaPostsView: View {
             // their scrolling, which is exactly what puts the header outside them.
             profileFeedPage(
                 items: myProfileFeedTab == .posts ? myPosts : myProfileRemoteReplies,
+                slideOffset: myProfileSlide,
                 isLoading: isLoadingMyProfilePosts,
                 emptyIcon: myProfileFeedTab == .posts ? "square.and.pencil" : "bubble.left",
                 emptyTitle: myProfileFeedTab == .posts ? "No posts yet" : "No replies yet",
@@ -4748,20 +4752,13 @@ struct KaPostsView: View {
                         // profile, so the way to change any of it belongs here too: KaChat's own
                         // Edit KaChat Profile (`KaChatProfileEditorSheet`). Wallet and Log Out are
                         // KaChat's Wallet tab and Profile.
-                        // Profile is the dock's Profile tab in KaChat: Share Profile beside Edit
-                        // Profile (owner's call, 2026-11-21), and Log Out, which lived on it.
+                        // Profile is the dock's Profile tab in KaChat: Edit Profile and Log Out,
+                        // which lived on it. Share Profile sits beside the Profile title.
                         HStack(spacing: 10) {
                             Button {
                                 showProfileEditor = true
                             } label: {
                                 profileHeaderButtonLabel("Edit Profile", systemImage: "person.text.rectangle")
-                            }
-                            .buttonStyle(.plain)
-                            Button {
-                                Haptics.impact(.light)
-                                showShareProfile = true
-                            } label: {
-                                profileHeaderButtonLabel("Share Profile", systemImage: "square.and.arrow.up")
                             }
                             .buttonStyle(.plain)
                             Button {
@@ -4783,11 +4780,21 @@ struct KaPostsView: View {
                 cell: { post in myProfileCell(post) }
             )
             // slide left or right to change between Posts and Replies (owner's call, 2026-11-21)
-            .modifier(ProfileTabSwipe(selection: $myProfileFeedTab))
+            .modifier(ProfileTabSwipe(selection: $myProfileFeedTab, offset: $myProfileSlide))
             // Banner starts BELOW the bar rather than ignoring the top safe area: it
             // used to run under the notch and under the dot/balance/Done row,
             // leaving the profile's own chrome sitting on top of an image.
-            .kaPostsFixedTitle("Profile")
+            // Share Profile beside the title (owner's call, 2026-11-21); Edit Profile and Log
+            // Out stay under your name
+            .kaPostsFixedTitle("Profile") {
+                Button {
+                    Haptics.impact(.light)
+                    showShareProfile = true
+                } label: {
+                    profileHeaderButtonLabel("Share Profile", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.plain)
+            }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .kaPostsStatusChrome()
@@ -4910,6 +4917,7 @@ struct KaPostsView: View {
             // One scroll for the whole page - see myProfileSheet's note.
             profileFeedPage(
                 items: posterProfileFeedTab == .posts ? posterProfilePosts : posterProfileReplies,
+                slideOffset: posterProfileSlide,
                 isLoading: isLoadingPosterProfile,
                 emptyIcon: posterProfileFeedTab == .posts ? "square.and.pencil" : "bubble.left",
                 emptyTitle: posterProfileFeedTab == .posts ? "No posts yet" : "No replies yet",
@@ -5043,7 +5051,7 @@ struct KaPostsView: View {
                 },
                 cell: { post in posterProfileCell(post) }
             )
-            .modifier(ProfileTabSwipe(selection: $posterProfileFeedTab))
+            .modifier(ProfileTabSwipe(selection: $posterProfileFeedTab, offset: $posterProfileSlide))
             // Banner starts BELOW the bar rather than ignoring the top safe area: it
             // used to run under the notch and under the dot/balance/Done row,
             // leaving the profile's own chrome sitting on top of an image.
@@ -5300,7 +5308,8 @@ struct KaPostsView: View {
                 ForEach(ProfileFeedTab.allCases, id: \.self) { tab in
                     Button {
                         Haptics.impact(.light)
-                        withAnimation(.easeInOut(duration: 0.2)) { selection.wrappedValue = tab }
+                        // no animation here: ProfileTabSwipe slides the posts across
+                        selection.wrappedValue = tab
                     } label: {
                         VStack(spacing: 8) {
                             Text(tab.rawValue)
@@ -5325,6 +5334,9 @@ struct KaPostsView: View {
     /// each tab's scroll position survives swiping between them.
     private func profileFeedPage<Header: View, Cell: View>(
         items: [DraftPost],
+        /// Sideways shift of everything under the header, so a Posts/Replies swipe slides the
+        /// posts out and the other tab's in (`ProfileTabSwipe`); the header stays put.
+        slideOffset: CGFloat = 0,
         isLoading: Bool,
         emptyIcon: String,
         emptyTitle: String,
@@ -5341,6 +5353,7 @@ struct KaPostsView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 header()
+                Group {
                 if items.isEmpty, isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
@@ -5373,6 +5386,8 @@ struct KaPostsView: View {
                     }
                     KaPostsLoadMoreFooter(state: pageState, onLoadMore: onRetryLoadMore)
                 }
+                }
+                .offset(x: slideOffset)
             }
         }
         .refreshable { await onRefresh() }
@@ -11407,13 +11422,26 @@ extension View {
     /// fills the nav bar's center, and a system large title would move with the scroll view.
     /// The backup strip sits above the title, as on the Feed.
     func kaPostsFixedTitle(_ title: LocalizedStringKey) -> some View {
+        kaPostsFixedTitle(title) { EmptyView() }
+    }
+
+    /// The same fixed title with something beside it (Profile's Share Profile, owner's call,
+    /// 2026-11-21).
+    func kaPostsFixedTitle<Accessory: View>(
+        _ title: LocalizedStringKey,
+        @ViewBuilder accessory: () -> Accessory
+    ) -> some View {
         VStack(spacing: 0) {
             AccountBackupBanner()
-            Text(title)
-                .font(.largeTitle.weight(.bold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 6)
+            HStack(alignment: .center, spacing: 12) {
+                Text(title)
+                    .font(.largeTitle.weight(.bold))
+                    .lineLimit(1)
+                accessory()
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
             Divider()
             self
         }
@@ -11824,26 +11852,89 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
 
 /// A profile's Posts and Replies, changed by sliding a finger left or right anywhere on the page
 /// (owner's call, 2026-11-21). The page is one scroll (the header travels up with the posts), so
-/// it isn't a pager that moves with the finger: a clearly sideways swipe switches the tab at its
-/// end, and an up-and-down scroll never does.
+/// the posts under the header move with the finger (`offset`) instead of a pager: let go far
+/// enough (or flick) and they slide off while the other tab's slide in from the other side;
+/// otherwise they settle back. An up-and-down scroll never moves them sideways. A tap on the
+/// tab bar slides the new tab in the same way (owner, 2026-11-21: "it's like loading the post in
+/// every time I swipe").
 struct ProfileTabSwipe: ViewModifier {
     @Binding var selection: KaPostsView.ProfileFeedTab
+    @Binding var offset: CGFloat
+
+    @State private var width: CGFloat = 390
+    /// nil until the drag picks a direction; true once it is clearly sideways
+    @State private var horizontal: Bool?
+    /// The tab on screen, so a tap-driven change knows which side to slide in from and a
+    /// swipe's own change is not slid twice.
+    @State private var shown: KaPostsView.ProfileFeedTab?
+
+    private let tabs = KaPostsView.ProfileFeedTab.allCases
 
     func body(content: Content) -> some View {
-        content.simultaneousGesture(
-            DragGesture(minimumDistance: 24)
-                .onEnded { value in
-                    let dx = value.translation.width, dy = value.translation.height
-                    // sideways, and far enough: more than 1.5 times as wide as tall, 60 points
-                    guard abs(dx) > 60, abs(dx) > abs(dy) * 1.5 else { return }
-                    let tabs = KaPostsView.ProfileFeedTab.allCases
-                    guard let index = tabs.firstIndex(of: selection) else { return }
-                    let next = dx < 0 ? index + 1 : index - 1
-                    guard tabs.indices.contains(next) else { return }
-                    Haptics.impact(.light)
-                    withAnimation(.easeInOut(duration: 0.2)) { selection = tabs[next] }
-                }
-        )
+        content
+            .background(GeometryReader { geo in
+                Color.clear
+                    .onAppear { width = max(geo.size.width, 1) }
+                    .onChange(of: geo.size.width) { width = max($0, 1) }
+            })
+            .onAppear { shown = selection }
+            .onChange(of: selection) { new in
+                guard new != shown else { return }
+                let from = shown.flatMap { tabs.firstIndex(of: $0) } ?? 0
+                let to = tabs.firstIndex(of: new) ?? 0
+                shown = new
+                slideIn(fromTrailing: to > from)
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { value in
+                        let dx = value.translation.width, dy = value.translation.height
+                        if horizontal == nil {
+                            guard abs(dx) > 10 || abs(dy) > 10 else { return }
+                            horizontal = abs(dx) > abs(dy) * 1.2
+                        }
+                        guard horizontal == true else { return }
+                        // no tab that way: the posts give a little and stop
+                        offset = neighbor(dx < 0 ? 1 : -1) == nil ? dx / 4 : dx
+                    }
+                    .onEnded { value in
+                        defer { horizontal = nil }
+                        guard horizontal == true else { return }
+                        let dx = value.translation.width
+                        let flung = value.predictedEndTranslation.width
+                        let step = dx < 0 ? 1 : -1
+                        guard let next = neighbor(step),
+                              abs(dx) > width * 0.25 || abs(flung) > width * 0.6 else {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { offset = 0 }
+                            return
+                        }
+                        Haptics.impact(.light)
+                        // slide this tab off toward the finger's side, then the next one in
+                        withAnimation(.easeIn(duration: 0.14)) { offset = step > 0 ? -width : width }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+                            shown = next
+                            var swap = Transaction()
+                            swap.disablesAnimations = true
+                            withTransaction(swap) { selection = next }
+                            slideIn(fromTrailing: step > 0)
+                        }
+                    }
+            )
+    }
+
+    private func neighbor(_ step: Int) -> KaPostsView.ProfileFeedTab? {
+        guard let index = tabs.firstIndex(of: selection), tabs.indices.contains(index + step) else { return nil }
+        return tabs[index + step]
+    }
+
+    /// Puts the new tab's posts just off one side, then slides them to rest.
+    private func slideIn(fromTrailing: Bool) {
+        var place = Transaction()
+        place.disablesAnimations = true
+        withTransaction(place) { offset = fromTrailing ? width : -width }
+        DispatchQueue.main.async {
+            withAnimation(.easeOut(duration: 0.22)) { offset = 0 }
+        }
     }
 }
 
