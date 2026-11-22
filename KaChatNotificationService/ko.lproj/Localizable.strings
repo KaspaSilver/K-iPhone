@@ -17,3 +17,10 @@
 "Group chat" = "그룹 채팅";
 "Group update" = "그룹 업데이트";
 "New group message" = "새 그룹 메시지";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received a tip: %@ KAS" = "팁 받음: %@ KAS";
+"Received a tip" = "팁 받음";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "%@을(를) 보냈습니다";

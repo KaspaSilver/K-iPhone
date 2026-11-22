@@ -100,6 +100,16 @@ final class SharedDataManager {
         // see a new stamp over an old list.
         sharedDefaults?.set(WalletManager.shared.currentWallet?.publicAddress, forKey: Keys.contactsWallet)
         AppLog.log("[SharedData] Synced %d contacts to shared container", contacts.count)
+        syncIdentityNamesForExtension()
+    }
+
+    /// The `.kachat` names this phone already knows (address -> "alice.kachat"), newest 500, so a
+    /// KaPost push names the person who liked or replied even when they aren't a contact.
+    /// Nothing is looked up for it: only names the app has already seen.
+    @MainActor
+    static func syncIdentityNamesForExtension() {
+        let names = KachatNamesRegistry.shared.knownIdentityNames(limit: 500)
+        sharedDefaults?.set(names, forKey: "shared_identity_names")
     }
 
     // MARK: - Recent Conversations (Share Extension direct targets)
@@ -465,6 +475,8 @@ final class SharedDataManager {
     static func clearAllSharedData() {
         sharedDefaults?.removeObject(forKey: Keys.contacts)
         sharedDefaults?.removeObject(forKey: Keys.contactsWallet)
+        sharedDefaults?.removeObject(forKey: "shared_identity_names")
+        sharedDefaults?.removeObject(forKey: "push_arrivals_v1")
         // These outlived a deleted wallet: its groups and KNS name stayed readable.
         sharedDefaults?.removeObject(forKey: Keys.groups)
         sharedDefaults?.removeObject(forKey: Keys.groupOwnTxIds)

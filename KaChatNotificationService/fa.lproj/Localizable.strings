@@ -17,3 +17,10 @@
 "Group chat" = "گفتگوی گروهی";
 "Group update" = "به‌روزرسانی گروه";
 "New group message" = "پیام گروهی جدید";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received a tip: %@ KAS" = "انعام دریافت شد: %@ KAS";
+"Received a tip" = "انعام دریافت شد";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "برای شما %@ فرستاد";

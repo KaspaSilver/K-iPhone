@@ -418,7 +418,9 @@ extension KaspaAmountEntry {
 
 // MARK: - Fee and coin control
 
-/// Network fee (tap to set a custom one), the fee speed, and coin control - one card.
+/// UTXO Selection (coin control) in its own card above, so people notice they can pick the
+/// coins a send spends (owner, 2026-11-22), then the network fee (tap to set a custom one) and
+/// the fee speed.
 struct SendFeeControls: View {
     @Binding var feeTier: WithdrawFeeTier
     @Binding var isEditingFee: Bool
@@ -436,6 +438,49 @@ struct SendFeeControls: View {
     var onEditFee: (() -> Void)? = nil
 
     var body: some View {
+        VStack(spacing: 12) {
+            if showsCoinControl { utxoSelectionCard }
+            feeCard
+        }
+    }
+
+    private var utxoSelectionCard: some View {
+        Button {
+            Haptics.impact(.light)
+            onCoinControl()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(Color.accentColor.opacity(0.15)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("UTXO Selection")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.primary)
+                    Text("Choose which coins this send spends.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Text(verbatim: coinControlSummary)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+            }
+            .padding(14)
+            .background(sendKaspaGlass(cornerRadius: 20))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var feeCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Network Fee")
@@ -502,32 +547,13 @@ struct SendFeeControls: View {
                  : LocalizedStringKey("If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Edit sets a fee of your own."))
                 .font(.caption)
                 .foregroundColor(.secondary)
-
-            if showsCoinControl {
-                Divider()
-                Button(action: onCoinControl) {
-                    HStack {
-                        Text("Coin Control")
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                        Spacer()
-                        Text(verbatim: coinControlSummary)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
         }
         .padding(14)
         .background(sendKaspaGlass(cornerRadius: 20))
     }
 }
 
-/// "Automatic" or "3 UTXOs selected", for the coin control row.
+/// "Automatic" or "3 UTXOs selected", for the UTXO Selection card.
 func coinControlSummary(_ manualUtxos: [UTXO]?) -> String {
     guard let manualUtxos else { return AppLocalization.string("Automatic") }
     return "\(manualUtxos.count) UTXO\(manualUtxos.count == 1 ? "" : "s") selected"
@@ -1317,6 +1343,11 @@ struct SwipeUpToSendScrollView<Content: View>: View {
     @State private var failed = false
     /// Face ID is up for an `authReason` action: a second swipe waits.
     @State private var authPending = false
+    /// The amount and recipient as they were when the swipe sent: the screen behind may clear
+    /// its form once the send goes out, and the sending screen must keep saying what's being
+    /// sent ("Sending 10 KAS" never drops to 0 KAS before the confirmation; owner, 2026-11-22).
+    @State private var sendingAmountSompi: UInt64?
+    @State private var sendingRecipient: String?
 
     private static var barHeight: CGFloat { 64 }
     private static var settle: Animation { .spring(response: 0.45, dampingFraction: 0.86) }
@@ -1332,8 +1363,8 @@ struct SwipeUpToSendScrollView<Content: View>: View {
                     .offset(y: -lift)
                 if lift > 0 || phase == .sending {
                     SendProgressScreen(
-                        amountSompi: amountSompi,
-                        recipient: recipient,
+                        amountSompi: phase == .sending ? (sendingAmountSompi ?? amountSompi) : amountSompi,
+                        recipient: phase == .sending ? (sendingRecipient ?? recipient) : recipient,
                         sent: dagShown ? sent : nil,
                         done: dagShown && (sent != nil || succeeded),
                         outcome: outcome,
@@ -1478,6 +1509,8 @@ struct SwipeUpToSendScrollView<Content: View>: View {
     /// to `.sending` happens at once, so a second swipe or VoiceOver activation can't send twice.
     private func startSending() {
         guard phase == .form else { return }
+        sendingAmountSompi = amountSompi
+        sendingRecipient = recipient
         armed = false
         dagShown = false
         sendStarted = isBusy

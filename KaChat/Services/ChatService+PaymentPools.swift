@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 // The payment's From, and what is left of Chats Payment Privacy.
 //
@@ -104,6 +105,26 @@ extension ChatService {
         if let data = try? JSONEncoder().encode(Array(list.suffix(50))) {
             UserDefaults.standard.set(data, forKey: key)
         }
+        scheduleUnsentNoticeRetry()
+    }
+
+    /// A held notice is usually waiting for the payment's own change to become spendable, which
+    /// doesn't change the balance, so the balance watch alone could hold it until some unrelated
+    /// payment came in (a contact's kUSDT card arrived minutes late on 2026-11-22 that way). So
+    /// it is also tried every 20 seconds while the app is open, for up to 15 minutes.
+    func scheduleUnsentNoticeRetry() {
+        guard unsentNoticeRetryTask == nil else { return }
+        unsentNoticeRetryTask = Task { @MainActor [weak self] in
+            let started = Date()
+            while !Task.isCancelled, Date().timeIntervalSince(started) < 15 * 60 {
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                if self.unsentNotices.isEmpty { break }
+                guard UIApplication.shared.applicationState == .active else { continue }
+                await self.sendUnsentPaymentNotices()
+            }
+            self?.unsentNoticeRetryTask = nil
+        }
     }
 
     /// Sends the notices that failed for want of KAS on the chatting address - called when its
@@ -141,6 +162,8 @@ extension ChatService {
             .sink { [weak self] _ in
                 Task { await self?.sendUnsentPaymentNotices() }
             }
+        // notices still held from an earlier run get the timer too
+        if !unsentNotices.isEmpty { scheduleUnsentNoticeRetry() }
     }
 
     /// A `payment_notice` in a 1:1 chat - theirs (they paid us From a spending address) or our own
@@ -551,9 +574,34 @@ extension ChatService {
             self.markTokenPaymentBubble(txId, wallet: walletAddress)
             self.addMessageToConversation(bubble(status), contactAddress: contactAddress)
             self.saveMessages()
+            self.postTokenPaymentBanner(notice: notice, token: token, verified: status == .sent,
+                                        noticeMessage: message, contactAddress: contactAddress)
             AppLog.log("[ChatService] Token payment %@ filed in its chat from a token_payment_notice (%@)",
                        String(txId.prefix(12)), status.rawValue)
         }
+    }
+
+    /// A contact's dollar payment in a chat, while the app is open: one banner under their name,
+    /// like a Kaspa payment ("Sent you 1.00 kUSDT"; "Sent you kUSDT" until the coin is checked).
+    /// Keyed by the notice message's txid, the same as its push (`InAppBanner`), and the wallet's
+    /// own "Received kUSDT" skips a coin a notice filed (`TokenWallet.announceNewCoins`).
+    private func postTokenPaymentBanner(notice: TokenPaymentNoticeContent, token: WalletToken, verified: Bool,
+                                        noticeMessage: ChatMessage, contactAddress: String) {
+        let settings = currentSettings
+        guard settings.notificationsEnabled, !suppressNotificationsUntilSynced,
+              let contact = contactsManager.getContact(byAddress: contactAddress),
+              settings.shouldDeliverIncomingNotification(for: contact),
+              InAppBanner.isRecent(blockTimeMs: Int64(noticeMessage.blockTime)),
+              !isChatBlocked(contactAddress) else { return }
+        let what = verified ? TokenAmount.amount(notice.amount, token: token) : token.symbol
+        InAppBanner.post(
+            txId: noticeMessage.txId,
+            title: contact.alias,
+            body: String(format: AppLocalization.string("Sent you %@"), what),
+            threadIdentifier: contactAddress,
+            categoryIdentifier: AppDelegate.messageCategoryId,
+            sound: settings.shouldPlayIncomingNotificationSound(for: contact)
+        )
     }
 
     /// What the chain says about a received token notice:

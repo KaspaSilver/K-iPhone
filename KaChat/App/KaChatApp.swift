@@ -1539,6 +1539,19 @@ enum InAppBanner {
         return Int64(Date().timeIntervalSince1970 * 1000) - blockTimeMs <= maxAgeMs
     }
 
+    /// Whether a push for this key already reached the phone (the notification extension's
+    /// `recordPushArrival` ledger in the App Group): its txid, a room push's collapse id, or
+    /// `kaposts:` + `KaPostsBannerLedger.key`. Covers the push you tapped to open the app, which
+    /// is gone from Notification Center by the time the app looks there.
+    nonisolated static func pushArrived(_ key: String) -> Bool {
+        let lowered = key.lowercased()
+        guard !lowered.isEmpty,
+              let ledger = UserDefaults(suiteName: SharedDataManager.appGroupIdentifier)?
+                .dictionary(forKey: "push_arrivals_v1") as? [String: Double],
+              let at = ledger[lowered] else { return false }
+        return Date().timeIntervalSince1970 - at < 30 * 60
+    }
+
     /// Whether a local push banner is a message's own.
     static func isOwn(_ notification: UNNotification) -> Bool {
         (notification.request.content.userInfo[userInfoKey] as? Bool) == true
@@ -1562,7 +1575,7 @@ enum InAppBanner {
         sound: Bool
     ) {
         guard UIApplication.shared.applicationState == .active, !txId.isEmpty else { return }
-        guard claim(txId) else { return }
+        guard !pushArrived(txId), claim(txId) else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         if let subtitle, !subtitle.isEmpty { content.subtitle = subtitle }

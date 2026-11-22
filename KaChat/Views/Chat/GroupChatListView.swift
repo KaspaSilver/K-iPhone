@@ -67,8 +67,13 @@ struct GroupChatRow: View {
             targetIsMine: groupChatService.groupMessages[group.id]?
                 .first(where: { $0.txId == newestSnapshot.targetTxId })?.isOutgoing == true
         )
-        let reactionDate = Date(timeIntervalSince1970: TimeInterval(newest.snapshot.blockTime) / 1000.0)
-        if let lastMessage, lastMessage.timestamp >= reactionDate { return nil }
+        // Same rule as 1:1 (ConversationRow.reactionPreviewText): chain time on both sides, a
+        // message not in a block yet or within a second of the reaction wins.
+        if let lastMessage {
+            guard lastMessage.blockTime > 0 else { return nil }
+            let lastMs = max(Int64(lastMessage.blockTime), Int64(lastMessage.timestamp.timeIntervalSince1970 * 1000))
+            if lastMs + 1000 >= Int64(newest.snapshot.blockTime) { return nil }
+        }
         if newest.snapshot.reactorAddress == walletManager.currentWallet?.publicAddress {
             return newest.targetIsMine ? "You reacted to your message" : "You reacted to a message"
         }

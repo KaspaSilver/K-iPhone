@@ -1232,6 +1232,20 @@ final class KachatNamesRegistry: ObservableObject {
         return false
     }
 
+    /// Every cached identity with a name, as the app shows it ("alice.kachat"), keyed by lowercased
+    /// address: the newest `limit`. For the notification extension (`SharedDataManager`). Empty
+    /// while profiles are off.
+    func knownIdentityNames(limit: Int) -> [String: String] {
+        guard KachatNamesService.profilesEnabled else { return [:] }
+        var out: [String: String] = [:]
+        for (key, entry) in identities.sorted(by: { $0.value.at > $1.value.at }) {
+            guard out.count < limit, NetworkType.isOnActiveNetwork(key),
+                  let label = entry.identity.label, !label.isEmpty else { continue }
+            out[key] = KachatNameLabel.display(label)
+        }
+        return out
+    }
+
     /// The address's `.kachat` identity as the app shows it, from a cache that fills in the
     /// background: callable from any view body (on mainnet, profile only). An answer is
     /// re-asked once the registry moved on or after five minutes, and this wallet's own saved

@@ -3021,3 +3021,26 @@
 "Cold storage address %@ (%@)" = "콜드 스토리지 주소 %@ (%@)";
 "Accepted your request to communicate" = "통신 요청을 수락했습니다";
 "Sent you a message" = "메시지를 보냈습니다";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received tip" = "팁 받음";
+"Sent tip" = "팁 보냄";
+"Received a tip: %@ KAS" = "팁 받음: %@ KAS";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "%@을(를) 보냈습니다";
+
+/* UTXO Selection card (2026-11-22) */
+"UTXO Selection" = "UTXO 선택";
+"Choose which coins this send spends." = "이번 전송에 쓸 코인을 고르세요.";
+
+/* Address history change lines (2026-11-22) */
+"Moved" = "이동됨";
+"To %@" = "%@(으)로";
+"Change %@ to %@" = "잔돈 %@ → %@";
+
+/* Cold Storage Address Actions (2026-11-22) */
+"Puts this account's kpub on the clipboard. It reveals all its addresses." = "이 계정의 kpub을 클립보드에 복사합니다. 모든 주소가 드러납니다.";
+
+/* Cold Storage Paste kpub (2026-11-22) */
+"Not a valid kpub" = "유효한 kpub이 아닙니다";

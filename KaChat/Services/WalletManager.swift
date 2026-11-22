@@ -857,6 +857,8 @@ final class WalletManager: ObservableObject {
             }
             for key in ownerKeys { KusdtStoreRelay.forget(ownerHex: key) }
             removeSpendingData(forAccount: owned)
+            // which chat payments were KaPost tips
+            KaPostTipLedger.shared.clear()
             // its bot games' records and stamped wins, on both networks' addresses
             ChessBotProgress.shared.removeAll(forAddress: owned)
             for variant in Self.accountAddressVariants(owned) {

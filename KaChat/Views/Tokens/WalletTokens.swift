@@ -329,7 +329,7 @@ final class TokenWallet: ObservableObject {
     /// What the regular refresh asks Trestly about: the Chatting Address, the addresses holding or
     /// listed for kUSDT, ones with kUSDT history here, ones a send is waiting on, the newest few
     /// revealed and any a receive screen showed lately. Not every address every time: Trestly would
-    /// see them all together, from one IP, every 90 seconds, and could link them.
+    /// see them all together, from one IP, every 30 seconds, and could link them.
     private func pollTargets(account: String) -> [(spendingIndex: Int?, address: String)] {
         let manager = WalletManager.shared
         let maxIndex = manager.maxSpendingAddressIndex
@@ -660,7 +660,9 @@ final class TokenWallet: ObservableObject {
     private func announceNewCoins(previous: [String: [KusdtBalances.Coin]], account: String, token: WalletToken) async {
         let current = coins.values.flatMap { $0 }
         let known = seenOutpoints(account: account, token: token)
-        defer { rememberSeen(current, account: account, token: token) }
+        // coins waiting for their chat notice stay "new", so a later refresh looks at them again
+        var held = Set<String>()
+        defer { rememberSeen(current.filter { !held.contains(Self.outpointKey($0)) }, account: account, token: token) }
         guard let known else { return } // first look: learn, don't announce
         let fresh = current.filter { !known.contains(Self.outpointKey($0)) }
         guard !fresh.isEmpty else { return }
@@ -683,8 +685,22 @@ final class TokenWallet: ObservableObject {
                     checked[coin.transactionId] = own
                 }
                 if !own, coin.state.amount > 0 {
+                    let key = Self.outpointKey(coin)
+                    let filedByChat = ChatService.shared.isNoticeBubble(coin.transactionId)
+                    // On the Chatting Address it may be a contact's Send Dollars whose chat notice
+                    // comes a little after the coin: wait for it (up to `noticeWait`), so the
+                    // chat's "Sent you 1.00 kUSDT" is the only ping (owner, 2026-11-22).
+                    if !filedByChat, holdingID == "chatting" {
+                        let firstSeen = awaitingNotice[key] ?? Date()
+                        awaitingNotice[key] = firstSeen
+                        if Date().timeIntervalSince(firstSeen) < Self.noticeWait {
+                            held.insert(key)
+                            continue
+                        }
+                    }
+                    awaitingNotice.removeValue(forKey: key)
                     // a contact's Send Dollars the chat already showed and announced: no second banner
-                    if !ChatService.shared.isNoticeBubble(coin.transactionId) {
+                    if !filedByChat {
                         received.append((holdingID, coin.state.amount))
                     }
                     record(TokenActivity(id: "\(coin.transactionId):\(holdingID):received", kind: .received,
@@ -696,6 +712,12 @@ final class TokenWallet: ObservableObject {
         guard !received.isEmpty, Self.notificationsEnabled else { return }
         postReceived(received, token: token)
     }
+
+    /// Coins on the Chatting Address waiting for a chat notice, by outpoint, with when first seen.
+    private var awaitingNotice: [String: Date] = [:]
+    /// How long a coin on the Chatting Address waits for its chat notice before the wallet
+    /// announces it itself.
+    private static let noticeWait: TimeInterval = 120
 
     /// Whether the transaction that made a coin was your own: it spent a coin of yours, or
     /// an input came from one of your addresses. When the REST API can't say, `fallback`.
@@ -712,14 +734,9 @@ final class TokenWallet: ObservableObject {
 
     private func postReceived(_ received: [(holdingID: String, units: UInt64)], token: WalletToken) {
         let total = received.reduce(UInt64(0)) { $0 + $1.units }
-        var byHolding: [String: UInt64] = [:]
-        for r in received { byHolding[r.holdingID, default: 0] += r.units }
-        let labels = holdings(of: token).filter { byHolding[$0.id] != nil }.map { $0.label }
         let content = UNMutableNotificationContent()
+        // Just "Received 1.00 kUSDT" (owner, 2026-11-22): no "On your Chatting Address" line.
         content.title = String(format: AppLocalization.string("Received %@"), TokenAmount.amount(total, token: token))
-        content.body = labels.count == 1
-            ? String(format: AppLocalization.string("On your %@"), labels[0])
-            : String(format: AppLocalization.string("On %d of your addresses"), labels.count)
         content.threadIdentifier = Self.notificationThread
         content.userInfo = ["token": token.id]
         let settings = AppSettings.load()
@@ -760,19 +777,19 @@ final class TokenWallet: ObservableObject {
 
     private var pollTask: Task<Void, Never>?
 
-    /// While the app is open and signed in, the balances are checked every 90 seconds, so a token
-    /// that arrives is announced. Only with Address Activity notifications on; the screens refresh
+    /// While the app is open and signed in, the balances are checked every 30 seconds (90 until
+    /// 2026-11-22, when a Received kUSDT came minutes late), so a token that arrives is announced. Only with Address Activity notifications on; the screens refresh
     /// themselves either way.
     func startPolling() {
         guard pollTask == nil else { return }
         pollTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 90_000_000_000)
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
                 guard let self, !Task.isCancelled else { return }
                 guard UIApplication.shared.applicationState == .active,
                       WalletManager.shared.currentWallet != nil,
                       Self.notificationsEnabled else { continue }
-                await self.refreshIfStale(maxAge: 80)
+                await self.refreshIfStale(maxAge: 25)
             }
         }
     }

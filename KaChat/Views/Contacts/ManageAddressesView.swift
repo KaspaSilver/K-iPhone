@@ -222,14 +222,24 @@ struct ManageAddressesView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
         } else {
-            // Hiding moved to the bulk Address Visibility screen (toolbar checklist) -
-            // the old swipe-to-hide is gone.
+            // Swipe left to hide (owner, 2026-11-22), like marking mail read: a partial swipe
+            // shows the Hide button, a full swipe hides at once. Same rules as the row menu's
+            // Hide Address (`hideAddress`: a kUSDT-listed address refuses with a toast).
             ForEach(sortedEntries) { entry in
                 addressRow(entry)
                     .padding(.vertical, 6)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button {
+                            Haptics.impact(.medium)
+                            hideAddress(entry)
+                        } label: {
+                            Label("Hide", systemImage: "eye.slash.fill")
+                        }
+                        .tint(.orange)
+                    }
             }
         }
     }
@@ -2139,18 +2149,66 @@ struct SpendingAddressTransactionHistoryView: View {
         isLoadingUtxos = false
     }
 
+    /// Where an outgoing transaction's Kaspa went, by owner: to other people, and to this
+    /// wallet's other addresses (the change), so a Sent row adds up (owner, 2026-11-22: an
+    /// address got 10, sent 1, and the 8.99 of change to another address wasn't shown).
+    private struct OutgoingBreakdown {
+        var toOthers: UInt64 = 0
+        /// Own addresses other than this one, by label, in output order.
+        var change: [(label: String, sompi: UInt64)] = []
+        var changeTotal: UInt64 { change.reduce(0) { $0 + $1.sompi } }
+    }
+
+    private func outgoingBreakdown(_ tx: KaspaFullTransactionResponse) -> OutgoingBreakdown {
+        var result = OutgoingBreakdown()
+        let this = entry.address.lowercased()
+        for output in tx.outputs {
+            guard let address = output.scriptPublicKeyAddress?.lowercased(), !address.isEmpty, address != this else { continue }
+            if let label = WalletManager.shared.ownAddressLabel(for: address) {
+                if let index = result.change.firstIndex(where: { $0.label == label }) {
+                    result.change[index].sompi += output.amount
+                } else {
+                    result.change.append((label, output.amount))
+                }
+            } else {
+                result.toOthers += output.amount
+            }
+        }
+        return result
+    }
+
     private func transactionRow(_ tx: KaspaFullTransactionResponse) -> some View {
-        let info = tx.direction(for: entry.address)
+        var info = tx.direction(for: entry.address)
+        // An outgoing row counts what went to other people as Sent, and each of this wallet's
+        // other addresses that got change on its own line; all of it to our own addresses is
+        // Moved.
+        let breakdown: OutgoingBreakdown? = info?.isOutgoing == true ? outgoingBreakdown(tx) : nil
+        let moved = breakdown.map { $0.toOthers == 0 && $0.changeTotal > 0 } ?? false
+        if let breakdown, info != nil {
+            info!.amountSompi = moved ? breakdown.changeTotal : breakdown.toOthers
+        }
         return HStack(spacing: 12) {
             Image(systemName: info?.isOutgoing == true ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                 .font(.title2)
                 .foregroundColor(info == nil ? .secondary : (info!.isOutgoing ? .red : .green))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(info == nil ? "Transaction" : (info!.isOutgoing ? "Sent" : "Received"))
+                Text(info == nil ? "Transaction" : (info!.isOutgoing ? (moved ? "Moved" : "Sent") : "Received"))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(info == nil ? .secondary : (info!.isOutgoing ? .red : .green))
+                if let breakdown, !breakdown.change.isEmpty {
+                    ForEach(Array(breakdown.change.enumerated()), id: \.offset) { _, change in
+                        Text(verbatim: moved
+                             ? String(format: AppLocalization.string("To %@"), change.label)
+                             : String(format: AppLocalization.string("Change %@ to %@"),
+                                      "\(formatKasExact(change.sompi)) \(KaspaUnit.symbol)", change.label))
+                            .font(.caption2.weight(.medium))
+                            .foregroundColor(.orange)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                }
                 Text(tx.transactionId)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundColor(.secondary)

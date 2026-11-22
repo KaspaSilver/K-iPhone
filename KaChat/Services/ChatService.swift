@@ -484,6 +484,8 @@ final class ChatService: ObservableObject {
     /// `observeChattingBalanceForNotices`: payment notices waiting for the chatting address.
     var unsentNoticesCancellable: AnyCancellable?
     var sendingUnsentNotices = false
+    /// Retries held payment notices on a timer (`scheduleUnsentNoticeRetry`).
+    var unsentNoticeRetryTask: Task<Void, Never>?
     var settingsCancellable: AnyCancellable?
     var pingLatencyCancellable: AnyCancellable?
     var nodePoolSubscriptionStateCancellable: AnyCancellable?

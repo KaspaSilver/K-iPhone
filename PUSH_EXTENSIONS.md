@@ -164,7 +164,9 @@ switch). Snippet as for replies.
   at the source the flag can go again.
 - **Since 2026-11-22 the app banners again while it is OPEN** (`InAppBanner`: 1:1, group and
   room messages; KaPost activity from its 20 s poll), one banner per txid, holding back the
-  foreground push that duplicates one. What follows still holds for the background and closed app.
+  foreground push that duplicates one, and skipping any message whose push already reached the
+  phone (the extension's `push_arrivals_v1` ledger), so opening K after a push never banners it
+  again. What follows still holds for the background and closed app.
 - **(Until 2026-11-22) The app posts NO local banners of its own, for anything** - not for 1:1 messages, group
   messages or reactions, broadcasts, or KaPosts activity - whatever it discovers through its
   subscription, sweep, polls, background fetch or a silent push (`ChatService.localBannersEnabled`,

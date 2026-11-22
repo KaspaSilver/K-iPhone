@@ -4136,7 +4136,14 @@ struct ChatDetailView: View {
                 ? { accepted in respondToChessInvite(gameId: chessEnvelope!.gameId, accepted: accepted) }
                 : nil,
             onOpenChessGame: chessEnvelope != nil ? { activeChessGameId = chessEnvelope!.gameId } : nil,
-            onOpenPayment: message.messageType == .payment ? { paymentDetailMessage = message } : nil,
+            // A KaPost tip's card opens the post it tipped; any other payment its details.
+            onOpenPayment: message.messageType == .payment ? {
+                if let postId = KaPostTipLedger.shared.postId(for: message.txId) {
+                    KaChatLinkRouter.open(.kaPost(txId: postId), fromChat: true)
+                } else {
+                    paymentDetailMessage = message
+                }
+            } : nil,
             voiceParts: voiceParts,
             photoParts: photoParts
         )

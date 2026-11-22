@@ -23,6 +23,8 @@ shortcuts, the KaChat-NFC applet, and the "KaChat" Nextcloud folder and archive.
 Trestly provider announces itself as "K" with the `KLogo` globe (its rdns stays `com.kachat.wallet`). The project, targets, bundle id and URL schemes are unchanged. The sign-in
 screen (`OnboardingView`) shows the K globe (`KLogo`, cut from the app icon) with a teal glow over
 "Digital Freedom on the Kaspa Network"; the old `KaChatLogo` and `KaChatAppIcon` images are deleted (2026-11-22).
+The app icon is dark only (owner, 2026-11-22): `AppIcon` has the dark globe (`dark.png`) for every
+appearance plus the tinted one; the teal light-mode icon is gone, so don't add one back.
 
 **Dock and Kaspa Hub (phase 1, 2026-11-20):** the dock is Kaspa Hub and Profile (both pinned,
 `AppTab.pinnedToDock`) plus up to three tabs the person picks (`DockLayout`, saved on the device;
@@ -83,7 +85,40 @@ screen the connection dot is top left, as elsewhere in KaChat.
   messages itself (`InAppBanner` in KaChatApp.swift) and new KaPost activity on your posts (the
   20 s `KaPostsNotificationService` poll, `KaPostsBannerLedger`), one banner per message or action:
   skipped when its push is already showing, and a later push is listed without a banner
-  (`willPresent`). In the background and when closed, pushes alone.
+  (`willPresent`). In the background and when closed, pushes alone. Never a second banner for
+  a push that already came (owner, 2026-11-22): the notification extension records every push
+  in the App Group (`recordPushArrival`, `push_arrivals_v1`: txid, request id, `kaposts:` key,
+  30 min), and every app banner (chats, groups, rooms, KaPost, Received KAS) first checks
+  `InAppBanner.pushArrived`. That covers the push you tapped to open K, which has left
+  Notification Center.
+- KaPost pushes (owner, 2026-11-22): the extension titles them "KaPost" (the server sends
+  "KaPosts") and names the actor from `actor_pubkey` as K does: a contact's name, else their
+  .kachat name from `shared_identity_names` (the registry's cached names, newest 500, written
+  with the contacts sync; nothing looked up), else the server's subtitle.
+- KaPost tips in chats (owner, 2026-11-22): a tip (`kchat:1:tip:`) is a payment in the tipper's
+  1:1 chat. `KaPostTipLedger` (App Group `kapost_tips_v1`: tip txid -> post txid) is filled when
+  K sends a tip, by the notification extension, or by reading the payment's transaction once;
+  the card then says "Received tip" / "Sent tip" (`PaymentCardHeading`) and a tap opens the
+  tipped post instead of the payment sheet. One notice per tip, opening the chat: the indexer
+  sends a payment push and a KaPost "tipped your post" push with the same collapse id (the tip's
+  txid); the extension words both "Received a tip: X KAS" in the tipper's chat thread (the KaPost
+  one rewritten as a `payment` push) and makes whichever comes second quiet (`pushSeenBefore`).
+  In the app, the chat banner says the same and the KaPost poll posts no tip banner.
+- Dollars in a chat (owner, 2026-11-22): a contact's Send Dollars pings under their name like a
+  Kaspa payment: the push reads "Sent you kUSDT" (no amount: only the sender's claim), the app's
+  banner "Sent you 1.00 kUSDT" once the coin checks out (`postTokenPaymentBanner`, keyed by the
+  notice message's txid like its push). The wallet's own "Received kUSDT" skips any coin a chat
+  notice filed, and holds a new coin on the Chatting Address up to 2 minutes
+  (`TokenWallet.noticeWait`) waiting for that notice, so there's one ping, not two.
+- A payment notice that couldn't go out (`keepUnsentNotice`: usually the payment's own change
+  isn't spendable yet) is retried every 20 s while open, for 15 minutes
+  (`scheduleUnsentNoticeRetry`), not only when the chatting balance changes: a balance-only retry
+  held Android's kUSDT notice until an unrelated 10 KAS payment arrived (2026-11-22).
+- Cold Storage never shows a kpub as text (owner, 2026-11-22): not on the account list, not on
+  the account screen, not under the kpub QR. It is copied from the account's Address Actions
+  (Copy kpub) or the list's ⋮. The account screen has Manage Addresses' floating Address Actions
+  button and its full-width Total Balance card. Fiat amounts are grouped ("$1,234.56",
+  `formatFiatAmount`).
 - Push registration sends `"app": "k"` (K takes every push kind: chats, groups, KaPost, rooms,
   Received KAS, .kachat) and `watch_only_addresses` (spending and notifying Cold Storage
   addresses; empty with Address Activity off), both in the change signature. The server side is
@@ -693,7 +728,7 @@ Change these pieces rather than one screen, so the screens stay matched.
 
 Ported from KaPay on 2026-11-19 (KaPay's CLAUDE.md "Tokens (kUSDT)" is the full reference; keep the two in step). Since 2026-11-21 KaChat trades too (all-in-one): Wallet's Swap Stablecoins opens Trestly's site inside KaChat, connected to one address (`TrestlyProvider`, kusdt-open SPEC section 14); trades are checked and built by Trestly's own pool code (`kusdt-wallet.js`, pinned) in the hidden builder page, which a content rule list keeps off the network except the public Kaspa node WebSockets (`wss://*.kaspa.stream|red|green|blue`); its HTTP goes through `KusdtNetRelay`'s allow-list. Swaps are approved in `TrestlyApprovalSheet`.
 - `Services/Tokens/`: `Kusdt` (deployment ids, the pinned KCC20 template `Resources/kusdt-kcc20-template.json` checked by SHA-256, the 112-byte state and its P2SH script), `KusdtBalances` (Trestly's API, each coin believed only once the node holds that outpoint at the recomputed script with kUSDT's covenant id; `Expected` coins a send just made), `KusdtCore` (Trestly's WebAssembly builder in a hidden, offline `WKWebView`, files in `Resources/KusdtCore/` hash-pinned), `KusdtTransfer` (sends of at most 3 coins, KAS for the fee and change coin from the same address, fee from the token's own KAS on a whole send, every output checked before submit; Combine Coins). A send marks itself with `AddressActivityNotifier.markOwnTransaction`, so its KAS change is never "Received KAS".
-- `Views/Tokens/`: `TokenWallet` (refresh, Discover, visibility, fresh addresses, pending coins, Received notifications polled every 90 s from `MainTabView`, history kept on the phone, cleared with the account), `TokenBalanceCard` + `SlidingCardPager` + `BalancePagePills` (the Wallet tab's card swipes Kaspa ⇄ kUSDT; each says Tap to Manage: Kaspa opens Manage Addresses, kUSDT opens `TokenManageView`), `TokenManageView` / `TokenAddressView` / `TokenAddressVisibilityView`, `TokenSendView` (with Fund This Address), `TokenCombineView`, `SendAssetChooser` (Wallet's Send asks "What are you sending?"), `TokenSupport.swift` (`fittedSheetDetents`, `lowercasedKaspaAddress`, `SwipeUpLabels.transaction`).
+- `Views/Tokens/`: `TokenWallet` (refresh, Discover, visibility, fresh addresses, pending coins, Received notifications polled every 30 s from `MainTabView` (90 s until 2026-11-22), titled just "Received 1.00 kUSDT" with no address line, history kept on the phone, cleared with the account), `TokenBalanceCard` + `SlidingCardPager` + `BalancePagePills` (the Wallet tab's card swipes Kaspa ⇄ kUSDT; each says Tap to Manage: Kaspa opens Manage Addresses, kUSDT opens `TokenManageView`), `TokenManageView` / `TokenAddressView` / `TokenAddressVisibilityView`, `TokenSendView` (with Fund This Address), `TokenCombineView`, `SendAssetChooser` (Wallet's Send asks "What are you sending?"), `TokenSupport.swift` (`fittedSheetDetents`, `lowercasedKaspaAddress`, `SwipeUpLabels.transaction`).
 - A tapped "Received kUSDT" notification (thread `token-received`) sets `TokenRoute.pending` and opens Manage kUSDT on the Wallet tab; the Notifications list has the `.token` source.
 - Tokens live only on the Chatting Address and regular (legacy P2PK) spending addresses, never quantum ones, and never go to a script address. So Receive hands out a fresh REGULAR address (`WalletManager.freshReceiveAddress`, `lowestUnusedRegularAddress`), and Manage Addresses' Address Actions has Generate Non-Quantum Address and Generate Quantum-Resistant Address. Each address row's ⋮ has Send to Chatting Address. Every receive screen is `Views/Shared/AddressReceiveView.swift` (QR on white, privacy note, tap anywhere to copy).
 - Every Manage kUSDT row has a ⋮ (owner's call, 2026-11-21, the Chatting Address too): Rename, Copy, Show QR Code, Send to Chatting Address, Combine Coins (more than one coin) and Hide; the Chatting Address's has only Copy, Show QR Code and Combine Coins.

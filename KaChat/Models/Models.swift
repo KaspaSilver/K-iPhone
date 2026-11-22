@@ -375,6 +375,19 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     /// that reached this contact's chat through an account mix-up. It reads as nothing, so it
     /// is hidden like the cross-device placeholder; the record stays, and a later successful
     /// decrypt replaces it (the dedupe prefers real content) and it appears.
+    /// A payment's text as people read it: "Sent 1 KAS: Testing", never with the " — " the
+    /// stored text keeps between amount and memo (owner, 2026-11-22). Stored content is
+    /// unchanged: the payment card and older messages split on " — ".
+    static func paymentDisplayText(_ content: String) -> String {
+        guard let range = content.range(of: " — ") else { return content }
+        return content.replacingCharacters(in: range, with: ": ")
+    }
+
+    /// `content`, with a payment's memo shown after a colon (`paymentDisplayText`).
+    var readableContent: String {
+        messageType == .payment ? Self.paymentDisplayText(content) : content
+    }
+
     static let unreadablePlaceholder = "[Encrypted message]"
 
     /// What the app never shows: cross-device sends, undecryptable messages and call messages

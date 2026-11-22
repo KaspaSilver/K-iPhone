@@ -17,3 +17,10 @@
 "Group chat" = "Discussion de groupe";
 "Group update" = "Mise à jour du groupe";
 "New group message" = "Nouveau message de groupe";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received a tip: %@ KAS" = "Pourboire reçu : %@ KAS";
+"Received a tip" = "Pourboire reçu";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "Vous a envoyé %@";

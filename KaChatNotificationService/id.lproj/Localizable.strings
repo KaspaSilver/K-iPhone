@@ -11,3 +11,10 @@
 "Group chat" = "Obrolan grup";
 "Group update" = "Pembaruan grup";
 "New group message" = "Pesan grup baru";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received a tip: %@ KAS" = "Tip diterima: %@ KAS";
+"Received a tip" = "Tip diterima";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "Mengirimi Anda %@";

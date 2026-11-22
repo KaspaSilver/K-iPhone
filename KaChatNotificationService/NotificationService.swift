@@ -36,6 +36,8 @@ class NotificationService: UNNotificationServiceExtension {
     /// multi-part photo or voice note whose parts can't be read in time still rings only once.
     /// A part whose tag was read goes by its note alone (`claimVoicePartBanner`).
     private var partBurstOwner: String?
+    /// This push's txid or id came before (`recordPushArrival`): a KaPost tip's second push.
+    private var pushSeenBefore = false
     /// App Group ledger for `claimPartBurstBanner`: owner -> ["t": last push time, "q": the
     /// quiet notification ids its later pushes left].
     private let partBurstsKey = "part_push_bursts"
@@ -97,6 +99,7 @@ class NotificationService: UNNotificationServiceExtension {
         voicePartKey = nil
         partBurstOwner = nil
         readOffChain = false
+        pushSeenBefore = false
 
         guard let content = bestAttemptContent else {
             contentHandler(request.content)
@@ -105,6 +108,9 @@ class NotificationService: UNNotificationServiceExtension {
 
         // Extract push data from userInfo
         let userInfo = request.content.userInfo
+        // Tell the app this push came, so it never banners the same message again once opened
+        // (the tapped push leaves Notification Center, so the app can't see it there).
+        pushSeenBefore = Self.recordPushArrival(request: request, userInfo: userInfo)
 
         // .kachat name events (KACHAT_NAMES_INDEXER.md Part E: offers, sales, renewal reminders):
         // shown as sent since the market came back to K (2026-11-22, kachat-indexer
@@ -162,6 +168,18 @@ class NotificationService: UNNotificationServiceExtension {
             // service didn't skip it (an older registration, a server without the block list).
             if let actor = userInfo["actor_pubkey"] as? String, isHiddenKaPostsActor(actor) {
                 silence(content)
+            } else if (!content.title.isEmpty || !content.body.isEmpty),
+                      Self.kaPostsKind(pushKind: userInfo["kaposts_kind"] as? String, body: request.content.body) == "tip",
+                      applyKaPostsTip(content, request: request, userInfo: userInfo) {
+                // A tip is a payment in the tipper's chat: one "Received a tip" notice that opens
+                // that chat (done above).
+            } else if !content.title.isEmpty || !content.body.isEmpty {
+                // The product is "KaPost" (the server still titles it "KaPosts"), and the person
+                // is named as K names them, not by a short address.
+                content.title = "KaPost"
+                if let name = kaPostsActorName(userInfo["actor_pubkey"] as? String) {
+                    content.subtitle = name
+                }
             }
             contentHandler(content)
             return
@@ -402,6 +420,28 @@ class NotificationService: UNNotificationServiceExtension {
             }
         case "payment":
             handlePayment(content: content, userInfo: userInfo)
+            // A KaPost tip arrives as a payment push too (same txid as its "tipped your post"
+            // push): it says "Received a tip", and whichever of the two comes second is quiet.
+            let finish = { [weak self] in
+                guard let self else { return }
+                self.finishContextual(content: content, txId: txId, senderAddress: senderAddress,
+                                      messageType: messageType, shouldIncrementUnread: shouldIncrementUnread,
+                                      contentHandler: contentHandler)
+            }
+            if Self.knownTipPost(txId: txId) != nil {
+                applyTipWording(content, userInfo: userInfo)
+                finish()
+                return
+            }
+            fetchTransactionPayload(txId: txId) { [weak self] payloadHex in
+                guard let self else { return }
+                if let payloadHex, let postId = Self.tipPostId(payloadHex: payloadHex) {
+                    Self.recordTip(txId: txId, postId: postId)
+                    self.applyTipWording(content, userInfo: userInfo)
+                }
+                finish()
+            }
+            return
         case "handshake":
             content.body = NSLocalizedString("Started a conversation", comment: "Push body for handshake notification")
         case "audio":
@@ -418,6 +458,171 @@ class NotificationService: UNNotificationServiceExtension {
             shouldIncrementUnread: shouldIncrementUnread,
             contentHandler: contentHandler
         )
+    }
+
+    /// Who a KaPost push's actor is on this phone: the name K shows for a contact (yours, or
+    /// their .kachat name), else their .kachat name from the app's cache
+    /// (`shared_identity_names`). nil leaves the server's subtitle (a KNS name or short address).
+    private func kaPostsActorName(_ actorPubkey: String?) -> String? {
+        guard var key = actorPubkey?.lowercased() else { return nil }
+        if key.count == 66 { key = String(key.dropFirst(2)) }
+        let hrp = getWalletAddress().flatMap { Self.addressNetwork($0) } ?? "kaspa"
+        guard let address = Self.kaspaAddress(xOnlyPublicKeyHex: key, hrp: hrp) else { return nil }
+        if let alias = getSharedContact(address: address)?.alias, !alias.isEmpty { return alias }
+        let names = UserDefaults(suiteName: appGroupIdentifier)?.dictionary(forKey: "shared_identity_names") as? [String: String]
+        if let name = names?[address.lowercased()], !name.isEmpty { return name }
+        return nil
+    }
+
+    // MARK: - KaPost tips
+
+    /// The app's `KaPostTipLedger` store (App Group): tip payment txid -> tipped post's txid.
+    private static let tipsKey = "kapost_tips_v1"
+
+    static func knownTipPost(txId: String) -> String? {
+        (UserDefaults(suiteName: "group.com.kachat.app")?.dictionary(forKey: tipsKey) as? [String: String])?[txId.lowercased()]
+    }
+
+    static func recordTip(txId: String, postId: String) {
+        guard let defaults = UserDefaults(suiteName: "group.com.kachat.app"), !txId.isEmpty, !postId.isEmpty else { return }
+        var tips = (defaults.dictionary(forKey: tipsKey) as? [String: String]) ?? [:]
+        tips[txId.lowercased()] = postId.lowercased()
+        if tips.count > 2000 { tips = Dictionary(uniqueKeysWithValues: tips.prefix(2000).map { ($0.key, $0.value) }) }
+        defaults.set(tips, forKey: tipsKey)
+    }
+
+    /// The tipped post's txid when a transaction's payload (REST hex) is a KaPost tip:
+    /// `kchat:1:tip:<pubkey>:<signature>:<post_id>:<author_pubkey>:<sealed_hex>`.
+    static func tipPostId(payloadHex: String) -> String? {
+        guard let data = Data(hexString: payloadHex), let text = String(data: data, encoding: .utf8),
+              text.hasPrefix("kchat:1:tip:") else { return nil }
+        let fields = text.dropFirst("kchat:1:tip:".count).split(separator: ":", omittingEmptySubsequences: false)
+        guard fields.count == 5, !fields[4].isEmpty, fields[2].count == 64 else { return nil }
+        return String(fields[2]).lowercased()
+    }
+
+    /// "Received a tip: 0.2 KAS" (title: the tipper, set by the caller). The second of a tip's
+    /// two pushes replaces the first quietly.
+    private func applyTipWording(_ content: UNMutableNotificationContent, userInfo: [AnyHashable: Any], amountText: String? = nil) {
+        let kas = amountText ?? Self.kasText(userInfo["amount"])
+        if let kas {
+            content.body = String(format: unitLabel(NSLocalizedString("Received a tip: %@ KAS", comment: "Push body for a KaPost tip; the title is who tipped")), kas)
+        } else {
+            content.body = NSLocalizedString("Received a tip", comment: "Push body for a KaPost tip, amount unknown")
+        }
+        if pushSeenBefore {
+            content.sound = nil
+            content.badge = nil
+            content.interruptionLevel = .passive
+        }
+    }
+
+    /// A push's `amount` (sompi, as number or text) in KAS without trailing zeros.
+    private static func kasText(_ value: Any?) -> String? {
+        let sompi: UInt64?
+        if let number = value as? NSNumber { sompi = number.uint64Value }
+        else if let text = value as? String { sompi = UInt64(text) }
+        else { sompi = nil }
+        guard let sompi, sompi > 0 else { return nil }
+        var kas = String(format: "%.8f", Double(sompi) / 100_000_000.0)
+        while kas.hasSuffix("0") { kas.removeLast() }
+        if kas.hasSuffix(".") { kas.removeLast() }
+        return kas
+    }
+
+    /// A KaPost "tipped your post" push becomes the tipper's chat notice, exactly as the tip's
+    /// payment push reads: titled with their name, "Received a tip: 0.2 KAS", in their chat's
+    /// thread, opening that chat, as a payment push (`tx_id` = the tip's txid, its collapse id).
+    /// False when the push doesn't name the tipper or the tip, so it stays as sent.
+    private func applyKaPostsTip(_ content: UNMutableNotificationContent, request: UNNotificationRequest, userInfo: [AnyHashable: Any]) -> Bool {
+        let txId = request.identifier.lowercased()
+        guard txId.count == 64, txId.allSatisfy({ $0.isHexDigit }),
+              var key = (userInfo["actor_pubkey"] as? String)?.lowercased() else { return false }
+        if key.count == 66 { key = String(key.dropFirst(2)) }
+        let hrp = getWalletAddress().flatMap { Self.addressNetwork($0) } ?? "kaspa"
+        guard let address = Self.kaspaAddress(xOnlyPublicKeyHex: key, hrp: hrp) else { return false }
+        if let postId = userInfo["postId"] as? String, postId.count == 64 {
+            Self.recordTip(txId: txId, postId: postId)
+        }
+        content.title = kaPostsActorName(userInfo["actor_pubkey"] as? String) ?? formatAddress(address)
+        content.subtitle = ""
+        // "tipped your post: 0.2 KAS" -> "0.2"
+        let amount = request.content.body.components(separatedBy: ": ").last?
+            .components(separatedBy: " ").first
+            .flatMap { Double($0) != nil ? $0 : nil }
+        applyTipWording(content, userInfo: userInfo, amountText: amount)
+        content.threadIdentifier = address
+        content.categoryIdentifier = "KACHAT_MESSAGE"
+        var info = content.userInfo
+        info["tx_id"] = txId
+        info["sender"] = address
+        info["type"] = "payment"
+        content.userInfo = info
+        return true
+    }
+
+    // MARK: - Push arrival ledger
+
+    /// App Group ledger the app's `PushArrivals` reads: key -> arrival time. Keys are the push's
+    /// `tx_id` (chats, groups, Received KAS), its request id (a room push's collapse id is the
+    /// message's txid) and, for KaPost, `kaposts:<actor>|<post>|<kind>` as the app's
+    /// `KaPostsBannerLedger.key` writes it. Keep the two in step.
+    static let pushArrivalsKey = "push_arrivals_v1"
+    private static let pushArrivalsWindow: TimeInterval = 30 * 60
+    private static let pushArrivalsLimit = 500
+
+    /// Records this push; true when one with the same txid or id already came (a KaPost tip's
+    /// payment push and its "tipped your post" push share the tip's txid).
+    @discardableResult
+    static func recordPushArrival(request: UNNotificationRequest, userInfo: [AnyHashable: Any]) -> Bool {
+        var keys: [String] = [request.identifier.lowercased()]
+        if let txId = userInfo["tx_id"] as? String, !txId.isEmpty { keys.append(txId.lowercased()) }
+        if request.content.threadIdentifier.hasPrefix("kaposts") {
+            keys.append("kaposts:" + kaPostsKey(
+                actorPubkey: userInfo["actor_pubkey"] as? String,
+                postId: userInfo["postId"] as? String,
+                kind: kaPostsKind(pushKind: userInfo["kaposts_kind"] as? String, body: request.content.body)
+            ))
+        }
+        guard let defaults = UserDefaults(suiteName: "group.com.kachat.app") else { return false }
+        let now = Date().timeIntervalSince1970
+        var ledger = (defaults.dictionary(forKey: pushArrivalsKey) as? [String: Double]) ?? [:]
+        ledger = ledger.filter { now - $0.value < pushArrivalsWindow }
+        let seen = keys.contains { !$0.isEmpty && ledger[$0] != nil }
+        for key in keys where !key.isEmpty { ledger[key] = now }
+        if ledger.count > pushArrivalsLimit {
+            let keep = ledger.sorted { $0.value > $1.value }.prefix(pushArrivalsLimit)
+            ledger = Dictionary(uniqueKeysWithValues: keep.map { ($0.key, $0.value) })
+        }
+        defaults.set(ledger, forKey: pushArrivalsKey)
+        return seen
+    }
+
+    /// The app's `KaPostsBannerLedger.key`.
+    private static func kaPostsKey(actorPubkey: String?, postId: String?, kind: String) -> String {
+        var actor = (actorPubkey ?? "").lowercased()
+        if actor.count == 66 { actor = String(actor.dropFirst(2)) }
+        return "\(actor)|\((postId ?? "").lowercased())|\(kind)"
+    }
+
+    /// The app's `KaPostsBannerLedger.kind(pushKind:body:)`.
+    private static func kaPostsKind(pushKind: String?, body: String) -> String {
+        switch pushKind {
+        case "vote_up": return "like"
+        case "vote_down": return "dislike"
+        case "reply", "quote", "repost", "follow", "mention", "tip": return pushKind ?? "other"
+        default: break
+        }
+        let lowered = body.lowercased()
+        if lowered.contains("disliked your") { return "dislike" }
+        if lowered.contains("liked your") { return "like" }
+        if lowered.contains("replied to your") { return "reply" }
+        if lowered.contains("quoted your") { return "quote" }
+        if lowered.contains("reposted your") { return "repost" }
+        if lowered.contains("followed you") { return "follow" }
+        if lowered.contains("mentioned you") { return "mention" }
+        if lowered.contains("tipped your") { return "tip" }
+        return "other"
     }
 
     /// The tail every 1:1 path ends on. Factored out because the off-chain read above finishes
@@ -1553,6 +1758,8 @@ class NotificationService: UNNotificationServiceExtension {
         let type: String
         let amountSompi: UInt64?
         let address: String?
+        /// `token_payment_notice` only: which token ("kusdt").
+        let token: String?
     }
 
     private func parsePoolEnvelope(_ content: String) -> PushPoolEnvelope? {
@@ -1586,6 +1793,12 @@ class NotificationService: UNNotificationServiceExtension {
     private func paymentNoticePreviewText(for content: String) -> String? {
         guard let parsed = parsePoolEnvelope(content),
               parsed.type == "payment_notice" || parsed.type == "token_payment_notice" else { return nil }
+        // A dollar payment in a chat (Send Dollars) reads like a Kaspa one, under the sender's
+        // name: "Sent you kUSDT". No amount: it is only the sender's claim until the app checks
+        // the coin on chain (its own banner then says the amount).
+        if parsed.type == "token_payment_notice", parsed.token?.lowercased() == "kusdt" {
+            return String(format: NSLocalizedString("Sent you %@", comment: "Push body for a token payment in a chat; the title is who sent it"), "kUSDT")
+        }
         return NSLocalizedString("Received payment", comment: "Push body for incoming payment")
     }
 

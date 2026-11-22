@@ -17,3 +17,10 @@
 "Group chat" = "Trò chuyện nhóm";
 "Group update" = "Cập nhật nhóm";
 "New group message" = "Tin nhắn nhóm mới";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received a tip: %@ KAS" = "Đã nhận tiền tip: %@ KAS";
+"Received a tip" = "Đã nhận tiền tip";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "Đã gửi cho bạn %@";

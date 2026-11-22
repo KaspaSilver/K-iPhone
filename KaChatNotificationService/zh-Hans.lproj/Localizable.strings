@@ -17,3 +17,10 @@
 "Group chat" = "群聊";
 "Group update" = "群组更新";
 "New group message" = "新群组消息";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received a tip: %@ KAS" = "收到打赏：%@ KAS";
+"Received a tip" = "收到打赏";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "向你发送了 %@";

@@ -1806,8 +1806,12 @@ final class KaPostsNotificationService {
         let text = KaPostsAPIClient.stripMarker(notification.decodedContent ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let kind = KaPostsBannerLedger.kind(contentType: notification.contentType, voteType: notification.voteType, hasText: !text.isEmpty)
+        // A tip is a payment in the tipper's chat: that chat's banner says "Received a tip" and
+        // opens the chat, so this one would be a second notice for it.
+        if kind == "tip" { return }
         let ledgerKey = KaPostsBannerLedger.key(actorPubkey: notification.userPublicKey, postId: notification.contentId, kind: kind)
-        guard KaPostsBannerLedger.claim(ledgerKey) else { return }
+        // Its push already came (maybe the one you tapped to open K): no second banner.
+        guard !InAppBanner.pushArrived("kaposts:" + ledgerKey), KaPostsBannerLedger.claim(ledgerKey) else { return }
 
         let action: String
         switch kind {

@@ -3021,3 +3021,26 @@
 "Cold storage address %@ (%@)" = "冷存储地址 %@（%@）";
 "Accepted your request to communicate" = "已接受你的通信请求";
 "Sent you a message" = "给你发了一条消息";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received tip" = "收到打赏";
+"Sent tip" = "已打赏";
+"Received a tip: %@ KAS" = "收到打赏：%@ KAS";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "向你发送了 %@";
+
+/* UTXO Selection card (2026-11-22) */
+"UTXO Selection" = "UTXO 选择";
+"Choose which coins this send spends." = "选择这次发送要花费哪些币。";
+
+/* Address history change lines (2026-11-22) */
+"Moved" = "已转移";
+"To %@" = "至 %@";
+"Change %@ to %@" = "找零 %@ 至 %@";
+
+/* Cold Storage Address Actions (2026-11-22) */
+"Puts this account's kpub on the clipboard. It reveals all its addresses." = "将此账户的 kpub 复制到剪贴板。它会暴露该账户的所有地址。";
+
+/* Cold Storage Paste kpub (2026-11-22) */
+"Not a valid kpub" = "不是有效的 kpub";

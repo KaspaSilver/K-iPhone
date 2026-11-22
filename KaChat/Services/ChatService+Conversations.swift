@@ -3018,6 +3018,8 @@ extension ChatService {
             AppLog.log("[ChatService] Submitting payment via RPC manager...")
             let (txId, endpoint) = try await rpcManager.submitTransaction(tx, allowOrphan: false, escalateOrphan: false)
             AppLog.log("[ChatService] Payment submitted: \(txId.prefix(12))… via \(endpoint)")
+            // The chat's card says "Sent tip" and opens the post.
+            if let tip, tipPayload != nil { KaPostTipLedger.shared.record(txId: txId, postId: tip.postId) }
             if fromChattingAddress, let senderScriptPubKey = KaspaAddress.scriptPublicKey(from: sourceAddress) {
                 // Chatting-address-funded payment (privacy OFF) spends from the SAME UTXO set
                 // message sends use - the same outpoint bookkeeping every message send does
@@ -5629,4 +5631,85 @@ enum DeletedMessageLog {
 struct KaPostTip: Equatable {
     let postId: String
     let authorPubkey: String
+}
+
+/// Which chat payments are KaPost tips (`kchat:1:tip:`), and the post each one tipped: the chat
+/// card says "Received tip" / "Sent tip" and opens that post. Filled when a tip is sent, by the
+/// notification extension when a tip's push comes (App Group `kapost_tips_v1`, keep the two in
+/// step), and otherwise by reading the payment's transaction once (`resolve`). Not-a-tip answers
+/// are remembered too, so each payment is read at most once.
+@MainActor
+final class KaPostTipLedger: ObservableObject {
+    static let shared = KaPostTipLedger()
+    static let sharedKey = "kapost_tips_v1"
+    private static let notTipKey = "kapost_tips_none_v1"
+    private static let limit = 2000
+
+    /// Bumped when an answer lands, so cards re-render.
+    @Published private(set) var revision = 0
+    private var notTip: Set<String>
+    private var resolving: Set<String> = []
+
+    private init() {
+        notTip = Set(UserDefaults.standard.stringArray(forKey: Self.notTipKey) ?? [])
+    }
+
+    private var defaults: UserDefaults? { UserDefaults(suiteName: SharedDataManager.appGroupIdentifier) }
+
+    private var tips: [String: String] {
+        (defaults?.dictionary(forKey: Self.sharedKey) as? [String: String]) ?? [:]
+    }
+
+    /// The tipped post's txid, when this payment is a known tip.
+    func postId(for txId: String) -> String? {
+        tips[txId.lowercased()]
+    }
+
+    func record(txId: String, postId: String) {
+        let key = txId.lowercased()
+        guard !key.isEmpty, !postId.isEmpty else { return }
+        var all = tips
+        guard all[key] != postId.lowercased() else { return }
+        all[key] = postId.lowercased()
+        if all.count > Self.limit { all = Dictionary(uniqueKeysWithValues: all.prefix(Self.limit).map { ($0.key, $0.value) }) }
+        defaults?.set(all, forKey: Self.sharedKey)
+        revision += 1
+    }
+
+    /// Reads the payment's transaction once to learn whether it is a tip; the card re-renders
+    /// when it is. Pending sends (no txid yet) are skipped.
+    func resolve(txId: String) {
+        Task { _ = await tipPostId(txId: txId) }
+    }
+
+    /// The tipped post's txid, reading the payment's transaction when it isn't known yet; nil
+    /// for a payment that isn't a tip (or can't be read right now).
+    func tipPostId(txId: String) async -> String? {
+        let key = txId.lowercased()
+        if let known = tips[key] { return known }
+        guard key.count == 64, !notTip.contains(key), !resolving.contains(key) else { return nil }
+        resolving.insert(key)
+        let tx = await ChatService.shared.fetchKaspaTransaction(txId: key)
+        resolving.remove(key)
+        guard let tx else { return nil }  // not readable now: asked again next time
+        if let payloadHex = tx.payload,
+           let data = Data(hexString: payloadHex),
+           let parts = ChatService.tipParts(data) {
+            record(txId: key, postId: parts.postId)
+            return parts.postId.lowercased()
+        }
+        notTip.insert(key)
+        var list = Array(notTip)
+        if list.count > Self.limit { list = Array(list.suffix(Self.limit)) }
+        UserDefaults.standard.set(list, forKey: Self.notTipKey)
+        return nil
+    }
+
+    /// Delete Account.
+    func clear() {
+        defaults?.removeObject(forKey: Self.sharedKey)
+        UserDefaults.standard.removeObject(forKey: Self.notTipKey)
+        notTip = []
+        revision += 1
+    }
 }

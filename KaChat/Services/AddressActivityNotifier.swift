@@ -435,7 +435,7 @@ final class AddressActivityNotifier: ObservableObject {
 
         // One notice per transaction: none when its Received push (`address_activity`, same
         // `tx_id`) already showed, and a push that comes later is only listed (`InAppBanner`).
-        if InAppBanner.claim(dedupeKey) {
+        if !InAppBanner.pushArrived(dedupeKey), InAppBanner.claim(dedupeKey) {
             let center = UNUserNotificationCenter.current()
             let request = UNNotificationRequest(identifier: "addr-activity-\(dedupeKey)", content: content, trigger: nil)
             let txId = dedupeKey.lowercased()

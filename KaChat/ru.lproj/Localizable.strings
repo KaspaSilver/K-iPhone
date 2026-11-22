@@ -3021,3 +3021,26 @@
 "Cold storage address %@ (%@)" = "Адрес холодного хранилища %@ (%@)";
 "Accepted your request to communicate" = "Запрос на общение принят";
 "Sent you a message" = "Вам пришло сообщение";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received tip" = "Получены чаевые";
+"Sent tip" = "Отправлены чаевые";
+"Received a tip: %@ KAS" = "Получены чаевые: %@ KAS";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "Отправил вам %@";
+
+/* UTXO Selection card (2026-11-22) */
+"UTXO Selection" = "Выбор UTXO";
+"Choose which coins this send spends." = "Выберите, какие монеты потратит эта отправка.";
+
+/* Address history change lines (2026-11-22) */
+"Moved" = "Перемещено";
+"To %@" = "На %@";
+"Change %@ to %@" = "Сдача %@ на %@";
+
+/* Cold Storage Address Actions (2026-11-22) */
+"Puts this account's kpub on the clipboard. It reveals all its addresses." = "Копирует kpub этого счёта в буфер обмена. Он раскрывает все его адреса.";
+
+/* Cold Storage Paste kpub (2026-11-22) */
+"Not a valid kpub" = "Это не действительный kpub";

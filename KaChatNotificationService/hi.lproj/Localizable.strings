@@ -17,3 +17,10 @@
 "Group chat" = "समूह चैट";
 "Group update" = "समूह अपडेट";
 "New group message" = "नया समूह संदेश";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received a tip: %@ KAS" = "टिप मिली: %@ KAS";
+"Received a tip" = "टिप मिली";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "आपको %@ भेजे";

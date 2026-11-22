@@ -3713,7 +3713,25 @@ extension ChatService {
         } else if raw == "[Encrypted message]" {
             body = AppLocalization.string("Sent you a message")
         } else {
-            body = formatNotificationBody(message.content)
+            body = formatNotificationBody(message.readableContent)
+        }
+        let sound = settings.shouldPlayIncomingNotificationSound(for: contact)
+        // A KaPost tip is one notice, "Received a tip", opening this chat (its KaPost push says
+        // the same and is held back as the same txid).
+        if message.messageType == .payment, !message.isOutgoing,
+           let amount = MessageBubbleView.paymentCardParts(for: message), amount.token == nil {
+            Task { @MainActor in
+                let isTip = await KaPostTipLedger.shared.tipPostId(txId: message.txId) != nil
+                InAppBanner.post(
+                    txId: message.txId,
+                    title: contact.alias,
+                    body: isTip ? String(format: KaspaUnit.label(AppLocalization.string("Received a tip: %@ KAS")), amount.amountText) : body,
+                    threadIdentifier: contact.address,
+                    categoryIdentifier: AppDelegate.messageCategoryId,
+                    sound: sound
+                )
+            }
+            return
         }
         InAppBanner.post(
             txId: message.txId,
@@ -3721,7 +3739,7 @@ extension ChatService {
             body: body,
             threadIdentifier: contact.address,
             categoryIdentifier: AppDelegate.messageCategoryId,
-            sound: settings.shouldPlayIncomingNotificationSound(for: contact)
+            sound: sound
         )
     }
 

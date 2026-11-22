@@ -160,7 +160,7 @@ struct MessageBubbleView: View {
 
     /// The reply's own text, or the raw content when this isn't a reply.
     private var displayText: String {
-        replyQuote?.text ?? message.content
+        replyQuote?.text ?? message.readableContent
     }
 
     /// A link into KaChat itself (a shared profile or payment request) inside this
@@ -980,7 +980,7 @@ struct MessageBubbleView: View {
             .shadow(color: outgoing ? Color.black.opacity(0.12) : .clear, radius: 3, y: 1)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(outgoing ? "Sent" : "Received")
+                PaymentCardHeading(txId: message.txId, outgoing: outgoing, canBeTip: parts.token == nil)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(outgoing ? Color.white.opacity(0.85) : .secondary)
                 Text(verbatim: parts.amountWithUnit)
@@ -4209,5 +4209,22 @@ private struct PaymentCardTaps: ViewModifier {
             content
                 .simultaneousGesture(TapGesture(count: 2).onEnded(onDoubleTap))
         }
+    }
+}
+
+/// A payment card's "Sent" / "Received" line, which says "Sent tip" / "Received tip" for a KaPost
+/// tip (`KaPostTipLedger`; the card then opens the tipped post). Looks the payment up once.
+struct PaymentCardHeading: View {
+    let txId: String
+    let outgoing: Bool
+    let canBeTip: Bool
+    @ObservedObject private var tips = KaPostTipLedger.shared
+
+    var body: some View {
+        let isTip = canBeTip && tips.postId(for: txId) != nil
+        Text(isTip ? (outgoing ? "Sent tip" : "Received tip") : (outgoing ? "Sent" : "Received"))
+            .task(id: txId) {
+                if canBeTip { tips.resolve(txId: txId) }
+            }
     }
 }

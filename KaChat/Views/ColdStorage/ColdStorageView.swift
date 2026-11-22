@@ -76,8 +76,7 @@ struct ColdStorageListView: View {
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
                 Button {
-                    manualKpubInput = ""
-                    showManualEntry = true
+                    pasteKpub()
                 } label: {
                     Label("Paste kpub", systemImage: "doc.on.clipboard")
                         .font(.subheadline.weight(.semibold))
@@ -308,11 +307,6 @@ struct ColdStorageListView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(account.label)
                     .fontWeight(.semibold)
-                Text(account.kpubString)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
             }
             Spacer()
             Button {
@@ -330,6 +324,19 @@ struct ColdStorageListView: View {
         .padding(16)
         .background(glassBackground(cornerRadius: 18))
         .contentShape(Rectangle())
+    }
+
+    /// Paste kpub takes what's on the clipboard at once (owner, 2026-11-22): a valid kpub goes
+    /// straight to the half sheet that names the account; anything else is a toast.
+    private func pasteKpub() {
+        let text = (UIPasteboard.general.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, KaspaExtendedPublicKey(kpubString: text) != nil else {
+            Haptics.error()
+            showToast(AppLocalization.string("Not a valid kpub"))
+            return
+        }
+        Haptics.impact(.light)
+        beginImport(kpub: text)
     }
 
     private func beginImport(kpub: String) {
@@ -444,6 +451,11 @@ struct ColdStorageDetailView: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+            // Full width, as Manage Addresses shows its total (owner, 2026-11-22).
+            KaspaAddressBalanceCard(label: AppLocalization.string("Total Balance"), sompi: totalBalanceSompi)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
 
             if isLoading && entries.isEmpty {
                 HStack {
@@ -472,6 +484,13 @@ struct ColdStorageDetailView: View {
             }
         }
         .listStyle(.plain)
+        // Room to scroll the last row out from under the floating button.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: 72)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            addressActionsButton
+        }
         .navigationTitle(currentAccount.label)
         .navigationBarTitleDisplayMode(.inline)
         .toast(message: toastMessage)
@@ -525,8 +544,8 @@ struct ColdStorageDetailView: View {
             }
         }) {
             addressActionsSheet
-                // Three rows now that Address Visibility lives here.
-                .fittedSheetDetents(400)
+                // Four rows: Generate, Discover, Address Visibility, Copy kpub.
+                .fittedSheetDetents(490)
                 .presentationDragIndicator(.visible)
         }
         .sheet(item: $qrTarget) { entry in
@@ -580,6 +599,35 @@ struct ColdStorageDetailView: View {
         }
     }
 
+    /// The floating glass button behind "Address Actions", the same one Manage Addresses has.
+    private var addressActionsButton: some View {
+        Button {
+            Haptics.impact(.light)
+            showAddressActions = true
+        } label: {
+            Group {
+                if isGenerating || isDiscovering {
+                    ProgressView()
+                } else {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.scaled(size: 22, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                }
+            }
+            .frame(width: 56, height: 56)
+            .background(
+                Circle()
+                    .fill(.regularMaterial)
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
+                    .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, 20)
+        .padding(.bottom, 16)
+        .accessibilityLabel(Text("Address Actions"))
+    }
+
     /// Plain labeled text instead of each stacking in its own glass card — this is summary info
     /// about the account (not a tappable row), so a card treatment just added visual noise
     /// without meaning "you can tap this."
@@ -606,51 +654,6 @@ struct ColdStorageDetailView: View {
                 }
                 .buttonStyle(.plain)
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("kpub")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(currentAccount.kpubString)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.primary)
-                Button {
-                    ColdStorageClipboard.copyKpub(currentAccount.kpubString)
-                    Haptics.success()
-                    showToast("kpub copied to clipboard.")
-                } label: {
-                    Label("Copy kpub", systemImage: "doc.on.doc")
-                        .font(.caption.weight(.semibold))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            // The same card as Manage Addresses' total (and an address's own page), with its
-            // worth in your currency on mainnet.
-            KaspaAddressBalanceCard(label: AppLocalization.string("Total Balance"), sompi: totalBalanceSompi)
-
-            // Directly under the balance rather than pinned to the bottom of the screen: the
-            // actions are about this account, so they belong with the account, and a floating
-            // bar covered the last address row on a short list.
-            Button {
-                Haptics.impact(.light)
-                showAddressActions = true
-            } label: {
-                Group {
-                    if isGenerating || isDiscovering {
-                        ProgressView().tint(.black)
-                    } else {
-                        Text("Address Actions")
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .foregroundColor(.black)
-                .background(Capsule().fill(Color.accentColor))
-            }
-            .buttonStyle(.plain)
-            .disabled(isGenerating || isDiscovering)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
@@ -797,6 +800,19 @@ struct ColdStorageDetailView: View {
                     ) {
                         openVisibilityAfterActions = true
                         showAddressActions = false
+                    }
+                    // The kpub is never on screen (owner, 2026-11-22): it reveals every address of
+                    // the account, so it is only copied, from here.
+                    ActionSheetRow(
+                        title: "Copy kpub",
+                        subtitle: "Puts this account's kpub on the clipboard. It reveals all its addresses.",
+                        systemImage: "doc.on.doc",
+                        isDisabled: isDiscovering
+                    ) {
+                        ColdStorageClipboard.copyKpub(currentAccount.kpubString)
+                        Haptics.success()
+                        showAddressActions = false
+                        showToast("kpub copied to clipboard.")
                     }
                     if let discoverySummary {
                         Text(discoverySummary)
@@ -1914,7 +1930,7 @@ private struct ColdSendFlowView: View {
 }
 
 /// Coin control — lets the user fix the exact UTXO set a send spends from instead of the
-/// automatic largest-first selector. Reachable from a send form's "Coin Control" row - shared by
+/// automatic largest-first selector. Reachable from a send form's "UTXO Selection" card - shared by
 /// `ColdSendFlowView` and `SpendingAddressWithdrawView` (not Cold-Storage-specific: it fetches
 /// via the generic `NodePoolService.shared.getUtxosByAddresses`, keyed only by `fromAddress`).
 /// Passes the selection back as a plain `[UTXO]?` (nil = automatic) rather than owning any state
@@ -2056,7 +2072,7 @@ struct CoinControlView: View {
                     }
                 }
             }
-            .navigationTitle("Coin Control")
+            .navigationTitle("UTXO Selection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -2155,14 +2171,9 @@ struct ColdStorageAddressTransactionHistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 2) {
-                Text("Balance")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(verbatim: "\(KaspaUnit.groupedExact(entry.balanceSompi)) \(KaspaUnit.symbol)")
-                    .font(.title3.weight(.semibold))
-            }
-            .padding(.top, 12)
+            // The same balance card as a Manage Addresses address's page (owner, 2026-11-22):
+            // the address's name, its balance large, and its worth in your currency.
+            KaspaAddressBalanceCard(label: entry.displayLabel, sompi: entry.balanceSompi)
 
             // The app's tab look (`UnderlineTabBar`), not a segmented control.
             UnderlineTabBar(
@@ -2892,12 +2903,7 @@ private struct ColdStorageKpubQRView: View {
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-                        Text(account.kpubString)
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundColor(Color.black.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-
+                        // No kpub text (owner, 2026-11-22): only the QR, for scanning.
                         Text("Watch-only. This cannot spend, but it reveals every address in this account.")
                             .font(.footnote)
                             .foregroundColor(Color.black.opacity(0.45))

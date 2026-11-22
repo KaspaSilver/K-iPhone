@@ -3021,3 +3021,26 @@
 "Cold storage address %@ (%@)" = "Địa chỉ lưu trữ lạnh %@ (%@)";
 "Accepted your request to communicate" = "Đã chấp nhận yêu cầu liên lạc của bạn";
 "Sent you a message" = "Đã gửi cho bạn một tin nhắn";
+
+/* KaPost tips in chats (2026-11-22) */
+"Received tip" = "Đã nhận tiền tip";
+"Sent tip" = "Đã gửi tiền tip";
+"Received a tip: %@ KAS" = "Đã nhận tiền tip: %@ KAS";
+
+/* Dollar payment in a chat (2026-11-22) */
+"Sent you %@" = "Đã gửi cho bạn %@";
+
+/* UTXO Selection card (2026-11-22) */
+"UTXO Selection" = "Chọn UTXO";
+"Choose which coins this send spends." = "Chọn những đồng coin mà lần gửi này sẽ dùng.";
+
+/* Address history change lines (2026-11-22) */
+"Moved" = "Đã chuyển";
+"To %@" = "Đến %@";
+"Change %@ to %@" = "Tiền thừa %@ đến %@";
+
+/* Cold Storage Address Actions (2026-11-22) */
+"Puts this account's kpub on the clipboard. It reveals all its addresses." = "Sao chép kpub của tài khoản này vào bộ nhớ tạm. Nó để lộ mọi địa chỉ của tài khoản.";
+
+/* Cold Storage Paste kpub (2026-11-22) */
+"Not a valid kpub" = "Không phải kpub hợp lệ";

@@ -2034,7 +2034,7 @@ struct ConversationRow: View {
                             )
                         }
 
-                        Text(reactionPreviewText ?? formatPreview(lastMessage.content))
+                        Text(reactionPreviewText ?? formatPreview(lastMessage.readableContent))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -2089,9 +2089,16 @@ struct ConversationRow: View {
     /// reaction newer than the last message.
     private var reactionPreviewText: String? {
         guard let preview = chatService.latestReactionByContact[conversation.contact.address] else { return nil }
-        let reactionDate = Date(timeIntervalSince1970: TimeInterval(preview.blockTime) / 1000.0)
-        if let lastMessage = conversation.lastMessage, lastMessage.timestamp >= reactionDate {
-            return nil
+        // Compared on the same clock as the reaction (chain block time, ms): a message's
+        // `timestamp` is cut to whole seconds on some paths, and an own reaction is stamped with
+        // this phone's clock, so a reply right after a reaction could read as older and the
+        // reaction stayed the preview. A message not in a block yet is the newest thing in the
+        // chat, and one within a second of the reaction wins (owner, 2026-11-22).
+        if let lastMessage = conversation.lastMessage {
+            guard lastMessage.blockTime > 0 else { return nil }
+            let lastMs = max(Int64(clamping: lastMessage.blockTime),
+                             Int64(lastMessage.timestamp.timeIntervalSince1970 * 1000))
+            if lastMs + 1000 >= preview.blockTime { return nil }
         }
         let myAddress = walletManager.currentWallet?.publicAddress
         let reactedByMe = preview.reactorAddress == myAddress
