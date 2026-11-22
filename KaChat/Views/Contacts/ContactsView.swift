@@ -2834,17 +2834,52 @@ struct ChattingAddressManageView: View {
     }
 
     private func transactionRow(_ tx: KaspaFullTransactionResponse) -> some View {
-        let info = tx.direction(for: address)
+        var info = tx.direction(for: address)
+        // As Manage Addresses' history (owner, 2026-11-22): Sent counts what went to other
+        // people, each of this wallet's other addresses that got change has its own line, and
+        // all of it to our own addresses is Moved.
+        var toOthers: UInt64 = 0
+        var change: [(label: String, sompi: UInt64)] = []
+        if info?.isOutgoing == true {
+            let this = address.lowercased()
+            for output in tx.outputs {
+                guard let to = output.scriptPublicKeyAddress?.lowercased(), !to.isEmpty, to != this else { continue }
+                if let label = WalletManager.shared.ownAddressLabel(for: to) {
+                    if let index = change.firstIndex(where: { $0.label == label }) {
+                        change[index].sompi += output.amount
+                    } else {
+                        change.append((label, output.amount))
+                    }
+                } else {
+                    toOthers += output.amount
+                }
+            }
+        }
+        let changeTotal = change.reduce(UInt64(0)) { $0 + $1.sompi }
+        let moved = info?.isOutgoing == true && toOthers == 0 && changeTotal > 0
+        if info?.isOutgoing == true {
+            info!.amountSompi = moved ? changeTotal : toOthers
+        }
         return HStack(spacing: 12) {
             Image(systemName: info?.isOutgoing == true ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                 .font(.title2)
                 .foregroundColor(info == nil ? .secondary : (info!.isOutgoing ? .red : .green))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(info == nil ? "Transaction" : (info!.isOutgoing ? "Sent" : "Received"))
+                Text(info == nil ? "Transaction" : (info!.isOutgoing ? (moved ? "Moved" : "Sent") : "Received"))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(info == nil ? .secondary : (info!.isOutgoing ? .red : .green))
+                ForEach(Array(change.enumerated()), id: \.offset) { _, line in
+                    Text(verbatim: moved
+                         ? String(format: AppLocalization.string("To %@"), line.label)
+                         : String(format: AppLocalization.string("Change %@ to %@"),
+                                  "\(formatKasExact(line.sompi)) \(KaspaUnit.symbol)", line.label))
+                        .font(.caption2.weight(.medium))
+                        .foregroundColor(.orange)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
                 Text(tx.transactionId)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundColor(.secondary)
