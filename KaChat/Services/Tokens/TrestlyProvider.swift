@@ -95,7 +95,9 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
     private var script: String {
         let methodsJSON = Self.jsonString(Self.methods) ?? "[]"
         let info = Self.jsonString([
-            "name": "KaChat",
+            // what Trestly's site shows on Connect: the app's name and logo (K since 2026-11-21);
+            // rdns is an id, not shown, so it stays as Trestly knows it
+            "name": "K",
             "rdns": "com.kachat.wallet",
             "icon": Self.iconDataURL ?? "",
         ]) ?? "{}"
@@ -406,9 +408,10 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
         return String(data: data, encoding: .utf8)
     }
 
-    /// KaPay's logo as a small PNG data URL for `info.icon` (the site takes up to 256 KB).
+    /// K's globe logo as a small PNG data URL for `info.icon` (the site takes up to 256 KB). It
+    /// named KaPay's "KaChatWalletLogo", which K doesn't ship, so the site showed no logo.
     private static let iconDataURL: String? = {
-        guard let image = UIImage(named: "KaChatWalletLogo") else { return nil }
+        guard let image = UIImage(named: "KLogo") else { return nil }
         let size = CGSize(width: 96, height: 96)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1

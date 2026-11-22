@@ -19,8 +19,8 @@ sentence that means the app say "K", in all 19 languages. "KaChat" stays where i
 real: the chats tab (`AppTab.chats`) and its list (the wallet tab stays "Wallet": it was "KaPay"
 briefly on 2026-11-21 and the owner changed it back; Settings keeps its "Chats" category), .kachat names and profiles ("KaChat Profile",
 "KaChat Link", "Shared a KaChat profile"), KaChat Stats (the protocol's transactions), the Siri
-shortcuts, the KaChat-NFC applet, the "KaChat" Nextcloud folder and archive, and the name the
-Trestly provider announces. The project, targets, bundle id and URL schemes are unchanged. The sign-in
+shortcuts, the KaChat-NFC applet, and the "KaChat" Nextcloud folder and archive. The
+Trestly provider announces itself as "K" with the `KLogo` globe (its rdns stays `com.kachat.wallet`). The project, targets, bundle id and URL schemes are unchanged. The sign-in
 screen (`OnboardingView`) shows the K globe (`KLogo`, cut from the app icon) with a teal glow over
 "Digital Freedom on the Kaspa Network"; `KaChatLogo` (the chat bubble) is no longer on it.
 
