@@ -147,12 +147,6 @@ struct PublicChatChannelView: View {
         walletManager.hasConfirmedZeroChattingBalance
     }
 
-    /// A room the indexer tracks (the curated ones, or one added on the indexer): history comes
-    /// from the public chat indexer and retention is fixed at 30 days.
-    private var isIndexedChannel: Bool {
-        PublicChatService.isIndexerTracked(channelName)
-    }
-
     // Split into four expressions rather than one 14-modifier chain. The type checker solves a
     // view's whole modifier chain as a SINGLE expression, and this one had grown past what it
     // will spend on that ("unable to type-check this expression in reasonable time"). Same split,
@@ -687,6 +681,33 @@ struct PublicChatChannelView: View {
         MessageReplyCodec.parse(message.content)
     }
 
+    /// What a reply's quote shows (audit #18). The sender and text a reply envelope carries are
+    /// whatever its author typed, so they could put any words in anyone's mouth: the quote is
+    /// drawn from the quoted message itself, found by `replyToId` among the room's loaded
+    /// messages (with its edit, if it has one). When that message isn't loaded, the quote names
+    /// nobody: "Original message not loaded" over the text the reply claims.
+    private func replyQuoteDisplay(for reply: MessageReplyContent) -> PublicChatReplyQuoteDisplay {
+        guard let original = publicChatService.message(id: reply.replyToId, inChannel: channelName) else {
+            return PublicChatReplyQuoteDisplay(
+                senderName: nil,
+                preview: KaPostsMarkdown.strippingBidiControls(reply.replyToPreview)
+            )
+        }
+        let edit = publicChatService.edits(forChannel: channelName)[original.id]
+        let editedText: String? = edit.flatMap { snapshot -> String? in
+            snapshot.deliveryStatus == .failed ? nil : MessageEditCodec.apply(snapshot.text, to: original.content)
+        }
+        let content: String = editedText ?? original.content
+        let sender = original.senderAddress == myAddress
+            ? AppLocalization.string("You")
+            : displayName(for: original.senderAddress)
+        let preview = String(MessageReplyCodec.previewText(for: content).prefix(MessageReplyCodec.previewMaxLength * 2))
+        return PublicChatReplyQuoteDisplay(
+            senderName: sender,
+            preview: KaPostsMarkdown.strippingBidiControls(preview)
+        )
+    }
+
     private func displayName(for address: String) -> String {
         // The app's one rule (ContactsManager.displayName): your name for them, else their
         // .kachat name on testnet (KNS elsewhere), else the short address.
@@ -748,7 +769,7 @@ struct PublicChatChannelView: View {
         }
         let messageReactions: [GroupStore.ReactionSnapshot] =
             publicChatService.reactions(forChannel: channelName)[message.id] ?? []
-        let replySender: String? = messageReplyQuote.map { displayName(for: $0.replyToSender) }
+        let replyDisplay: PublicChatReplyQuoteDisplay? = messageReplyQuote.map { replyQuoteDisplay(for: $0) }
         PublicChatMessageRow(
             message: shownMessage,
             isOwnMessage: message.senderAddress == myAddress,
@@ -756,7 +777,7 @@ struct PublicChatChannelView: View {
             displayName: displayName(for: message.senderAddress),
             senderHasKachatName: KachatLive.identityName(message.senderAddress) != nil,
             replyQuote: messageReplyQuote,
-            replySenderDisplayName: replySender,
+            replyQuoteDisplay: replyDisplay,
             onViewProfile: { viewProfile(message.senderAddress) },
             onCopyAddress: {
                 UIPasteboard.general.string = message.senderAddress
@@ -972,16 +993,6 @@ struct PublicChatChannelView: View {
         }
     }
 
-    private func glassBackground(cornerRadius: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
-    }
-
     private var shouldShowFeeBubble: Bool {
         guard settingsViewModel.settings.showFeeEstimate else { return false }
         if recorder.state == .recording || recorder.state == .encoding { return true }
@@ -1014,7 +1025,7 @@ struct PublicChatChannelView: View {
         .allowsHitTesting(true)
         .onTapGesture {
             guard !isEstimatingFee, let currentFee = feeOverrideSompi ?? feeEstimateSompi else { return }
-            feeEditorText = formatKaspaExact(currentFee)
+            feeEditorText = formatKasExact(currentFee)
             showFeeEditor = true
         }
     }
@@ -1027,7 +1038,7 @@ struct PublicChatChannelView: View {
 
     private func localizedFeeText(_ feeSompi: UInt64) -> String {
         let template = KaspaUnit.label(AppLocalization.string("fee: %@ KAS"))
-        return String(format: template, locale: AppLocalization.locale, formatKaspaExact(feeSompi))
+        return String(format: template, locale: AppLocalization.locale, formatKasExact(feeSompi))
     }
 
     /// While typing (`force` false): waits for a 0.6 s pause, and skips the estimate while the
@@ -1201,7 +1212,7 @@ struct PublicChatChannelView: View {
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.accentColor)
-                Text(MessageReplyCodec.previewText(for: content.text))
+                Text(verbatim: KaPostsMarkdown.strippingBidiControls(MessageReplyCodec.previewText(for: content.text)))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
@@ -1270,11 +1281,6 @@ struct PublicChatChannelView: View {
         } else {
             showToast(String(format: AppLocalization.string("Failed to edit: %@"), error.localizedDescription))
         }
-    }
-
-    private func formatKaspaExact(_ sompi: UInt64) -> String {
-        let kas = Double(sompi) / 100_000_000.0
-        return String(format: "%.8f", kas)
     }
 
     private func showToast(_ message: String) {
@@ -1432,7 +1438,8 @@ private struct PublicChatRoomTitleChip: View {
                 .zIndex(1)
 
                 HStack(spacing: 4) {
-                    Text("#" + channelName)
+                    // bidi controls stripped, as in the Chats list (audit #22)
+                    Text(verbatim: "#" + KaPostsMarkdown.strippingBidiControls(channelName))
                         .font(.subheadline.weight(.bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
@@ -1460,6 +1467,14 @@ private struct PublicChatRoomTitleChip: View {
     }
 }
 
+/// A reply's quote as its bubble draws it (`PublicChatChannelView.replyQuoteDisplay`): the
+/// quoted message's sender and text when it's loaded; otherwise no sender (nil) and the text the
+/// reply claims, shown as unverified.
+struct PublicChatReplyQuoteDisplay: Equatable {
+    let senderName: String?
+    let preview: String
+}
+
 private struct PublicChatMessageRow: View, Equatable {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     /// Translation from the long-press menu - the KaPosts service, reused as-is.
@@ -1471,7 +1486,8 @@ private struct PublicChatMessageRow: View, Equatable {
     /// The sender has a `.kachat` name: only then do their links preview (`previews`).
     let senderHasKachatName: Bool
     let replyQuote: MessageReplyContent?
-    let replySenderDisplayName: String?
+    /// What the quote shows: the quoted message's sender and text, not the reply's claim.
+    let replyQuoteDisplay: PublicChatReplyQuoteDisplay?
     let onViewProfile: () -> Void
     let onCopyAddress: () -> Void
     let onHideSender: () -> Void
@@ -1538,7 +1554,7 @@ private struct PublicChatMessageRow: View, Equatable {
             && lhs.displayName == rhs.displayName
             && lhs.senderHasKachatName == rhs.senderHasKachatName
             && lhs.replyQuote == rhs.replyQuote
-            && lhs.replySenderDisplayName == rhs.replySenderDisplayName
+            && lhs.replyQuoteDisplay == rhs.replyQuoteDisplay
             && lhs.reactions == rhs.reactions
             && lhs.myReactorAddress == rhs.myReactorAddress
             && lhs.isQuickReactionBarShown == rhs.isQuickReactionBarShown
@@ -1652,8 +1668,8 @@ private struct PublicChatMessageRow: View, Equatable {
                     .fontWeight(.semibold)
                     .foregroundColor(.accentColor)
 
-                if let replyQuote {
-                    replyQuoteView(replyQuote)
+                if let replyQuoteDisplay {
+                    replyQuoteView(replyQuoteDisplay)
                 }
 
                 bubble
@@ -1705,14 +1721,23 @@ private struct PublicChatMessageRow: View, Equatable {
         .buttonStyle(.plain)
     }
 
-    private func replyQuoteView(_ reply: MessageReplyContent) -> some View {
+    private func replyQuoteView(_ quote: PublicChatReplyQuoteDisplay) -> some View {
         VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 2) {
-            Text(replySenderDisplayName ?? Contact.generateDefaultAlias(from: reply.replyToSender))
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundColor(.accentColor)
-            Text(reply.replyToPreview)
+            if let senderName = quote.senderName {
+                Text(verbatim: senderName)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.accentColor)
+            } else {
+                // The quoted message isn't here to check: nobody is named.
+                Text(AppLocalization.string("Original message not loaded"))
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+            }
+            Text(verbatim: quote.preview)
                 .font(.caption)
+                .italic(quote.senderName == nil)
                 .foregroundColor(.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(isOwnMessage ? .trailing : .leading)

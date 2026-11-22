@@ -106,7 +106,6 @@
 "Finish" = "완료";
 "From" = "보낸 사람";
 "Fund Your Chatting Address" = "채팅 주소에 충전하기";
-"Generate New Spending Address" = "새 지출 주소 생성";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "채팅하는 주소와 별도의 주소에서 결제를 보내려면 아래에서 하나를 생성하세요.";
 "Give this address a label to help you recognize it." = "알아볼 수 있도록 이 주소에 라벨을 지정하세요.";
 "Group Info" = "그룹 정보";
@@ -165,7 +164,6 @@
 "No KNS profile changes detected." = "KNS 프로필 변경 사항이 감지되지 않았습니다.";
 "No Sound" = "소리 없음";
 "No Spending Addresses" = "지출 주소 없음";
-"No active account" = "활성 계정 없음";
 "No active nodes" = "활성 노드 없음";
 "No domains yet." = "아직 도메인이 없습니다.";
 "No emoji found" = "이모지를 찾을 수 없습니다.";
@@ -315,7 +313,6 @@
 "fee: -------- KAS" = "수수료: -------- KAS";
 "kaspasilver@gmail.com" = "kaspasilver@gmail.com";
 "name" = "이름";
-"–" = "–";
 "—" = "—";
 "♟️" = "♟️";
 
@@ -898,7 +895,6 @@
 "Delete %@ from your contacts?" = "%@님을 연락처에서 삭제할까요?";
 "Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "사용하는 Kaspa 주소를 알아보기 쉬운 이름으로 저장하세요. 이 지갑 전용으로 K에만 저장되고 휴대폰의 연락처 앱에는 들어가지 않습니다.";
 "Saved in K for this wallet only. Never added to your phone's Contacts app." = "이 지갑 전용으로 K에 저장됩니다. 휴대폰의 연락처 앱에는 추가되지 않습니다.";
-"This is a fresh address, never used before." = "한 번도 사용되지 않은 새 주소입니다.";
 "Use for chatting and acquiring .kachat domains." = "채팅과 .kachat 도메인 획득에 사용하세요.";
 "Think of it like your phone number on K." = "K에서의 전화번호라고 생각하세요.";
 "How People Reach You" = "연락받는 방법";
@@ -918,9 +914,7 @@
 "This removes this group and its messages from this device. This cannot be undone, and other members keep their copies." = "이 그룹과 메시지가 이 기기에서 제거됩니다. 이 작업은 되돌릴 수 없으며, 다른 멤버는 자신의 사본을 그대로 가집니다.";
 "%lld chat%@" = "채팅 %lld개%@";
 "Silenced" = "알림 끔";
-"%1$@ reacted %2$@ to your message" = "%1$@님이 내 메시지에 %2$@ 반응을 남겼습니다";
 "%@ reacted to your message" = "%@님이 내 메시지에 반응했습니다";
-"%1$@ reacted %2$@ to a message" = "%1$@님이 메시지에 %2$@ 반응을 남겼습니다";
 "%@ reacted to a message" = "%@님이 메시지에 반응했습니다";
 "Checking..." = "확인 중...";
 "Couldn't Create Account" = "계정을 만들 수 없습니다";
@@ -1029,15 +1023,12 @@
 "This file is no longer shared" = "이 파일은 더 이상 공유되지 않습니다";
 "Tap to load preview" = "탭하여 미리보기 불러오기";
 "Could not load this file." = "이 파일을 불러올 수 없습니다.";
-"No notifications yet" = "아직 알림이 없습니다";
-"Kaspa arriving in your addresses shows up here." = "내 주소로 들어오는 Kaspa가 여기에 표시됩니다.";
 "Clear All" = "모두 지우기";
 "Hidden while screen is being recorded or mirrored" = "화면을 녹화하거나 미러링하는 동안 숨겨집니다";
 "Group info for %@" = "%@ 그룹 정보";
 "This only deletes the message from this device - other members still have their own copy, and the encrypted transaction remains permanently on the Kaspa blockchain, visible to anyone but unreadable without your keys. This cannot be undone." = "이 기기에서만 메시지가 삭제됩니다. 다른 멤버는 각자의 사본을 그대로 가지고 있고, 암호화된 거래는 Kaspa 블록체인에 영구히 남습니다. 누구나 볼 수 있지만 내 키 없이는 읽을 수 없습니다. 이 작업은 되돌릴 수 없습니다.";
 "Editing message" = "메시지 편집 중";
 "Replying to %@" = "%@님에게 답장 중";
-"Recording... %llds" = "녹음 중... %lld초";
 "edited" = "수정됨";
 "%lld members" = "멤버 %lld명";
 "Remove photo" = "사진 제거";
@@ -1111,7 +1102,6 @@
 "Setting up your account" = "계정 설정 중";
 "Downloading everything this account has on chain. It only takes this long once." = "이 계정이 체인에 가진 모든 것을 내려받는 중입니다. 이렇게 오래 걸리는 것은 처음 한 번뿐입니다.";
 "Continue anyway" = "그래도 계속";
-"Share your profile" = "내 프로필 공유";
 "Your Domains" = "내 도메인";
 "Preparing a fresh address" = "새 주소를 준비하는 중";
 "Share Profile" = "프로필 공유";
@@ -1314,8 +1304,6 @@
 "Fee (KAS)" = "수수료 (KAS)";
 "fee: %@ KAS" = "수수료: %@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "선택한 각 채팅의 모든 메시지가 이 기기에서 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.";
-"Accepted your request to communicate" = "통신 요청을 수락했습니다";
-"Sent you a message" = "메시지를 보냈습니다";
 "[Payment]" = "[결제]";
 "My Account" = "내 계정";
 "Re-sync %lld Chat%@" = "채팅 %lld개 다시 동기화%@";
@@ -1410,11 +1398,9 @@
 "One minute each, plus one second a move." = "각자 1분, 수마다 1초 추가.";
 "Open in Explorer" = "탐색기에서 열기";
 "Open in K" = "K에서 열기";
-"Open in KaPost" = "KaPost에서 열기";
 "Open your chat with them in payment mode." = "상대와의 채팅을 결제 모드로 엽니다.";
 "Opens in your browser." = "브라우저에서 열립니다.";
 "Opens it right here in the app." = "앱 안에서 바로 엽니다.";
-"Opens the post in the KaPost app." = "KaPost 앱에서 게시물을 엽니다.";
 "Opens this address on your chosen block explorer." = "선택한 블록 탐색기에서 이 주소를 엽니다.";
 "Opens this transaction on the block explorer." = "블록 탐색기에서 이 거래를 엽니다.";
 "Original message isn't on this device yet - fetching it." = "원본 메시지가 아직 이 기기에 없어 가져오는 중입니다.";
@@ -1440,7 +1426,6 @@
 "Removes this chat and its messages from this device." = "이 기기에서 이 채팅과 메시지를 삭제합니다.";
 "Removes this group and its messages from this device." = "이 기기에서 이 그룹과 메시지를 삭제합니다.";
 "Reply to this message instead." = "대신 이 메시지에 답장합니다.";
-"Reveals the next unused address in this wallet." = "이 지갑에서 아직 쓰지 않은 다음 주소를 표시합니다.";
 "Saves or shares the recording as a file." = "녹음을 파일로 저장하거나 공유합니다.";
 "Select Chats..." = "채팅 선택...";
 "Sends this message again." = "이 메시지를 다시 보냅니다.";
@@ -1525,9 +1510,7 @@
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "이 메시지는 한 거래에 필요한 코인이 너무 많습니다. 채팅 주소에서 Compound UTXOs를 사용한 뒤 다시 시도하세요.";
 "Use Their Domain Name" = "상대의 도메인 이름 사용";
 "Show Request As QR" = "요청을 QR로 보기";
-"Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "iPhone 카메라로 스캔하면 모든 내용이 채워진 채로 KaPay에서 결제할 수 있습니다.";
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "iPhone 카메라로 스캔하면 모든 내용이 채워진 채로 K에서 결제할 수 있습니다.";
-"Get a .kachat domain" = ".kachat 도메인 받기";
 "Set as Name" = "이름으로 설정";
 "Their Name" = "상대 이름";
 "Get a .kachat name" = ".kachat 이름 받기";
@@ -1592,7 +1575,6 @@
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "이 계정으로 들어오고 지출 합계에 포함돼요. .kachat 이름을 빼고 모든 것에 쓰세요.";
 "KAS Held With It" = "포함된 KAS";
 "KAS Paid From" = "KAS 결제 주소";
-"KAS for %@ on %@" = "KAS와 %@ 교환 (%@)";
 "KAS for a %@ send" = "%@ 전송용 KAS";
 "Kaspa" = "Kaspa";
 "Kaspa, and kUSDT on Kaspa, can be sent here." = "여기로 Kaspa와 Kaspa 위의 kUSDT를 보낼 수 있어요.";
@@ -1638,7 +1620,6 @@
 "This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "이 주소에는 KAS가 조금 필요해요. 네트워크 수수료와 잔돈 코인(남는 kUSDT)에 들어갈 1.5 KAS예요. 그 1.5 KAS는 계속 당신 거예요.";
 "This address on the Kaspa explorer." = "Kaspa 탐색기에서 이 주소 보기.";
 "This address's key isn't available on this phone." = "이 주소의 키가 이 폰에 없어요.";
-"To %@" = "%@에게";
 "Tokens" = "토큰";
 "Total KAS" = "총 KAS";
 "Trestly" = "Trestly";
@@ -1660,7 +1641,6 @@
 "kUSDT's transaction builder isn't the pinned one, so it won't run." = "kUSDT 트랜잭션 빌더가 고정된 것이 아니라서 실행하지 않아요.";
 "K's kUSDT template is missing, so kUSDT can't be checked." = "K의 kUSDT 템플릿이 없어 kUSDT를 확인할 수 없어요.";
 "The network fee is above K's safety limit. Nothing was sent." = "네트워크 수수료가 K의 안전 한도를 넘었어요. 아무것도 보내지 않았어요.";
-"Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "새 주소로 받아 보세요. kUSDT 구매와 교환은 KaPay에서 해요.";
 "Release to Confirm" = "손을 떼면 확인";
 "The transaction didn't go out." = "거래가 전송되지 않았어요.";
 "Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "K이 kUSDT를 조회하는 곳이에요. 목록의 모든 코인은 잔액에 넣기 전에 Kaspa 노드에서 확인해요. 이 네트워크의 기본값을 쓰려면 비워 두세요.";
@@ -1690,9 +1670,6 @@
 /* Token payment bubbles: amount, then the token symbol (2026-11-20) */
 "Sent %1$@ %2$@" = "%1$@ %2$@ 보냄";
 "Received %1$@ %2$@" = "%1$@ %2$@ 받음";
-
-/* Send Dollars with no kUSDT: switch to KaPay or its install page (2026-11-20) */
-"Get KaPay" = "KaPay 받기";
 
 /* Send Dollars: Discover still running (2026-11-20) */
 "Checking your addresses for %@…" = "주소에서 %@을(를) 확인하는 중…";
@@ -1751,7 +1728,6 @@
 "Scan or paste a kpub exported from your KasSigner device to watch its balance." = "잔액을 확인하려면 KasSigner 기기에서 내보낸 kpub를 스캔하거나 붙여넣으세요.";
 "Sell" = "판매";
 "Send from Cold Storage" = "콜드 스토리지에서 보내기";
-"This only removes it from KaPay's watch list. It has no effect on the KasSigner device or any funds it holds." = "이는 KaPay의 감시 목록에서만 제거합니다. KasSigner 기기나 보유한 자금에는 영향을 미치지 않습니다.";
 "Total P&L" = "총 손익";
 "Transactions" = "거래";
 "Transfer" = "옮기다";
@@ -1839,7 +1815,6 @@
 "The registration stops and the commit's 0.2 KAS comes back to you, less the network fee." = "등록이 중단되고 커밋의 0.2 KAS가 네트워크 수수료를 뺀 만큼 돌아와요.";
 "Sending the hidden commit..." = "숨겨진 커밋을 보내는 중...";
 "Waiting for the commit to confirm..." = "커밋 확인을 기다리는 중...";
-"The commit has to age for about a minute before the name can be registered. Keep KaPay open - it registers by itself, and picks up where it left off if you leave." = "이름을 등록하려면 커밋이 약 1분 지나야 해요. KaPay을 열어 두세요 - 알아서 등록하고, 앱을 떠나도 이어서 진행해요.";
 "Registering..." = "등록 중...";
 "Registered. It's yours." = "등록됐어요. 이제 내 이름이에요.";
 "Someone registered this name first. Cancel the commit to get its 0.2 KAS back." = "다른 사람이 이 이름을 먼저 등록했어요. 커밋을 취소하면 0.2 KAS를 돌려받아요.";
@@ -1970,7 +1945,6 @@
 "Every claim, renewal, listing, sale, offer, transfer and reclaim across the registry." = "레지스트리의 모든 등록, 갱신, 판매 등록, 판매, 제안, 양도, 회수.";
 "Free to claim" = "등록 가능";
 "Claiming %@" = "%@ 받는 중";
-"Keep KaPay open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "KaPay을 열어 두세요. 숨겨진 커밋이 확인되고 약 1분 후에 이름이 등록됩니다. 앱을 나가도 돌아오면 이어서 진행됩니다.";
 "Expires soon" = "곧 만료";
 "Freeing %@ for you..." = "%@ 해제 중...";
 "This name expired and wasn't renewed, so anyone can claim it at the normal price. The old owner's bond goes back to them." = "이 이름은 만료되었고 갱신되지 않아 누구나 일반 가격으로 받을 수 있습니다. 이전 소유자의 보증금은 그에게 돌아갑니다.";
@@ -1993,9 +1967,6 @@
 "Expired - renew to keep it. Until the grace period ends it still resolves to you and nobody else can take it." = "만료되었습니다 - 유지하려면 갱신하세요. 유예 기간이 끝날 때까지 여전히 내 주소로 연결되며 다른 사람은 가져갈 수 없습니다.";
 "The network is busy" = "네트워크가 혼잡합니다";
 "At Normal this may wait a while. Fast or Priority pays a little more to get into a block sooner." = "보통으로는 오래 걸릴 수 있습니다. 빠름이나 우선은 조금 더 내고 더 빨리 블록에 들어갑니다.";
-"Updated in KaPay" = "KaPay에 반영됨";
-"It's in a block. Updating KaPay..." = "블록에 포함되었습니다. KaPay 업데이트 중...";
-"Done. It shows in KaPay now." = "완료. 이제 KaPay에 표시됩니다.";
 "Expires in" = "만료까지";
 "This offer can't be accepted any more." = "이 제안은 더 이상 수락할 수 없습니다.";
 "Only the name's owner can accept or decline this offer." = "이 제안은 이름의 소유자만 수락하거나 거절할 수 있습니다.";
@@ -2018,7 +1989,6 @@
 "An offer must be refundable before the name expires." = "제안은 이름이 만료되기 전에 환불할 수 있어야 합니다.";
 "This name expires sooner, so your offer is refundable from %@." = "이 이름이 더 일찍 만료되므로 제안은 %@부터 환불할 수 있습니다.";
 "Your KAS is in many small coins. Combining them into one first..." = "KAS가 작은 코인 여러 개에 나뉘어 있습니다. 먼저 하나로 합치는 중...";
-"Your KAS is in many small coins. KaPay combines them into one before registering, for a tiny extra network fee." = "KAS가 작은 코인 여러 개에 나뉘어 있습니다. 등록 전에 KaPay이 하나로 합치며, 아주 적은 네트워크 수수료가 추가됩니다.";
 "%@ stays locked with your name while you hold it (bond + registry deposit). You get it back when you release the name." = "이름을 보유하는 동안 %@이(가) 이름과 함께 잠깁니다(보증금 + 레지스트리 예치금). 이름을 놓으면 돌려받습니다.";
 "%@ is locked with this name. It comes back to you when you release it." = "%@이(가) 이 이름과 함께 잠겨 있습니다. 이름을 놓으면 돌아옵니다.";
 "Your chatting address's buys and sells, and every network fee it has paid." = "채팅 주소의 매수·매도와 지불한 모든 네트워크 수수료.";
@@ -2037,7 +2007,6 @@
 "Signed by KasSigner" = "KasSigner로 서명됨";
 "Nothing can change now: this is the transaction KasSigner signed." = "이제 아무것도 변경할 수 없습니다. 이것이 KasSigner가 서명한 거래입니다.";
 "Watch-only. This cannot spend, but it reveals every address in this account." = "감시 전용입니다. 지출할 수는 없지만 이 계정의 모든 주소가 공개됩니다.";
-"Your KAS is in many small coins. When you swipe, KaPay first combines them into one (a separate transaction with its own small fee), then sends this." = "KAS가 여러 개의 작은 코인으로 나뉘어 있습니다. 밀면 KaPay가 먼저 하나로 합친 다음(소액의 수수료가 드는 별도 거래) 이 금액을 보냅니다.";
 "The price goes to the miners - K takes nothing." = "가격은 채굴자에게 돌아갑니다 - K은 아무것도 가져가지 않습니다.";
 "Length" = "기간";
 "Claiming sends two transactions: the commit now, the registration about a minute later. Both pay this fee rate." = "등록하면 거래가 두 번 전송됩니다. 지금 커밋을, 약 1분 후에 등록을 보냅니다. 둘 다 이 수수료율로 지불합니다.";
@@ -2299,17 +2268,13 @@
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
-"Channels" = "채널";
 "Continue to App" = "앱으로 이동";
-"Couldn't Join Channel" = "채널에 참여할 수 없음";
 "Join" = "참여";
 "Join or Create a Channel" = "채널 참여 또는 만들기";
 "Menu" = "메뉴";
 "Pay in Kaspa" = "Kaspa로 결제";
-"Read" = "읽음";
 "Record voice message" = "음성 메시지 녹음";
 "Spending Address" = "지출 주소";
-"Unread" = "읽지 않음";
 "Withdraw Kaspa" = "Kaspa 출금";
 "Translate" = "번역";
 "Show Original" = "원문 보기";
@@ -2317,8 +2282,6 @@
 "Back to the text as it was sent." = "보낸 그대로의 텍스트로 돌아갑니다.";
 "The translated text again." = "번역된 텍스트를 다시 봅니다.";
 "No testnet indexer yet" = "아직 테스트넷 인덱서가 없음";
-"Switches this default room off. Turn it back on in Public Chats settings." = "이 기본 방을 끕니다. 공개 채팅 설정에서 다시 켤 수 있습니다.";
-"#%@ is off - turn it back on in Public Chats settings" = "#%@이(가) 꺼졌습니다. 공개 채팅 설정에서 다시 켜세요";
 "Public Chats" = "공개 채팅";
 "Today" = "오늘";
 "New Public Chat" = "새 공개 채팅";
@@ -2337,7 +2300,6 @@
 "Waiting for your coins to confirm. It sends on its own in a moment, so don't send it again." = "코인이 확인되기를 기다리는 중입니다. 잠시 후 자동으로 전송되니 다시 보내지 마세요.";
 "This post isn't on the network yet, so it can't be replied to. Try again once it has posted." = "이 게시물은 아직 네트워크에 없어 답글을 달 수 없습니다. 게시된 후 다시 시도하세요.";
 "Manage Address" = "주소 관리";
-"Opens KaPay to pay it." = "KaPay를 열어 결제합니다.";
 "Tips From" = "팁 보낼 주소";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "Chatting Address에서 보낸 팁은 게시물에 집계되고 팁을 보낸 사람으로 표시됩니다.";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "다른 주소에서 보낸 팁은 비공개입니다. 작성자는 받고 채팅에서 볼 수 있지만, 게시물에 집계되지 않고 이름도 나오지 않습니다.";
@@ -2409,7 +2371,6 @@
 "Nothing to paste." = "붙여 넣을 내용이 없습니다.";
 "These words are invalid. Double-check the words - the last word encodes a checksum, so one wrong word fails validation." = "이 단어들은 유효하지 않습니다. 단어를 다시 확인하세요. 마지막 단어에 체크섬이 들어 있어 단어 하나만 틀려도 검증에 실패합니다.";
 "Authentication failed." = "인증에 실패했습니다.";
-"Channel names must be 1-%lld characters with no spaces or colons." = "채널 이름은 공백이나 콜론 없이 1~%lld자여야 합니다.";
 "Something went wrong joining that channel." = "채널에 참여하는 중 문제가 발생했습니다.";
 "Kept for" = "보관 기간";
 "No muted accounts" = "뮤트한 계정이 없습니다";
@@ -2443,8 +2404,6 @@
 "Scheduled for %@ - sends from this phone" = "%@에 예약되었습니다 - 이 휴대폰에서 보냅니다";
 "Couldn't schedule" = "예약할 수 없습니다";
 "When" = "시간";
-"Tap to open" = "탭하여 열기";
-"%@ - tap to open" = "%@ - 탭하여 열기";
 "Room" = "방";
 "Kind" = "종류";
 "Joined" = "참여일";
@@ -2465,7 +2424,6 @@
 "3 days" = "3일";
 "6 hours" = "6시간";
 "7 days" = "7일";
-"A kachat.app link that opens this room." = "이 방을 여는 kachat.app 링크입니다.";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses." = "공개 채팅은 Kaspa blockDAG 위에 있어서, 같은 네트워크를 보는 인덱서라면 어느 것이든 같은 방을 제공합니다. 다른 방이 쓰는 인덱서는 그대로 두고, 이 방만 내 인덱서든 다른 사람의 인덱서든 원하는 곳으로 지정할 수 있습니다.";
 "A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time." = "꺼 둔 방은 공개 채팅에 표시되지 않고 알림도 보내지 않습니다. 언제든 다시 켤 수 있습니다.";
 "A room you added. Anyone who knows the name can post to it." = "직접 추가한 방입니다. 이름을 아는 사람은 누구나 글을 올릴 수 있습니다.";
@@ -2483,18 +2441,14 @@
 "Challenge" = "챌린지";
 "Chat" = "채팅";
 "Checking the indexer..." = "인덱서를 확인하는 중...";
-"Choose rooms" = "방 선택";
-"Clears the unread badge on this room." = "이 방의 읽지 않음 배지를 지웁니다.";
 "Close menu" = "메뉴 닫기";
 "Close the composer with something written and you'll be offered a draft." = "내용을 쓴 채로 작성 창을 닫으면 임시 저장 여부를 묻습니다.";
 "Comments" = "댓글";
 "Connected, and it has this room's messages." = "연결되었고, 이 방의 메시지가 있습니다.";
 "Connected. It holds nothing for this room yet." = "연결되었습니다. 아직 이 방의 메시지가 없습니다.";
 "Cool down before post" = "게시 전 대기";
-"Copy Room Link" = "방 링크 복사";
 "Could not read any further just now." = "지금은 더 이상 읽어 올 수 없습니다.";
 "Couldn't load more" = "더 불러오지 못했습니다";
-"Deleted %lld" = "%lld을(를) 삭제했습니다";
 "Discard" = "삭제";
 "Drafts" = "임시 저장";
 "Each tip sends %@ worth of KAS at the price of the moment - about %@ KAS now." = "팁 한 번에 그 시점 시세로 %@ 상당의 KAS를 보냅니다. 지금은 약 %@ KAS입니다.";
@@ -2508,7 +2462,6 @@
 "Followers" = "팔로워";
 "Following" = "팔로잉";
 "Follows" = "팔로우";
-"Goes back to its place in the list." = "목록의 원래 자리로 돌아갑니다.";
 "Hidden users" = "숨겨진 사용자";
 "Hide replies" = "답글 숨기기";
 "Hides their posts and room messages, and stops them interacting with you." = "상대의 게시물과 방 메시지를 숨기고 나와 상호작용하지 못하게 합니다.";
@@ -2518,25 +2471,19 @@
 "Instant tips are limited to 10 KAS. Swipe up to send this one." = "즉시 팁은 10 KAS까지만 가능합니다. 이 팁을 보내려면 위로 스와이프하세요.";
 "It may have been removed, or the network may be unreachable." = "삭제되었거나 네트워크에 연결할 수 없을 수 있습니다.";
 "It may have gone through. Check before posting it again." = "이미 전송되었을 수 있습니다. 다시 게시하기 전에 확인하세요.";
-"Join or create a public room" = "공개 방 참여 또는 만들기";
-"KaPlay Challenge" = "KaPlay 챌린지";
 "KaPost" = "KaPost";
 "Keep it in Drafts to finish later." = "임시 저장에 두고 나중에 마무리합니다.";
 "Keep looking" = "계속 찾기";
 "Languages" = "언어";
 "Leave the room as it is." = "방을 그대로 둡니다.";
-"Leave the rooms as they are." = "방을 그대로 둡니다.";
 "Load more" = "더 불러오기";
 "Load older posts" = "이전 게시물 불러오기";
 "Loading more..." = "더 불러오는 중...";
 "Loading replies..." = "답글을 불러오는 중...";
-"Marked %lld as read" = "%lld을(를) 읽음으로 표시했습니다";
-"Marked %lld as unread" = "%lld을(를) 읽지 않음으로 표시했습니다";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs, under More, combines the rest." = "최대는 한 번의 거래에 담을 수 있는 양입니다: 가장 큰 코인 %d개. 더보기의 UTXO 합치기로 나머지를 합치세요.";
 "Mentions" = "멘션";
 "Message copied." = "메시지를 복사했습니다.";
 "More" = "더 보기";
-"Moves this room out of the list into the row of circles above it." = "이 방을 목록에서 위쪽의 원형 아이콘 줄로 옮깁니다.";
 "Mute" = "뮤트";
 "Muted" = "뮤트됨";
 "New Post" = "새 게시물";
@@ -2555,16 +2502,12 @@
 "Nothing found yet" = "아직 찾은 것이 없습니다";
 "Nothing here yet" = "아직 여기에 아무것도 없습니다";
 "Nothing yet" = "아직 없습니다";
-"Notification Settings" = "알림 설정";
 "Notifications are off for this public chat" = "이 공개 채팅의 알림이 꺼져 있습니다";
-"Notifications off for %lld" = "%lld 알림 꺼짐";
 "Notifications on" = "알림 켜짐";
-"Notifications on for %lld" = "%lld 알림 켜짐";
 "Notifies you of new messages while the app is open." = "앱이 열려 있는 동안 새 메시지를 알려 줍니다.";
 "Notifies you of new messages, even when the app is closed." = "앱이 닫혀 있어도 새 메시지를 알려 줍니다.";
 "Off takes every language room out of Public Chats. On, switch off the ones you don't want." = "끄면 모든 언어 방이 공개 채팅에서 빠집니다. 켠 다음 원하지 않는 방을 끄세요.";
 "One of the pasted words isn't a valid word. Check your copy and try again." = "붙여넣은 단어 중 하나가 올바른 단어가 아닙니다. 사본을 확인하고 다시 시도하세요.";
-"Opens KaPlay to play this bot." = "KaPlay를 열어 이 봇과 플레이합니다.";
 "Opens Send Kaspa to pay it." = "Kaspa 보내기를 열어 결제합니다.";
 "Opens it in your browser." = "브라우저에서 엽니다.";
 "Pin" = "고정";
@@ -2575,13 +2518,11 @@
 "Post your reply" = "답글 게시";
 "Posts, comments, likes, reposts, votes, edits and deletes go on chain at once, with no Undo." = "게시물, 댓글, 좋아요, 리포스트, 투표, 편집, 삭제는 실행 취소 없이 바로 체인에 기록됩니다.";
 "Posts, comments, likes, reposts, votes, edits and deletes wait 5 seconds, with an Undo, before they go on chain." = "게시물, 댓글, 좋아요, 리포스트, 투표, 편집, 삭제는 체인에 기록되기 전에 5초 동안 대기하며, 그동안 실행 취소할 수 있습니다.";
-"Public rooms are open to everyone. #kaspa, #kachat-bugs and the language rooms keep 30 days of history." = "공개 방은 누구에게나 열려 있습니다. #kaspa, #kachat-bugs, 언어 방은 30일치 기록을 보관합니다.";
 "Quote" = "인용";
 "Quote Post" = "게시물 인용";
 "Reading older posts" = "이전 게시물을 읽는 중";
 "Remove poll" = "투표 삭제";
 "Removes it from your profile." = "프로필에서 삭제합니다.";
-"Removes the picked rooms from this device." = "선택한 방을 이 기기에서 삭제합니다.";
 "Removes this post everywhere. You have five seconds to undo." = "이 게시물을 모든 곳에서 삭제합니다. 5초 안에 실행 취소할 수 있습니다.";
 "Removes this room and its messages from this device." = "이 방과 메시지를 이 기기에서 삭제합니다.";
 "Removing dislike" = "싫어요 취소 중";
@@ -2594,8 +2535,6 @@
 "Report abusive or objectionable content. Opens an email with this post attached." = "악의적이거나 부적절한 콘텐츠를 신고합니다. 이 게시물을 첨부한 이메일이 열립니다.";
 "Reposted" = "리포스트함";
 "Room Info" = "방 정보";
-"Room link copied" = "방 링크를 복사했습니다";
-"Rooms you added are removed with their messages. Default rooms are only switched off - turn them back on any time in Public Chats settings." = "직접 추가한 방은 메시지와 함께 삭제됩니다. 기본 방은 꺼질 뿐이며, 공개 채팅 설정에서 언제든 다시 켤 수 있습니다.";
 "Save Draft" = "임시 저장";
 "Save this post?" = "이 게시물을 저장할까요?";
 "Schedule" = "예약";
@@ -2639,7 +2578,6 @@
 "What's happening on Kaspa?" = "Kaspa에서 무슨 일이 일어나고 있나요?";
 "When someone engages with this post, they'll show up here." = "누군가 이 게시물에 반응하면 여기에 표시됩니다.";
 "When someone follows you, they'll show up here." = "누군가 나를 팔로우하면 여기에 표시됩니다.";
-"When someone likes, replies to or shares your posts, it shows up here." = "누군가 내 게시물에 좋아요, 답글, 공유를 하면 여기에 표시됩니다.";
 "Who liked, disliked, reposted and quoted this post." = "이 게시물에 좋아요, 싫어요, 리포스트, 인용을 한 사람.";
 "Write a post, tap Schedule in the composer and pick a time. It is signed now and goes out then." = "게시물을 쓰고 작성 창에서 예약을 탭한 다음 시간을 고르세요. 지금 서명되고 그 시각에 전송됩니다.";
 "Wrong PIN. 1 try left before this card's PIN is blocked for good." = "PIN이 틀렸습니다. 한 번 더 틀리면 이 카드의 PIN이 영구적으로 차단됩니다.";
@@ -2671,8 +2609,6 @@
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPost 서버가 응답하지 않습니다. 저장된 게시물과 네트워크의 새 게시물을 표시합니다.";
 "Trestly's pool code couldn't start in K." = "Trestly의 풀 코드를 K에서 시작할 수 없습니다.";
-"Set what Tip sends in KaPost Settings > Tip In." = "팁으로 보낼 항목은 KaPost 설정 > 팁 통화에서 정하세요.";
-"Tip didn't send: the smallest tip the network takes is %@. Change your default tip in KaPost Settings." = "팁을 보내지 못했습니다: 네트워크가 받는 가장 작은 팁은 %@입니다. KaPost 설정에서 기본 팁을 바꾸세요.";
 "Posting poll" = "투표 게시 중";
 "Voting" = "투표하는 중";
 
@@ -2848,7 +2784,6 @@
 "On time" = "시간승";
 "Online, five minutes a side and every move is a Kaspa transaction. Bot games stamp their result on Kaspa when they end." = "온라인 게임은 각자 5분이며 모든 수가 Kaspa 트랜잭션입니다. 봇 게임은 끝날 때 결과를 Kaspa에 기록합니다.";
 "Open seat" = "빈자리";
-"Play" = "플레이";
 "Play a friend: create a 1v1, share its code. Private 1v1s count on the leaderboard too." = "친구와 대결: 1v1을 만들고 코드를 공유하세요. 비공개 1v1도 순위표에 반영됩니다.";
 "Play again" = "다시 플레이";
 "Play as" = "내 색";
@@ -2979,12 +2914,10 @@
 "Nobody has beaten %@ yet." = "아직 아무도 %@을(를) 이기지 못했습니다.";
 "Play %@" = "%@ 상대하기";
 "Players (%lld of %lld)" = "플레이어 (%lld/%lld)";
-"The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "생성자가 공유한 8자리 코드입니다. 참여는 트랜잭션 한 번입니다(수수료: %@).";
 "Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "K에서 나와 체스 한 판 둬요: KaPlay > 체스 > 1v1 > 코드로 참여를 열고 %@을(를) 입력하세요.";
 "Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "K에서 내 체스 토너먼트에 참여하세요: KaPlay > 체스 > 토너먼트 > 코드로 참여를 열고 %@을(를) 입력하세요.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "K에서 %@(레벨 %lld)을(를) %lld수 만에 이겼어요. 더 적은 수로 이길 수 있나요?";
 "Share to KaPost" = "KaPost에 공유";
-"Games" = "게임";
 "Chess Challenge" = "체스 챌린지";
 "Opens Chess to play this bot." = "체스를 열어 이 봇과 대국합니다.";
 "KaPost, Public Chats and Chess are read from this indexer too." = "KaPost, 공개 채팅, 체스도 이 인덱서에서 읽어 옵니다.";
@@ -3081,3 +3014,10 @@
 "Your account and your funds" = "내 계정과 자금";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "계정은 기기에 보관되는 12개 또는 24개 단어입니다. 저희는 이 단어를 갖고 있지 않으므로 분실한 단어를 복구하거나 거래를 되돌릴 수 없습니다. 게시에는 네트워크 수수료로 KAS가 들며, 보유하고 보내는 자금에 대한 책임은 본인에게 있습니다.";
 "Your posts are public and permanent" = "게시물은 공개되며 영구적입니다";
+"Who's on top in 1v1 and tournaments, this month or all time, and against each bot." = "1v1과 토너먼트에서 이번 달 또는 전체 기간 누가 앞서는지, 그리고 각 봇을 상대로 한 순위.";
+"The trade may have gone through." = "거래가 이미 처리되었을 수 있습니다.";
+"Trestly's code reads this address's coins and sends the trade through public Kaspa nodes (kaspa.stream and its mirrors), not the node chosen in Settings. Those nodes see this address and your IP address." = "Trestly의 코드는 이 주소의 코인을 읽고, 설정에서 고른 노드가 아니라 공개 Kaspa 노드(kaspa.stream 및 미러)를 통해 거래를 보냅니다. 이 노드들은 이 주소와 사용자의 IP 주소를 볼 수 있습니다.";
+"Original message not loaded" = "원본 메시지를 불러오지 않았습니다";
+"Cold storage address %@ (%@)" = "콜드 스토리지 주소 %@ (%@)";
+"Accepted your request to communicate" = "통신 요청을 수락했습니다";
+"Sent you a message" = "메시지를 보냈습니다";

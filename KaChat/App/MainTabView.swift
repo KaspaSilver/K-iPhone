@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import UIKit
+import UserNotifications
 
 struct MainTabView: View {
     @State private var selectedTab = 1
@@ -42,6 +43,8 @@ struct MainTabView: View {
     @ObservedObject private var notifCenter = GlobalNotificationCenter.shared
     /// The dock's tabs, as Customize Dock arranged them (Kaspa Hub always among them).
     @ObservedObject private var layout = DockLayout.shared
+    /// Your avatar for the Profile tab's icon (the person glyph until you have one).
+    @ObservedObject private var dockAvatar = DockAvatar.shared
     @State private var showCustomizeDock = false
 
     /// The dock's TabView on its own, so `body` stays small enough for the type checker.
@@ -57,6 +60,8 @@ struct MainTabView: View {
                         } icon: {
                             if tab == .hub, let logo = KaspaDockIcon.image {
                                 logo
+                            } else if tab == .profile, let avatar = dockAvatar.image {
+                                Image(uiImage: avatar)
                             } else {
                                 Image(systemName: tab.icon)
                             }
@@ -81,6 +86,9 @@ struct MainTabView: View {
         // KaPosts and Public Chats links, pushes and the KaPosts dock copy (its own modifier, for
         // the type checker).
         .modifier(KaPostsRoutes(show: show))
+        // a .kachat registration in flight: its progress half sheet, back up after a relaunch
+        // (as KaPay has it; `KachatNamesActions.resume` sets it on activation)
+        .modifier(KachatRegistrationPresenter())
         .onReceive(NotificationCenter.default.publisher(for: .openCustomizeDock)) { _ in
             showCustomizeDock = true
         }
@@ -157,7 +165,7 @@ struct MainTabView: View {
                 .removeDuplicates()
                 .dropFirst()
         ) { address in
-            if let address { ProfileView.preloadQRCode(for: address) }
+            if let address { ProfileQRCodeCache.preload(address: address, completion: nil) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openChat)) { _ in
             PendingTabRoute.pending = nil
@@ -280,9 +288,9 @@ struct MainTabView: View {
             show(tab)
             return
         }
-        // A KaPosts or room push or link from a cold start: KaPostsView and PublicChatListView
+        // A KaPosts or room push or link from a cold start: KaPostsView and the Chats screen
         // consume what is pending once they mount.
-        if KaPostsDeepLink.pendingPostTxId != nil || KaPostsDeepLink.pendingOpenNotifications
+        if KaPostsDeepLink.pendingPostTxId != nil
             || KaPostsDeepLink.pendingOpenScheduled || KaPostsDeepLink.pendingComposeText != nil
             || KaPostsDeepLink.pendingProfileAddress != nil {
             show(.kaposts)
@@ -312,7 +320,7 @@ struct MainTabView: View {
 
     private func preloadProfileResources() {
         guard let address = walletManager.currentWallet?.publicAddress else { return }
-        ProfileView.preloadQRCode(for: address)
+        ProfileQRCodeCache.preload(address: address, completion: nil)
     }
 
 }
@@ -530,8 +538,8 @@ private struct KaPostsRoutes: ViewModifier {
                 guard let tab = note.object as? AppTab else { return }
                 show(tab)
             }
-            // A bot challenge from a post's card (`ChessBotLinks.open`): KaPlay, which opens Chess
-            // and the bot (`ChessBotLinkRouter`). Covers over KaPosts close first, as for a room.
+            // A bot challenge from a post's card (`ChessBotLinks.open`): the Games tab, which opens
+            // the bot (`ChessBotLinkRouter`). Covers over KaPosts close first, as for a room.
             .onReceive(NotificationCenter.default.publisher(for: .openGames)) { _ in
                 NotificationCenter.default.post(name: .kaPostsCloseCovers, object: nil)
                 show(.games)
@@ -558,12 +566,26 @@ private struct DockBadgeSync: ViewModifier {
             .onAppear { sync() }
     }
 
+    /// A sync is already queued: the triggers above often fire together (a room read moves the
+    /// rooms' count and the bell at once), and one pass covers them all.
+    private static var syncQueued = false
+
     private func sync() {
-        let tabs = dockTabs
+        guard !Self.syncQueued else { return }
+        Self.syncQueued = true
         DispatchQueue.main.async {
-            AppTabBadge.syncDockBadges(dockTabs: tabs)
-            // the app icon too: KaPosts' and the rooms' counts change without a chat sync
-            ChatService.shared.updateAppBadge()
+            Self.syncQueued = false
+            // One walk of the view tree for the tab bar items (`updateAppBadge` walked it again).
+            // The dock as it is when this runs (`dockTabs` is `DockLayout.shared.dock`), since one
+            // pass may stand for a call made before the dock changed.
+            AppTabBadge.syncDockBadges(dockTabs: DockLayout.shared.dock)
+            // The app icon too, as `ChatService.updateAppBadge` counts it (KaPosts' and the rooms'
+            // counts change without a chat sync), and only when the number changed: a tab switch
+            // changes nothing (audit #35). The shared count is what was last put on the icon.
+            let total = AppTabBadge.unreadCount(for: .chats) + max(0, KaPostsNotificationCenter.shared.unseenCount)
+            guard total != SharedDataManager.getUnreadCount() else { return }
+            SharedDataManager.setUnreadCount(total)
+            UNUserNotificationCenter.current().setBadgeCount(total)
         }
     }
 }

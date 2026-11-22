@@ -12,7 +12,7 @@ import CryptoKit
 ///   below before anything loads; the WebAssembly's is the one in kusdt-open's PROVENANCE.json.
 /// - They're served only through a private scheme (`kusdt-core://`) to a hidden, non-persistent web
 ///   view that's never shown and navigates nowhere else.
-/// - KaPay hands it one request at a time (`run`) and reads back the signed transaction. A key goes
+/// - K hands it one request at a time (`run`) and reads back the signed transaction. A key goes
 ///   in only for the address being spent from, and only for that call.
 /// - Trestly's wallet logic for the pool (`kusdt-wallet.js`, `wallet(_:request:)`) runs beside it for
 ///   trades on Trestly's site. Its HTTP goes through `KusdtNetRelay` (the Kaspa resolvers and the
@@ -22,7 +22,7 @@ import CryptoKit
 final class KusdtCore: NSObject {
     static let shared = KusdtCore()
 
-    /// kusdt-open b70707c: `kusdt_wasm_bg.wasm` (PROVENANCE.json `wasm`), its loader, and KaPay's page,
+    /// kusdt-open b70707c: `kusdt_wasm_bg.wasm` (PROVENANCE.json `wasm`), its loader, and K's page,
     /// by the name the page asks for: the bundle file (the loader ships as `.js.txt`, so Xcode copies
     /// it rather than treating it as source) and its SHA-256.
     private static let pinned: [String: (resource: String, ext: String, sha256: String)] = [
@@ -38,11 +38,16 @@ final class KusdtCore: NSObject {
     enum CoreError: LocalizedError {
         case unavailable(String)
         case refused(String)
+        /// A trade's `execute` gave no answer (it ran out of time, or the hidden page died) after
+        /// Trestly's code had the key: it may have sent the trade, so the caller holds the address
+        /// (audit 2026-11-21, #1).
+        case maybeSent(String)
 
         var errorDescription: String? {
             switch self {
             case .unavailable(let why): return why
             case .refused(let why): return why
+            case .maybeSent(let why): return why
             }
         }
     }
@@ -75,17 +80,35 @@ final class KusdtCore: NSObject {
         }
     }
 
-    /// Runs `body`, or throws after `nanoseconds` if it hasn't answered.
+    /// Calls running in the page now: each is answered at once if the page dies, rather than at
+    /// the end of its timeout.
+    private var inFlight: [UUID: (Error) -> Void] = [:]
+
+    /// Runs `body`, or throws after `nanoseconds` if it hasn't answered, or as soon as the page
+    /// dies. Not a task group: a group waits for every child before it returns, and
+    /// `callAsyncJavaScript` doesn't stop when cancelled, so a group's timeout could only fire once
+    /// the page answered anyway (audit 2026-11-21, #1). The body may still run on after this
+    /// throws; whatever it answers then is dropped.
     private func withTimeout<T: Sendable>(_ nanoseconds: UInt64, _ body: @escaping @MainActor () async throws -> T) async throws -> T {
-        try await withThrowingTaskGroup(of: T.self) { group in
-            group.addTask { @MainActor in try await body() }
-            group.addTask {
-                try await Task.sleep(nanoseconds: nanoseconds)
-                throw CoreError.unavailable(AppLocalization.string("kUSDT's transaction builder gave no answer."))
+        let gate = CallGate<T>()
+        let id = UUID()
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
+            gate.continuation = continuation
+            gate.onFinish = { [weak self] in self?.inFlight[id] = nil }
+            inFlight[id] = { error in gate.finish(.failure(error)) }
+            gate.timer = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: nanoseconds)
+                guard !Task.isCancelled else { return }
+                gate.finish(.failure(CoreError.unavailable(AppLocalization.string("kUSDT's transaction builder gave no answer."))))
             }
-            let first = try await group.next()!
-            group.cancelAll()
-            return first
+            Task { @MainActor in
+                do {
+                    let value = try await body()
+                    gate.finish(.success(value))
+                } catch {
+                    gate.finish(.failure(error))
+                }
+            }
         }
     }
 
@@ -123,17 +146,28 @@ final class KusdtCore: NSObject {
         guard let webView else { throw CoreError.unavailable(AppLocalization.string("kUSDT's transaction builder couldn't start.")) }
         let data = try JSONSerialization.data(withJSONObject: request)
         guard let json = String(data: data, encoding: .utf8) else { throw CoreError.unavailable("bad request") }
-        let answer = try await withTimeout(Self.callTimeout(function)) {
-            try await webView.callAsyncJavaScript(
-                "return await window.kapayWallet[fn](request)",
-                arguments: ["fn": function, "request": json],
-                in: nil,
-                contentWorld: .page
-            ) as? String
+        // From here on `execute` holds the key: no answer (time ran out, the page died, a thrown
+        // script error) may mean the trade went out anyway, so it says so and the caller holds the
+        // address (audit 2026-11-21, #1).
+        let noAnswer = AppLocalization.string("Trestly's pool code gave no answer.")
+        let answer: String?
+        do {
+            answer = try await withTimeout(Self.callTimeout(function)) {
+                try await webView.callAsyncJavaScript(
+                    "return await window.kapayWallet[fn](request)",
+                    arguments: ["fn": function, "request": json],
+                    in: nil,
+                    contentWorld: .page
+                ) as? String
+            }
+        } catch {
+            if function == "execute" { throw CoreError.maybeSent(noAnswer) }
+            throw error
         }
         guard let text = answer,
               let parsed = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] else {
-            throw CoreError.unavailable(AppLocalization.string("Trestly's pool code gave no answer."))
+            if function == "execute" { throw CoreError.maybeSent(noAnswer) }
+            throw CoreError.unavailable(noAnswer)
         }
         return parsed
     }
@@ -350,6 +384,28 @@ extension KusdtCore: WKNavigationDelegate {
         let walletContinuations = walletWaiting
         walletWaiting = []
         for c in walletContinuations { c.resume(throwing: CoreError.unavailable(AppLocalization.string("Trestly's pool code couldn't start in K."))) }
+        // calls that were running in the dead page answer now (a trade's `execute` as "maybe sent")
+        let running = inFlight
+        inFlight = [:]
+        for abort in running.values { abort(CoreError.unavailable(AppLocalization.string("kUSDT's transaction builder gave no answer."))) }
+    }
+}
+
+/// One call's answer, given once: by the call, by its timeout or by the page dying.
+@MainActor
+private final class CallGate<T> {
+    var continuation: CheckedContinuation<T, Error>?
+    var timer: Task<Void, Never>?
+    var onFinish: (() -> Void)?
+
+    func finish(_ result: Result<T, Error>) {
+        guard let continuation else { return }
+        self.continuation = nil
+        timer?.cancel()
+        timer = nil
+        onFinish?()
+        onFinish = nil
+        continuation.resume(with: result)
     }
 }
 

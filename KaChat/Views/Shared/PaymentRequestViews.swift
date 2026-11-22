@@ -448,7 +448,7 @@ private struct PaymentRequestQRSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .task { image = ZeroBalanceFundingCardView.makeChattingAddressQRCode(from: payload) }
+            .task { image = AddressReceiveView<EmptyView, EmptyView>.qrImage(for: payload) }
         }
     }
 }
@@ -568,8 +568,13 @@ private struct RequestedByHeader: View {
         verifiedName = nil
         guard let name, let owner = KachatNamesRegistry.keyOf(creator),
               case .registered(let info)? = try? await kachatRegistry.lookup(name),
+              info.name == KachatNames.Codec.normalize(name),
               info.owner == owner, info.status(graceMs: kachatRegistry.graceMs) != .lapsed,
               !Task.isCancelled else { return }
+        // The names indexer's answer alone is only a claim: as for a send to a name
+        // (`NameServicesClient.resolveKachat`), the chain has to hold this name record, unspent and
+        // owned by this key, right now. Until it does, the header stays plain (no green check).
+        guard (try? await kachatRegistry.confirmOnChain(info)) != nil, !Task.isCancelled else { return }
         verifiedName = name
     }
 }

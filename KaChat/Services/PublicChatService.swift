@@ -49,7 +49,7 @@ final class PublicChatService: ObservableObject {
     /// Whether the indexer keeps this room's history: the curated rooms, and any other room the
     /// indexer tracks - one the operator adds on the indexer (it then keeps 30 days of it) needs
     /// no app update. EVERYTHING that follows from "the indexer serves this room's history" keys
-    /// off this - 30-day retention, remote-push registration, the cellular block-stream skip,
+    /// off this - 30-day retention, remote-push registration, the block-stream skip,
     /// the push-covered local-banner skip, the "even when the app is closed" wording. See
     /// `IndexerTrackedRooms` for how the app learns the extra rooms.
     nonisolated static func isIndexerTracked(_ channel: String) -> Bool {
@@ -93,6 +93,10 @@ final class PublicChatService: ObservableObject {
     /// them in `reloadMessages`, so the room draws each note as one bubble without sniffing
     /// every row on every pass. Set before `messagesByChannel`, which is what redraws.
     private(set) var voiceNotesByChannel: [String: PublicChatVoiceParts.Result] = [:]
+    /// Each room's loaded messages by id (not the arena's), set with `messagesByChannel`: what a
+    /// reply quotes is drawn from the message itself (`message(id:inChannel:)`), never from the
+    /// sender and text the reply claims (audit #18).
+    private var messagesByIdByChannel: [String: [String: PublicChatMessage]] = [:]
     /// This wallet's public chat reactions, keyed by channel then by targetTxId - mirrors
     /// KaChat's `GroupChatService.reactionsByGroupId`'s shape (as `PublicChatReactionSnapshot`,
     /// see `PublicChatStore.fetchReactions`). Loaded per channel on open (`acquire`) and kept
@@ -147,7 +151,7 @@ final class PublicChatService: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     private init() {
-        // On expensive (cellular/metered) paths, indexer-covered rooms stop block-streaming
+        // On expensive (cellular/metered) paths an open indexer-covered room keeps to its poll
         // (see scanWantedChannels) - re-evaluate whenever the path flips either way.
         NetworkEpochMonitor.shared.expensivePathPublisher
             .receive(on: DispatchQueue.main)
@@ -330,13 +334,14 @@ final class PublicChatService: ObservableObject {
         let tearingDownOtherWallet = self.walletAddress != nil && !sameWallet
         self.walletAddress = normalized
         if !sameWallet {
+            primingRooms = []
+            messagesByIdByChannel = [:]
             messagesByChannel = [:]
             reactionsByChannel = [:]
             editsByChannel = [:]
             failedEditsByChannel = [:]
             editingMessage = nil
             replyingTo = nil
-            sweptChannels = []
             // Each wallet has its own store: what one applied says nothing about the other's.
             appliedIndexerRows = [:]
             indexerNewestSeen = [:]
@@ -382,6 +387,8 @@ final class PublicChatService: ObservableObject {
                 // store is open, so #kaspa and #kachat-bugs notify without Public Chats having
                 // been opened first.
                 self.ensureDefaultChannelsJoined()
+                // Every room's last message and unread count for the Chats list, in one publish.
+                self.primeChannelSummaries()
                 // Rooms that were open before the wallet landed: their acquire read an empty
                 // store and its mark-read was lost to loadReadState() - reload and mark read
                 // now (persisted under the real key this time).
@@ -409,19 +416,16 @@ final class PublicChatService: ObservableObject {
 
     /// The loop behind `sweepClosedRooms`, alive while the app is active.
     private var foregroundSweepTask: Task<Void, Never>?
-    /// Rooms the sweep has asked about at least once this session: only rows found AFTER that
-    /// first pass are news worth a banner - the first pass is history catching up.
+    /// Rooms the sweep has asked about at least once this session: only rows found after that
+    /// first pass get an in-app banner; the first pass is history catching up.
     private var sweptChannels: Set<String> = []
     private static let foregroundSweepIntervalNanos: UInt64 = 20 * 1_000_000_000
-    /// Rows older than this are not bannered even when new to the store - they are backlog,
-    /// not a message that just arrived.
-    private static let sweepBannerWindowMs: Int64 = 3 * 60 * 1000
 
     /// While the app is on screen, a room the user is NOT looking at used to be refreshed only
     /// by the live block scan - which misses blocks whenever the stream reconnects, and is off
-    /// altogether for indexed rooms on cellular (`scanWantedChannels`) where the remote push
-    /// that covers them is dropped in the foreground. So a message in #kaspa showed up only
-    /// once the room was opened. This is the fix, the same shape as 1:1 chat's foreground
+    /// altogether for indexed rooms that aren't open (`scanWantedChannels`, on every connection
+    /// since 2026-11-22) where the remote push that covers them is dropped in the foreground. So
+    /// a message in #kaspa showed up only once the room was opened. This is the fix, the same shape as 1:1 chat's foreground
     /// contact sweep: every 20 s, each joined room with its bell on that is not open asks the
     /// indexer for its newest rows (one small request per room, sequential). The open room
     /// keeps its own 8 s poll; the block scan stays as the fast path.
@@ -540,10 +544,10 @@ final class PublicChatService: ObservableObject {
             await store.pruneExpiredMessages()
             guard isCurrentWallet(generation) else { return true }
             await reloadMessagesNow(for: channel)
-            guard !firstPass else { return true }
-            let cutoff = Int64(Date().timeIntervalSince1970 * 1000) - Self.sweepBannerWindowMs
-            for row in fresh where row.blockTime > cutoff {
-                notifyIfEnabled(channel: channel, senderAddress: row.senderAddress, content: row.content, txId: row.id)
+            if !firstPass {
+                for row in fresh where inserted.contains(row.id) {
+                    postInAppBanner(channel: channel, senderAddress: row.senderAddress, content: row.content, txId: row.id, blockTime: row.blockTime)
+                }
             }
             return true
         } catch {
@@ -733,17 +737,77 @@ final class PublicChatService: ObservableObject {
     }
 
     /// Loads every joined room's stored messages so the list can show last message, time and
-    /// unread count, and starts a read marker for rooms that have none.
+    /// unread count, and starts a read marker for rooms that have none. One read per room, but
+    /// published once for all of them (audit #30: each room used to publish on its own, about
+    /// 16 Chats redraws at launch). The chess arena isn't read here: its whole history loads
+    /// when a chess screen opens (`ChessTournamentService.acquire` -> `acquire`).
     func primeChannelSummaries() {
-        var seeded = false
-        for channel in channels {
-            if messagesByChannel[channel.channelName] == nil { loadMessages(for: channel.channelName) }
-            if lastReadByChannel[channel.channelName] == nil {
-                lastReadByChannel[channel.channelName] = Int64(Date().timeIntervalSince1970 * 1000)
-                seeded = true
-            }
+        let rooms = channels.map(\.channelName).filter { !Self.serviceChannels.contains($0) }
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        var markers = lastReadByChannel
+        for name in rooms where markers[name] == nil { markers[name] = now }
+        if markers != lastReadByChannel {
+            lastReadByChannel = markers
+            persistReadState()
         }
-        if seeded { persistReadState() }
+        // Before the store is open there is nothing to read; its open primes them (setCurrentWallet).
+        guard store.isReady else { return }
+        let missing = rooms.filter { messagesByChannel[$0] == nil && !primingRooms.contains($0) }
+        guard !missing.isEmpty else { return }
+        primingRooms.formUnion(missing)
+        Task { @MainActor [weak self] in
+            await self?.loadRoomSummaries(missing)
+        }
+    }
+
+    /// Rooms a `primeChannelSummaries` read is out for, so a second call doesn't read them again.
+    private var primingRooms: Set<String> = []
+
+    /// Each room's summary window read in turn, then published together. A room read again on
+    /// its own meanwhile (opened, a new message) keeps that newer read.
+    private func loadRoomSummaries(_ rooms: [String]) async {
+        let walletAtStart = walletGeneration
+        // A read for an account that's gone leaves the set alone: the switch emptied it.
+        defer { if isCurrentWallet(walletAtStart) { primingRooms.subtract(rooms) } }
+        var claimed: [String: Int] = [:]
+        var read: [String: [PublicChatMessage]] = [:]
+        for name in rooms {
+            let generation = (messageLoadGeneration[name] ?? 0) + 1
+            messageLoadGeneration[name] = generation
+            claimed[name] = generation
+            read[name] = await store.messages(forChannel: name, newestLimit: windowSize(for: name))
+            guard isCurrentWallet(walletAtStart) else { return }
+        }
+        let rows = read
+        let prepared = await Task.detached(priority: .userInitiated) {
+            rows.mapValues { Self.preparedRows($0, indexed: true) }
+        }.value
+        guard isCurrentWallet(walletAtStart) else { return }
+        var messages = messagesByChannel
+        var changed = false
+        for (name, result) in prepared where messageLoadGeneration[name] == claimed[name] {
+            guard messages[name] != result.rows else { continue }
+            voiceNotesByChannel[name] = result.voiceNotes
+            messagesByIdByChannel[name] = result.byId
+            messages[name] = result.rows
+            changed = true
+        }
+        if changed { messagesByChannel = messages }
+    }
+
+    /// A room's stored rows as the room shows them: no reaction or edit envelopes (rows scanned
+    /// by an app version that predates them), never two rows with one id, and its long voice
+    /// notes worked out. Pure, run off the main actor.
+    private nonisolated static func preparedRows(_ rows: [PublicChatMessage], indexed: Bool) -> (rows: [PublicChatMessage], voiceNotes: PublicChatVoiceParts.Result, byId: [String: PublicChatMessage]) {
+        // never two rows with one id: the room's list is keyed by it, and a duplicate left a
+        // blank gap in it (the store also deletes duplicates on read)
+        var seen = Set<String>()
+        let fresh = rows.filter {
+            seen.insert($0.id).inserted
+                && MessageReactionCodec.parse($0.content) == nil && MessageEditCodec.parse($0.content) == nil
+        }
+        let byId = indexed ? Dictionary(fresh.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) : [:]
+        return (fresh, PublicChatVoiceParts.group(fresh), byId)
     }
 
 
@@ -751,11 +815,6 @@ final class PublicChatService: ObservableObject {
 
     func refreshChannels() {
         channels = store.joinedChannels()
-    }
-
-    var featuredChannelsNotJoined: [String] {
-        let joined = Set(channels.map { $0.channelName })
-        return Self.featuredChannels.filter { !joined.contains($0) }
     }
 
     /// Every default room is in Public Chats from the start: joined (a store row, so it is
@@ -804,6 +863,7 @@ final class PublicChatService: ObservableObject {
         stopIndexerPolling(channel: normalized)
         store.leaveChannel(normalized)
         voiceNotesByChannel.removeValue(forKey: normalized)
+        messagesByIdByChannel.removeValue(forKey: normalized)
         messagesByChannel.removeValue(forKey: normalized)
         reactionsByChannel.removeValue(forKey: normalized)
         editsByChannel.removeValue(forKey: normalized)
@@ -826,6 +886,36 @@ final class PublicChatService: ObservableObject {
     /// Whether a room push (`broadcast:<room>`) arriving in the foreground is one this account
     /// still wants: a room it has joined, with its bell on, not switched off in Public Chats
     /// settings, and not a service room. Until the store is open nothing is known, and it shows.
+    /// A new room message's banner while the app is open (`InAppBanner`): the room's bell is on,
+    /// it isn't the room on screen, and the sender isn't you or hidden there. Same wording as the
+    /// room's push: "#room", the sender, the message's preview.
+    func postInAppBanner(channel: String, senderAddress: String, content: String, txId: String, blockTime: Int64) {
+        guard !Self.serviceChannels.contains(channel),
+              senderAddress != WalletManager.shared.currentWallet?.publicAddress,
+              wantsRoomPush(channel: channel),
+              !isViewing(channel: channel),
+              !store.hiddenSenderAddresses(forChannel: channel).contains(senderAddress),
+              InAppBanner.isRecent(blockTimeMs: blockTime),
+              MessageReactionCodec.parse(content) == nil,
+              MessageEditCodec.parse(content) == nil else { return }
+        let settings = AppSettings.load()
+        guard settings.notificationsEnabled else { return }
+        let sender: String
+        if let assigned = ContactsManager.shared.getContact(byAddress: senderAddress)?.assignedName {
+            sender = assigned
+        } else {
+            sender = KachatLive.identityName(senderAddress) ?? Contact.generateDefaultAlias(from: senderAddress)
+        }
+        InAppBanner.post(
+            txId: txId,
+            title: "#\(KaPostsMarkdown.strippingBidiControls(channel))",
+            subtitle: KaPostsMarkdown.strippingBidiControls(sender),
+            body: KaPostsMarkdown.strippingBidiControls(MessageReplyCodec.previewText(for: content)),
+            threadIdentifier: "broadcast:\(channel)",
+            sound: settings.incomingNotificationSoundEnabled
+        )
+    }
+
     func wantsRoomPush(channel rawChannel: String) -> Bool {
         let name = PublicChatChannelName.normalize(rawChannel)
         guard store.isReady else { return true }
@@ -856,6 +946,7 @@ final class PublicChatService: ObservableObject {
         for channel in messagesByChannel.keys {
             loadMessages(for: channel)
         }
+        reloadLoadedReactions()
     }
 
     func unhideSender(_ address: String, inChannel channel: String) {
@@ -863,6 +954,15 @@ final class PublicChatService: ObservableObject {
         syncHiddenSendersToPushIfNeeded(channel: channel)
         for channel in messagesByChannel.keys {
             loadMessages(for: channel)
+        }
+        reloadLoadedReactions()
+    }
+
+    /// The reactions of every room that has them loaded, read again: who is hidden or blocked
+    /// changed, and their reactions go (or come back) with their messages.
+    private func reloadLoadedReactions() {
+        for channel in reactionsByChannel.keys {
+            loadReactions(for: channel)
         }
     }
 
@@ -879,6 +979,7 @@ final class PublicChatService: ObservableObject {
         for channel in messagesByChannel.keys {
             loadMessages(for: channel)
         }
+        reloadLoadedReactions()
         Task { await PushNotificationManager.shared.updateWatchedAddresses() }
     }
 
@@ -930,6 +1031,8 @@ final class PublicChatService: ObservableObject {
         indexerOverrides = overrides
         stopIndexerPolling(channel: key)
         if isViewing(channel: key) { startIndexerPollingIfConfigured(channel: key) }
+        // A room with an indexer now (or none) leaves (or joins) the block stream.
+        updateScanningStateIfNeeded()
     }
 
     func hiddenSendersByChannel() -> (global: Set<String>, perChannel: [String: Set<String>]) {
@@ -1371,6 +1474,12 @@ final class PublicChatService: ObservableObject {
         messagesByChannel[PublicChatChannelName.normalize(name)] ?? []
     }
 
+    /// One of the room's loaded messages, by id: nil when it isn't loaded (older than the
+    /// room's window, from a hidden or blocked sender, or never seen here).
+    func message(id: String, inChannel name: String) -> PublicChatMessage? {
+        messagesByIdByChannel[PublicChatChannelName.normalize(name)]?[id]
+    }
+
     /// The room's long voice notes: one bubble per note at its anchor, the other parts hidden.
     func voiceNotes(forChannel name: String) -> PublicChatVoiceParts.Result {
         voiceNotesByChannel[PublicChatChannelName.normalize(name)] ?? PublicChatVoiceParts.Result()
@@ -1507,7 +1616,18 @@ final class PublicChatService: ObservableObject {
         let generation = reactionLoadGeneration[channel]
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let fresh = await self.store.fetchReactionsAsync(forChannel: channel)
+            let stored = await self.store.fetchReactionsAsync(forChannel: channel)
+            // Reactions from blocked accounts and senders hidden in this room aren't shown, like
+            // their messages (audit #22). Read once the fetch is back, so a block made meanwhile counts.
+            let hidden = self.store.hiddenSenderAddresses(forChannel: channel)
+            var fresh = stored
+            if !hidden.isEmpty {
+                for (target, list) in stored {
+                    let shown = list.filter { !hidden.contains($0.reactorAddress) }
+                    if shown.count == list.count { continue }
+                    fresh[target] = shown.isEmpty ? nil : shown
+                }
+            }
             guard self.reactionLoadGeneration[channel] == generation,
                   self.reactionsByChannel[channel] != fresh else { return }
             self.reactionsByChannel[channel] = fresh
@@ -1586,15 +1706,9 @@ final class PublicChatService: ObservableObject {
         // the message table (rows scanned by an app version that predates reactions).
         // Off the main actor: up to 400 rows, each a codec sniff, on every reload - and a
         // room's first backfill reloads once per history page.
-        let (fresh, voiceNotes) = await Task.detached(priority: .userInitiated) {
-            // and never two rows with one id: the room's list is keyed by it, and a duplicate
-            // left a blank gap in it (the store also deletes duplicates on read)
-            var seen = Set<String>()
-            let fresh = rows.filter {
-                seen.insert($0.id).inserted
-                    && MessageReactionCodec.parse($0.content) == nil && MessageEditCodec.parse($0.content) == nil
-            }
-            return (fresh, PublicChatVoiceParts.group(fresh))
+        let indexed = !Self.serviceChannels.contains(channel)
+        let (fresh, voiceNotes, byId) = await Task.detached(priority: .userInitiated) {
+            Self.preparedRows(rows, indexed: indexed)
         }.value
         guard isCurrentWallet(walletAtStart) else { return true }
         guard messageLoadGeneration[channel] == generation else { return false }
@@ -1603,6 +1717,7 @@ final class PublicChatService: ObservableObject {
         // whole message list - including an open avatar menu - even when nothing had changed.
         guard messagesByChannel[channel] != fresh else { return true }
         voiceNotesByChannel[channel] = voiceNotes
+        messagesByIdByChannel[channel] = byId
         messagesByChannel[channel] = fresh
         return true
     }
@@ -2644,30 +2759,41 @@ final class PublicChatService: ObservableObject {
 
     // MARK: - Block scanning lifecycle
 
-    /// The channels that justify the block stream on the CURRENT network path. On WiFi this is
-    /// every wanted channel. On an expensive (cellular/metered) path, featured rooms are
-    /// dropped when the KaChat public chat indexer is configured: an OPEN featured room is kept
-    /// fresh by the existing 8s indexer poll (`startIndexerPollingIfConfigured`), and a closed
-    /// one is covered by remote push - so streaming every block for them is pure duplicate
-    /// cost. Non-indexed rooms (user-added channels with alwaysListen, or open non-featured
-    /// rooms) have NO other delivery path, so they keep the stream even on cellular.
+    /// The rooms that need the block stream, on every connection (audit #26, 2026-11-22: it used
+    /// to stream every bell-on room on Wi-Fi, #kaspa and #kachat-bugs by default, which kept the
+    /// app parsing about ten full blocks a second whenever it was open). A room needs it when:
+    /// - the indexer doesn't cover it (no indexer keeps its history, its indexer is blank, or
+    ///   isn't answering, or it's the arena while the arena's indexer is down): the stream is
+    ///   its only live route;
+    /// - it's open on screen, on Wi-Fi: the fast path on top of the room's 8 s indexer poll (the
+    ///   chess arena counts as open while a chess screen is up). On an expensive (cellular)
+    ///   path an open covered room keeps to its poll, as before.
+    /// A covered room with its bell on that isn't open gets its new messages from the
+    /// closed-room sweep (`sweepClosedRooms`, every 20 s) and remote push, on every connection.
     private var scanWantedChannels: Set<String> {
-        var wanted = wantedChannels
-        // With the indexer down the stream is the only live route, cellular or not: it's how a
-        // game in progress keeps getting the other player's moves.
-        guard NetworkEpochMonitor.shared.isExpensivePath, !arenaIndexerDown else { return wanted }
-        // Per room, since each can point at its own indexer now: a curated room whose override
-        // is blank still counts as indexed via the app-wide setting. An indexer that isn't
-        // answering covers nothing: its rooms keep the stream until it does.
-        wanted.subtract(Self.indexerTrackedChannels.filter {
-            let base = Self.indexerBaseURL(forChannel: $0)
-            return !base.isEmpty && unreachableIndexers[base] == nil
-        })
-        return wanted
+        let expensive = NetworkEpochMonitor.shared.isExpensivePath
+        return wantedChannels.filter { channel in
+            guard isIndexerCovered(channel) else { return true }
+            return !expensive && isViewing(channel: channel)
+        }
     }
 
+    /// Whether the indexer serves this room's history and is answering for it right now. Per
+    /// room, since each can point at its own indexer: a room whose override is blank uses the
+    /// app-wide setting. An indexer that isn't answering covers nothing until it does.
+    private func isIndexerCovered(_ channel: String) -> Bool {
+        if channel == ChessTournamentCodec.arenaChannel, arenaIndexerDown { return false }
+        guard Self.isIndexerTracked(channel) else { return false }
+        let base = Self.indexerBaseURL(forChannel: channel)
+        return !base.isEmpty && unreachableIndexers[base] == nil
+    }
+
+    /// The rooms the stream is on for, as of the last `updateScanningStateIfNeeded`: the block
+    /// handler only checks authors for these.
+    private var streamChannels: Set<String> = []
+
     /// Indexers confirmed down (the same rule as KaPost's: three failures in a row inside two
-    /// minutes), and since when. Their rooms go back on the block stream on cellular.
+    /// minutes), and since when. Their rooms go back on the block stream.
     private var unreachableIndexers: [String: Date] = [:]
     private var indexerFailureRuns: [String: (count: Int, last: Date)] = [:]
     /// Oldest a room's next backfill needs to reach after an outage (ms): the indexer gets the
@@ -2721,8 +2847,13 @@ final class PublicChatService: ObservableObject {
     }
 
     private func updateScanningStateIfNeeded() {
-        let shouldScan = !scanWantedChannels.isEmpty
+        let rooms = scanWantedChannels
+        if rooms != streamChannels { streamChannels = rooms }
+        let shouldScan = !rooms.isEmpty
         guard shouldScan != isScanningActive else { return }
+        AppLog.log("%@", shouldScan
+            ? "[PublicChat] Block stream on for \(rooms.count) room(s)"
+            : "[PublicChat] Block stream off: the indexer covers every room")
         isScanningActive = shouldScan
         if shouldScan {
             startScanning()
@@ -2797,12 +2928,19 @@ final class PublicChatService: ObservableObject {
     }
 
     /// The address an outpoint pays: from the recent-output cache, else the REST API (the
-    /// previous transaction is older than the post, so it is indexed; retried briefly).
+    /// previous transaction is older than the post, so it is indexed; retried briefly). The REST
+    /// lookups go through `RoomAuthorLookups`: a few at a time, one per outpoint however many
+    /// blocks ask for it, and none past a backlog a spammer could build (audit #23).
     private nonisolated static func inputAddress(txId: String, index: UInt32, hrp: String) async -> String? {
         if let script = RecentOutputScripts.shared.script(txId: txId, index: index),
            let data = CryptoUtils.hexToData(script) {
             return KaspaAddress.address(fromScriptPublicKey: data, hrp: hrp)
         }
+        return await RoomAuthorLookups.shared.address(txId: txId, index: index, hrp: hrp)
+    }
+
+    /// The REST half of `inputAddress`, for `RoomAuthorLookups` to run.
+    fileprivate nonisolated static func restInputAddress(txId: String, index: UInt32, hrp: String) async -> String? {
         let base = AppSettings.load().kaspaRestAPIURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: "\(base.hasSuffix("/") ? String(base.dropLast()) : base)/transactions/\(txId)?inputs=false&outputs=true&resolve_previous_outpoints=no") else { return nil }
         // Its own timeout: `data(from:)` waits the default 60 s, and every block runs one of
@@ -2850,18 +2988,21 @@ final class PublicChatService: ObservableObject {
 
     private func stopScanning() {
         Task { await NodePoolService.shared.unsubscribeBlockAdded(client: "broadcast-scan") }
-        // The notification handler stays registered - see NodePoolService.unsubscribeBlockAdded
-        // for why there's no protocol-level way to actually stop the node from pushing them.
-        // handleBlockAddedData() bails out immediately when wantedChannels is empty, so this
-        // is a cheap no-op rather than wasted scanning work.
+        // A connection that already registered for blocks keeps pushing them until it
+        // reconnects (see NodePoolService.unsubscribeBlockAdded), and other clients (groups, the
+        // inbox scan) can still want them. The handler goes, so no room's scan parses them.
+        if let id = blockNotificationHandlerId {
+            BlockScanRegistry.shared.remove(id)
+            blockNotificationHandlerId = nil
+        }
     }
 
     // MARK: - Block scanning
 
-    /// The scan's hits in rooms this app listens to, from senders not hidden there. Applied again
-    /// in `processPublicChatHits`, since either can change while authors are checked.
+    /// The scan's hits in rooms the stream is on for, from senders not hidden there. Applied
+    /// again in `processPublicChatHits`, since either can change while authors are checked.
     private func hitsWorthVerifying(_ hits: [BlockScanHit]) -> [BlockScanHit] {
-        let wanted = wantedChannels
+        let wanted = streamChannels
         guard !wanted.isEmpty else { return [] }
         let hidden = store.hiddenSendersByChannel()
         return hits.filter { hit in
@@ -2926,7 +3067,7 @@ final class PublicChatService: ObservableObject {
                 if Self.serviceChannels.contains(hit.channel) { confirmLocalStamp(hit.txId) }
                 if inserted.contains(hit.txId) {
                     touchedChannels.insert(hit.channel)
-                    notifyIfEnabled(channel: hit.channel, senderAddress: hit.senderAddress, content: hit.content, txId: hit.txId)
+                    postInAppBanner(channel: hit.channel, senderAddress: hit.senderAddress, content: hit.content, txId: hit.txId, blockTime: hit.blockTime)
                 } else if takesStreamTime,
                           !wasApplied(Self.indexerTimedKey(hit.txId), channel: hit.channel),
                           store.updateBlockTime(id: hit.txId, blockTime: hit.blockTime) {
@@ -3057,63 +3198,101 @@ final class PublicChatService: ObservableObject {
               PublicChatChannelName.normalize(parsed.channel) == ChessTournamentCodec.arenaChannel else { return nil }
         return ChainArenaRow(txId: txId, sender: address, content: parsed.content, blockTime: blockTime)
     }
+}
 
-    // MARK: - Local notifications
 
-    /// Fires a local notification for a newly-scanned message, matching Android's per-channel
-    /// "Enable Notifications" toggle - like block scanning itself, this only ever fires while the
-    /// app is alive (foreground or briefly backgrounded), never for a fully closed/terminated app.
-    private func notifyIfEnabled(channel: String, senderAddress: String, content: String, txId: String) {
-        guard !Self.serviceChannels.contains(channel) else { return }
-        guard senderAddress != WalletManager.shared.currentWallet?.publicAddress else { return }
-        guard channels.first(where: { $0.channelName == channel })?.notifyEnabled == true else { return }
-        guard !store.hiddenSenderAddresses(forChannel: channel).contains(senderAddress) else { return }
-        let settings = AppSettings.load()
-        guard settings.notificationsEnabled else { return }
-        // The remote push is the only banner source - see `ChatService.localBannersEnabled`.
-        guard ChatService.localBannersEnabled else { return }
-        // Indexed channels are covered by remote push (registered via
-        // watched_publicChat_channels) while the app is backgrounded or closed - skip the
-        // scan-driven local banner there so one message can't notify twice. While the app is
-        // ACTIVE the scan is the notification source whatever the mode
-        // (AppDelegate.willPresent drops public chat pushes in foreground), so the banner fires.
-        if Self.isIndexerTracked(channel), settings.notificationMode == .remotePush,
-           UIApplication.shared.applicationState != .active {
-            return
-        }
-        // Foreground policy: in-app banners fire everywhere (chat list, other chats) EXCEPT the
-        // room currently on screen - same rule as 1:1's active conversation and groups'
-        // activeGroupId. The refcount alone isn't enough: the screen stays "open" while the app
-        // is backgrounded, and then the banner SHOULD fire.
-        if isViewing(channel: channel), UIApplication.shared.applicationState == .active {
-            return
-        }
+// MARK: - Room summaries for the Chats list
 
-        let notificationBody = MessageReplyCodec.previewText(for: content)
+/// What the Chats list shows of one public room: its newest message (sender, a one-line preview,
+/// time) and its unread count. Equatable, so a row only redraws when one of these changes.
+struct PublicChatRoomSummary: Equatable, Identifiable {
+    let channel: PublicChatChannel
+    let lastMessageId: String?
+    let lastSender: String?
+    /// The newest message's preview, link-safe and with bidi controls stripped.
+    let lastPreview: String?
+    let lastBlockTime: Int64?
+    let unreadCount: Int
 
-        let notificationContent = UNMutableNotificationContent()
-        notificationContent.title = "#\(channel)"
-        notificationContent.body = notificationBody
-        notificationContent.sound = .default
-        notificationContent.threadIdentifier = "broadcast:\(channel)"
-
-        // Keyed by txId: matches the push spec's apns-collapse-id (= message txid), so in the
-        // rare cross-state race (local banner posted while active, push displayed after the
-        // app backgrounds) the second one replaces the first in Notification Center instead
-        // of stacking. Also self-dedupes a re-scanned message.
-        let request = UNNotificationRequest(
-            identifier: txId,
-            content: notificationContent,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                AppLog.log("[PublicChatService] Failed to send local notification: %@", error.localizedDescription)
-            }
-        }
+    var id: String { channel.channelName }
+    var channelName: String { channel.channelName }
+    /// The room name as a list shows it: bidi controls stripped (audit #22).
+    var displayName: String { KaPostsMarkdown.strippingBidiControls(channel.channelName) }
+    /// Where the room sits among the chats; a room nobody has written in goes to the bottom.
+    var activity: Date {
+        lastBlockTime.map { Date(timeIntervalSince1970: Double($0) / 1000) } ?? .distantPast
     }
 }
 
+/// The public rooms as the Chats list draws them (audit #29): worked out again after the rooms
+/// change, published only when a summary does. The list and its rows observe this, not
+/// `PublicChatService`, which publishes for every room event, the chess arena's moves (every
+/// 2 s in a game), reactions, edits and indexer bookkeeping included.
+@MainActor
+final class PublicChatRoomSummaries: ObservableObject {
+    static let shared = PublicChatRoomSummaries()
+
+    /// The rooms the Chats list shows (`PublicChatService.listedChannels`), in its order.
+    @Published private(set) var rooms: [PublicChatRoomSummary] = []
+    /// `PublicChatService.pendingPublicChatNavigation`, mirrored, so the Chats list can follow
+    /// a tapped room notification without observing the whole service.
+    @Published private(set) var pendingRoom: String?
+
+    private var cancellables = Set<AnyCancellable>()
+    /// Each room's last preview, by message id and content, so it's worked out once per message.
+    private var previewMemo: [String: (id: String, content: String, preview: String)] = [:]
+
+    private init() {
+        let service = PublicChatService.shared
+        // objectWillChange fires before the change lands: the debounce reads after it.
+        service.objectWillChange
+            .debounce(for: .milliseconds(150), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in self?.recompute() }
+            .store(in: &cancellables)
+        service.$pendingPublicChatNavigation
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] value in
+                guard let self, self.pendingRoom != value else { return }
+                self.pendingRoom = value
+            }
+            .store(in: &cancellables)
+        recompute()
+    }
+
+    /// Works the summaries out now. Also called straight after a change the user made (Mark as
+    /// Read, Mute, Delete), so the row answers without waiting for the debounce.
+    func recompute() {
+        let service = PublicChatService.shared
+        let next = service.listedChannels.map { channel -> PublicChatRoomSummary in
+            let name = channel.channelName
+            let last = service.messages(forChannel: name).last
+            return PublicChatRoomSummary(
+                channel: channel,
+                lastMessageId: last?.id,
+                lastSender: last?.senderAddress,
+                lastPreview: last.map { preview(of: $0, in: name) },
+                lastBlockTime: last?.blockTime,
+                unreadCount: service.unreadCount(forChannel: name)
+            )
+        }
+        let listed = Set(next.map(\.channelName))
+        if previewMemo.keys.contains(where: { !listed.contains($0) }) {
+            previewMemo = previewMemo.filter { listed.contains($0.key) }
+        }
+        if next != rooms { rooms = next }
+    }
+
+    private func preview(of message: PublicChatMessage, in channel: String) -> String {
+        if let memo = previewMemo[channel], memo.id == message.id, memo.content == message.content {
+            return memo.preview
+        }
+        let preview = KaPostsMarkdown.strippingBidiControls(
+            LinkSafePreview.apply(to: MessageReplyCodec.previewText(for: message.content))
+        )
+        previewMemo[channel] = (message.id, message.content, preview)
+        return preview
+    }
+}
 
 // MARK: - Public Chat indexer client
 
@@ -3137,30 +3316,48 @@ enum PublicChatIndexerClient {
     enum ClientError: LocalizedError {
         case badURL
         case badResponse(Int)
+        /// The answer was bigger than any real page (`maxResponseBytes`): not read.
+        case oversizedResponse(Int)
 
         var errorDescription: String? {
             switch self {
             case .badURL: return "Invalid public chats indexer URL"
             case .badResponse(let code): return "Public chats indexer returned HTTP \(code)"
+            case .oversizedResponse(let bytes): return "Public chats indexer sent \(bytes) bytes, more than a page can hold"
             }
         }
     }
 
-    /// GET /get-public chats?channel=<name>&limit=<n>[&before=<blockTimeMs>]
-    /// -> {"messages":[{txId, channel, senderAddress, content, blockTime}], "hasMore": Bool}
-    /// blockTime is ms; results newest-first; `before` pages older history.
-    static func fetchHistory(
-        baseURL: String,
-        channel: String,
-        limit: Int = 200,
-        before: Int64? = nil
-    ) async throws -> [IndexedPublicChat] {
-        try await fetchHistoryPage(baseURL: baseURL, channel: channel, limit: limit, before: before).messages
+    /// The most a history page may weigh. A page is at most 200 rows and a room message's
+    /// payload is under 100 KB (a transaction's mass limit), so a real page stays well under this.
+    static let maxResponseBytes = 24 * 1024 * 1024
+    /// More rows than any page is asked for: the rest of an answer is ignored.
+    static let maxRowsPerPage = 500
+    /// One row's content, in UTF-8 bytes: twice what a transaction's payload can carry.
+    static let maxContentBytes = 200_000
+    private static let hexDigits: Set<UInt8> = Set("0123456789abcdefABCDEF".utf8)
+
+    /// An indexer row the app can believe the shape of (audit #19): a 64-hex txid, a valid
+    /// address on this network, content within what a transaction can carry, a block time that
+    /// isn't zero or far in the future, and, when the row names its room, the room asked for.
+    /// The indexer's rows carry no signature or public key to check: who sent a row is the
+    /// indexer's word (the block stream checks authors on chain, `verifiedAuthors`).
+    static func isWellFormed(_ row: IndexedPublicChat, channel: String, addressPrefix: String, now: Int64) -> Bool {
+        guard row.txId.utf8.count == 64, row.txId.utf8.allSatisfy({ hexDigits.contains($0) }) else { return false }
+        guard row.senderAddress.hasPrefix(addressPrefix), Bech32.decode(row.senderAddress) != nil else { return false }
+        let contentBytes = row.content.utf8.count
+        guard contentBytes > 0, contentBytes <= maxContentBytes else { return false }
+        // A day of clock skew either way is allowed; past that the time is nonsense.
+        guard row.blockTime > 0, row.blockTime <= now + 24 * 3600 * 1000 else { return false }
+        if let rowChannel = row.channel, !rowChannel.isEmpty,
+           PublicChatChannelName.normalize(rowChannel) != channel { return false }
+        return true
     }
 
-    /// Same fetch, but keeps the server's `hasMore` so callers can page older history with
-    /// `before` — the plain fetchHistory silently discarded it, which is why rooms only ever
-    /// showed the newest single page.
+    /// GET /get-public chats?channel=<name>&limit=<n>[&before=<blockTimeMs>]
+    /// -> {"messages":[{txId, channel, senderAddress, content, blockTime}], "hasMore": Bool}
+    /// blockTime is ms; results newest-first. Keeps the server's `hasMore` so callers can page
+    /// older history with `before`.
     /// `isBackfill`: an older page paged in right after the newest page answered. Its failure
     /// says that page failed, not that the indexer is down (the next poll's newest page tells
     /// that), so it doesn't count toward an outage - a heavy page that kept timing out took the
@@ -3240,15 +3437,29 @@ enum PublicChatIndexerClient {
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             throw ClientError.badResponse(http.statusCode)
         }
+        // Too big to be a page (audit #19): not decoded at all.
+        if response.expectedContentLength > Int64(maxResponseBytes) || data.count > maxResponseBytes {
+            throw ClientError.oversizedResponse(max(data.count, Int(clamping: response.expectedContentLength)))
+        }
         let decoded = try JSONDecoder().decode(HistoryResponse.self, from: data)
+        // Rows with a field that can't be right are dropped, one by one.
+        let wanted = PublicChatChannelName.normalize(channel)
+        let addressPrefix = AppSettings.load().networkType == .mainnet ? "kaspa:" : "kaspatest:"
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let rows = decoded.messages.prefix(maxRowsPerPage).filter {
+            isWellFormed($0, channel: wanted, addressPrefix: addressPrefix, now: now)
+        }
+        if rows.count < decoded.messages.count {
+            AppLog.log("%@", "[PublicChat] Dropped \(decoded.messages.count - rows.count) malformed indexer row(s) for #\(wanted)")
+        }
         // An indexer only stores the rooms it tracks: rows back mean it keeps this room's history.
         // Only the app-wide indexer's rows count: "tracked" also means the app-wide push service
         // sends the room's pushes (and its local banners and cellular stream are skipped), which
         // a room's own indexer says nothing about.
-        if !decoded.messages.isEmpty, isAppWideIndexer(trimmed) {
+        if !rows.isEmpty, isAppWideIndexer(trimmed) {
             IndexerTrackedRooms.markServed(channel)
         }
-        return (decoded.messages, decoded.hasMore ?? false)
+        return (rows, decoded.hasMore ?? false)
     }
 
     /// Whether `base` is the app-wide public chat indexer (trailing slash and case aside).
@@ -3276,8 +3487,12 @@ enum PublicChatIndexerClient {
         request.timeoutInterval = 15
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
+              data.count <= 256 * 1024,
               let decoded = try? JSONDecoder().decode(TrackedChannelsResponse.self, from: data) else { return nil }
-        return decoded.channels
+        // Only names a room could have, and no more of them than an indexer could track.
+        return Array(decoded.channels
+            .filter { PublicChatChannelName.isValid(PublicChatChannelName.normalize($0)) }
+            .prefix(1_000))
     }
 }
 
@@ -3366,6 +3581,69 @@ actor ArenaIndexerHealth {
         downSince = nil
         answersInARow = 0
         return true
+    }
+}
+
+/// The room author check's REST lookups (`PublicChatService.inputAddress`), capped and deduped
+/// (audit #23): every block could start one lookup per room message at once, so a spammer posting
+/// many messages a block could get the phone rate-limited by the REST API. At most
+/// `maxConcurrent` run at a time; an outpoint already being looked up is waited on, not asked
+/// again; recent answers are kept; and past `maxPending` lookups the rest are refused (their
+/// posts are dropped from the stream, as any post whose author can't be checked is; the
+/// indexer still serves them).
+private actor RoomAuthorLookups {
+    static let shared = RoomAuthorLookups()
+
+    private static let maxConcurrent = 4
+    private static let maxPending = 64
+    private static let resolvedCap = 512
+
+    private var running = 0
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var inFlight: [String: Task<String?, Never>] = [:]
+    private var resolved: [String: String] = [:]
+
+    func address(txId: String, index: UInt32, hrp: String) async -> String? {
+        let key = "\(txId):\(index)"
+        if let known = resolved[key] { return known }
+        if let pending = inFlight[key] { return await pending.value }
+        guard inFlight.count < Self.maxPending else {
+            AppLog.log("[PublicChat] Author check backlog full: dropped a lookup")
+            return nil
+        }
+        let task = Task<String?, Never> {
+            await self.acquireSlot()
+            let found = await PublicChatService.restInputAddress(txId: txId, index: index, hrp: hrp)
+            await self.releaseSlot()
+            return found
+        }
+        inFlight[key] = task
+        let found = await task.value
+        inFlight[key] = nil
+        if let found {
+            if resolved.count >= Self.resolvedCap { resolved.removeAll(keepingCapacity: true) }
+            resolved[key] = found
+        }
+        return found
+    }
+
+    private func acquireSlot() async {
+        if running < Self.maxConcurrent {
+            running += 1
+            return
+        }
+        // The slot is handed over by `releaseSlot`, so `running` stays as it is.
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    private func releaseSlot() {
+        if waiters.isEmpty {
+            running = max(0, running - 1)
+        } else {
+            waiters.removeFirst().resume()
+        }
     }
 }
 

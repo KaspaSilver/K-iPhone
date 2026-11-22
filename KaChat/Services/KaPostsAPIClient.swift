@@ -245,6 +245,111 @@ final class KaPostsAPIClient: ObservableObject {
         let code: String
     }
 
+    // MARK: - Sanity checks on indexer answers (audit 2026-11-21 #19)
+    //
+    // The indexer's rows are believed for display, but only once they look like what the chain
+    // could hold: ids are txids, authors are pubkeys, times are not far in the future, amounts
+    // are within Kaspa's supply and counts are clamped. Its answers carry no signatures (the
+    // KPost shape has no `signature` field), so the indexer is still trusted for authorship;
+    // only the chain fallback (`KaPostsChainFallback`) verifies signatures.
+
+    /// Largest answer read from the indexer. A page of 100 posts is well under 1 MB.
+    nonisolated static let maxResponseBytes = 8 * 1024 * 1024
+    /// Largest base64 post content accepted (a post fits one transaction, about 100 KB).
+    nonisolated static let maxContentCharacters = 200_000
+    /// Largest count (likes, replies, tips, followers...) shown from the indexer.
+    nonisolated static let maxCount = 1_000_000_000
+    /// All the KAS there will ever be, in sompi: a bigger amount is not a real tip.
+    nonisolated static let maxSupplySompi: UInt64 = 28_700_000_000 * 100_000_000
+    /// Rows past this in one answer are dropped (the indexer caps `limit` at 100).
+    nonisolated static let maxRowsPerPage = 200
+
+    /// The `requesterPubkey` sent where the answer has no per-viewer fields (engagement and
+    /// follow lists, the health probe): the indexer takes the parameter on every endpoint, but
+    /// only feeds, threads, replies, polls, notifications and user details need it to be the
+    /// reader (liked by me, my vote, followed by me). Elsewhere it would only tell the indexer
+    /// who is looking (audit 2026-11-21 #24).
+    nonisolated static let anonymousRequester = "02" + String(repeating: "0", count: 64)
+
+    nonisolated static func clampedCount(_ count: Int?) -> Int? {
+        count.map { min(max($0, 0), maxCount) }
+    }
+
+    nonisolated static func isHex(_ text: String, lengths: Set<Int>) -> Bool {
+        lengths.contains(text.utf8.count) && text.utf8.allSatisfy { byte in
+            (48...57).contains(byte) || (65...70).contains(byte) || (97...102).contains(byte)
+        }
+    }
+
+    nonisolated static func isTxId(_ text: String) -> Bool { isHex(text, lengths: [64]) }
+
+    /// A compressed (66 hex) or x-only (64 hex) pubkey.
+    nonisolated static func isPubkey(_ text: String) -> Bool { isHex(text, lengths: [64, 66]) }
+
+    /// A time in ms that could be real: after Kaspa's launch year, at most a day ahead.
+    nonisolated static func isPlausibleTimestamp(_ ms: Int64) -> Bool {
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        return ms > 1_600_000_000_000 && ms <= nowMs + 86_400_000
+    }
+
+    nonisolated static func isWellFormed(_ post: KPost) -> Bool {
+        guard isTxId(post.id), isPubkey(post.userPublicKey),
+              post.postContent.utf8.count <= maxContentCharacters,
+              isPlausibleTimestamp(post.timestamp) else { return false }
+        if let parent = post.parentPostId, !parent.isEmpty, !isTxId(parent) { return false }
+        if let poll = post.poll {
+            guard (1...32).contains(poll.options.count), (poll.counts?.count ?? 0) <= 64 else { return false }
+        }
+        if let quoted = post.quote?.referencedMessage, quoted.utf8.count > maxContentCharacters { return false }
+        return true
+    }
+
+    /// The post with every count clamped to `0...maxCount`, so nothing downstream overflows.
+    nonisolated static func clamped(_ post: KPost) -> KPost {
+        KPost(
+            id: post.id,
+            userPublicKey: post.userPublicKey,
+            postContent: post.postContent,
+            timestamp: post.timestamp,
+            repliesCount: clampedCount(post.repliesCount),
+            quotesCount: clampedCount(post.quotesCount),
+            upVotesCount: clampedCount(post.upVotesCount),
+            downVotesCount: clampedCount(post.downVotesCount),
+            tipsCount: clampedCount(post.tipsCount),
+            parentPostId: post.parentPostId,
+            mentionedPubkeys: post.mentionedPubkeys.map { keys in Array(keys.filter { isPubkey($0) }.prefix(50)) },
+            isUpvoted: post.isUpvoted,
+            isDownvoted: post.isDownvoted,
+            blockedUser: post.blockedUser,
+            contentType: post.contentType,
+            isQuote: post.isQuote,
+            quote: post.quote,
+            editedAt: post.editedAt,
+            poll: post.poll.map { poll in
+                KPoll(
+                    options: poll.options,
+                    counts: poll.counts.map { $0.map { min(max($0, 0), maxCount) } },
+                    total: clampedCount(poll.total),
+                    closesAt: poll.closesAt,
+                    myVote: poll.myVote.flatMap { (0..<poll.options.count).contains($0) ? $0 : nil }
+                )
+            }
+        )
+    }
+
+    /// Well-formed posts only, counts clamped, at most `maxRowsPerPage`.
+    nonisolated static func sanitized(_ posts: [KPost]) -> [KPost] {
+        posts.prefix(maxRowsPerPage).filter { isWellFormed($0) }.map { clamped($0) }
+    }
+
+    nonisolated static func isWellFormed(_ notification: KNotification) -> Bool {
+        guard isTxId(notification.id), isPubkey(notification.userPublicKey),
+              isPlausibleTimestamp(notification.timestamp),
+              (notification.postContent?.utf8.count ?? 0) <= maxContentCharacters else { return false }
+        if let amount = notification.tipAmountSompi, amount > maxSupplySompi { return false }
+        return true
+    }
+
     // MARK: - Requester identity (own compressed pubkey, derived once per wallet)
 
     private var cachedRequesterPubkey: String?
@@ -338,6 +443,11 @@ final class KaPostsAPIClient: ObservableObject {
             throw error
         }
         guard let http = response as? HTTPURLResponse else { throw KaPostsAPIError.badResponse }
+        // A huge answer isn't decoded (or saved): no real page comes near the cap.
+        guard data.count <= Self.maxResponseBytes else {
+            health.noteUnreadableAnswer()
+            throw KaPostsAPIError.badResponse
+        }
         guard http.statusCode == 200 else {
             if KaPostsIndexerHealth.meansDown(statusCode: http.statusCode) {
                 health.noteFailure()
@@ -372,7 +482,7 @@ final class KaPostsAPIClient: ObservableObject {
         guard let base = try? baseURL(),
               var components = URLComponents(url: base.appendingPathComponent("get-posts-watching"), resolvingAgainstBaseURL: false) else { return false }
         components.queryItems = [
-            URLQueryItem(name: "requesterPubkey", value: "02" + String(repeating: "0", count: 64)),
+            URLQueryItem(name: "requesterPubkey", value: Self.anonymousRequester),
             URLQueryItem(name: "limit", value: "1"),
         ]
         guard let url = components.url else { return false }
@@ -526,7 +636,8 @@ final class KaPostsAPIClient: ObservableObject {
             "id": id,
             "requesterPubkey": try requesterPubkey(),
         ])
-        return response.post
+        guard Self.isWellFormed(response.post) else { throw KaPostsAPIError.badResponse }
+        return Self.clamped(response.post)
     }
 
     /// One post plus its whole ancestor chain, root first (`get-thread?id=`).
@@ -539,7 +650,8 @@ final class KaPostsAPIClient: ObservableObject {
             "id": id,
             "requesterPubkey": try requesterPubkey(),
         ])
-        return (response.ancestors ?? [], response.post)
+        guard Self.isWellFormed(response.post) else { throw KaPostsAPIError.badResponse }
+        return (Self.sanitized(response.ancestors ?? []), Self.clamped(response.post))
     }
 
     /// The requester's notification stream - votes/replies/quotes on OUR content. This is the
@@ -549,7 +661,7 @@ final class KaPostsAPIClient: ObservableObject {
         var query = ["requesterPubkey": try requesterPubkey(), "limit": "\(limit)"]
         if let before { query["before"] = before }
         let response: NotificationsResponse = try await get("get-notifications", query: query)
-        return (response.notifications, response.pagination)
+        return (response.notifications.prefix(Self.maxRowsPerPage).filter { Self.isWellFormed($0) }, response.pagination)
     }
 
     /// Per-post actor lists from the KaChat indexer fork - works for ANY post, unlike the
@@ -558,25 +670,28 @@ final class KaPostsAPIClient: ObservableObject {
         var query = [
             "postId": postId,
             "type": type,
-            "requesterPubkey": try requesterPubkey(),
+            "requesterPubkey": Self.anonymousRequester,
             "limit": "\(limit)"
         ]
         if let before { query["before"] = before }
         let response: EngagementResponse = try await get("get-post-engagement", query: query)
-        return (response.engagement, response.pagination)
+        let entries = response.engagement.prefix(Self.maxRowsPerPage).filter {
+            Self.isPubkey($0.actorPubkey) && Self.isTxId($0.actionTxId)
+        }
+        return (entries, response.pagination)
     }
 
     /// Who `pubkey` follows (followers=false) or who follows them (followers=true).
     func fetchFollowList(ofPubkey pubkey: String, followers: Bool, limit: Int = 100, before: String? = nil) async throws -> (users: [KFollowUser], pagination: KPagination?) {
         let path = followers ? "get-users-followers" : "get-users-following"
         var query = [
-            "requesterPubkey": try requesterPubkey(),
+            "requesterPubkey": Self.anonymousRequester,
             "userPubkey": pubkey,
             "limit": "\(limit)"
         ]
         if let before { query["before"] = before }
         let response: FollowListResponse = try await get(path, query: query)
-        return (response.items, response.pagination)
+        return (response.items.prefix(Self.maxRowsPerPage).filter { Self.isPubkey($0.userPublicKey) }, response.pagination)
     }
 
     /// One tip of a post: who, how much, when (`get-post-tippers`, KAPOSTS_INDEXER.md 5.11).
@@ -598,18 +713,27 @@ final class KaPostsAPIClient: ObservableObject {
         var query = ["postId": postId, "limit": "\(limit)"]
         if let before { query["before"] = before }
         let response: TippersResponse = try await get("get-post-tippers", query: query)
-        return (response.tippers, response.pagination)
+        let tips = response.tippers.prefix(Self.maxRowsPerPage).filter {
+            Self.isTxId($0.id) && Self.isPubkey($0.userPublicKey) && $0.amountSompi <= Self.maxSupplySompi
+        }
+        return (tips, response.pagination)
     }
 
     /// Follower/following counts etc. for an address's K identity.
     func fetchUserDetails(pubkey: String) async throws -> KUserDetails {
-        try await get("get-user-details", query: ["user": pubkey, "requesterPubkey": try requesterPubkey()])
+        let details: KUserDetails = try await get("get-user-details", query: ["user": pubkey, "requesterPubkey": try requesterPubkey()])
+        return KUserDetails(
+            userPublicKey: details.userPublicKey,
+            followersCount: Self.clampedCount(details.followersCount),
+            followingCount: Self.clampedCount(details.followingCount),
+            followedUser: details.followedUser
+        )
     }
 
     /// KaChat-only filter: keep posts whose decoded content carries the invisible marker, and
     /// drop content the indexer masked for blocked users.
     private static func filterKaChat(_ posts: [KPost]) -> [KPost] {
-        posts.filter { post in
+        sanitized(posts).filter { post in
             guard post.blockedUser != true, let content = post.decodedContent else { return false }
             return isKaChatContent(content)
         }
@@ -1509,17 +1633,29 @@ extension KaPostsAPIClient {
 }
 
 
-// MARK: - KaPosts local notification pings
+// MARK: - KaPosts notification poll (the bell's count)
 
-/// While the app runs this polls the indexer's notification stream (30s) and keeps the bell's
-/// unseen count. Banners come from remote pushes alone (`ChatService.localBannersEnabled` is
-/// false), so the local-banner path below stays behind that switch, unused.
+/// While the app is active this polls the indexer's notification stream every 20 s, keeps the
+/// bell's unseen count and shows a banner for new activity on your posts (owner, 2026-11-22: "when
+/// I'm in the app and someone likes my post ... I should see a banner"), so a banner shows even
+/// when the push service misses one. `KaPostsBannerLedger` keeps it to one banner per action when
+/// the push comes too. A KaPost push that arrives while the app is open asks for a poll at once
+/// (`pollSoon()`). It stops in the background (`KaChatApp` calls `stop()`), where pushes alone
+/// bring the banners.
 @MainActor
 final class KaPostsNotificationService {
     static let shared = KaPostsNotificationService()
 
     private var pollTask: Task<Void, Never>?
-    private static let pollIntervalNanos: UInt64 = 30 * 1_000_000_000
+    /// Only while the app is open, so the in-app banners come soon after the action.
+    private static let currentPollIntervalNanos: UInt64 = 20 * 1_000_000_000
+    /// When the last poll started, so a burst of pushes asks the indexer once.
+    private var lastPollAt: Date?
+    /// Activity older than this when a poll finds it gets no banner (it is in the bell): a
+    /// return after a long absence doesn't replay a stack of banners.
+    private static let bannerMaxAgeSeconds: Double = 10 * 60
+    /// The most banners one poll shows; the rest are only counted in the bell.
+    private static let maxBannersPerPoll = 3
     /// How far back one poll follows the bell's count (50 a page).
     private static let maxUnseenCountPages = 10
 
@@ -1529,35 +1665,6 @@ final class KaPostsNotificationService {
     var isNotificationsScreenVisible = false
 
     private init() {}
-
-    // MARK: Displayed-action ledger (App Group)
-
-    /// Ledger of KaPosts ACTION txids already shown as a banner: a remote push the user tapped,
-    /// and this poller's local banners while `ChatService.localBannersEnabled` allows them. The
-    /// kaposts push carries no `tx_id` in userInfo, but its
-    /// `apns-collapse-id` IS the action's txid (PUSH_EXTENSIONS.md) and iOS surfaces that as
-    /// `UNNotificationRequest.identifier` - the stable key both sides share. Bounded FIFO,
-    /// mirroring `ChatService.localPostedTxIdsKey`.
-    ///
-    /// Residual race this cannot close: a push delivered while BACKGROUNDED never passes
-    /// through willPresent, so it is only recorded when tapped or while it still sits in
-    /// Notification Center (pollOnce checks deliveredNotifications). A background push the
-    /// user swipe-dismissed can therefore re-banner on the next foreground poll.
-    private static let displayedActionIdsKey = "kaposts_displayed_action_ids"
-
-    func hasDisplayed(actionId: String) -> Bool {
-        guard let defaults = UserDefaults(suiteName: "group.com.kachat.kaposts") else { return false }
-        return (defaults.stringArray(forKey: Self.displayedActionIdsKey) ?? []).contains(actionId)
-    }
-
-    func recordDisplayed(actionId: String) {
-        guard let defaults = UserDefaults(suiteName: "group.com.kachat.kaposts") else { return }
-        var displayed = defaults.stringArray(forKey: Self.displayedActionIdsKey) ?? []
-        guard !displayed.contains(actionId) else { return }
-        displayed.append(actionId)
-        if displayed.count > 300 { displayed.removeFirst(displayed.count - 300) }
-        defaults.set(displayed, forKey: Self.displayedActionIdsKey)
-    }
 
     /// Last notification timestamp already surfaced (banner or Notifications screen), per
     /// wallet - anything at or before this never pings.
@@ -1572,10 +1679,20 @@ final class KaPostsNotificationService {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
+                self?.lastPollAt = Date()
                 await self?.pollOnce()
-                try? await Task.sleep(nanoseconds: Self.pollIntervalNanos)
+                try? await Task.sleep(nanoseconds: Self.currentPollIntervalNanos)
             }
         }
+    }
+
+    /// A KaPost push arrived while the app is open: poll now (the bell's count comes from the
+    /// poll), unless one ran in the last 15 s. Does nothing while the poller is stopped.
+    func pollSoon() {
+        guard pollTask != nil else { return }
+        if let lastPollAt, Date().timeIntervalSince(lastPollAt) < 15 { return }
+        stop()
+        start()
     }
 
     func stop() {
@@ -1631,8 +1748,7 @@ final class KaPostsNotificationService {
             }
             // Per-type toggles (Settings > Notifications > KaPosts): disabled kinds are
             // dropped HERE, after lastSeen already advanced past them above - silently
-            // skipped for good, never queued to ping later, and never eating a slot in the
-            // burst cap below.
+            // skipped for good, never counted later.
             let fresh = notifications.filter {
                 $0.timestamp > lastSeen &&
                 settings.shouldNotifyKaPostsAction(contentType: $0.contentType, voteType: $0.voteType)
@@ -1653,59 +1769,56 @@ final class KaPostsNotificationService {
                 KaPostsNotificationCenter.shared.markAllSeen()
             } else {
                 KaPostsNotificationCenter.shared.recordArrivals(arrivals.count)
-            }
-            // Actions a remote push already bannered must not banner again: the ledger holds
-            // ids willPresent presented or the user tapped, and deliveredNotifications covers
-            // pushes delivered while backgrounded that still sit in Notification Center
-            // (their request identifier is the apns-collapse-id, i.e. the action's txid).
-            // Those get recorded into the ledger too, so clearing the center later doesn't
-            // resurrect them.
-            let deliveredIds = Set(
-                await UNUserNotificationCenter.current().deliveredNotifications()
-                    .filter { $0.request.content.threadIdentifier == "kaposts" }
-                    .map(\.request.identifier)
-            )
-            // Oldest first so banners arrive in order; cap a burst so a viral post doesn't
-            // fire fifty banners at once.
-            for notification in fresh.sorted(by: { $0.timestamp < $1.timestamp }).suffix(5) {
-                if deliveredIds.contains(notification.id) {
-                    recordDisplayed(actionId: notification.id)
-                    continue
+                if UIApplication.shared.applicationState == .active {
+                    await postBanners(for: arrivals)
                 }
-                guard !hasDisplayed(actionId: notification.id) else { continue }
-                // Claim BEFORE posting so a racing push in willPresent sees it.
-                recordDisplayed(actionId: notification.id)
-                await postLocal(notification)
             }
         } catch {
             AppLog.log("[KaPosts] Notification poll failed: %@", error.localizedDescription)
         }
     }
 
-    /// Does the reader still want to hear about this kind of activity (Settings > Notifications)?
-    static func notificationsEnabled(for contentType: String?, voteType: String?) -> Bool {
-        AppSettings.load().shouldNotifyKaPostsAction(contentType: contentType, voteType: voteType)
+    // MARK: In-app banners
+
+    /// Banners for the newest few recent arrivals, each once (`KaPostsBannerLedger`: not when its
+    /// push already showed, and the push is held back if it comes later).
+    private func postBanners(for arrivals: [KaPostsAPIClient.KNotification]) async {
+        let nowMs = Date().timeIntervalSince1970 * 1000
+        let recent = arrivals
+            .filter { nowMs - Self.milliseconds($0.timestamp) <= Self.bannerMaxAgeSeconds * 1000 }
+            .sorted { $0.timestamp > $1.timestamp }
+            .prefix(Self.maxBannersPerPoll)
+        for notification in recent.reversed() {
+            guard !isNotificationsScreenVisible,
+                  UIApplication.shared.applicationState == .active else { return }
+            await postBanner(notification)
+        }
     }
 
-    private func postLocal(_ notification: KaPostsAPIClient.KNotification) async {
-        // The remote push is the only banner source - see `ChatService.localBannersEnabled`.
-        // The bell's count is fed by `pollOnce` (KaPostsNotificationCenter) and is unaffected.
-        guard ChatService.localBannersEnabled else { return }
-        guard let address = KaPostsAPIClient.kaspaAddress(fromPubkey: notification.userPublicKey),
-              address != WalletManager.shared.currentWallet?.publicAddress,
-              !KaPostsModerationStore.shared.isHidden(address) else { return }
-        guard Self.notificationsEnabled(for: notification.contentType, voteType: notification.voteType) else { return }
+    /// Indexer timestamps are milliseconds; a seconds value is scaled up.
+    private static func milliseconds(_ timestamp: Int64) -> Double {
+        let value = Double(timestamp)
+        return value < 100_000_000_000 ? value * 1000 : value
+    }
 
+    private func postBanner(_ notification: KaPostsAPIClient.KNotification) async {
+        guard let address = KaPostsAPIClient.kaspaAddress(fromPubkey: notification.userPublicKey) else { return }
         let text = KaPostsAPIClient.stripMarker(notification.decodedContent ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        let kind = KaPostsBannerLedger.kind(contentType: notification.contentType, voteType: notification.voteType, hasText: !text.isEmpty)
+        let ledgerKey = KaPostsBannerLedger.key(actorPubkey: notification.userPublicKey, postId: notification.contentId, kind: kind)
+        guard KaPostsBannerLedger.claim(ledgerKey) else { return }
+
         let action: String
-        switch notification.contentType {
-        case "vote": action = notification.voteType == "downvote" ? "disliked your post" : "liked your post"
+        switch kind {
+        case "like": action = "liked your post"
+        case "dislike": action = "disliked your post"
         case "tip":
             action = notification.tipAmountSompi.map { "tipped your post: \(KaspaUnit.plain($0)) \(KaspaUnit.symbol)" }
                 ?? "tipped your post"
         case "reply": action = "replied to your post"
-        case "quote": action = text.isEmpty ? "reposted your post" : "quoted your post"
+        case "quote": action = "quoted your post"
+        case "repost": action = "reposted your post"
         case "follow": action = "followed you"
         case "mention": action = "mentioned you in a post"
         default: action = "interacted with your post"
@@ -1713,52 +1826,105 @@ final class KaPostsNotificationService {
 
         let content = UNMutableNotificationContent()
         content.title = "KaPost"
-        content.body = "\(await actorName(for: address)) \(action)" + (text.isEmpty ? "" : ": \(text)")
-        content.sound = .default
+        content.body = "\(actorName(for: address)) \(action)" + (text.isEmpty ? "" : ": \(String(text.prefix(200)))")
         content.threadIdentifier = "kaposts"
-        // A tap deep-opens the exact post/comment (KaChatApp reads userInfo["postId"]).
-        // Per-kind target rule matches the in-app notifications sheet: reply/quote-with-text
-        // open the reply itself; vote/mention open the containing post.
+        // A tap opens what the bell's row opens: the reply or quote itself, the post for a vote,
+        // a mention's post, nothing for a follow (KaChatApp reads userInfo["postId"]).
         let targetTxId: String?
-        switch notification.contentType {
-        case "reply": targetTxId = notification.id
-        case "quote": targetTxId = text.isEmpty ? notification.contentId : notification.id
+        switch kind {
+        case "reply", "quote": targetTxId = notification.id
         case "follow": targetTxId = nil
-        // A mention's acting content IS the post/comment mentioning you — fall back to the
-        // notification's own txid when contentId is empty, else the tap has no target.
         case "mention": targetTxId = (notification.contentId?.isEmpty == false) ? notification.contentId : notification.id
         default: targetTxId = notification.contentId
         }
-        if let targetTxId, !targetTxId.isEmpty {
-            content.userInfo = ["postId": targetTxId]
-        }
+        var userInfo: [String: Any] = ["actor_pubkey": notification.userPublicKey]
+        if let targetTxId, !targetTxId.isEmpty { userInfo["postId"] = targetTxId }
+        content.userInfo = userInfo
 
         let request = UNNotificationRequest(
-            identifier: "kaposts-\(notification.id)",
+            identifier: KaPostsBannerLedger.localIdentifierPrefix + notification.id,
             content: content,
             trigger: nil
         )
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
-            AppLog.log("[KaPosts] Failed to post local notification: %@", error.localizedDescription)
+            AppLog.log("[KaPosts] In-app banner failed: %@", error.localizedDescription)
         }
     }
 
-    /// Contact alias > KNS primary domain (fetched when not cached) > shortened address - the
-    /// same identity chain as everywhere else in KaPosts; a domain keeps its .kas.
-    private func actorName(for address: String) async -> String {
-        if let alias = ContactsManager.shared.getContact(byAddress: address)?.alias,
-           !alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return KaPostsView.displayKasName(alias)
+    /// Your name for them, else their `.kachat` name, else a short address - as the feed shows them.
+    private func actorName(for address: String) -> String {
+        if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
+            return KaPostsView.displayKasName(assigned)
         }
-        if KNSService.shared.profileCache[address] == nil {
-            _ = await KNSService.shared.fetchProfile(for: address)
+        if let name = KachatLive.identityName(address) { return name }
+        return Contact.generateDefaultAlias(from: address)
+    }
+}
+
+/// One banner per KaPost action while the app is open: the in-app banner from the poll and the
+/// push for the same action (same actor, post and kind, within 15 minutes) never both show.
+/// Whichever comes first claims the action; `AppDelegate.willPresent` holds back a push whose
+/// action already showed.
+@MainActor
+enum KaPostsBannerLedger {
+    /// Identifiers of the banners the poll posts, so `willPresent` lets its own through.
+    static let localIdentifierPrefix = "kaposts-inapp-"
+    private static let window: TimeInterval = 15 * 60
+    private static var claimed: [String: Date] = [:]
+
+    /// True the first time an action is claimed in the window; false when it already showed.
+    static func claim(_ key: String) -> Bool {
+        let now = Date()
+        claimed = claimed.filter { now.timeIntervalSince($0.value) < window }
+        guard claimed[key] == nil else { return false }
+        claimed[key] = now
+        return true
+    }
+
+    static func key(actorPubkey: String?, postId: String?, kind: String) -> String {
+        var actor = (actorPubkey ?? "").lowercased()
+        // A compressed key and its x-only form are the same person.
+        if actor.count == 66 { actor = String(actor.dropFirst(2)) }
+        return "\(actor)|\((postId ?? "").lowercased())|\(kind)"
+    }
+
+    /// The kind from the indexer's notification row.
+    static func kind(contentType: String?, voteType: String?, hasText: Bool) -> String {
+        switch contentType {
+        case "vote": return voteType == "downvote" ? "dislike" : "like"
+        case "tip": return "tip"
+        case "reply": return "reply"
+        case "quote": return hasText ? "quote" : "repost"
+        case "follow": return "follow"
+        case "mention": return "mention"
+        default: return "other"
         }
-        if let domain = KNSService.shared.profileCache[address]?.domainName,
-           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return KaPostsView.displayKasName(domain)
+    }
+
+    /// The kind from a push: its `kaposts_kind`, else read from the body's wording.
+    static func kind(pushKind: String?, body: String) -> String {
+        switch pushKind {
+        case "vote_up": return "like"
+        case "vote_down": return "dislike"
+        case "reply": return "reply"
+        case "quote": return "quote"
+        case "repost": return "repost"
+        case "follow": return "follow"
+        case "mention": return "mention"
+        case "tip": return "tip"
+        default: break
         }
-        return String(address.suffix(10))
+        let lowered = body.lowercased()
+        if lowered.contains("disliked your") { return "dislike" }
+        if lowered.contains("liked your") { return "like" }
+        if lowered.contains("replied to your") { return "reply" }
+        if lowered.contains("quoted your") { return "quote" }
+        if lowered.contains("reposted your") { return "repost" }
+        if lowered.contains("followed you") { return "follow" }
+        if lowered.contains("mentioned you") { return "mention" }
+        if lowered.contains("tipped your") { return "tip" }
+        return "other"
     }
 }

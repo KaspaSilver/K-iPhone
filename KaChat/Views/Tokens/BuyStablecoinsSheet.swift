@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// The Wallet tab's Swap Stablecoins (owner's design, 2026-11-20): "Which stablecoin?" first, one row
-/// per stablecoin KaPay holds (kUSDT today; more as KaPay adds them), then that coin's own place to
-/// buy it. kUSDT goes straight on to Trestly: the address it should use, then Trestly's site inside
-/// KaPay (`TrestlyConnectSheet`, `TrestlyBrowserView`), in the same sheet. This is the one way into
+/// per stablecoin the wallet holds (kUSDT today; more as they are added), then that coin's own place
+/// to buy it. kUSDT goes straight on to Trestly: the address it should use, then Trestly's site
+/// inside K (`TrestlyConnectSheet`, `TrestlyBrowserView`), in the same sheet. This is the one way into
 /// Trestly: Manage kUSDT's Address Actions no longer has Open Trestly.
 struct BuyStablecoinsSheet: View {
     @Environment(\.dismiss) private var dismiss

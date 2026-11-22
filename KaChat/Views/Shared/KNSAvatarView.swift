@@ -1,3 +1,4 @@
+import Combine
 import CryptoKit
 import Foundation
 import ImageIO
@@ -38,7 +39,8 @@ struct KNSAvatarView: View {
     private var effectiveAvatarURLString: String? {
         guard KachatNamesService.isEnabled, let contactAddress else { return avatarURLString }
         let link = kachatRegistry.cachedIdentity(for: contactAddress)?.profile?.avatar
-        return socialImages.profile(for: link)?.avatar
+        // only your own, your contacts' and opened profiles are looked up (audit 2026-11-21, #17)
+        return socialImages.profile(for: link, address: contactAddress)?.avatar
     }
     /// The photo you assigned to this address in Contacts. Your own choice, so it wins over the
     /// avatar the address set for itself, as it does on the Contacts screen.
@@ -1312,5 +1314,105 @@ enum KNSProfileLinkBuilder {
     private static func isDiscordUserID(_ value: String) -> Bool {
         guard (15...22).contains(value.count) else { return false }
         return value.unicodeScalars.allSatisfy { CharacterSet.decimalDigits.contains($0) }
+    }
+}
+
+// MARK: - Dock avatar
+
+/// Your own avatar, drawn small and round for the dock's Profile tab (owner's call, 2026-11-21:
+/// "have it actually show your avatar"). It picks the same picture the Profile screen shows
+/// (`KNSAvatarView`): the photo you gave your own address in Contacts, else your `.kachat` avatar
+/// (testnet) or KNS avatar. nil until there is one, and the dock keeps the person glyph.
+///
+/// Its own object so the root TabView only redraws when the finished picture changes, not on
+/// every KNS, `.kachat` or address book update.
+@MainActor
+final class DockAvatar: ObservableObject {
+    static let shared = DockAvatar()
+
+    /// Ready for a tab item: round, dock-sized, drawn as is (not tinted like a template).
+    @Published private(set) var image: UIImage?
+
+    /// The tab bar draws its icons at about 25 points.
+    private static let side: CGFloat = 26
+
+    private var shownKey: String?
+    private var loadTask: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
+
+    private init() {
+        // Anything that can change which picture is yours. Coalesced: these fire in bursts
+        // during a sync, and working it out again is cheap but not free.
+        Publishers.MergeMany(
+            WalletManager.shared.$currentWallet.map { _ in () }.eraseToAnyPublisher(),
+            KNSService.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+            KachatNamesRegistry.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+            KachatSocialImageResolver.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+            AddressBookManager.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+            NotificationCenter.default.publisher(for: .knsProfileImageRefetched).map { _ in () }.eraseToAnyPublisher()
+        )
+        .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+        .sink { [weak self] in self?.refresh() }
+        .store(in: &cancellables)
+        refresh()
+    }
+
+    private func refresh() {
+        guard let address = WalletManager.shared.currentWallet?.publicAddress, !address.isEmpty else {
+            show(nil, key: nil)
+            return
+        }
+        // your own photo for your address in Contacts wins, as on the Profile screen
+        if let assigned = AddressBookManager.shared.photo(for: address) {
+            let key = "assigned:\(address):\(ObjectIdentifier(assigned).hashValue)"
+            guard key != shownKey else { return }
+            show(Self.dockIcon(from: assigned), key: key)
+            return
+        }
+        let raw: String?
+        if KachatNamesService.isEnabled {
+            let link = KachatNamesRegistry.shared.cachedIdentity(for: address)?.profile?.avatar
+            raw = KachatSocialImageResolver.shared.profile(for: link, address: address)?.avatar
+        } else {
+            raw = KNSService.shared.profileCache[address]?.avatarURL
+        }
+        guard let descriptor = KNSProfileImageDescriptor.from(raw: raw) else {
+            show(nil, key: nil)
+            return
+        }
+        let key = descriptor.cacheIdentity
+        guard key != shownKey else { return }
+        let pixels = KNSProfileImageCache.thumbnailPixelSize(forPointSize: Self.side)
+        if let cached = KNSProfileImageCache.memoryImage(for: descriptor, maxPixelSize: pixels) {
+            show(Self.dockIcon(from: cached), key: key)
+            return
+        }
+        loadTask?.cancel()
+        loadTask = Task { [weak self] in
+            let loaded = await KNSProfileImageCache.shared.image(for: descriptor, maxPixelSize: pixels)
+            guard !Task.isCancelled, let self, let loaded else { return }
+            self.show(Self.dockIcon(from: loaded), key: key)
+        }
+    }
+
+    private func show(_ newImage: UIImage?, key: String?) {
+        if key == nil { loadTask?.cancel() }
+        shownKey = key
+        image = newImage
+    }
+
+    /// The picture cropped to a circle at the dock's size, as an original-colour image (a tab
+    /// item otherwise draws it as a one-colour template).
+    private static func dockIcon(from source: UIImage) -> UIImage {
+        let size = CGSize(width: side, height: side)
+        let rendered = UIGraphicsImageRenderer(size: size).image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            UIBezierPath(ovalIn: rect).addClip()
+            // fill the circle, cropping the longer side
+            let scale = max(side / max(source.size.width, 1), side / max(source.size.height, 1))
+            let w = source.size.width * scale, h = source.size.height * scale
+            source.draw(in: CGRect(x: (side - w) / 2, y: (side - h) / 2, width: w, height: h))
+        }
+        return rendered.withRenderingMode(.alwaysOriginal)
     }
 }

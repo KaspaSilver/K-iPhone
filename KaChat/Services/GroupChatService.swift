@@ -532,6 +532,60 @@ final class GroupChatService: ObservableObject {
         SharedDataManager.syncGroupsForExtension()
     }
 
+    /// A new group message's banner while the app is open (`InAppBanner`), with the push's rules:
+    /// nothing for a silent group, only personal messages in a mentions-only one, nothing from
+    /// history caught up after joining.
+    private func postInAppBanner(group: GroupChat, message: GroupMessage) {
+        let settings = AppSettings.load()
+        guard settings.notificationsEnabled,
+              !ChatService.shared.suppressNotificationsUntilSynced,
+              message.deliveryStatus != .pending,
+              InAppBanner.isRecent(blockTimeMs: message.blockTime),
+              message.timestamp >= group.createdAt.addingTimeInterval(-120),
+              !silentNotifications(for: group.id) else { return }
+        if mentionsOnlyNotifications(for: group.id), !isPersonalMessage(message.content) { return }
+        let sender = message.senderAddress ?? ""
+        InAppBanner.post(
+            txId: message.txId,
+            title: group.name,
+            subtitle: memberDisplayName(sender, in: group),
+            body: GroupMentionCodec.decodeForDisplay(
+                MessageReplyCodec.previewText(for: message.content),
+                members: group.members,
+                resolveDisplayName: { self.memberDisplayName($0, in: group) }
+            ),
+            threadIdentifier: "group:\(group.id)",
+            categoryIdentifier: AppDelegate.messageCategoryId,
+            sound: settings.incomingNotificationSoundEnabled
+        )
+    }
+
+    /// A message is personal when it replies to one of mine or @mentions me, by address or by my
+    /// KNS name (the notification extension's mentions-only rule). No wallet: personal.
+    private func isPersonalMessage(_ content: String) -> Bool {
+        guard let me = WalletManager.shared.currentWallet?.publicAddress, !me.isEmpty else { return true }
+        if MessageReplyCodec.parse(content)?.replyToSender == me { return true }
+        let ownText = MessageReplyCodec.unwrappedText(content)
+        if GroupMentionCodec.mentions(me, in: ownText) { return true }
+        if let domain = KNSService.shared.barePrimaryDomain(for: me) {
+            let lowered = ownText.lowercased()
+            return lowered.contains("@\(domain)") || lowered.contains("@\(domain).kas")
+        }
+        return false
+    }
+
+    /// Your name for them, else their name in the group, else a short address.
+    private func memberDisplayName(_ address: String, in group: GroupChat) -> String {
+        if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
+            return assigned
+        }
+        if let member = group.members.first(where: { $0.address == address }),
+           let displayName = member.displayName, !displayName.isEmpty {
+            return displayName
+        }
+        return Contact.generateDefaultAlias(from: address)
+    }
+
     func silentNotifications(for groupId: String) -> Bool {
         groupSilentNotifications.contains(groupId)
     }
@@ -789,182 +843,6 @@ final class GroupChatService: ObservableObject {
     /// Mirrors `ChatService.leaveConversation()` - call from the group thread's `.onDisappear`.
     func exitGroup() {
         activeGroupId = nil
-    }
-
-    /// Posts a local notification for an incoming group message. Fires whenever the message was
-    /// NOT ingested with its group thread open on screen - including while the user sits on the
-    /// chat list or in another chat (the caller enforces that one suppression). Mirrors what 1:1
-    /// gets via APNs, but as a local notification so it also fires when the group's remote push
-    /// only wakes the app (content-available) without showing a banner of its own. One banner per
-    /// txId across all paths via `claimGroupBannerSlot`.
-    private func maybePostGroupLocalNotification(group: GroupChat, message: GroupMessage) {
-        let settings = AppSettings.load()
-        // The remote push is the only banner source - see `ChatService.localBannersEnabled`.
-        guard ChatService.localBannersEnabled else { return }
-        guard settings.notificationMode != .disabled else { return }
-        guard !ChatService.shared.suppressNotificationsUntilSynced else { return }
-        guard message.deliveryStatus != .pending else { return }
-
-        // Backfilled history never notifies: anything mined before this device learned about the
-        // group (its local createdAt, minus a small clock slack) is a first-catch-up backfill of
-        // an existing group's history, not new mail - mirrors ChatService's wallet-import
-        // baseline for 1:1. Without this, joining an active group would flood banners.
-        guard message.timestamp >= group.createdAt.addingTimeInterval(-120) else { return }
-
-        // Honor this group's "only notify if mentioned" setting (the extension enforces the same
-        // rule for the push path; this covers the case where no push reached the extension at all).
-        // Suppressing must still CLAIM the banner slot: willPresent only drops a foreground push
-        // whose txId is in the local-posted ledger, so an unclaimed suppression would let that
-        // same message's push banner anyway and bypass the toggle.
-        // Silent wins over everything: no banner for this group at all.
-        if silentNotifications(for: group.id) {
-            _ = claimGroupBannerSlot(txId: message.txId)
-            return
-        }
-        if mentionsOnlyNotifications(for: group.id), !isPersonalGroupMessage(message.content) {
-            _ = claimGroupBannerSlot(txId: message.txId)
-            return
-        }
-
-        // Don't duplicate a push the extension already handled, and record this local banner so
-        // the same message's push arriving later is dropped in willPresent.
-        guard claimGroupBannerSlot(txId: message.txId) else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = group.name
-        content.subtitle = groupMemberDisplayName(message.senderAddress ?? "", in: group)
-        content.body = GroupMentionCodec.decodeForDisplay(
-            MessageReplyCodec.previewText(for: message.content),
-            members: group.members,
-            resolveDisplayName: { self.groupMemberDisplayName($0, in: group) }
-        )
-        content.threadIdentifier = "group:\(group.id)"
-        content.categoryIdentifier = AppDelegate.messageCategoryId
-        content.sound = settings.incomingNotificationSoundEnabled ? .default : nil
-
-        let request = UNNotificationRequest(identifier: message.txId, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-    }
-
-    /// Posts "Alice reacted [emoji] to your message" for an incoming group reaction. Reactions are
-    /// intercepted before they ever become GroupMessages (they render as a corner pill), so
-    /// `maybePostGroupLocalNotification` never sees them - without this they produced no banner at
-    /// all (or only the server's generic fallback). Same foreground policy as messages: fires
-    /// while the app is open too, suppressed only while this group's thread is on screen.
-    private func maybePostGroupReactionNotification(
-        group: GroupChat,
-        reactorAddress: String,
-        emoji: String,
-        targetTxId: String,
-        txId: String,
-        blockTime: Int64
-    ) {
-        let settings = AppSettings.load()
-        // The remote push is the only banner source - see `ChatService.localBannersEnabled`.
-        guard ChatService.localBannersEnabled else { return }
-        guard settings.notificationMode != .disabled else { return }
-        guard !ChatService.shared.suppressNotificationsUntilSynced else { return }
-        if activeGroupId == group.id, UIApplication.shared.applicationState == .active { return }
-
-        // Same backfill floor as messages: a reaction older than this device's knowledge of the
-        // group is first-catch-up history, not live activity.
-        let reactionDate = Date(timeIntervalSince1970: Double(blockTime) / 1000)
-        guard reactionDate >= group.createdAt.addingTimeInterval(-120) else { return }
-
-        let targetIsMine = groupMessages[group.id]?.first(where: { $0.txId == targetTxId })?.isOutgoing == true
-        // Mentions-only groups: a reaction to YOUR message is personal, like a reply to you;
-        // reactions to other members' messages stay silent. Same ledger rule as messages: the
-        // suppression claims the banner slot so the reaction's own push can't banner in
-        // willPresent and bypass the toggle.
-        if silentNotifications(for: group.id) {
-            _ = claimGroupBannerSlot(txId: txId)
-            return
-        }
-        if mentionsOnlyNotifications(for: group.id), !targetIsMine {
-            _ = claimGroupBannerSlot(txId: txId)
-            return
-        }
-
-        guard claimGroupBannerSlot(txId: txId) else { return }
-
-        let reactorName = groupMemberDisplayName(reactorAddress, in: group)
-        let trimmedEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
-        let content = UNMutableNotificationContent()
-        content.title = group.name
-        switch (targetIsMine, trimmedEmoji.isEmpty) {
-        case (true, false):
-            content.body = String(format: AppLocalization.string("%1$@ reacted %2$@ to your message"), reactorName, trimmedEmoji)
-        case (true, true):
-            content.body = String(format: AppLocalization.string("%@ reacted to your message"), reactorName)
-        case (false, false):
-            content.body = String(format: AppLocalization.string("%1$@ reacted %2$@ to a message"), reactorName, trimmedEmoji)
-        case (false, true):
-            content.body = String(format: AppLocalization.string("%@ reacted to a message"), reactorName)
-        }
-        content.threadIdentifier = "group:\(group.id)"
-        content.sound = settings.incomingNotificationSoundEnabled ? .default : nil
-
-        let request = UNNotificationRequest(identifier: txId, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-    }
-
-    /// The exact rule the notification-service extension applies to a group_message push in a
-    /// mentions-only group (`isMentionsOnlyEnabled` + `mentionsMe` + `isReplyToMe` in
-    /// NotificationService.swift): a message is "personal" when it replies to one of MY
-    /// messages, or when its own text @mentions me in EITHER cross-platform wire form -
-    /// iOS/desktop compose `@{fullKaspaAddress}` (`GroupMentionCodec`), Android composes
-    /// `@{primaryKNSDomain}` - both checked on the reply-unwrapped text so a quoted
-    /// `replyToPreview` that happens to contain my mention doesn't count. The domain form
-    /// reuses the domain-mention tokenizer (`KasNameText.mentionDomains`:
-    /// "@" at a word boundary, lowercased, ".kas" suffix optional) against the wallet's
-    /// reverse-resolved primary domain, so detection can never disagree with rendering. No
-    /// wallet loaded = treat as personal (don't suppress), matching the NSE's same
-    /// conservative fallback.
-    private func isPersonalGroupMessage(_ content: String) -> Bool {
-        guard let myAddress = WalletManager.shared.currentWallet?.publicAddress, !myAddress.isEmpty else {
-            return true
-        }
-        if MessageReplyCodec.parse(content)?.replyToSender == myAddress { return true }
-        let ownText = MessageReplyCodec.unwrappedText(content)
-        if GroupMentionCodec.mentions(myAddress, in: ownText) { return true }
-        if let myDomain = KNSService.shared.barePrimaryDomain(for: myAddress) {
-            return KasNameText.mentionDomains(in: ownText).contains(myDomain)
-        }
-        return false
-    }
-
-    /// App Group ledger of group txIds the MAIN APP posted a local banner for. Counterpart of the
-    /// extension's `group_push_handled_txids`: together they guarantee ONE banner per group txId
-    /// no matter which path (local block-scan/catch-up ingest vs remote push) runs first.
-    /// `AppDelegate.willPresent` drops a foreground push whose tx_id appears here.
-    static let localPostedTxIdsKey = "group_local_posted_txids"
-
-    /// Returns false when this txId already produced (or deliberately suppressed) a banner - the
-    /// extension handled its push, or the main app already posted a local banner for it. Returns
-    /// true and records the claim otherwise. Bounded FIFO, mirroring `markGroupPushHandled`.
-    private func claimGroupBannerSlot(txId: String) -> Bool {
-        guard let defaults = UserDefaults(suiteName: "group.com.kachat.app") else { return true }
-        let pushHandled = defaults.stringArray(forKey: "group_push_handled_txids") ?? []
-        guard !pushHandled.contains(txId) else { return false }
-        var posted = defaults.stringArray(forKey: Self.localPostedTxIdsKey) ?? []
-        guard !posted.contains(txId) else { return false }
-        posted.append(txId)
-        if posted.count > 300 { posted.removeFirst(posted.count - 300) }
-        defaults.set(posted, forKey: Self.localPostedTxIdsKey)
-        return true
-    }
-
-    /// Prefers a 1:1 contact alias, then the roster display-name snapshot, then a shortened
-    /// address - matches the notification-service extension's sender-name resolution.
-    private func groupMemberDisplayName(_ address: String, in group: GroupChat) -> String {
-        if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
-            return assigned
-        }
-        if let member = group.members.first(where: { $0.address == address }),
-           let displayName = member.displayName, !displayName.isEmpty {
-            return displayName
-        }
-        return Contact.generateDefaultAlias(from: address)
     }
 
     // MARK: - Wallet lifecycle
@@ -2870,22 +2748,9 @@ final class GroupChatService: ObservableObject {
             }
 
             if let reaction = MessageReactionCodec.parse(plaintext) {
-                let isOwnReaction = senderAddress == WalletManager.shared.currentWallet?.publicAddress
-                // Replay check BEFORE applying: catch-up re-serves the same reaction txs on every
-                // cursor overlap, and an already-indexed identical reaction must never re-notify.
-                // The in-memory index is loaded for every group at wallet set (see setCurrentWallet).
-                let alreadyKnown = reactionsByGroupId[group.id]?[reaction.targetTxId]?.contains {
-                    $0.reactorAddress == senderAddress && $0.emoji == reaction.emoji
-                } ?? false
                 if reaction.action == "add" {
                     applyLocalGroupReaction(targetTxId: reaction.targetTxId, groupId: group.id, reactorAddress: senderAddress, emoji: reaction.emoji)
                     store.upsertGroupReaction(targetTxId: reaction.targetTxId, groupId: group.id, reactorAddress: senderAddress, emoji: reaction.emoji, reactionTxId: txId, blockTime: blockTime)
-                    if !isOwnReaction, !alreadyKnown {
-                        maybePostGroupReactionNotification(
-                            group: group, reactorAddress: senderAddress, emoji: reaction.emoji,
-                            targetTxId: reaction.targetTxId, txId: txId, blockTime: blockTime
-                        )
-                    }
                 } else {
                     removeLocalGroupReaction(targetTxId: reaction.targetTxId, groupId: group.id, reactorAddress: senderAddress)
                     store.removeGroupReaction(targetTxId: reaction.targetTxId, reactorAddress: senderAddress)
@@ -2925,10 +2790,6 @@ final class GroupChatService: ObservableObject {
                 content: plaintext, timestamp: Date(timeIntervalSince1970: Double(blockTime) / 1000), blockTime: blockTime,
                 isOutgoing: senderAddress == WalletManager.shared.currentWallet?.publicAddress, deliveryStatus: .sent
             )
-            // A later-arriving part of a long voice note: the note is one message, so only its
-            // first part to arrive rings (MESSAGING.md, "Long voice notes").
-            let isLaterVoicePart = !message.isOutgoing
-                && VoicePartGrouping.isLaterPart(message, among: groupMessages[group.id] ?? [])
             groupMessages[group.id, default: []].append(message)
             // Own message echoed back (sent from another device of this wallet, or self-stash
             // catch-up): keep the extension's own-txId list fresh so reactions to it are
@@ -2937,35 +2798,16 @@ final class GroupChatService: ObservableObject {
             if message.isOutgoing {
                 SharedDataManager.syncOwnGroupTxIdsForExtension()
             }
-            // Global notification center: list incoming messages that @mention one of the
-            // wallet's own KNS domains (deduped by txId inside the center).
-            if !message.isOutgoing {
-                GlobalNotificationCenter.shared.recordGroupMentionIfNeeded(
-                    groupId: group.id, groupName: group.name, senderAddress: senderAddress,
-                    text: plaintext, txId: txId, timestampMs: blockTime
-                )
-            }
             // Already looking at this group's thread right now - keep it marked read instead of
             // letting the badge tick up for a message the user is actively seeing arrive live
             // (mirrors ChatService's identical `isUserViewing` check). Covers both this live
             // block-scan path and catch-up sync, which also routes through this function.
-            if !message.isOutgoing {
-                if activeGroupId == group.id, UIApplication.shared.applicationState == .active {
-                    markGroupAsRead(group.id)
-                } else {
-                    // Foreground policy: notifications fire while the app is OPEN too (chat list,
-                    // another chat) - the ONLY suppression is the group thread currently on screen
-                    // (the branch above, mirroring ChatService's active-conversation rule for 1:1).
-                    // Deduped against any banner the notification-service extension already handled
-                    // for this txId, and a push arriving after this local banner is dropped in
-                    // willPresent via the group_local_posted_txids ledger.
-                    if isLaterVoicePart {
-                        // Claimed, so its own push is dropped in willPresent too.
-                        _ = claimGroupBannerSlot(txId: message.txId)
-                    } else {
-                        maybePostGroupLocalNotification(group: group, message: message)
-                    }
-                }
+            // Anywhere else in the open app, its banner comes from here at once (`InAppBanner`).
+            if !message.isOutgoing, activeGroupId == group.id, UIApplication.shared.applicationState == .active {
+                markGroupAsRead(group.id)
+            } else if !message.isOutgoing,
+                      !VoicePartGrouping.isLaterPart(message, among: groupMessages[group.id] ?? []) {
+                postInAppBanner(group: group, message: message)
             }
             ChatService.shared.scheduleBadgeUpdate()
             return

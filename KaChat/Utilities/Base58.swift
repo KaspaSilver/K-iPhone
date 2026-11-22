@@ -77,13 +77,6 @@ enum Base58 {
         return Data(leading + value.reversed())
     }
 
-    static func encodeChecked(_ payload: Data) -> String {
-        let hash1 = SHA256.hash(data: payload)
-        let hash2 = SHA256.hash(data: Data(hash1))
-        let checksum = Data(hash2.prefix(4))
-        return encode(payload + checksum)
-    }
-
     static func decodeChecked(_ string: String) -> Data? {
         guard let full = decode(string), full.count >= 4 else { return nil }
         let payload = full.prefix(full.count - 4)

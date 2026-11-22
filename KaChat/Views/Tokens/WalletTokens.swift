@@ -1,9 +1,9 @@
 import SwiftUI
 import UserNotifications
 
-// Tokens on Kaspa L1 (KCC-20), starting with Trestly's kUSDT (owner's call, 2026-11-19). KaPay is
-// where tokens are bought, swapped and sold; KaChat, on the same words, holds, receives and sends
-// them (ported from KaPay 2026-11-19: everything but Trestly's site).
+// Tokens on Kaspa L1 (KCC-20), starting with Trestly's kUSDT (owner's call, 2026-11-19): held,
+// received and sent here (ported from KaPay 2026-11-19), and bought, swapped and sold on Trestly's
+// site inside K (Swap Stablecoins).
 
 /// A token KaChat can hold. Amounts are whole base units (`decimals` places: kUSDT has 6).
 struct WalletToken: Identifiable, Hashable {

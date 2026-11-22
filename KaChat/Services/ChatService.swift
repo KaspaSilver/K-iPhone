@@ -251,19 +251,6 @@ final class ChatService: ObservableObject {
     /// showing again (`trimLeftConversationIfNeeded`).
     var lastLeftConversationAddress: String?
 
-    /// Whether the app posts its OWN banners for the messages and group traffic it discovers itself - through the UTXO subscription, the sweep, the
-    /// open-chat poll, background fetch, or a silent push.
-    ///
-    /// False: the remote alert push is the only banner source, exactly as when the app is fully
-    /// closed. The app used to banner from both, with per-txId ledgers and races to keep one
-    /// message from notifying twice, and the seams showed: the same message arriving as two
-    /// differently-worded banners, or a foreground push dropped on the assumption a local one
-    /// would follow. Discovery still runs and the data is still fresh when the app opens; it just
-    /// no longer announces it. Public Chat rooms the push server does not index, and any message
-    /// the push service misses, notify nothing - that is the trade, made on purpose. The
-    /// posting paths and their ledgers stay behind this switch rather than being torn out, so
-    /// the choice is one line to revisit.
-    nonisolated static let localBannersEnabled = false
     struct PendingOutgoingRef {
         let txId: String
         let messageType: ChatMessage.MessageType

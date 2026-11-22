@@ -231,8 +231,7 @@
 		KPSTBA984002E313E0C51DD8 /* KaPostsMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF30B7CA192AEFB929B20 /* KaPostsMarkdown.swift */; };
 		PUBCBF773C4EBC67C9783BB0 /* PublicChatAudioRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCFD3D18801E81ACDE67E1 /* PublicChatAudioRecording.swift */; };
 		PUBCBAB28033CDB943A8CBF1 /* PublicChatChannelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF6B4F3D2EC92D1B83F82 /* PublicChatChannelView.swift */; };
-		PUBCBAC3F98D2CE52C92C064 /* PublicChatListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF044732384DCF0F9301F /* PublicChatListView.swift */; };
-		PUBCB7E184EA89AD6161B191 /* PublicChatNavigationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF4796F306FFFB371FAFA /* PublicChatNavigationPolicy.swift */; };
+		PUBCBAC3F98D2CE52C92C064 /* PublicChatRoomViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF044732384DCF0F9301F /* PublicChatRoomViews.swift */; };
 		PUBCB68895E8FC2FC3990152 /* PublicChatRoomInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF99C413063431EA3C463 /* PublicChatRoomInfoView.swift */; };
 		PUBCBF800E59234BD2C99061 /* HiddenPublicChatSendersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF4D1618A0B10D36051F3 /* HiddenPublicChatSendersView.swift */; };
 		PUBCBEB7BFE066D5927FDDDA /* PublicChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUBCF4C9BD43170DADA98C63 /* PublicChatService.swift */; };
@@ -258,7 +257,7 @@
 		P4BEEF43227E1C366511F00D /* ChessBracketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FC918045982119F329742A /* ChessBracketView.swift */; };
 		P4B5B3396572971973F1895E /* ChessGameResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */; };
 		P4BFF44229E3E35DB10F720D /* ChessHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */; };
-		P4BC31820131CAADEC9A2138 /* ChessLeaderboardTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F025FC39829E27CC676C1A /* ChessLeaderboardTabView.swift */; };
+		P4BC31820131CAADEC9A2138 /* ChessLeaderboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F025FC39829E27CC676C1A /* ChessLeaderboardView.swift */; };
 		P4B8E7554C0DDAA56836EAE9 /* ChessPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FF70345120972E649163DC /* ChessPlayerView.swift */; };
 		P4B0E896CEE591C99F3D3D6D /* ChessText.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FE99E88F843D256855D454 /* ChessText.swift */; };
 		P4BFC7420076E07A48448F1A /* ChessTournamentGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */; };
@@ -565,8 +564,7 @@
 		KPSTF30B7CA192AEFB929B20 /* KaPostsMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsMarkdown.swift; sourceTree = "<group>"; };
 		PUBCFD3D18801E81ACDE67E1 /* PublicChatAudioRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatAudioRecording.swift; sourceTree = "<group>"; };
 		PUBCF6B4F3D2EC92D1B83F82 /* PublicChatChannelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatChannelView.swift; sourceTree = "<group>"; };
-		PUBCF044732384DCF0F9301F /* PublicChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatListView.swift; sourceTree = "<group>"; };
-		PUBCF4796F306FFFB371FAFA /* PublicChatNavigationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatNavigationPolicy.swift; sourceTree = "<group>"; };
+		PUBCF044732384DCF0F9301F /* PublicChatRoomViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatRoomViews.swift; sourceTree = "<group>"; };
 		PUBCF99C413063431EA3C463 /* PublicChatRoomInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatRoomInfoView.swift; sourceTree = "<group>"; };
 		PUBCF4D1618A0B10D36051F3 /* HiddenPublicChatSendersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiddenPublicChatSendersView.swift; sourceTree = "<group>"; };
 		PUBCF4C9BD43170DADA98C63 /* PublicChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatService.swift; sourceTree = "<group>"; };
@@ -592,7 +590,7 @@
 		P4FC918045982119F329742A /* ChessBracketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBracketView.swift; sourceTree = "<group>"; };
 		P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessGameResultView.swift; sourceTree = "<group>"; };
 		P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessHomeView.swift; sourceTree = "<group>"; };
-		P4F025FC39829E27CC676C1A /* ChessLeaderboardTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessLeaderboardTabView.swift; sourceTree = "<group>"; };
+		P4F025FC39829E27CC676C1A /* ChessLeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessLeaderboardView.swift; sourceTree = "<group>"; };
 		P4FF70345120972E649163DC /* ChessPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessPlayerView.swift; sourceTree = "<group>"; };
 		P4FE99E88F843D256855D454 /* ChessText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessText.swift; sourceTree = "<group>"; };
 		P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentGameView.swift; sourceTree = "<group>"; };
@@ -961,8 +959,7 @@
 			children = (
 				PUBCF4D1618A0B10D36051F3 /* HiddenPublicChatSendersView.swift */,
 				PUBCF99C413063431EA3C463 /* PublicChatRoomInfoView.swift */,
-				PUBCF4796F306FFFB371FAFA /* PublicChatNavigationPolicy.swift */,
-				PUBCF044732384DCF0F9301F /* PublicChatListView.swift */,
+				PUBCF044732384DCF0F9301F /* PublicChatRoomViews.swift */,
 				PUBCF6B4F3D2EC92D1B83F82 /* PublicChatChannelView.swift */,
 				PUBCFD3D18801E81ACDE67E1 /* PublicChatAudioRecording.swift */,
 				E81000162D4C00010000000C /* ChatListView.swift */,
@@ -1141,7 +1138,7 @@
 				P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */,
 				P4FE99E88F843D256855D454 /* ChessText.swift */,
 				P4FF70345120972E649163DC /* ChessPlayerView.swift */,
-				P4F025FC39829E27CC676C1A /* ChessLeaderboardTabView.swift */,
+				P4F025FC39829E27CC676C1A /* ChessLeaderboardView.swift */,
 				P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */,
 				P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */,
 				P4FC918045982119F329742A /* ChessBracketView.swift */,
@@ -1414,7 +1411,7 @@
 				P4BFC7420076E07A48448F1A /* ChessTournamentGameView.swift in Sources */,
 				P4B0E896CEE591C99F3D3D6D /* ChessText.swift in Sources */,
 				P4B8E7554C0DDAA56836EAE9 /* ChessPlayerView.swift in Sources */,
-				P4BC31820131CAADEC9A2138 /* ChessLeaderboardTabView.swift in Sources */,
+				P4BC31820131CAADEC9A2138 /* ChessLeaderboardView.swift in Sources */,
 				P4BFF44229E3E35DB10F720D /* ChessHomeView.swift in Sources */,
 				P4B5B3396572971973F1895E /* ChessGameResultView.swift in Sources */,
 				P4BEEF43227E1C366511F00D /* ChessBracketView.swift in Sources */,
@@ -1440,8 +1437,7 @@
 				PUBCBEB7BFE066D5927FDDDA /* PublicChatService.swift in Sources */,
 				PUBCBF800E59234BD2C99061 /* HiddenPublicChatSendersView.swift in Sources */,
 				PUBCB68895E8FC2FC3990152 /* PublicChatRoomInfoView.swift in Sources */,
-				PUBCB7E184EA89AD6161B191 /* PublicChatNavigationPolicy.swift in Sources */,
-				PUBCBAC3F98D2CE52C92C064 /* PublicChatListView.swift in Sources */,
+				PUBCBAC3F98D2CE52C92C064 /* PublicChatRoomViews.swift in Sources */,
 				PUBCBAB28033CDB943A8CBF1 /* PublicChatChannelView.swift in Sources */,
 				PUBCBF773C4EBC67C9783BB0 /* PublicChatAudioRecording.swift in Sources */,
 				KPSTBA984002E313E0C51DD8 /* KaPostsMarkdown.swift in Sources */,

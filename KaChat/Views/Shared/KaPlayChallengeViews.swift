@@ -143,23 +143,16 @@ struct KaPlayBotChallenge: Equatable {
     }
 }
 
-/// A challenge opens the bot game here, in the Games tab (since 2026-11-21, when chess came back
-/// from KaPlay): never the `kachatchess://` link itself, which would leave the app for KaPlay.
-enum KaPlayHandoff {
-    @MainActor
-    static func open(_ challenge: KaPlayBotChallenge) {
-        ChessBotLinks.open(challenge.url)
-    }
-}
-
-/// A bot challenge link in a KaPost, drawn as a card instead of the link's long text.
+/// A bot challenge link in a KaPost, drawn as a card instead of the link's long text. Tapping
+/// opens the bot game here, in the Games tab (since 2026-11-21, when chess came back from
+/// KaPlay): never the `kachatchess://` link itself, which would leave the app for KaPlay.
 struct KaPostBotChallengeCard: View {
     let challenge: KaPlayBotChallenge
 
     var body: some View {
         Button {
             Haptics.impact(.light)
-            KaPlayHandoff.open(challenge)
+            ChessBotLinks.open(challenge.url)
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {

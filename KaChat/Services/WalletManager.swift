@@ -272,11 +272,13 @@ final class WalletManager: ObservableObject {
     /// Portfolio and Cold Storage follow the signed-in account, as in KaPay (they came over with
     /// phase 2 but this call didn't, so Portfolio had no active portfolio and Import CSV failed,
     /// 2026-11-21). PortfolioManager first: it seeds "Portfolio 1", which the view model's ledger
-    /// load back-fills into.
+    /// load back-fills into. The view model itself is made only when Portfolio (or something
+    /// using its price) first opens: `walletDidChange` keeps the address for it and never makes
+    /// it, so launch sends no CoinGecko requests.
     private func setPortfolioAndColdStorageWallet(_ address: String?) {
         ColdStorageManager.shared.setCurrentWallet(address)
         PortfolioManager.shared.setCurrentWallet(address)
-        PortfolioViewModel.shared.setCurrentWallet(address)
+        PortfolioViewModel.walletDidChange(address)
     }
 
     func loadWallet(force: Bool = false) async {
@@ -845,6 +847,15 @@ final class WalletManager: ObservableObject {
     private func removeLocalData(forAccount address: String) async {
         let previous = previousChattingAddresses(ofAccount: address)
         for owned in [address] + previous {
+            // Read before `removeSpendingData` deletes the derived-address cache they come from.
+            let spendingAddresses = cachedSpendingAddresses(ofAccount: owned)
+            // Trestly's wallet store (`KusdtStoreRelay`): what its code kept for each owner key of
+            // this account - the chatting address's and every spending address's.
+            var ownerKeys = Set<String>()
+            for ownAddress in Self.accountAddressVariants(owned) + spendingAddresses {
+                if let key = Kusdt.schnorrOwner(of: ownAddress) { ownerKeys.insert(Kusdt.hex(key)) }
+            }
+            for key in ownerKeys { KusdtStoreRelay.forget(ownerHex: key) }
             removeSpendingData(forAccount: owned)
             // its bot games' records and stamped wins, on both networks' addresses
             ChessBotProgress.shared.removeAll(forAddress: owned)
@@ -873,6 +884,16 @@ final class WalletManager: ObservableObject {
                 ChatService.shared.removeAllData(forWallet: variant)
                 AddressActivityNotifier.shared.removeAllData(forWallet: variant)
                 ChatListView.removeAllData(forWallet: variant)
+                // From KaPay: Cold Storage (kpubs, labels, hidden addresses, balances) and
+                // Portfolio (ledgers, portfolios, fees, deletions), both filed under the
+                // lowercased address.
+                ColdStorageManager.shared.removeAllData(forWalletAddress: variant)
+                PortfolioLedgerStore.clearAllLocalData(walletAddress: variant.lowercased())
+                // Scheduled KaPosts: their signed transactions and text, and their reminders.
+                KaPostsScheduledStore.shared.removeAll(forWallet: variant)
+                // .kachat: the claims in progress (`pending-<wallet>.json`), owned-name and
+                // market keys, the names notifier's record, its own profile copy.
+                KachatNamesActions.removeAllLocalData(forWallet: variant, addresses: spendingAddresses)
                 UserDefaults.standard.removeObject(forKey: balanceCacheKey(for: variant))
                 UserDefaults.standard.removeObject(forKey: accountAddedDateKey(for: variant))
                 // Filed by types that have no remover of their own, in their exact formats.
@@ -884,7 +905,19 @@ final class WalletManager: ObservableObject {
                     "kachat_group_photo_bt_\(variant)",
                     "kachat_group_tombstones_\(variant)",
                     "kachat_address_book_migrated_v1_wallet_\(lowered)",
-                    "kachat_tn10_faucet_claimed_\(lowered)"
+                    "kachat_tn10_faucet_claimed_\(lowered)",
+                    // token payment bubbles (`ChatService.tokenBubblesKey`)
+                    ChatService.tokenBubblesKey(wallet: variant),
+                    // KaPost: the people whose posts ring (`KaPostsWatchStore`) and the last
+                    // notification already surfaced (`KaPostsNotificationService.lastSeenKey`)
+                    "kachat_kaposts_watch_\(lowered)",
+                    "kaposts_notifications_last_seen_\(variant)",
+                    // Public rooms (`PublicChatService`, lowercased address): hidden curated
+                    // rooms, read marks, rooms marked unread, default bells
+                    "kachat_broadcast_hidden_curated_\(lowered)",
+                    "kachat_broadcast_last_read_\(lowered)",
+                    "kachat_broadcast_manual_unread_\(lowered)",
+                    "kaposts_broadcast_default_bells_\(lowered)"
                 ] {
                     UserDefaults.standard.removeObject(forKey: key)
                 }
@@ -1289,10 +1322,21 @@ final class WalletManager: ObservableObject {
 
     /// Delivered banners (decrypted message text), pending requests and the badge, when the
     /// signed-in account leaves: Log Out and Delete Account.
+    ///
+    /// Every pending request but the .kachat renewal and expiry reminders
+    /// (`KachatNameReminders`, ids `kachat-reminder-<network>-<wallet tag>-…`): each wallet keeps
+    /// its own on purpose, and for a name on a spending address they are the only warning before
+    /// it lapses, so Log Out leaves them. Delete Account removes the leaving account's own
+    /// (`removeLocalData` → `KachatNameReminders.removeAll(forWallet:)`).
     static func clearNotificationsForSignedOutAccount() {
         let center = UNUserNotificationCenter.current()
         center.removeAllDeliveredNotifications()
-        center.removeAllPendingNotificationRequests()
+        let keptPrefix = "kachat-reminder-"
+        center.getPendingNotificationRequests { requests in
+            let ids = requests.map(\.identifier).filter { !$0.hasPrefix(keptPrefix) }
+            guard !ids.isEmpty else { return }
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+        }
         SharedDataManager.setUnreadCount(0)
         if #available(iOS 16.0, *) {
             center.setBadgeCount(0)

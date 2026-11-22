@@ -85,6 +85,12 @@ final class PushNotificationManager: ObservableObject {
     private var groupsCancellable: AnyCancellable?
     private var groupMutedMembersCancellable: AnyCancellable?
     private var groupSilentCancellable: AnyCancellable?
+    /// KaPost Block and Mute: re-sent to the push service and written for the notification
+    /// extension whenever they change (audit 2026-11-21, #16).
+    private var kaPostsModerationCancellable: AnyCancellable?
+    /// App Group key: the x-only keys (64 hex) of everyone this account blocked or muted on
+    /// KaPost. The notification extension blanks a KaPost push whose `actor_pubkey` is one of them.
+    static let sharedKaPostsHiddenActorsKey = "shared_kaposts_hidden_actors"
 
     // MARK: - Constants
 
@@ -105,6 +111,42 @@ final class PushNotificationManager: ObservableObject {
         Task {
             await checkPermissionStatus()
         }
+        // next turn: the moderation store reads the wallet as it's made
+        Task { @MainActor [weak self] in self?.observeKaPostsModeration() }
+    }
+
+    /// Block and Mute on KaPost reach the push service (`kaposts_blocked_pubkeys`) and the
+    /// notification extension (App Group), so neither rings the lock screen while K is in the
+    /// background (audit 2026-11-21, #16).
+    private func observeKaPostsModeration() {
+        let store = KaPostsModerationStore.shared
+        kaPostsModerationCancellable = store.$muted.combineLatest(store.$blocked)
+            .map { muted, blocked in muted.union(blocked) }
+            .removeDuplicates()
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.syncKaPostsHiddenActorsForExtension()
+                Task { await self.updateWatchedAddresses() }
+            }
+    }
+
+    /// Everyone this account blocked or muted on KaPost, as KaPost pubkeys (66-hex compressed;
+    /// the push service compares the x-only part). Empty without a KaPost identity.
+    private func collectKaPostsHiddenPubkeys() -> [String] {
+        let store = KaPostsModerationStore.shared
+        let hidden = Set(store.blocked.union(store.muted).map { $0.lowercased() })
+        return hidden.sorted().compactMap { address in
+            guard let parsed = KaspaAddress(address: address), parsed.type == .pubKey, parsed.payload.count == 32 else { return nil }
+            return "02" + parsed.payload.map { String(format: "%02x", $0) }.joined()
+        }
+    }
+
+    /// Writes the blocked and muted KaPost keys (x-only) where the notification extension reads
+    /// them. Cleared (an empty list) while signed out.
+    func syncKaPostsHiddenActorsForExtension() {
+        let xonly = collectKaPostsHiddenPubkeys().map { String($0.dropFirst(2)) }
+        UserDefaults(suiteName: SharedDataManager.appGroupIdentifier)?.set(xonly, forKey: Self.sharedKaPostsHiddenActorsKey)
     }
 
     deinit {
@@ -448,9 +490,12 @@ final class PushNotificationManager: ObservableObject {
             kapostsNotifyReposts: kinds.kaPostsNotifyReposts,
             kapostsNotifyFollows: kinds.kaPostsNotifyFollows,
             kapostsWatchAuthors: collectKaPostsWatchAuthors(),
+            kapostsBlockedPubkeys: collectKaPostsPubkey() == nil ? [] : collectKaPostsHiddenPubkeys(),
             primaryAddress: primaryAddress,
             aliases: aliases,
             apnsEnvironment: ApnsEnvironment.current.rawValue,
+            app: Self.appMarker,
+            watchOnlyAddresses: collectWatchOnlyAddresses(),
             auth: auth
         )
 
@@ -746,9 +791,12 @@ final class PushNotificationManager: ObservableObject {
             kapostsNotifyReposts: kinds.kaPostsNotifyReposts,
             kapostsNotifyFollows: kinds.kaPostsNotifyFollows,
             kapostsWatchAuthors: collectKaPostsWatchAuthors(),
+            kapostsBlockedPubkeys: collectKaPostsPubkey() == nil ? [] : collectKaPostsHiddenPubkeys(),
             primaryAddress: primaryAddress,
             aliases: aliases,
             apnsEnvironment: ApnsEnvironment.current.rawValue,
+            app: Self.appMarker,
+            watchOnlyAddresses: collectWatchOnlyAddresses(),
             auth: auth
         )
 
@@ -881,11 +929,24 @@ final class PushNotificationManager: ObservableObject {
             .map { "\($0.key):\($0.value.joined(separator: "+"))" }
         let kapostsKey = collectKaPostsPubkey() ?? ""
         let watchAuthors = collectKaPostsWatchAuthors().sorted().joined(separator: "+")
+        let hiddenAuthors = collectKaPostsHiddenPubkeys().joined(separator: "+")
         let kinds = AppSettings.load()
         let kaPostsKinds = [kinds.kaPostsNotifyLikes, kinds.kaPostsNotifyDislikes, kinds.kaPostsNotifyComments, kinds.kaPostsNotifyReposts, kinds.kaPostsNotifyFollows]
             .map { $0 ? "1" : "0" }.joined()
+        // The K marker and the Received KAS addresses too: a build that starts sending them
+        // updates the registration once, and a new spending address is watched at once.
+        let watchOnly = collectWatchOnlyAddresses().joined(separator: "+")
         return (addrs + ["|"] + groupIds + ["|"] + aliasList + ["|", primary] + ["|", apnsEnvironment] + ["|", silentGroups]
-                + ["|"] + publicChatChannels + ["|"] + hiddenPublicChat + ["|", kapostsKey, kaPostsKinds, watchAuthors]).joined(separator: ",")
+                + ["|"] + publicChatChannels + ["|"] + hiddenPublicChat + ["|", kapostsKey, kaPostsKinds, watchAuthors, hiddenAuthors]
+                + ["|", Self.appMarker, watchOnly]).joined(separator: ",")
+    }
+
+    /// The registration's `app` field: K takes every kind of push (docs/K_ALL_IN_ONE_PUSH.md).
+    static let appMarker = "k"
+
+    /// The addresses whose Received KAS pushes this device wants (`watch_only_addresses`).
+    private func collectWatchOnlyAddresses() -> [String] {
+        AddressActivityNotifier.shared.pushWatchOnlyAddresses().sorted()
     }
 
     /// Indexer-tracked public chat rooms whose bell is on - the push service sends room pushes
@@ -2292,10 +2353,21 @@ struct PushRegistrationRequest: Codable {
     /// Authors whose new posts this device wants a push for - the bell beside Follow
     /// (PUSH_EXTENSIONS.md §3a). Pubkeys, 66-hex compressed.
     let kapostsWatchAuthors: [String]
+    /// Everyone this account blocked or muted on KaPost (66-hex): the push service sends no
+    /// KaPost push whose actor is one of them (kasia-indexer `kaposts_blocked_pubkeys`; the list
+    /// replaces the stored one).
+    let kapostsBlockedPubkeys: [String]
     let primaryAddress: String?
     let aliases: [String]
     /// "development" | "production" - which APNs endpoint this device's token is valid for.
     let apnsEnvironment: String
+    /// "k": this registration is K, the all-in-one app, which takes every kind of push (chats,
+    /// groups, KaPost, rooms, Received KAS, .kachat). Without it the push service treats the
+    /// `com.kachat.app` topic as the old chats-only KaChat (kachat-indexer docs/K_ALL_IN_ONE_PUSH.md).
+    let app: String
+    /// Received KAS (`address_activity`): the spending and Cold Storage addresses whose receives
+    /// notify; empty with Address Activity off. The chatting address stays in `watchedAddresses`.
+    let watchOnlyAddresses: [String]
     let auth: PushAuthRequest?
 
     enum CodingKeys: String, CodingKey {
@@ -2312,9 +2384,12 @@ struct PushRegistrationRequest: Codable {
         case kapostsNotifyReposts = "kaposts_notify_reposts"
         case kapostsNotifyFollows = "kaposts_notify_follows"
         case kapostsWatchAuthors = "kaposts_watch_authors"
+        case kapostsBlockedPubkeys = "kaposts_blocked_pubkeys"
         case primaryAddress = "primary_address"
         case aliases
         case apnsEnvironment = "apns_environment"
+        case app
+        case watchOnlyAddresses = "watch_only_addresses"
         case auth
     }
 }
@@ -2335,10 +2410,21 @@ struct PushUpdateRequest: Codable {
     /// Authors whose new posts this device wants a push for - the bell beside Follow
     /// (PUSH_EXTENSIONS.md §3a). Pubkeys, 66-hex compressed.
     let kapostsWatchAuthors: [String]
+    /// Everyone this account blocked or muted on KaPost (66-hex): the push service sends no
+    /// KaPost push whose actor is one of them (kasia-indexer `kaposts_blocked_pubkeys`; the list
+    /// replaces the stored one).
+    let kapostsBlockedPubkeys: [String]
     let primaryAddress: String?
     let aliases: [String]
     /// "development" | "production" - which APNs endpoint this device's token is valid for.
     let apnsEnvironment: String
+    /// "k": this registration is K, the all-in-one app, which takes every kind of push (chats,
+    /// groups, KaPost, rooms, Received KAS, .kachat). Without it the push service treats the
+    /// `com.kachat.app` topic as the old chats-only KaChat (kachat-indexer docs/K_ALL_IN_ONE_PUSH.md).
+    let app: String
+    /// Received KAS (`address_activity`): the spending and Cold Storage addresses whose receives
+    /// notify; empty with Address Activity off. The chatting address stays in `watchedAddresses`.
+    let watchOnlyAddresses: [String]
     let auth: PushAuthRequest?
 
     enum CodingKeys: String, CodingKey {
@@ -2354,9 +2440,12 @@ struct PushUpdateRequest: Codable {
         case kapostsNotifyReposts = "kaposts_notify_reposts"
         case kapostsNotifyFollows = "kaposts_notify_follows"
         case kapostsWatchAuthors = "kaposts_watch_authors"
+        case kapostsBlockedPubkeys = "kaposts_blocked_pubkeys"
         case primaryAddress = "primary_address"
         case aliases
         case apnsEnvironment = "apns_environment"
+        case app
+        case watchOnlyAddresses = "watch_only_addresses"
         case auth
     }
 }

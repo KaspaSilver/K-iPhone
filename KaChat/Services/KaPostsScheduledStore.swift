@@ -95,7 +95,51 @@ final class KaPostsScheduledStore: ObservableObject {
 
     private var scopedKey: String? {
         guard let address = WalletManager.shared.currentWallet?.publicAddress, !address.isEmpty else { return nil }
-        return "\(baseKey)_\(address.replacingOccurrences(of: ":", with: "_"))"
+        return key(forWallet: address)
+    }
+
+    private func key(forWallet address: String) -> String {
+        "\(baseKey)_\(address.replacingOccurrences(of: ":", with: "_"))"
+    }
+
+    /// The key `entries` belong to: the wallet they were loaded for, not whichever is current
+    /// now, so a save after an account switch never files one account's posts under another's.
+    private var loadedKey: String? {
+        guard let loadedWallet, !loadedWallet.isEmpty else { return nil }
+        return key(forWallet: loadedWallet)
+    }
+
+    /// True while the account `entries` were loaded for is still the current one. Checked after
+    /// every network wait: an answer about the previous account must not land in the next.
+    private func stillLoaded(_ wallet: String?) -> Bool {
+        wallet != nil && wallet == loadedWallet
+            && WalletManager.shared.currentWallet?.publicAddress == wallet
+    }
+
+    /// Delete Account: every scheduled post of this wallet on this device (their signed
+    /// transactions and text), the cancels still owed to the indexer, and their reminders. Posts
+    /// the indexer already holds are not cancelled there: that needs the account's key and the
+    /// network, and the account is going.
+    func removeAll(forWallet walletAddress: String) {
+        guard !walletAddress.isEmpty else { return }
+        let storeKey = self.key(forWallet: walletAddress)
+        let defaults = UserDefaults.standard
+        var reminderIds: [String] = []
+        if let data = defaults.data(forKey: storeKey),
+           let stored = try? JSONDecoder().decode([KaPostScheduledEntry].self, from: data) {
+            reminderIds = stored.map { Self.reminderId($0.id) }
+        }
+        if loadedWallet == walletAddress {
+            reminderIds += entries.map { Self.reminderId($0.id) }
+            entries = []
+            publishReserved()
+        }
+        defaults.removeObject(forKey: storeKey)
+        defaults.removeObject(forKey: "\(storeKey)_pending_cancels")
+        if !reminderIds.isEmpty {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: reminderIds)
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: reminderIds)
+        }
     }
 
     func reloadForCurrentWallet() {
@@ -118,7 +162,7 @@ final class KaPostsScheduledStore: ObservableObject {
     }
 
     private func persist() {
-        guard let key = scopedKey else { return }
+        guard let key = loadedKey else { return }
         if let data = try? JSONEncoder().encode(entries) {
             UserDefaults.standard.set(data, forKey: key)
         }
@@ -150,6 +194,8 @@ final class KaPostsScheduledStore: ObservableObject {
     /// Records a signed post for `notBefore`, hands it to the indexer, and - when the indexer
     /// cannot be reached - keeps it for this phone to submit later, with a reminder.
     func add(_ scheduled: KaPostsAPIClient.ScheduledTransaction, text: String, notBefore: Date) async -> KaPostScheduledEntry {
+        // Saved under the account that signed it: load that account's list first if it isn't.
+        if loadedWallet != WalletManager.shared.currentWallet?.publicAddress { reloadForCurrentWallet() }
         var entry = KaPostScheduledEntry(
             id: scheduled.txId, text: text, notBefore: notBefore, createdAt: Date(),
             spentOutpoints: scheduled.spentOutpoints, transaction: .init(scheduled.transaction),
@@ -161,9 +207,11 @@ final class KaPostsScheduledStore: ObservableObject {
         persist()
         inFlight.insert(entry.id)
         defer { inFlight.remove(entry.id) }
+        let wallet = loadedWallet
         do {
             try await KaPostsAPIClient.shared.scheduleOnServer(scheduled, notBefore: notBefore)
             entry.onServer = true
+            guard stillLoaded(wallet) else { return entry }
             update(entry)
         } catch {
             AppLog.log("[KaPosts] Scheduling on the indexer failed, keeping it local: %@", error.localizedDescription)
@@ -190,6 +238,8 @@ final class KaPostsScheduledStore: ObservableObject {
         inFlight.insert(entry.id)
         defer { inFlight.remove(entry.id) }
         let current = entries.first { $0.id == entry.id } ?? entry
+        // Filed under the account the post belongs to, whatever is current once the indexer answers.
+        let cancelsKey = pendingCancelsKey
         if current.status == .scheduled {
             do {
                 try await KaPostsAPIClient.shared.cancelScheduledOnServer(txId: entry.id)
@@ -205,7 +255,7 @@ final class KaPostsScheduledStore: ObservableObject {
                 // Kept only here, but the indexer may have it anyway: a schedule whose answer
                 // was lost reached it all the same. Cancelled here now, and told to the indexer
                 // whenever it can be reached again, before the post's time if possible.
-                rememberCancel(entry.id)
+                rememberCancel(entry.id, key: cancelsKey)
             }
         }
         entries.removeAll { $0.id == entry.id }
@@ -216,10 +266,10 @@ final class KaPostsScheduledStore: ObservableObject {
 
     // MARK: - Cancels still owed to the indexer
 
-    private var pendingCancelsKey: String? { scopedKey.map { "\($0)_pending_cancels" } }
+    private var pendingCancelsKey: String? { loadedKey.map { "\($0)_pending_cancels" } }
 
-    private func rememberCancel(_ txId: String) {
-        guard let key = pendingCancelsKey else { return }
+    private func rememberCancel(_ txId: String, key: String?) {
+        guard let key else { return }
         var ids = UserDefaults.standard.stringArray(forKey: key) ?? []
         if !ids.contains(txId) { ids.append(txId) }
         UserDefaults.standard.set(ids, forKey: key)
@@ -230,8 +280,15 @@ final class KaPostsScheduledStore: ObservableObject {
     private func flushPendingCancels() async {
         guard let key = pendingCancelsKey,
               let ids = UserDefaults.standard.stringArray(forKey: key), !ids.isEmpty else { return }
+        let wallet = loadedWallet
         var left: [String] = []
-        for id in ids {
+        for (position, id) in ids.enumerated() {
+            // The cancel is signed by the current account: after a switch, the rest wait for
+            // their own account to come back.
+            guard stillLoaded(wallet) else {
+                left.append(contentsOf: ids[position...])
+                break
+            }
             do {
                 try await KaPostsAPIClient.shared.cancelScheduledOnServer(txId: id)
             } catch let apiError as KaPostsAPIClient.KaPostsAPIError where apiError.isNotFound {
@@ -240,6 +297,8 @@ final class KaPostsScheduledStore: ObservableObject {
                 left.append(id)
             }
         }
+        // Not written back when Delete Account removed the list during the wait.
+        guard UserDefaults.standard.object(forKey: key) != nil else { return }
         UserDefaults.standard.set(left, forKey: key)
     }
 
@@ -253,17 +312,23 @@ final class KaPostsScheduledStore: ObservableObject {
     func sendDueLocally() async {
         // What the indexer did with posts past their time comes first; with no answer from it,
         // the phone sends them.
+        let wallet = loadedWallet
         await flushPendingCancels()
+        guard stillLoaded(wallet) else { return }
         let now = Date()
         if entries.contains(where: { $0.onServer && $0.status == .scheduled && $0.notBefore <= now }) {
             await pullServerOutcomes()
         }
+        guard stillLoaded(wallet) else { return }
         await submitDue()
     }
 
     private func submitDue() async {
         let now = Date()
+        let wallet = loadedWallet
         for id in entries.map(\.id) {
+            // An earlier turn may have waited on the network while the account changed.
+            guard stillLoaded(wallet) else { return }
             // Read afresh: an earlier turn of this loop may have waited on the network.
             guard let entry = entries.first(where: { $0.id == id }), entry.status == .scheduled,
                   !inFlight.contains(id) else { continue }
@@ -296,6 +361,7 @@ final class KaPostsScheduledStore: ObservableObject {
                     AppLog.log("[KaPosts] Scheduled post not sent yet: %@", error.localizedDescription)
                     continue
                 }
+                guard stillLoaded(wallet) else { return }
                 update(updated)
                 UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.reminderId(entry.id)])
             } else {
@@ -306,6 +372,7 @@ final class KaPostsScheduledStore: ObservableObject {
                     transaction: entry.transaction.transaction
                 )
                 if (try? await KaPostsAPIClient.shared.scheduleOnServer(scheduled, notBefore: entry.notBefore)) != nil {
+                    guard stillLoaded(wallet) else { return }
                     var updated = entry
                     updated.onServer = true
                     update(updated)
@@ -317,8 +384,11 @@ final class KaPostsScheduledStore: ObservableObject {
 
     /// The indexer's view of this wallet's scheduled posts, then whatever is left for the phone.
     func refreshFromServer() async {
+        let wallet = loadedWallet
         await flushPendingCancels()
+        guard stillLoaded(wallet) else { return }
         await pullServerOutcomes()
+        guard stillLoaded(wallet) else { return }
         await submitDue()
     }
 
@@ -327,7 +397,11 @@ final class KaPostsScheduledStore: ObservableObject {
     private func pullServerOutcomes() async {
         // Only posts the server holds have anything to learn from it.
         guard entries.contains(where: { $0.onServer }) else { return }
+        let wallet = loadedWallet
         guard let remote = try? await KaPostsAPIClient.shared.fetchScheduledPosts() else { return }
+        // The answer is the account that asked's: after a switch, `entries` are another's, and
+        // a post missing from this answer would wrongly turn local there.
+        guard stillLoaded(wallet) else { return }
         let byId = Dictionary(remote.map { ($0.txId, $0) }, uniquingKeysWith: { a, _ in a })
         let now = Date()
         var changed = false

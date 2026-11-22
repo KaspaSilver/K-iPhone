@@ -82,7 +82,12 @@ class NotificationService: UNNotificationServiceExtension {
         let notificationModeOverride: String?
     }
 
-    override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
+    override func didReceive(_ request: UNNotificationRequest, withContentHandler deliver: @escaping (UNNotificationContent) -> Void) {
+        // Every banner this push leaves goes out without bidi controls, so a sender's name or
+        // text can't reorder what the lock screen shows (audit 2026-11-21, #16).
+        let contentHandler: (UNNotificationContent) -> Void = { content in
+            deliver(Self.withoutBidiControls(content))
+        }
         self.contentHandler = contentHandler
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
         requestIdentifier = request.identifier
@@ -101,16 +106,28 @@ class NotificationService: UNNotificationServiceExtension {
         // Extract push data from userInfo
         let userInfo = request.content.userInfo
 
-        // .kachat name events (KACHAT_NAMES_INDEXER.md Part E: offers, sales, renewal reminders)
-        // belong to the KaChat wallet app since the .kachat market left this app (2026-10-24):
-        // delivered silently.
+        // .kachat name events (KACHAT_NAMES_INDEXER.md Part E: offers, sales, renewal reminders):
+        // shown as sent since the market came back to K (2026-11-22, kachat-indexer
+        // docs/K_ALL_IN_ONE_PUSH.md); silent only when nobody is signed in.
         if (userInfo["type"] as? String) == "name_event" {
+            if getWalletAddress() != nil {
+                contentHandler(content)
+                return
+            }
             content.title = ""
             content.subtitle = ""
             content.body = ""
             content.sound = nil
             content.badge = nil
             content.interruptionLevel = .passive
+            contentHandler(content)
+            return
+        }
+
+        // Signed out: nothing shows, whatever kind of push this is (room and KaPost pushes too;
+        // a failed unregister at logout can keep them coming). Audit 2026-11-21, #16.
+        guard getWalletAddress() != nil else {
+            silence(content)
             contentHandler(content)
             return
         }
@@ -141,6 +158,11 @@ class NotificationService: UNNotificationServiceExtension {
         // push service skips the kinds switched off (the registration carries the switches), and
         // the app filters again while it is open.
         if request.content.threadIdentifier.hasPrefix("kaposts") {
+            // Someone this account blocked or muted on KaPost: nothing shows, even if the push
+            // service didn't skip it (an older registration, a server without the block list).
+            if let actor = userInfo["actor_pubkey"] as? String, isHiddenKaPostsActor(actor) {
+                silence(content)
+            }
             contentHandler(content)
             return
         }
@@ -189,12 +211,6 @@ class NotificationService: UNNotificationServiceExtension {
             handleGroupPush(messageType: messageType, content: content, userInfo: userInfo, txId: txId)
             return
         }
-
-        // Record that this extension handled a 1:1 push for this txId (whether it ends up
-        // showing) so the main app's own foreground/catch-up ingest of the same message doesn't
-        // post a duplicate local banner - counterpart of markGroupPushHandled, consumed by
-        // ChatService.claimChatBannerSlot.
-        markChatPushHandled(txId: txId)
 
         // Get sender display name from shared contacts
         if let walletAddress = getWalletAddress(), walletAddress == senderAddress {
@@ -621,13 +637,8 @@ class NotificationService: UNNotificationServiceExtension {
         let defaultSoundEnabled = (defaults?.object(forKey: incomingNotificationSoundEnabledKey) as? Bool) ?? true
         let shouldIncrementUnread = defaults.map { !hasStoredTxId(txId: txId, defaults: $0) } ?? false
 
-        // Each branch that SHOWS a banner (real content or generic fallback) records the txId as
-        // push-handled so the main app's own ingest of the same message never doubles it up. The
-        // deliberate mentions-only suppression does NOT claim - this extension's view of "is
-        // this personal" can lag the app's (own-txId list, primary-domain share), so leaving the
-        // slot open lets a better-informed local ingest still post the precise personal banner;
-        // when both sides agree it isn't personal, the local path suppresses AND claims quietly,
-        // so nothing ever banners twice either way.
+        // The push is the only banner source: the main app posts none of its own for the
+        // messages it discovers itself.
         content.threadIdentifier = "group"
 
         if messageType == "group_message" {
@@ -710,8 +721,7 @@ class NotificationService: UNNotificationServiceExtension {
             // "Only Notify if I'm Mentioned" - a reply to one of MY messages counts the same as
             // an explicit @mention (checked against the raw, still-wrapped plaintext, since
             // `displayBody` already dropped the reply envelope down to just its own text), and so
-            // does a reaction TO one of my messages (personal - the main app's
-            // maybePostGroupReactionNotification applies the identical exception). Still
+            // does a reaction TO one of my messages (personal). Still
             // stored/decryptable/visible once the app is opened either way (this only suppresses
             // the push banner itself), matching how muting a member (enforced earlier, at
             // push-registration time on the main app side) still lets their messages show up.
@@ -807,7 +817,6 @@ class NotificationService: UNNotificationServiceExtension {
             content.interruptionLevel = .passive
             content.badge = nil
             content.userInfo["kachat_quiet_voice_part"] = true
-            markGroupPushHandled(txId: txId)
             addPendingMessage(txId: txId, sender: "group", type: messageType)
             contentHandler?(content)
             return
@@ -816,8 +825,6 @@ class NotificationService: UNNotificationServiceExtension {
         if shouldIncrementUnread, let badge = incrementUnreadCountIfNeeded() {
             content.badge = NSNumber(value: badge)
         }
-        // Banner shown - claim the one-per-txId slot (see handleGroupPush's claim comment).
-        markGroupPushHandled(txId: txId)
         addPendingMessage(txId: txId, sender: "group", type: messageType)
         contentHandler?(content)
     }
@@ -898,29 +905,6 @@ class NotificationService: UNNotificationServiceExtension {
         return hrp + ":" + String(values.map { charset[Int($0)] })
     }
 
-    /// Records a 1:1 push's txId in the App Group so the main app's own ingest of the same
-    /// message doesn't post a duplicate local notification (see ChatService's
-    /// claimChatBannerSlot). Bounded FIFO, mirroring markGroupPushHandled below.
-    private func markChatPushHandled(txId: String) {
-        guard let defaults = UserDefaults(suiteName: appGroupIdentifier) else { return }
-        var ids = defaults.stringArray(forKey: "chat_push_handled_txids") ?? []
-        guard !ids.contains(txId) else { return }
-        ids.append(txId)
-        if ids.count > 300 { ids.removeFirst(ids.count - 300) }
-        defaults.set(ids, forKey: "chat_push_handled_txids")
-    }
-
-    /// Records a group push's txId in the App Group so the main app's background ingest of the same
-    /// message doesn't post a duplicate local notification (see GroupChatService). Bounded FIFO.
-    private func markGroupPushHandled(txId: String) {
-        guard let defaults = UserDefaults(suiteName: appGroupIdentifier) else { return }
-        var ids = defaults.stringArray(forKey: "group_push_handled_txids") ?? []
-        guard !ids.contains(txId) else { return }
-        ids.append(txId)
-        if ids.count > 300 { ids.removeFirst(ids.count - 300) }
-        defaults.set(ids, forKey: "group_push_handled_txids")
-    }
-
     private func suppressGroupNotification(_ content: UNMutableNotificationContent) {
         content.title = ""
         content.body = ""
@@ -963,7 +947,6 @@ class NotificationService: UNNotificationServiceExtension {
             content.interruptionLevel = .passive
             content.badge = nil
             content.userInfo["kachat_quiet_voice_part"] = true
-            markGroupPushHandled(txId: txId)
             addPendingMessage(txId: txId, sender: "group", type: messageType)
             contentHandler?(content)
             return
@@ -972,8 +955,6 @@ class NotificationService: UNNotificationServiceExtension {
         if shouldIncrementUnread, let badge = incrementUnreadCountIfNeeded() {
             content.badge = NSNumber(value: badge)
         }
-        // Banner shown - claim the one-per-txId slot (see handleGroupPush's claim comment).
-        markGroupPushHandled(txId: txId)
         addPendingMessage(txId: txId, sender: "group", type: messageType)
         contentHandler?(content)
     }
@@ -1172,6 +1153,56 @@ class NotificationService: UNNotificationServiceExtension {
         return defaultSoundEnabled ? .sound : .noSound
     }
 
+    /// Blanks a notification: no title, text, sound or badge, delivered passively. A push with
+    /// an empty title and body isn't shown.
+    private func silence(_ content: UNMutableNotificationContent) {
+        content.title = ""
+        content.subtitle = ""
+        content.body = ""
+        content.sound = nil
+        content.badge = nil
+        content.interruptionLevel = .passive
+    }
+
+    /// Whether a KaPost actor's key (66-hex compressed or 64-hex x-only) is one this account
+    /// blocked or muted, as the app wrote them to the App Group
+    /// (`PushNotificationManager.syncKaPostsHiddenActorsForExtension`, x-only keys).
+    private func isHiddenKaPostsActor(_ pubkey: String) -> Bool {
+        var key = pubkey.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if key.count == 66 { key = String(key.dropFirst(2)) }
+        guard key.count == 64,
+              let hidden = UserDefaults(suiteName: appGroupIdentifier)?.stringArray(forKey: "shared_kaposts_hidden_actors") else {
+            return false
+        }
+        return hidden.contains(key)
+    }
+
+    /// Bidi embeddings, overrides and isolates (U+202A-202E, U+2066-2069): they can make a name
+    /// or message read differently from what it is. The plain marks (LRM, RLM, ALM) stay, since
+    /// right-to-left text and the translated strings use them.
+    private static let bidiControls: Set<Unicode.Scalar> = Set(
+        ([0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2066, 0x2067, 0x2068, 0x2069] as [UInt32]).compactMap { Unicode.Scalar($0) }
+    )
+
+    private static func strippingBidiControls(_ text: String) -> String {
+        guard text.unicodeScalars.contains(where: { bidiControls.contains($0) }) else { return text }
+        var scalars = String.UnicodeScalarView()
+        scalars.append(contentsOf: text.unicodeScalars.filter { !bidiControls.contains($0) })
+        return String(scalars)
+    }
+
+    private static func withoutBidiControls(_ content: UNNotificationContent) -> UNNotificationContent {
+        let title = strippingBidiControls(content.title)
+        let subtitle = strippingBidiControls(content.subtitle)
+        let body = strippingBidiControls(content.body)
+        guard title != content.title || subtitle != content.subtitle || body != content.body,
+              let copy = content.mutableCopy() as? UNMutableNotificationContent else { return content }
+        copy.title = title
+        copy.subtitle = subtitle
+        copy.body = body
+        return copy
+    }
+
     private func getWalletAddress() -> String? {
         guard let defaults = UserDefaults(suiteName: appGroupIdentifier) else {
             return nil
@@ -1211,10 +1242,8 @@ class NotificationService: UNNotificationServiceExtension {
 
     /// A mention arrives in one of TWO cross-platform wire forms: iOS/desktop compose
     /// `@{fullKaspaAddress}` (see the main app's `GroupMentionCodec` doc comment), Android
-    /// composes `@{primaryKNSDomain}`. This checks both. The domain check is a local mirror of
-    /// the main app's mention tokenizer (`KasNameText.mentionDomains` - this target doesn't
-    /// compile that file): token after "@" at a word boundary, lowercased, optional ".kas"
-    /// suffix stripped, compared against the wallet's own reverse-resolved primary domain the
+    /// composes `@{primaryKNSDomain}`. This checks both. The domain check: token after "@" at
+    /// a word boundary, lowercased, optional ".kas" suffix stripped, compared against the wallet's own reverse-resolved primary domain the
     /// main app shares via `SharedDataManager.syncOwnKNSDomainForExtension`. No wallet address
     /// available = treat as a mention (don't suppress).
     private func mentionsMe(_ text: String) -> Bool {
@@ -1503,7 +1532,7 @@ class NotificationService: UNNotificationServiceExtension {
     /// outgoing group txIds via the App Group (`shared_group_own_txids`, see
     /// `SharedDataManager.syncOwnGroupTxIdsForExtension`) - together they let this target apply
     /// the mentions-only rule's personal exception: a reaction to MY message still notifies in a
-    /// mentions-only group, mirroring the main app's `maybePostGroupReactionNotification`.
+    /// mentions-only group.
     private func isReactionToMyMessage(_ content: String) -> Bool {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.first == "{", let data = trimmed.data(using: .utf8),

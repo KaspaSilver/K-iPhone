@@ -106,7 +106,6 @@
 "Finish" = "Finalizar";
 "From" = "Desde";
 "Fund Your Chatting Address" = "Financia tu direccion de chat";
-"Generate New Spending Address" = "Generar nueva direccion de gasto";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "Genera una abajo para empezar a enviar pagos desde una direccion distinta a la que usas para chatear.";
 "Give this address a label to help you recognize it." = "Dale una etiqueta a esta direccion para ayudarte a reconocerla.";
 "Group Info" = "Informacion del grupo";
@@ -165,7 +164,6 @@
 "No KNS profile changes detected." = "No se detectaron cambios en el perfil KNS.";
 "No Sound" = "Sin sonido";
 "No Spending Addresses" = "Sin direcciones de gasto";
-"No active account" = "Sin cuenta activa";
 "No active nodes" = "Sin nodos activos";
 "No domains yet." = "Aún no hay dominios.";
 "No emoji found" = "No se encontraron emojis.";
@@ -315,7 +313,6 @@
 "fee: -------- KAS" = "comision: -------- KAS";
 "kaspasilver@gmail.com" = "kaspasilver@gmail.com";
 "name" = "nombre";
-"–" = "–";
 "—" = "—";
 "♟️" = "♟️";
 
@@ -898,7 +895,6 @@
 "Delete %@ from your contacts?" = "¿Eliminar a %@ de tus contactos?";
 "Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "Guarda las direcciones Kaspa que usas con un nombre que reconozcas. Se quedan en K, solo para esta billetera, y nunca van a la app Contactos de tu teléfono.";
 "Saved in K for this wallet only. Never added to your phone's Contacts app." = "Guardado en K solo para esta billetera. Nunca se añade a la app Contactos de tu teléfono.";
-"This is a fresh address, never used before." = "Esta es una dirección nueva, nunca usada.";
 "Use for chatting and acquiring .kachat domains." = "Úsala para chatear y obtener dominios .kachat.";
 "Think of it like your phone number on K." = "Piensa en ella como tu número de teléfono en K.";
 "How People Reach You" = "Cómo te contactan";
@@ -918,9 +914,7 @@
 "This removes this group and its messages from this device. This cannot be undone, and other members keep their copies." = "Esto quita este grupo y sus mensajes de este dispositivo. No se puede deshacer, y los demás miembros conservan sus copias.";
 "%lld chat%@" = "%lld chat%@";
 "Silenced" = "Silenciado";
-"%1$@ reacted %2$@ to your message" = "%1$@ reaccionó con %2$@ a tu mensaje";
 "%@ reacted to your message" = "%@ reaccionó a tu mensaje";
-"%1$@ reacted %2$@ to a message" = "%1$@ reaccionó con %2$@ a un mensaje";
 "%@ reacted to a message" = "%@ reaccionó a un mensaje";
 "Checking..." = "Revisando...";
 "Couldn't Create Account" = "No se pudo crear la cuenta";
@@ -1029,15 +1023,12 @@
 "This file is no longer shared" = "Este archivo ya no se comparte";
 "Tap to load preview" = "Toca para cargar la vista previa";
 "Could not load this file." = "No se pudo cargar este archivo.";
-"No notifications yet" = "Aún no hay notificaciones";
-"Kaspa arriving in your addresses shows up here." = "El Kaspa que llega a tus direcciones aparece aquí.";
 "Clear All" = "Borrar todo";
 "Hidden while screen is being recorded or mirrored" = "Oculto mientras se graba o se duplica la pantalla";
 "Group info for %@" = "Información del grupo %@";
 "This only deletes the message from this device - other members still have their own copy, and the encrypted transaction remains permanently on the Kaspa blockchain, visible to anyone but unreadable without your keys. This cannot be undone." = "Esto solo borra el mensaje de este dispositivo: los demás miembros conservan su propia copia, y la transacción cifrada permanece para siempre en la blockchain de Kaspa, visible para cualquiera pero ilegible sin tus claves. Esto no se puede deshacer.";
 "Editing message" = "Editando mensaje";
 "Replying to %@" = "Respondiendo a %@";
-"Recording... %llds" = "Grabando... %llds";
 "edited" = "editado";
 "%lld members" = "%lld miembros";
 "Remove photo" = "Quitar foto";
@@ -1111,7 +1102,6 @@
 "Setting up your account" = "Configurando tu cuenta";
 "Downloading everything this account has on chain. It only takes this long once." = "Descargando todo lo que esta cuenta tiene on-chain. Solo tarda tanto la primera vez.";
 "Continue anyway" = "Continuar de todos modos";
-"Share your profile" = "Comparte tu perfil";
 "Your Domains" = "Tus dominios";
 "Preparing a fresh address" = "Preparando una dirección nueva";
 "Share Profile" = "Compartir perfil";
@@ -1314,8 +1304,6 @@
 "Fee (KAS)" = "Tarifa (KAS)";
 "fee: %@ KAS" = "tarifa: %@ KAS";
 "This permanently deletes every message in each selected chat from this device. This cannot be undone." = "Esto borra de forma permanente todos los mensajes de cada chat seleccionado en este dispositivo. Esto no se puede deshacer.";
-"Accepted your request to communicate" = "Aceptó tu solicitud de comunicación";
-"Sent you a message" = "Te envió un mensaje";
 "[Payment]" = "[Pago]";
 "My Account" = "Mi cuenta";
 "Re-sync %lld Chat%@" = "Resincronizar %lld chat%@";
@@ -1410,11 +1398,9 @@
 "One minute each, plus one second a move." = "Un minuto cada uno, más un segundo por jugada.";
 "Open in Explorer" = "Abrir en el explorador";
 "Open in K" = "Abrir en K";
-"Open in KaPost" = "Abrir en KaPost";
 "Open your chat with them in payment mode." = "Abre tu chat con esa persona en modo de pago.";
 "Opens in your browser." = "Se abre en tu navegador.";
 "Opens it right here in the app." = "Lo abre aquí mismo, en la app.";
-"Opens the post in the KaPost app." = "Abre la publicación en la app KaPost.";
 "Opens this address on your chosen block explorer." = "Abre esta dirección en el explorador de bloques que elegiste.";
 "Opens this transaction on the block explorer." = "Abre esta transacción en el explorador de bloques.";
 "Original message isn't on this device yet - fetching it." = "El mensaje original aún no está en este dispositivo: se está obteniendo.";
@@ -1440,7 +1426,6 @@
 "Removes this chat and its messages from this device." = "Elimina este chat y sus mensajes de este dispositivo.";
 "Removes this group and its messages from this device." = "Elimina este grupo y sus mensajes de este dispositivo.";
 "Reply to this message instead." = "Responde a este mensaje en su lugar.";
-"Reveals the next unused address in this wallet." = "Muestra la siguiente dirección sin usar de esta billetera.";
 "Saves or shares the recording as a file." = "Guarda o comparte la grabación como archivo.";
 "Select Chats..." = "Seleccionar chats...";
 "Sends this message again." = "Envía este mensaje de nuevo.";
@@ -1525,9 +1510,7 @@
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "Este mensaje necesita demasiadas monedas para una transacción. Usa Compound UTXOs en tu dirección de chat y vuelve a intentarlo.";
 "Use Their Domain Name" = "Usar su nombre de dominio";
 "Show Request As QR" = "Mostrar solicitud como QR";
-"Scan it with an iPhone's camera to pay in KaPay, with everything filled in." = "Escanéalo con la cámara de un iPhone para pagar en KaPay con todo ya rellenado.";
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "Escanéalo con la cámara de un iPhone para pagar en K con todo ya rellenado.";
-"Get a .kachat domain" = "Consigue un dominio .kachat";
 "Set as Name" = "Usar como nombre";
 "Their Name" = "Su nombre";
 "Get a .kachat name" = "Consigue un nombre .kachat";
@@ -1592,7 +1575,6 @@
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "Llega a esta cuenta y se suma a tu total de gasto. Úsala para todo menos nombres .kachat.";
 "KAS Held With It" = "KAS incluido";
 "KAS Paid From" = "KAS pagado desde";
-"KAS for %@ on %@" = "KAS por %@ en %@";
 "KAS for a %@ send" = "KAS para un envío de %@";
 "Kaspa" = "Kaspa";
 "Kaspa, and kUSDT on Kaspa, can be sent here." = "Se puede enviar aquí Kaspa, y kUSDT en Kaspa.";
@@ -1638,7 +1620,6 @@
 "This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "Esta dirección necesita un poco de KAS: la comisión de red, más 1,5 KAS para tu moneda de cambio (el kUSDT que conservas). Esos 1,5 KAS siguen siendo tuyos.";
 "This address on the Kaspa explorer." = "Esta dirección en el explorador de Kaspa.";
 "This address's key isn't available on this phone." = "La clave de esta dirección no está disponible en este teléfono.";
-"To %@" = "Para %@";
 "Tokens" = "Tokens";
 "Total KAS" = "KAS total";
 "Trestly" = "Trestly";
@@ -1660,7 +1641,6 @@
 "kUSDT's transaction builder isn't the pinned one, so it won't run." = "El generador de transacciones de kUSDT no es el fijado, así que no se ejecutará.";
 "K's kUSDT template is missing, so kUSDT can't be checked." = "Falta la plantilla de kUSDT de K, así que no se puede comprobar kUSDT.";
 "The network fee is above K's safety limit. Nothing was sent." = "La comisión de red supera el límite de seguridad de K. No se envió nada.";
-"Receive it on a fresh address of yours. Buying and swapping kUSDT happen in KaPay." = "Recíbelo en una dirección nueva tuya. Comprar e intercambiar kUSDT se hace en KaPay.";
 "Release to Confirm" = "Suelta para confirmar";
 "The transaction didn't go out." = "La transacción no salió.";
 "Where K looks up your kUSDT. Every coin it lists is checked on the Kaspa node before it counts. Leave it blank for this network's default." = "Donde K consulta tus kUSDT. Cada moneda que lista se comprueba en el nodo de Kaspa antes de contar. Déjalo en blanco para usar el predeterminado de esta red.";
@@ -1690,9 +1670,6 @@
 /* Token payment bubbles: amount, then the token symbol (2026-11-20) */
 "Sent %1$@ %2$@" = "Enviado: %1$@ %2$@";
 "Received %1$@ %2$@" = "Recibido: %1$@ %2$@";
-
-/* Send Dollars with no kUSDT: switch to KaPay or its install page (2026-11-20) */
-"Get KaPay" = "Obtener KaPay";
 
 /* Send Dollars: Discover still running (2026-11-20) */
 "Checking your addresses for %@…" = "Buscando %@ en tus direcciones…";
@@ -1751,7 +1728,6 @@
 "Scan or paste a kpub exported from your KasSigner device to watch its balance." = "Escanea o pega una kpub exportada desde tu dispositivo KasSigner para vigilar su saldo.";
 "Sell" = "Vender";
 "Send from Cold Storage" = "Enviar desde almacenamiento en frio";
-"This only removes it from KaPay's watch list. It has no effect on the KasSigner device or any funds it holds." = "Esto solo lo elimina de la lista de vigilancia de KaPay. No tiene ningun efecto en el dispositivo KasSigner ni en los fondos que contiene.";
 "Total P&L" = "Ganancias y perdidas totales";
 "Transactions" = "Transacciones";
 "Transfer" = "Transferir";
@@ -1839,7 +1815,6 @@
 "The registration stops and the commit's 0.2 KAS comes back to you, less the network fee." = "El registro se detiene y los 0.2 KAS del commit vuelven a ti, menos la comisión de red.";
 "Sending the hidden commit..." = "Enviando el commit oculto...";
 "Waiting for the commit to confirm..." = "Esperando a que se confirme el commit...";
-"The commit has to age for about a minute before the name can be registered. Keep KaPay open - it registers by itself, and picks up where it left off if you leave." = "El commit debe madurar alrededor de un minuto antes de registrar el nombre. Deja KaPay abierto: se registra solo y continúa donde lo dejó si sales.";
 "Registering..." = "Registrando...";
 "Registered. It's yours." = "Registrado. Es tuyo.";
 "Someone registered this name first. Cancel the commit to get its 0.2 KAS back." = "Alguien registró este nombre antes. Cancela el commit para recuperar sus 0.2 KAS.";
@@ -1970,7 +1945,6 @@
 "Every claim, renewal, listing, sale, offer, transfer and reclaim across the registry." = "Cada registro, renovación, anuncio, venta, oferta, transferencia y reclamo del registro.";
 "Free to claim" = "Libre para reclamar";
 "Claiming %@" = "Reclamando %@";
-"Keep KaPay open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back." = "Mantén KaPay abierto: el nombre se registra aproximadamente un minuto después de que se confirme el compromiso oculto. Si sales, continuará donde lo dejó cuando vuelvas.";
 "Expires soon" = "Vence pronto";
 "Freeing %@ for you..." = "Liberando %@ para ti...";
 "This name expired and wasn't renewed, so anyone can claim it at the normal price. The old owner's bond goes back to them." = "Este nombre venció y no se renovó, así que cualquiera puede reclamarlo al precio normal. La fianza del dueño anterior vuelve a él.";
@@ -1993,9 +1967,6 @@
 "Expired - renew to keep it. Until the grace period ends it still resolves to you and nobody else can take it." = "Caducado: renuévalo para conservarlo. Hasta que termine el periodo de gracia sigue resolviendo a ti y nadie más puede quedárselo.";
 "The network is busy" = "La red está saturada";
 "At Normal this may wait a while. Fast or Priority pays a little more to get into a block sooner." = "Con Normal podría tardar. Rápida o Prioritaria paga un poco más para entrar antes en un bloque.";
-"Updated in KaPay" = "Actualizada en KaPay";
-"It's in a block. Updating KaPay..." = "Está en un bloque. Actualizando KaPay...";
-"Done. It shows in KaPay now." = "Listo. Ya se ve en KaPay.";
 "Expires in" = "Caduca en";
 "This offer can't be accepted any more." = "Esta oferta ya no se puede aceptar.";
 "Only the name's owner can accept or decline this offer." = "Solo el dueño del nombre puede aceptar o rechazar esta oferta.";
@@ -2018,7 +1989,6 @@
 "An offer must be refundable before the name expires." = "Una oferta debe poder reembolsarse antes de que venza el nombre.";
 "This name expires sooner, so your offer is refundable from %@." = "Este nombre vence antes, así que tu oferta será reembolsable desde el %@.";
 "Your KAS is in many small coins. Combining them into one first..." = "Tus KAS están en muchas monedas pequeñas. Primero se combinan en una...";
-"Your KAS is in many small coins. KaPay combines them into one before registering, for a tiny extra network fee." = "Tus KAS están en muchas monedas pequeñas. KaPay las combina en una antes de registrar, por una comisión de red extra mínima.";
 "%@ stays locked with your name while you hold it (bond + registry deposit). You get it back when you release the name." = "%@ quedan bloqueados con tu nombre mientras lo tengas (fianza + depósito del registro). Los recuperas al liberar el nombre.";
 "%@ is locked with this name. It comes back to you when you release it." = "%@ están bloqueados con este nombre. Vuelven a ti cuando lo liberes.";
 "Your chatting address's buys and sells, and every network fee it has paid." = "Las compras y ventas de tu dirección de chat, y cada comisión de red que ha pagado.";
@@ -2037,7 +2007,6 @@
 "Signed by KasSigner" = "Firmado por KasSigner";
 "Nothing can change now: this is the transaction KasSigner signed." = "Ya no puede cambiar nada: esta es la transacción que firmó KasSigner.";
 "Watch-only. This cannot spend, but it reveals every address in this account." = "Solo lectura. Esto no puede gastar, pero revela todas las direcciones de esta cuenta.";
-"Your KAS is in many small coins. When you swipe, KaPay first combines them into one (a separate transaction with its own small fee), then sends this." = "Tus KAS están en muchas monedas pequeñas. Al deslizar, KaPay primero las combina en una sola (una transacción aparte con su propia comisión pequeña) y luego envía esto.";
 "The price goes to the miners - K takes nothing." = "El precio va a los mineros - K no se queda con nada.";
 "Length" = "Duración";
 "Claiming sends two transactions: the commit now, the registration about a minute later. Both pay this fee rate." = "Reclamar envía dos transacciones: el commit ahora y el registro aproximadamente un minuto después. Ambas pagan esta tarifa.";
@@ -2299,17 +2268,13 @@
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
-"Channels" = "Canales";
 "Continue to App" = "Continuar a la aplicacion";
-"Couldn't Join Channel" = "No se pudo unir al canal";
 "Join" = "Unirse";
 "Join or Create a Channel" = "Unirse o crear un canal";
 "Menu" = "Menu";
 "Pay in Kaspa" = "Pagar con Kaspa";
-"Read" = "Leido";
 "Record voice message" = "Grabar mensaje de voz";
 "Spending Address" = "Direccion de gasto";
-"Unread" = "No leido";
 "Withdraw Kaspa" = "Retirar Kaspa";
 "Translate" = "Traducir";
 "Show Original" = "Ver original";
@@ -2317,8 +2282,6 @@
 "Back to the text as it was sent." = "Vuelve al texto tal como se envió.";
 "The translated text again." = "De nuevo el texto traducido.";
 "No testnet indexer yet" = "Aún no hay indexador de testnet";
-"Switches this default room off. Turn it back on in Public Chats settings." = "Desactiva esta sala predeterminada. Vuelve a activarla en la configuración de chats públicos.";
-"#%@ is off - turn it back on in Public Chats settings" = "#%@ está desactivada: vuelve a activarla en la configuración de chats públicos";
 "Public Chats" = "Chats públicos";
 "Today" = "Hoy";
 "New Public Chat" = "Nuevo chat público";
@@ -2337,7 +2300,6 @@
 "Waiting for your coins to confirm. It sends on its own in a moment, so don't send it again." = "Esperando a que tus monedas se confirmen. Se enviará solo en un momento, así que no lo envíes de nuevo.";
 "This post isn't on the network yet, so it can't be replied to. Try again once it has posted." = "Esta publicación aún no está en la red, así que no se puede responder. Inténtalo de nuevo cuando se haya publicado.";
 "Manage Address" = "Gestionar dirección";
-"Opens KaPay to pay it." = "Abre KaPay para pagarlo.";
 "Tips From" = "Propinas desde";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "Desde tu Chatting Address la propina cuenta en la publicación y apareces como quien dio propina.";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "Desde otra dirección la propina es privada: el autor la recibe y la ve en vuestro chat, pero no cuenta en la publicación ni te nombra.";
@@ -2409,7 +2371,6 @@
 "Nothing to paste." = "No hay nada que pegar.";
 "These words are invalid. Double-check the words - the last word encodes a checksum, so one wrong word fails validation." = "Estas palabras no son válidas. Revisa las palabras: la última contiene una suma de verificación, así que una sola palabra incorrecta hace fallar la validación.";
 "Authentication failed." = "La autenticación falló.";
-"Channel names must be 1-%lld characters with no spaces or colons." = "Los nombres de canal deben tener entre 1 y %lld caracteres, sin espacios ni dos puntos.";
 "Something went wrong joining that channel." = "Algo salió mal al unirse a ese canal.";
 "Kept for" = "Se conserva durante";
 "No muted accounts" = "No hay cuentas silenciadas";
@@ -2443,8 +2404,6 @@
 "Scheduled for %@ - sends from this phone" = "Programado para %@ - se envía desde este teléfono";
 "Couldn't schedule" = "No se pudo programar";
 "When" = "Cuándo";
-"Tap to open" = "Toca para abrir";
-"%@ - tap to open" = "%@ - toca para abrir";
 "Room" = "Sala";
 "Kind" = "Tipo";
 "Joined" = "Te uniste";
@@ -2465,7 +2424,6 @@
 "3 days" = "3 días";
 "6 hours" = "6 horas";
 "7 days" = "7 días";
-"A kachat.app link that opens this room." = "Un enlace de kachat.app que abre esta sala.";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses." = "Un chat público vive en el blockDAG de Kaspa, así que cualquier indexador que vigile la misma red sirve la misma sala. Apunta esta a donde quieras (la tuya o la de otra persona) sin cambiar el indexador que usan las demás salas.";
 "A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time." = "Una sala desactivada ya no aparece en Chats públicos y nunca envía una notificación. Vuelve a activarla cuando quieras.";
 "A room you added. Anyone who knows the name can post to it." = "Una sala que añadiste. Cualquiera que conozca el nombre puede publicar en ella.";
@@ -2483,18 +2441,14 @@
 "Challenge" = "Reto";
 "Chat" = "Chat";
 "Checking the indexer..." = "Comprobando el indexador...";
-"Choose rooms" = "Elegir salas";
-"Clears the unread badge on this room." = "Quita la insignia de no leído de esta sala.";
 "Close menu" = "Cerrar menú";
 "Close the composer with something written and you'll be offered a draft." = "Si cierras el editor con algo escrito, se te ofrecerá guardarlo como borrador.";
 "Comments" = "Comentarios";
 "Connected, and it has this room's messages." = "Conectado, y tiene los mensajes de esta sala.";
 "Connected. It holds nothing for this room yet." = "Conectado. Aún no tiene nada de esta sala.";
 "Cool down before post" = "Espera antes de publicar";
-"Copy Room Link" = "Copiar enlace de la sala";
 "Could not read any further just now." = "No se pudo leer más por ahora.";
 "Couldn't load more" = "No se pudo cargar más";
-"Deleted %lld" = "%lld eliminado";
 "Discard" = "Descartar";
 "Drafts" = "Borradores";
 "Each tip sends %@ worth of KAS at the price of the moment - about %@ KAS now." = "Cada propina envía KAS por valor de %@ al precio del momento: unos %@ KAS ahora.";
@@ -2508,7 +2462,6 @@
 "Followers" = "Seguidores";
 "Following" = "Siguiendo";
 "Follows" = "Seguimientos";
-"Goes back to its place in the list." = "Vuelve a su lugar en la lista.";
 "Hidden users" = "Usuarios ocultos";
 "Hide replies" = "Ocultar respuestas";
 "Hides their posts and room messages, and stops them interacting with you." = "Oculta sus publicaciones y mensajes de sala, y les impide interactuar contigo.";
@@ -2518,25 +2471,19 @@
 "Instant tips are limited to 10 KAS. Swipe up to send this one." = "Las propinas instantáneas están limitadas a 10 KAS. Desliza hacia arriba para enviar esta.";
 "It may have been removed, or the network may be unreachable." = "Puede que se haya eliminado o que la red no esté disponible.";
 "It may have gone through. Check before posting it again." = "Puede que ya se haya publicado. Compruébalo antes de volver a publicarlo.";
-"Join or create a public room" = "Únete a una sala pública o crea una";
-"KaPlay Challenge" = "Reto de KaPlay";
 "KaPost" = "KaPost";
 "Keep it in Drafts to finish later." = "Guárdalo en Borradores para terminarlo después.";
 "Keep looking" = "Seguir buscando";
 "Languages" = "Idiomas";
 "Leave the room as it is." = "Deja la sala como está.";
-"Leave the rooms as they are." = "Deja las salas como están.";
 "Load more" = "Cargar más";
 "Load older posts" = "Cargar publicaciones anteriores";
 "Loading more..." = "Cargando más...";
 "Loading replies..." = "Cargando respuestas...";
-"Marked %lld as read" = "%lld marcado como leído";
-"Marked %lld as unread" = "%lld marcado como no leído";
 "Max is what one transaction can carry: its largest %d coins. Compound UTXOs, under More, combines the rest." = "Máx es lo que cabe en una transacción: sus %d monedas más grandes. Unir UTXOs, en Más, une el resto.";
 "Mentions" = "Menciones";
 "Message copied." = "Mensaje copiado.";
 "More" = "Más";
-"Moves this room out of the list into the row of circles above it." = "Saca esta sala de la lista y la pone en la fila de círculos de arriba.";
 "Mute" = "Silenciar";
 "Muted" = "Silenciado";
 "New Post" = "Nueva publicación";
@@ -2555,16 +2502,12 @@
 "Nothing found yet" = "Aún no se ha encontrado nada";
 "Nothing here yet" = "Aún no hay nada aquí";
 "Nothing yet" = "Aún nada";
-"Notification Settings" = "Ajustes de notificaciones";
 "Notifications are off for this public chat" = "Las notificaciones están desactivadas para este chat público";
-"Notifications off for %lld" = "Notificaciones desactivadas para %lld";
 "Notifications on" = "Notificaciones activadas";
-"Notifications on for %lld" = "Notificaciones activadas para %lld";
 "Notifies you of new messages while the app is open." = "Te avisa de mensajes nuevos mientras la app está abierta.";
 "Notifies you of new messages, even when the app is closed." = "Te avisa de mensajes nuevos, incluso con la app cerrada.";
 "Off takes every language room out of Public Chats. On, switch off the ones you don't want." = "Desactivado quita todas las salas de idiomas de Chats públicos. Activado, desactiva las que no quieras.";
 "One of the pasted words isn't a valid word. Check your copy and try again." = "Una de las palabras pegadas no es válida. Revisa tu copia e inténtalo de nuevo.";
-"Opens KaPlay to play this bot." = "Abre KaPlay para jugar contra este bot.";
 "Opens Send Kaspa to pay it." = "Abre Enviar Kaspa para pagarlo.";
 "Opens it in your browser." = "Lo abre en tu navegador.";
 "Pin" = "Fijar";
@@ -2575,13 +2518,11 @@
 "Post your reply" = "Publica tu respuesta";
 "Posts, comments, likes, reposts, votes, edits and deletes go on chain at once, with no Undo." = "Las publicaciones, comentarios, me gusta, reposts, votos, ediciones y eliminaciones van a la cadena de inmediato, sin Deshacer.";
 "Posts, comments, likes, reposts, votes, edits and deletes wait 5 seconds, with an Undo, before they go on chain." = "Las publicaciones, comentarios, me gusta, reposts, votos, ediciones y eliminaciones esperan 5 segundos, con opción de Deshacer, antes de ir a la cadena.";
-"Public rooms are open to everyone. #kaspa, #kachat-bugs and the language rooms keep 30 days of history." = "Las salas públicas están abiertas a todos. #kaspa, #kachat-bugs y las salas de idiomas guardan 30 días de historial.";
 "Quote" = "Citar";
 "Quote Post" = "Citar publicación";
 "Reading older posts" = "Leyendo publicaciones anteriores";
 "Remove poll" = "Quitar encuesta";
 "Removes it from your profile." = "Lo quita de tu perfil.";
-"Removes the picked rooms from this device." = "Quita de este dispositivo las salas elegidas.";
 "Removes this post everywhere. You have five seconds to undo." = "Elimina esta publicación en todas partes. Tienes cinco segundos para deshacerlo.";
 "Removes this room and its messages from this device." = "Quita esta sala y sus mensajes de este dispositivo.";
 "Removing dislike" = "Quitando No me gusta";
@@ -2594,8 +2535,6 @@
 "Report abusive or objectionable content. Opens an email with this post attached." = "Denuncia contenido abusivo u ofensivo. Abre un correo con esta publicación adjunta.";
 "Reposted" = "Reposteado";
 "Room Info" = "Info de la sala";
-"Room link copied" = "Enlace de la sala copiado";
-"Rooms you added are removed with their messages. Default rooms are only switched off - turn them back on any time in Public Chats settings." = "Las salas que añadiste se eliminan con sus mensajes. Las salas predeterminadas solo se desactivan: vuelve a activarlas cuando quieras en los ajustes de Chats públicos.";
 "Save Draft" = "Guardar borrador";
 "Save this post?" = "¿Guardar esta publicación?";
 "Schedule" = "Programar";
@@ -2639,7 +2578,6 @@
 "What's happening on Kaspa?" = "¿Qué está pasando en Kaspa?";
 "When someone engages with this post, they'll show up here." = "Cuando alguien interactúe con esta publicación, aparecerá aquí.";
 "When someone follows you, they'll show up here." = "Cuando alguien te siga, aparecerá aquí.";
-"When someone likes, replies to or shares your posts, it shows up here." = "Cuando alguien da me gusta, responde o comparte tus publicaciones, aparece aquí.";
 "Who liked, disliked, reposted and quoted this post." = "Quién dio me gusta, no me gusta, repost y cita a esta publicación.";
 "Write a post, tap Schedule in the composer and pick a time. It is signed now and goes out then." = "Escribe una publicación, toca Programar en el editor y elige una hora. Se firma ahora y sale entonces.";
 "Wrong PIN. 1 try left before this card's PIN is blocked for good." = "PIN incorrecto. Queda 1 intento antes de que el PIN de esta tarjeta se bloquee para siempre.";
@@ -2671,8 +2609,6 @@
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "El servidor de KaPost no responde. Se muestran publicaciones guardadas y nuevas de la red.";
 "Trestly's pool code couldn't start in K." = "El código del pool de Trestly no pudo iniciarse en K.";
-"Set what Tip sends in KaPost Settings > Tip In." = "Elige qué envía Propina en Ajustes de KaPost > Propina en.";
-"Tip didn't send: the smallest tip the network takes is %@. Change your default tip in KaPost Settings." = "La propina no se envió: la propina más pequeña que acepta la red es %@. Cambia tu propina predeterminada en Ajustes de KaPost.";
 "Posting poll" = "Publicando encuesta";
 "Voting" = "Votando";
 
@@ -2848,7 +2784,6 @@
 "On time" = "Por tiempo";
 "Online, five minutes a side and every move is a Kaspa transaction. Bot games stamp their result on Kaspa when they end." = "En línea, cinco minutos por jugador y cada jugada es una transacción de Kaspa. Las partidas contra bots registran su resultado en Kaspa al terminar.";
 "Open seat" = "Plaza libre";
-"Play" = "Jugar";
 "Play a friend: create a 1v1, share its code. Private 1v1s count on the leaderboard too." = "Juega contra un amigo: crea un 1v1 y comparte su código. Los 1v1 privados también cuentan para la clasificación.";
 "Play again" = "Jugar de nuevo";
 "Play as" = "Jugar con";
@@ -2979,12 +2914,10 @@
 "Nobody has beaten %@ yet." = "Nadie ha vencido a %@ todavía.";
 "Play %@" = "Jugar contra %@";
 "Players (%lld of %lld)" = "Jugadores (%lld de %lld)";
-"The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "El código de ocho caracteres que compartió el creador. Unirse es una transacción (tarifa: %@).";
 "Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Juega al ajedrez conmigo en K: abre KaPlay > Ajedrez > 1v1 > Unirse con un código e ingresa %@.";
 "Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Únete a mi torneo de ajedrez en K: abre KaPlay > Ajedrez > Torneos > Unirse con un código e ingresa %@.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Vencí a %@ (nivel %lld) en %lld jugadas en K. ¿Crees que puedes hacerlo en menos?";
 "Share to KaPost" = "Compartir en KaPost";
-"Games" = "Juegos";
 "Chess Challenge" = "Reto de ajedrez";
 "Opens Chess to play this bot." = "Abre Ajedrez para jugar contra este bot.";
 "KaPost, Public Chats and Chess are read from this indexer too." = "KaPost, los chats públicos y el ajedrez también se leen de este indexador.";
@@ -3081,3 +3014,10 @@
 "Your account and your funds" = "Tu cuenta y tus fondos";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "Tu cuenta son 12 o 24 palabras guardadas en tu dispositivo. Nunca las tenemos, así que no podemos recuperar las perdidas ni revertir una transacción. Publicar paga una comisión de red en KAS, y eres responsable de los fondos que tienes y envías.";
 "Your posts are public and permanent" = "Tus publicaciones son públicas y permanentes";
+"Who's on top in 1v1 and tournaments, this month or all time, and against each bot." = "Quién va primero en 1v1 y torneos, este mes o de siempre, y contra cada bot.";
+"The trade may have gone through." = "Es posible que el intercambio se haya realizado.";
+"Trestly's code reads this address's coins and sends the trade through public Kaspa nodes (kaspa.stream and its mirrors), not the node chosen in Settings. Those nodes see this address and your IP address." = "El código de Trestly lee las monedas de esta dirección y envía el intercambio a través de nodos públicos de Kaspa (kaspa.stream y sus espejos), no del nodo elegido en Ajustes. Esos nodos ven esta dirección y tu dirección IP.";
+"Original message not loaded" = "Mensaje original no cargado";
+"Cold storage address %@ (%@)" = "Dirección de almacenamiento en frío %@ (%@)";
+"Accepted your request to communicate" = "Aceptó tu solicitud de comunicación";
+"Sent you a message" = "Te envió un mensaje";

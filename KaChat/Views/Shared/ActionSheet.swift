@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The app's frosted card. Every other place that draws one has its own file-private copy of
-/// this; this file needs one too because it is not in any of them.
+/// The app's frosted card: the one shared helper every screen draws it with.
 func glassBackground(cornerRadius: CGFloat) -> some View {
     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         .fill(.regularMaterial)

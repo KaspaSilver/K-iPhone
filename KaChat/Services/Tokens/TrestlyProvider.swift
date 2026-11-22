@@ -2,8 +2,8 @@ import Foundation
 import UIKit
 import WebKit
 
-/// The wallet provider Trestly's site talks to inside KaPay (kusdt-open SPEC §14, `window.kusdt`),
-/// for the one address picked in Open Trestly. KaPay's own code answers every request; the page
+/// The wallet provider Trestly's site talks to inside K (kusdt-open SPEC §14, `window.kusdt`),
+/// for the one address picked in Open Trestly. K's own code answers every request; the page
 /// never sees a key.
 ///
 /// - Injected at document start, main frame only, and only on the Trestly origin set in Settings
@@ -11,23 +11,23 @@ import WebKit
 ///   sending frame's origin and that it is the main frame, so another site or an iframe gets nothing.
 /// - trestly.io (its 2026-11-20 build) finds it by `window.kusdt`, by `kusdt#initialized` and by
 ///   `kusdt:announceProvider`, which is dispatched again whenever the page dispatches
-///   `kusdt:requestProvider`. It reads what KaPay answers from `methods` (on the provider and on
-///   `info`) and `kusdt_capabilities`, and names KaPay from `info`.
+///   `kusdt:requestProvider`. It reads what K answers from `methods` (on the provider and on
+///   `info`) and `kusdt_capabilities`, and names K from `info`.
 /// - Answers: `kaspa_requestAccounts` (the picked address: opening Trestly with it was the approval),
-///   `kaspa_getNetwork`, `kaspa_switchNetwork` (only to the network KaPay is on; else 4200, since
-///   KaPay switches networks in its own settings), `kusdt_getBalances` (that address's plain KAS
+///   `kaspa_getNetwork`, `kaspa_switchNetwork` (only to the network K is on; else 4200, since
+///   K switches networks in its own settings), `kusdt_getBalances` (that address's plain KAS
 ///   from the node and its node-checked kUSDT), `kusdt_capabilities`, and the trades `kusdt_swap`,
 ///   `kusdt_addLiquidity`, `kusdt_removeLiquidity`: Trestly's own wallet logic (`KusdtCore.wallet`,
-///   bundled by tools/kusdt-wallet) checks and quotes, KaPay asks in `TrestlyApprovalSheet`, then the
+///   bundled by tools/kusdt-wallet) checks and quotes, K asks in `TrestlyApprovalSheet`, then the
 ///   same code builds, signs with this one address's key and sends. Everything else, including
-///   `kusdt_send` and `kusdt_redeem`, is 4200, and the site says "KaPay does not support …".
+///   `kusdt_send` and `kusdt_redeem`, is 4200, and the site says "K does not support …".
 @MainActor
 final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerWithReply {
     /// The bridge's name: `window.webkit.messageHandlers.kapay`.
     static let handlerName = "kapay"
 
-    /// What KaPay answers, as `methods` and `kusdt_capabilities` say. Send and redeem aren't in it:
-    /// the site says KaPay doesn't support them.
+    /// What K answers, as `methods` and `kusdt_capabilities` say. Send and redeem aren't in it:
+    /// the site says K doesn't support them.
     static let methods = [
         "kaspa_requestAccounts", "kaspa_getNetwork", "kaspa_switchNetwork", "kusdt_getBalances",
         "kusdt_swap", "kusdt_addLiquidity", "kusdt_removeLiquidity",
@@ -62,6 +62,9 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
     struct ProviderError: Error {
         let code: Int
         let message: String
+        /// The trade may have gone out though no answer said so (`execute` timed out, its page
+        /// died, or Trestly's code said `maybeSent`).
+        var maybeSent = false
     }
 
     let target: TrestlyTarget
@@ -77,7 +80,7 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
         self.allowedOrigin = (siteURL.host?.lowercased() ?? "", siteURL.port ?? 443)
     }
 
-    /// KaPay's network as the provider names it.
+    /// K's network as the provider names it.
     static var networkName: String {
         AppSettings.load().networkType == .mainnet ? "mainnet" : "testnet-10"
     }
@@ -232,7 +235,7 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
 
     // MARK: Trades (Trestly's own wallet logic, `KusdtCore.wallet`)
 
-    /// A swap, a deposit or a withdrawal: Trestly's code checks the pool and quotes (`prepare`), KaPay
+    /// A swap, a deposit or a withdrawal: Trestly's code checks the pool and quotes (`prepare`), K
     /// shows it (`TrestlyApprovalSheet`), and only on Approve hands it this address's key to build,
     /// sign and send (`execute`). A pool that moved to a worse quote comes back as a requote, shown
     /// again; their code never goes below the site's minimum.
@@ -246,6 +249,9 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
         }
         tradeInFlight = true
         defer { tradeInFlight = false }
+        if let minutes = await Self.heldMinutes(for: target.address) {
+            throw ProviderError(code: Code.busy, message: "Your last trade from this address gave no answer and may still go through. Check the address's history. K takes trades from it again once that one shows on the network, or in about \(minutes) min.")
+        }
         guard let owner = Kusdt.schnorrOwner(of: target.address) else {
             throw ProviderError(code: Code.failed, message: "K can't trade from this kind of address.")
         }
@@ -266,19 +272,42 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
                 throw ProviderError(code: Code.rejected, message: "You declined in K. Nothing was sent.")
             }
 
-            guard let secret = target.spendingIndex.map({ WalletManager.shared.spendingPrivateKey(at: $0) }) ?? WalletManager.shared.getPrivateKey() else {
+            // the address's coins as they were before the trade: if it gives no answer, these are
+            // held, and the hold ends early once one of them is spent (the trade landed)
+            let coinsBefore = (try? await NodePoolService.shared.getUtxosByAddresses([target.address]))?.map(\.id) ?? []
+
+            guard var secret = target.spendingIndex.map({ WalletManager.shared.spendingPrivateKey(at: $0) }) ?? WalletManager.shared.getPrivateKey() else {
                 throw ProviderError(code: Code.failed, message: "K couldn't unlock this address's key.")
             }
             wallet["secret"] = Kusdt.hex(secret)
             var request: [String: Any] = ["method": method, "params": paramsJSON, "wallet": wallet,
                                           "shownFeerate": prepared["feerate"] ?? NSNull(),
                                           "acceptedFee": prepared["acceptedFee"] ?? NSNull()]
+            // the key leaves this function's hands whether execute answers, throws or times out
+            // (audit 2026-11-21, #7)
+            defer {
+                wallet["secret"] = nil
+                request["wallet"] = nil
+                secret.resetBytes(in: secret.startIndex..<secret.endIndex)
+            }
             if method == "kusdt_removeLiquidity" {
                 request["quoted"] = ["kasOut": prepared["kasOut"] ?? NSNull(), "tokensOut": prepared["tokensOut"] ?? NSNull()] as [String: Any]
             } else {
                 request["quoted"] = prepared["quote"] ?? NSNull()
             }
-            let done = try await walletCall("execute", request)
+            let done: [String: Any]
+            do {
+                done = try await walletCall("execute", request)
+            } catch let error as ProviderError where error.maybeSent {
+                // it may have gone out: hold this address's coins and its trades (audit 2026-11-21, #1)
+                Self.hold(address: target.address, outpoints: coinsBefore)
+                if !coinsBefore.isEmpty { ChatService.shared.reserveOutpoints(coinsBefore) }
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 4_000_000_000)
+                    await TokenWallet.shared.refresh()
+                }
+                throw error
+            }
             wallet["secret"] = nil
 
             for step in (done["steps"] as? [String]) ?? [] { AddressActivityNotifier.shared.markOwnTransaction(step) }
@@ -348,15 +377,84 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
         let answer: [String: Any]
         do {
             answer = try await KusdtCore.shared.wallet(function, request: request)
+        } catch KusdtCore.CoreError.maybeSent(let why) {
+            throw ProviderError(code: Code.failed, message: Self.maybeSentMessage(why), maybeSent: true)
         } catch {
             throw ProviderError(code: Code.failed, message: error.localizedDescription)
         }
         if let message = answer["error"] as? String {
             let code = (answer["code"] as? NSNumber)?.intValue ?? Code.failed
-            let maybeSent = answer["maybeSent"] as? Bool == true
-            throw ProviderError(code: code, message: maybeSent ? message + " " + AppLocalization.string("Check the address's history before trying again.") : message)
+            if answer["maybeSent"] as? Bool == true {
+                throw ProviderError(code: code, message: Self.maybeSentMessage(message), maybeSent: true)
+            }
+            throw ProviderError(code: code, message: message)
         }
         return answer
+    }
+
+    private static func maybeSentMessage(_ why: String) -> String {
+        why + " " + AppLocalization.string("The trade may have gone through.") + " "
+            + AppLocalization.string("Check the address's history before trying again.")
+    }
+
+    // MARK: Trades that may have gone out
+
+    /// A trade whose `execute` gave no answer may still land (audit 2026-11-21, #1): its address
+    /// takes no new trade until one of the coins it held before is spent (the trade shows on the
+    /// network) or `holdSeconds` pass. Kept on the phone, so a relaunch doesn't drop it.
+    private struct MaybeSentHold: Codable {
+        let until: Date
+        let outpoints: [String]
+    }
+
+    private static let holdsKey = "kachat_trestly_maybe_sent_holds"
+    private static let holdSeconds: TimeInterval = 600
+
+    private static var holds: [String: MaybeSentHold] {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: holdsKey),
+                  let decoded = try? JSONDecoder().decode([String: MaybeSentHold].self, from: data) else { return [:] }
+            return decoded
+        }
+        set {
+            let now = Date()
+            let live = newValue.filter { $0.value.until > now }
+            if live.isEmpty {
+                UserDefaults.standard.removeObject(forKey: holdsKey)
+            } else if let data = try? JSONEncoder().encode(live) {
+                UserDefaults.standard.set(data, forKey: holdsKey)
+            }
+        }
+    }
+
+    private static func hold(address: String, outpoints: [String]) {
+        var all = holds
+        all[address] = MaybeSentHold(until: Date().addingTimeInterval(holdSeconds), outpoints: outpoints)
+        holds = all
+    }
+
+    /// Minutes left on this address's hold, or nil when it may trade: no hold, the hold ran out,
+    /// or a coin it had before is gone from the node (the earlier trade landed).
+    private static func heldMinutes(for address: String) async -> Int? {
+        guard let held = holds[address] else { return nil }
+        let left = held.until.timeIntervalSinceNow
+        guard left > 0 else {
+            var all = holds
+            all[address] = nil
+            holds = all
+            return nil
+        }
+        if !held.outpoints.isEmpty,
+           let now = try? await NodePoolService.shared.getUtxosByAddresses([address]) {
+            let present = Set(now.map(\.id))
+            if held.outpoints.contains(where: { !present.contains($0) }) {
+                var all = holds
+                all[address] = nil
+                holds = all
+                return nil
+            }
+        }
+        return max(1, Int((left / 60).rounded(.up)))
     }
 
     /// Shows the approval and waits for Approve or Decline (closing the sheet declines).
@@ -409,7 +507,7 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
     }
 
     /// K's globe logo as a small PNG data URL for `info.icon` (the site takes up to 256 KB). It
-    /// named KaPay's "KaChatWalletLogo", which K doesn't ship, so the site showed no logo.
+    /// named K's "KaChatWalletLogo", which K doesn't ship, so the site showed no logo.
     private static let iconDataURL: String? = {
         guard let image = UIImage(named: "KLogo") else { return nil }
         let size = CGSize(width: 96, height: 96)

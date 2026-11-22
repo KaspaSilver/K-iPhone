@@ -67,7 +67,14 @@ final class KachatNamesRegistry: ObservableObject {
     private var identities: [String: CachedIdentity] = KachatNamesRegistry.loadIdentities()
     /// One disk write for a burst of identity changes (a screen full of avatars landing at once).
     private var identitiesPersistScheduled = false
+    /// Addresses queued for, or in, a lookup started by `cachedIdentity`: each is asked once.
     private var identityLookups: Set<String> = []
+    /// Addresses `cachedIdentity` wants looked up, sent together after a short wait
+    /// (`flushIdentityBatch`): a feed full of new authors is one `/identity/batch` request and one
+    /// redraw, not one of each per author (audit 2026-11-21, #31).
+    private var identityBatchQueue: [String] = []
+    private var identityBatchScheduled = false
+    private static let identityBatchDelay: UInt64 = 250_000_000
     /// When an address's lookup last failed: it isn't asked again for five minutes, so a view
     /// body that reads `cachedIdentity` can't turn an unreachable indexer into a request loop.
     private var identityMisses: [String: Date] = [:]
@@ -827,30 +834,47 @@ final class KachatNamesRegistry: ObservableObject {
             if let t = j.transactions {
                 return (Totals(last24h: t.last24h, last7d: t.last7d, total: t.total), fees)
             }
-            // an indexer from before `transactions`: the per-kind figures, added up
+            // an indexer from before `transactions`: the per-kind figures, added up (saturating:
+            // a server's numbers must never crash the app; audit 2026-11-21, #20)
             let kinds = (j.activity ?? [:]).values
-            return (Totals(last24h: kinds.reduce(0) { $0 + $1.last24h },
-                           last7d: kinds.reduce(0) { $0 + $1.last7d },
-                           total: kinds.reduce(0) { $0 + $1.total }), fees)
+            return (Totals(last24h: kinds.reduce(0) { Self.add($0, $1.last24h) },
+                           last7d: kinds.reduce(0) { Self.add($0, $1.last7d) },
+                           total: kinds.reduce(0) { Self.add($0, $1.total) }), fees)
         default:
             return Self.totals(of: try readChainState().events, params: m.params)
         }
     }
 
-    /// Every registry event an indexer's `/names/activity` holds, newest first, page by page
-    /// (at most 50 pages of 200).
+    /// Every registry event an indexer's `/names/activity` holds, newest first, page by page.
+    /// Only when its stats endpoints don't answer, so at most `maxFallbackPages` pages of 200: a
+    /// registry with more throws, and Stats shows the `/stats` figures instead of paging through
+    /// all of it on every open (audit 2026-11-21, #35).
+    private static let maxFallbackPages = 10
+
     private func allIndexerEvents(_ base: String) async throws -> [KachatNames.Event] {
         var events: [KachatNames.Event] = []
         var cursor: String?
-        for _ in 0..<50 {
+        for _ in 0..<Self.maxFallbackPages {
             var path = "/names/activity?length=200"
             if let cursor { path += "&cursor=\(cursor)" }
             let page: KachatNames.IndexerAPI.EventsJSON = try await Self.get(base, path)
             events += page.events.map(\.event)
-            guard let next = page.next, !next.isEmpty, !page.events.isEmpty else { break }
+            guard let next = page.next, !next.isEmpty, !page.events.isEmpty else { return events }
             cursor = next
         }
-        return events
+        throw URLError(.dataLengthExceedsMaximum)
+    }
+
+    /// `a + b`, stopping at the top instead of trapping on overflow (numbers from a server).
+    nonisolated static func add(_ a: UInt64, _ b: UInt64) -> UInt64 {
+        let (sum, overflow) = a.addingReportingOverflow(b)
+        return overflow ? .max : sum
+    }
+
+    /// `a * b`, stopping at the top instead of trapping on overflow.
+    nonisolated static func multiply(_ a: UInt64, _ b: UInt64) -> UInt64 {
+        let (product, overflow) = a.multipliedReportingOverflow(by: b)
+        return overflow ? .max : product
     }
 
     /// Counts and prices registry events (`activityTotals` without an indexer's figures), one per
@@ -863,13 +887,16 @@ final class KachatNamesRegistry: ObservableObject {
         var paid: [String: UInt64] = [:]
         for e in events {
             at[e.txId] = max(at[e.txId] ?? 0, e.at ?? 0)
-            guard let name = e.name, let years = e.years, years > 0 else { continue }
+            // `years` can come from an indexer: a name holds a handful of periods, so anything
+            // past 1000 is nonsense, clamped before any math (audit 2026-11-21, #20)
+            guard let name = e.name, let rawYears = e.years, rawYears > 0 else { continue }
+            let years = min(rawYears, 1000)
             let length = name.utf8.count
             switch e.op {
             case "register":
-                paid[e.txId, default: 0] += params.registerCost(forLength: length, years: years)
+                paid[e.txId] = add(paid[e.txId] ?? 0, params.registerCost(forLength: length, years: years))
             case "extend", "renew":
-                paid[e.txId, default: 0] += params.renewPrice(forLength: length) * UInt64(years)
+                paid[e.txId] = add(paid[e.txId] ?? 0, multiply(params.renewPrice(forLength: length), UInt64(years)))
             default:
                 break
             }
@@ -879,9 +906,9 @@ final class KachatNamesRegistry: ObservableObject {
         for (tx, time) in at {
             let fee = paid[tx] ?? 0
             transactions.total += 1
-            fees.total += fee
-            if time > d7 { transactions.last7d += 1; fees.last7d += fee }
-            if time > d1 { transactions.last24h += 1; fees.last24h += fee }
+            fees.total = add(fees.total, fee)
+            if time > d7 { transactions.last7d += 1; fees.last7d = add(fees.last7d, fee) }
+            if time > d1 { transactions.last24h += 1; fees.last24h = add(fees.last24h, fee) }
         }
         return (transactions, fees)
     }
@@ -1166,8 +1193,12 @@ final class KachatNamesRegistry: ObservableObject {
             do {
                 let answer: BatchJSON = try await Self.post(base, "/identity/batch", BatchBody(addresses: chunk))
                 noteIndexerGaveData()
+                // only the addresses asked for: an answer can't fill the cache with others
+                let asked = Set(chunk)
                 for (address, identity) in answer.identities {
-                    out[address.lowercased()] = identity.identity
+                    let key = address.lowercased()
+                    guard asked.contains(key) else { continue }
+                    out[key] = identity.identity
                 }
             } catch {
                 if Self.indexerIsDown(error), indexerOutageConfirmed() { failOverToChain(after: error) }
@@ -1188,9 +1219,10 @@ final class KachatNamesRegistry: ObservableObject {
     /// Files a fetched identity in the cache; true when it changed (the caller then calls
     /// `identitiesChanged`, once per batch rather than per address). An unchanged answer only
     /// stamps the entry fresh.
-    private func storeFetchedIdentity(_ found: KachatNames.Identity, for key: String) -> Bool {
+    /// `announce: false` leaves `objectWillChange` to the caller, once for a whole batch.
+    private func storeFetchedIdentity(_ found: KachatNames.Identity, for key: String, announce: Bool = true) -> Bool {
         if identities[key]?.identity != found {
-            objectWillChange.send()
+            if announce { objectWillChange.send() }
             identities[key] = CachedIdentity(identity: found, revision: revision, at: Date())
             persistIdentities()
             return true
@@ -1222,16 +1254,13 @@ final class KachatNamesRegistry: ObservableObject {
         let missedRecently = identityMisses[key].map { Date().timeIntervalSince($0) < 60 } ?? false
         if stale, !missedRecently, !identityLookups.contains(key) {
             identityLookups.insert(key)
-            Task { [weak self] in
-                guard let self else { return }
-                let found = try? await self.identity(address: key)
-                self.identityLookups.remove(key)
-                guard let found else {
-                    self.identityMisses[key] = Date()
-                    return
+            identityBatchQueue.append(key)
+            if !identityBatchScheduled {
+                identityBatchScheduled = true
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(nanoseconds: Self.identityBatchDelay)
+                    await self?.flushIdentityBatch()
                 }
-                self.identityMisses[key] = nil
-                if self.storeFetchedIdentity(found, for: key) { self.identitiesChanged() }
             }
         }
         var identity = entry?.identity
@@ -1240,6 +1269,56 @@ final class KachatNamesRegistry: ObservableObject {
             identity?.profile = own
         }
         return identity
+    }
+
+    /// Looks up everyone `cachedIdentity` queued in the last moment: one `/identity/batch`
+    /// request (200 a call), or, where there's no batch (the chain walker, an older indexer),
+    /// eight at a time. The answers are filed together and views redraw once (audit 2026-11-21,
+    /// #31).
+    private func flushIdentityBatch() async {
+        let keys = identityBatchQueue
+        identityBatchQueue = []
+        identityBatchScheduled = false
+        guard !keys.isEmpty else { return }
+        var found: [String: KachatNames.Identity] = [:]
+        var answered = Set<String>()
+        if let batch = await identitiesBatch(keys) {
+            found = batch
+            answered = Set(keys)
+        } else {
+            var start = 0
+            while start < keys.count {
+                let slice = keys[start..<min(start + 8, keys.count)]
+                start += slice.count
+                let answers = await withTaskGroup(of: (String, KachatNames.Identity?).self) { group in
+                    for key in slice {
+                        group.addTask { (key, try? await self.identity(address: key)) }
+                    }
+                    var collected: [(String, KachatNames.Identity?)] = []
+                    for await answer in group { collected.append(answer) }
+                    return collected
+                }
+                for (key, identity) in answers {
+                    if let identity { found[key] = identity }
+                    answered.insert(key)
+                }
+            }
+        }
+        var anyChanged = false
+        for key in keys {
+            identityLookups.remove(key)
+            guard answered.contains(key), let identity = found[key] else {
+                // failed, or not in the batch's answer: asked again in a minute
+                identityMisses[key] = Date()
+                continue
+            }
+            identityMisses[key] = nil
+            if storeFetchedIdentity(identity, for: key, announce: false) { anyChanged = true }
+        }
+        if anyChanged {
+            objectWillChange.send()
+            identitiesChanged()
+        }
     }
 
     // MARK: Profile cache on disk
@@ -1383,6 +1462,10 @@ final class KachatNamesRegistry: ObservableObject {
         return URLSession(configuration: config)
     }()
 
+    /// The largest answer from the names indexer that is decoded at all: a page of 200 events or
+    /// listings, or 200 identities, is far below it (audit 2026-11-21, #19).
+    private nonisolated static let maxResponseBytes = 4_000_000
+
     /// Off the main actor: listings, history and activity answers decode on the shared pool.
     private nonisolated static func get<T: Decodable>(_ base: String, _ path: String) async throws -> T {
         guard let url = URL(string: base + path) else { throw KachatNames.Failure("bad indexer URL") }
@@ -1394,6 +1477,7 @@ final class KachatNamesRegistry: ObservableObject {
             if code == 404 { throw KachatNames.Failure("not found") }
             throw KachatNames.Failure("the names indexer answered \(code)")
         }
+        guard data.count <= maxResponseBytes else { throw KachatNames.Failure("the names indexer's answer is too large") }
         return try JSONDecoder().decode(T.self, from: data)
     }
 
@@ -1411,6 +1495,7 @@ final class KachatNamesRegistry: ObservableObject {
             if code == 404 { throw KachatNames.Failure("not found") }
             throw KachatNames.Failure("the names indexer answered \(code)")
         }
+        guard data.count <= maxResponseBytes else { throw KachatNames.Failure("the names indexer's answer is too large") }
         return try JSONDecoder().decode(T.self, from: data)
     }
 
@@ -1466,7 +1551,7 @@ final class KachatNamesRegistry: ObservableObject {
 /// The profile cache folder (Caches/KachatProfiles): what the app knows about people's profiles -
 /// their identity records and the avatars, banners and bios looked up from their social links.
 /// Rebuilt on demand, so it lives in Caches and is measured and cleared by Settings > Storage >
-/// Cache > Profiles (with the avatar and banner images, `KNSProfileImages`).
+/// Cache > Profiles (with the avatar and banner images, `KNSProfileImageCacheControl`).
 enum KachatProfileCache {
     static var directory: URL? {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
@@ -1525,7 +1610,7 @@ final class KachatSocialImageResolver: ObservableObject {
     /// profile really changes.
     private var entries: [String: Entry] = [:]
     private var inFlight: [String: Task<Lookup, Never>] = [:]
-    /// Links a view body already started a lookup for: `profile(for:)` runs on every redraw of
+    /// Links a view body already started a lookup for: `profile(for:address:)` runs on every redraw of
     /// every avatar, and must start one lookup, not one per redraw.
     private var requested: Set<String> = []
     /// When a link's platform last couldn't be reached: not asked again for ten minutes, so an
@@ -1561,6 +1646,7 @@ final class KachatSocialImageResolver: ObservableObject {
         objectWillChange.send()
         entries = [:]
         requested = []
+        openedAddresses = []
         unreachableAt = [:]
         inFlight.values.forEach { $0.cancel() }
         inFlight = [:]
@@ -1574,9 +1660,52 @@ final class KachatSocialImageResolver: ObservableObject {
         entries[source.link]?.profile
     }
 
-    /// The cached profile for `link`, starting a lookup when there is none or it is stale.
-    /// Views read this in `body`; the published cache re-renders them when the lookup lands.
-    func profile(for link: String?) -> KachatNames.SocialProfile? {
+    // MARK: Who may be looked up (audit 2026-11-21, #17)
+
+    /// Addresses whose profile screen the person opened this session (a tap): their social links
+    /// may be looked up from then on, wherever they show.
+    private var openedAddresses: Set<String> = []
+
+    /// THE gate for every social lookup a view starts. A lookup tells X, YouTube, GitHub and the
+    /// rest the viewer's IP and whose profile they looked at, so it happens only for your own
+    /// account, people in your Contacts (Address Book) or chats, and anyone whose profile you
+    /// opened. Anyone else (a KaPost author, a room member scrolled past) shows the initials avatar
+    /// and contacts no one.
+    func mayLookUp(address: String?) -> Bool {
+        guard let address, !address.isEmpty else { return false }
+        let key = address.lowercased()
+        if openedAddresses.contains(key) { return true }
+        if let own = WalletManager.shared.currentWallet?.publicAddress, own.lowercased() == key { return true }
+        if AddressBookManager.shared.entry(for: address) != nil { return true }
+        if ContactsManager.shared.getContact(byAddress: address) != nil || ContactsManager.shared.getContact(byAddress: key) != nil {
+            return true
+        }
+        return false
+    }
+
+    /// A profile screen for `address` is open (the person tapped it): its links may be looked
+    /// up, and avatars already on screen for it redraw once so they show it too.
+    func noteProfileOpened(_ address: String?) {
+        guard let address, !address.isEmpty else { return }
+        let (inserted, _) = openedAddresses.insert(address.lowercased())
+        guard inserted else { return }
+        // called from view bodies: never publish during one
+        DispatchQueue.main.async { [weak self] in self?.objectWillChange.send() }
+    }
+
+    /// For a profile SCREEN the person opened (`KachatLive.profileBanner` / `profileBio`,
+    /// `ChatInfoView`): notes the address as opened, then answers like `profile(for:address:)`.
+    func openedProfile(for link: String?, address: String?) -> KachatNames.SocialProfile? {
+        noteProfileOpened(address)
+        return profile(for: link, address: address)
+    }
+
+    /// The cached profile for `link` (the social link `address` set on its profile), starting a
+    /// lookup when there is none or it is stale. Nil, with no lookup and no cached answer, when
+    /// `mayLookUp(address:)` says no. Views read this in `body`; the published cache re-renders
+    /// them when the lookup lands.
+    func profile(for link: String?, address: String?) -> KachatNames.SocialProfile? {
+        guard link != nil, mayLookUp(address: address) else { return nil }
         guard let link, let source = KachatNames.SocialSource(link: link, for: .avatar) else { return nil }
         let key = source.link
         let entry = entries[key]
@@ -1758,7 +1887,9 @@ final class KachatSocialImageResolver: ObservableObject {
         case .x:
             result.banner = S.xBanner(in: html)
         case .youtube:
-            if let (page, st) = await fetch(url, agent: browserAgent, cookie: "CONSENT=YES+1"), st == 200 {
+            // no consent cookie: K never accepts Google's consent for the person (audit 2026-11-21,
+            // #17). Where YouTube answers with its consent page instead, there's no banner.
+            if let (page, st) = await fetch(url, agent: browserAgent), st == 200 {
                 result.banner = S.youtubeBanner(in: String(decoding: page, as: UTF8.self))
             }
         default:
@@ -1988,16 +2119,6 @@ enum KachatNameReminders {
 
     private static func prefix(wallet: String, network: String) -> String {
         "\(root)\(network)-\(walletTag(wallet))-"
-    }
-
-    /// Every pending .kachat reminder on this phone, for every wallet - run once when the
-    /// market left the app (`RetiredFeatureCleanup.runOnceV2`). The market is back since
-    /// 2026-11-20, so this only ever clears what an older build left.
-    static func removeEverything() async {
-        let center = UNUserNotificationCenter.current()
-        let ids = await center.pendingNotificationRequests().map(\.identifier)
-            .filter { $0.hasPrefix(root) || $0.hasPrefix(legacyPrefix) }
-        if !ids.isEmpty { center.removePendingNotificationRequests(withIdentifiers: ids) }
     }
 
     /// A wallet's reminders, for when it leaves this phone. The tag comes from the address as

@@ -52,7 +52,6 @@ struct DesktopEmojiItem: Identifiable, Hashable {
 
 enum DesktopEmojiLibrary {
     static let items: [DesktopEmojiItem] = makeItems()
-    static let allEmoji: [String] = items.map(\.emoji)
 
     static func emoji(in category: DesktopEmojiCategory) -> [DesktopEmojiItem] {
         items.filter { $0.category == category }

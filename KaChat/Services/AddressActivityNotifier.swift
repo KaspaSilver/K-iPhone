@@ -3,7 +3,8 @@ import UIKit
 import UserNotifications
 
 /// Own-address receive notifications: alerts the user when any of the wallet's NON-chatting
-/// addresses - spending-chain addresses (Manage Addresses) - receives Kaspa from an external source. These are wallet events, never chat:
+/// addresses - spending-chain addresses (Manage Addresses), and Cold Storage accounts' addresses
+/// where that account's Receive Notifications are on - receives Kaspa from an external source. These are wallet events, never chat:
 /// no conversation is created, no bubble appears - just a local notification, plus a
 /// persisted per-address balance baseline update so the catch-up path and the open
 /// Manage Addresses screen stay in sync.
@@ -53,12 +54,25 @@ final class AddressActivityNotifier: ObservableObject {
     private var cachedSpendingMaxIndex: Int = -1
     private var spendingAddressSet: Set<String> = []
 
+    /// Cold Storage (watch-only kpub accounts, `ColdStorageManager`). Every derived address of
+    /// every account counts as ours for the self-send check; those of accounts with Receive
+    /// Notifications on (`ColdStorageAccount.notifyOnReceive`) are watched and notify, whatever
+    /// the spending switch says (audit 2026-11-21 #5). Derived off the main thread
+    /// (`ColdStorageAddressCache`), so the sets fill in a moment after the accounts change.
+    private var coldFingerprint = ""
+    private var coldOwnSet: Set<String> = []
+    private var coldNotifySet: Set<String> = []
+    /// The account each cold address belongs to, for the notification's wording.
+    private var coldAccountLabels: [String: String] = [:]
+    private var coldDeriveTask: Task<Void, Never>?
+
     /// Receive notifications for the wallet's spending addresses (Manage Addresses), per
     /// wallet - Default on.
     @Published var spendingReceiveNotificationsEnabled: Bool = true {
         didSet {
             guard let wallet = WalletManager.shared.currentWallet?.publicAddress else { return }
             UserDefaults.standard.set(spendingReceiveNotificationsEnabled, forKey: Self.spendingNotifyKey(wallet: wallet))
+            if oldValue != spendingReceiveNotificationsEnabled { Self.pushAddressesMayHaveChanged() }
         }
     }
     private var spendingNotifyLoadedForWallet: String?
@@ -97,7 +111,17 @@ final class AddressActivityNotifier: ObservableObject {
     /// Addresses already pays on open.
     func watchedOwnAddresses() -> Set<String> {
         refreshCaches()
-        return spendingAddressSet
+        return spendingAddressSet.union(coldNotifySet)
+    }
+
+    /// Cold Storage's accounts changed (added, removed, renamed, a switch flipped, more addresses,
+    /// another wallet): the cold sets are worked out again, and the watched set follows.
+    /// Only the cold part, and only once `refreshCaches` has run for this wallet: called while an
+    /// account loads, a full refresh could cache its spending set before its keys are ready.
+    func coldStorageAccountsChanged() {
+        guard let wallet = WalletManager.shared.currentWallet?.publicAddress,
+              cachedWalletAddress == wallet else { return }
+        refreshColdCaches(wallet: wallet, network: AppSettings.load().networkType, walletChanged: false)
     }
 
     /// UserInfo key carrying the involved own addresses on a `.ownAddressUtxoActivity` post.
@@ -403,17 +427,27 @@ final class AddressActivityNotifier: ObservableObject {
         for hit in hits { byAddress[hit.address, default: 0] += hit.amount }
         let opened = byAddress.max { $0.value < $1.value }?.key ?? hits.first?.address ?? ""
         var info: [String: Any] = ["kind": kindKey(for: opened)]
-        if !opened.isEmpty { info["address"] = opened }
+        // A Cold Storage address has no history sheet of its own here: the tap opens Wallet.
+        let opensAddress = !opened.isEmpty && !isColdOnly(opened)
+        if opensAddress { info["address"] = opened }
         content.userInfo = info
         applySoundPreference(to: content)
 
-        UNUserNotificationCenter.current().add(
-            UNNotificationRequest(identifier: "addr-activity-\(dedupeKey)", content: content, trigger: nil)
-        )
+        // One notice per transaction: none when its Received push (`address_activity`, same
+        // `tx_id`) already showed, and a push that comes later is only listed (`InAppBanner`).
+        if InAppBanner.claim(dedupeKey) {
+            let center = UNUserNotificationCenter.current()
+            let request = UNNotificationRequest(identifier: "addr-activity-\(dedupeKey)", content: content, trigger: nil)
+            let txId = dedupeKey.lowercased()
+            center.getDeliveredNotifications { delivered in
+                let pushShown = delivered.contains { ($0.request.content.userInfo["tx_id"] as? String)?.lowercased() == txId }
+                if !pushShown { center.add(request) }
+            }
+        }
         // Also list it in the Profile notifications bell.
         Task { @MainActor in
             // the bell's entry opens the same address's history
-            GlobalNotificationCenter.shared.record(id: "wallet-\(dedupeKey)", source: .wallet, title: content.title, body: content.body, timestamp: Int64(Date().timeIntervalSince1970 * 1000), targetId: opened.isEmpty ? nil : opened)
+            GlobalNotificationCenter.shared.record(id: "wallet-\(dedupeKey)", source: .wallet, title: content.title, body: content.body, timestamp: Int64(Date().timeIntervalSince1970 * 1000), targetId: opensAddress ? opened : nil)
         }
     }
 
@@ -423,7 +457,10 @@ final class AddressActivityNotifier: ObservableObject {
         content.title = "Balance increased by \(Self.formatKas(delta)) \(KaspaUnit.symbol)"
         content.body = describe(address: address)
         content.threadIdentifier = Self.notificationThreadIdentifier
-        content.userInfo = ["kind": kindKey(for: address), "address": address]
+        let opensAddress = !isColdOnly(address)
+        var info: [String: Any] = ["kind": kindKey(for: address)]
+        if opensAddress { info["address"] = address }
+        content.userInfo = info
         applySoundPreference(to: content)
 
         let balId = "addr-activity-bal-\(address.suffix(12))-\(UUID().uuidString)"
@@ -431,7 +468,7 @@ final class AddressActivityNotifier: ObservableObject {
             UNNotificationRequest(identifier: balId, content: content, trigger: nil)
         )
         Task { @MainActor in
-            GlobalNotificationCenter.shared.record(id: "wallet-\(balId)", source: .wallet, title: content.title, body: content.body, timestamp: Int64(Date().timeIntervalSince1970 * 1000), targetId: address)
+            GlobalNotificationCenter.shared.record(id: "wallet-\(balId)", source: .wallet, title: content.title, body: content.body, timestamp: Int64(Date().timeIntervalSince1970 * 1000), targetId: opensAddress ? address : nil)
         }
     }
 
@@ -457,12 +494,30 @@ final class AddressActivityNotifier: ObservableObject {
         if address == WalletManager.shared.currentWallet?.publicAddress {
             return "Chatting address \(Self.shortAddress(address))"
         }
+        if let label = coldAccountLabels[address], !spendingAddressSet.contains(address) {
+            // e.g. "Cold storage address kaspa:qq... (Savings)"
+            return String(format: AppLocalization.string("Cold storage address %@ (%@)"), Self.shortAddress(address), label)
+        }
         return "Spending address \(Self.shortAddress(address))"
     }
 
     private func kindKey(for address: String) -> String {
         if address == WalletManager.shared.currentWallet?.publicAddress { return "chatting" }
+        if isColdOnly(address) { return "cold" }
         return "spending"
+    }
+
+    /// A Cold Storage address that isn't also one of the wallet's own.
+    /// Whether a tapped Received notice for this address opens its history (a Cold Storage
+    /// address has none here: the tap opens Wallet).
+    func opensHistory(for address: String) -> Bool {
+        refreshCaches()
+        return !address.isEmpty && !isColdOnly(address)
+    }
+
+    private func isColdOnly(_ address: String) -> Bool {
+        coldOwnSet.contains(address) && !spendingAddressSet.contains(address)
+            && address != WalletManager.shared.currentWallet?.publicAddress
     }
 
     static func shortAddress(_ address: String) -> String {
@@ -493,6 +548,12 @@ final class AddressActivityNotifier: ObservableObject {
             cachedWalletAddress = nil
             cachedSpendingMaxIndex = -1
             spendingAddressSet = []
+            coldDeriveTask?.cancel()
+            coldDeriveTask = nil
+            coldFingerprint = ""
+            coldOwnSet = []
+            coldNotifySet = []
+            coldAccountLabels = [:]
             return
         }
         let network = AppSettings.load().networkType
@@ -504,8 +565,10 @@ final class AddressActivityNotifier: ObservableObject {
         let maxIndex = WalletManager.shared.maxSpendingAddressIndex
             + (WalletManager.shared.maxQuantumAddressIndex + 1) * 100_000
         if walletChanged || cachedSpendingMaxIndex != maxIndex {
+            let before = spendingAddressSet
             spendingAddressSet = Set(WalletManager.shared.allSpendingAddresses())
             cachedSpendingMaxIndex = maxIndex
+            if spendingAddressSet != before { Self.pushAddressesMayHaveChanged() }
         }
 
         if walletChanged { spendingNotifyLoadedForWallet = nil }
@@ -513,6 +576,88 @@ final class AddressActivityNotifier: ObservableObject {
 
         cachedWalletAddress = wallet.publicAddress
         cachedNetworkKey = networkKey
+
+        refreshColdCaches(wallet: wallet.publicAddress, network: network, walletChanged: walletChanged)
+    }
+
+    /// Works the cold sets out again when the wallet, the network or the accounts (their kpubs,
+    /// address counts and switches) changed; then the UTXO subscription picks the watched ones up.
+    private func refreshColdCaches(wallet: String, network: NetworkType, walletChanged: Bool) {
+        let cold = ColdStorageManager.shared
+        let accounts = cold.accounts
+        let fingerprint = ([wallet, network.rawValue, String(cold.hiddenRevision)] + accounts.map {
+            "\($0.kpubString)|\($0.maxAddressIndex)|\($0.notifyOnReceive)|\($0.label)"
+        }).joined(separator: ",")
+        guard fingerprint != coldFingerprint else { return }
+        coldFingerprint = fingerprint
+        if walletChanged {
+            // never the last wallet's addresses meanwhile
+            coldOwnSet = []
+            coldNotifySet = []
+            coldAccountLabels = [:]
+        }
+        coldDeriveTask?.cancel()
+        guard !accounts.isEmpty else {
+            let watchedBefore = coldNotifySet
+            coldOwnSet = []
+            coldNotifySet = []
+            coldAccountLabels = [:]
+            coldDeriveTask = nil
+            if !watchedBefore.isEmpty { ChatService.shared.checkAndResubscribeIfNeeded() }
+            return
+        }
+        // Watched (and notifying) are the addresses each account shows; hidden ones are empty
+        // slots the person put away, still ours for the self-send check.
+        let hiddenByAccount = accounts.reduce(into: [UUID: Set<Int>]()) { result, account in
+            result[account.id] = cold.hiddenIndexSet(accountId: account.id)
+        }
+        coldDeriveTask = Task { [weak self] in
+            var own = Set<String>()
+            var notify = Set<String>()
+            var labels: [String: String] = [:]
+            for account in accounts {
+                let derived = await ColdStorageAddressCache.shared.addressesInBackground(
+                    kpub: account.kpubString, network: network,
+                    indices: 0..<(UInt32(max(account.maxAddressIndex, 0)) + 1), stopOnFailure: false
+                )
+                guard !Task.isCancelled else { return }
+                let hidden = hiddenByAccount[account.id] ?? []
+                for (index, address) in derived {
+                    own.insert(address)
+                    labels[address] = account.label
+                    if account.notifyOnReceive, !hidden.contains(Int(index)) { notify.insert(address) }
+                }
+            }
+            guard let self, !Task.isCancelled, self.coldFingerprint == fingerprint else { return }
+            let watchedChanged = self.coldNotifySet != notify
+            self.coldOwnSet = own
+            self.coldNotifySet = notify
+            self.coldAccountLabels = labels
+            self.coldDeriveTask = nil
+            // the UTXO subscription takes the new watched set (a no-op before it's set up)
+            if watchedChanged {
+                ChatService.shared.checkAndResubscribeIfNeeded()
+                Self.pushAddressesMayHaveChanged()
+            }
+        }
+    }
+
+    /// The addresses the push service watches for Received KAS while the app is closed
+    /// (`watch_only_addresses`): the spending ones while their switch is on and the Cold Storage
+    /// ones whose account notifies; none with Address Activity off. Not the chatting address:
+    /// its receives come as chat pushes, and a plain transfer to it only notifies while open.
+    func pushWatchOnlyAddresses() -> Set<String> {
+        guard featureEnabled else { return [] }
+        refreshCaches()
+        var set = Set<String>()
+        if spendingReceiveNotificationsEnabled { set.formUnion(spendingAddressSet) }
+        set.formUnion(coldNotifySet)
+        return set
+    }
+
+    /// The push registration follows the Received KAS addresses (it skips an unchanged set).
+    static func pushAddressesMayHaveChanged() {
+        Task { @MainActor in await PushNotificationManager.shared.updateWatchedAddresses() }
     }
 
     /// Addresses whose receives should NOTIFY: the watched own addresses and the chatting
@@ -523,6 +668,8 @@ final class AddressActivityNotifier: ObservableObject {
         // just quiet.
         var set = Set<String>()
         if spendingReceiveNotificationsEnabled { set.formUnion(spendingAddressSet) }
+        // Cold Storage: each account's own switch, already applied to this set.
+        set.formUnion(coldNotifySet)
         set.insert(walletAddress)
         return set
     }
@@ -541,7 +688,8 @@ final class AddressActivityNotifier: ObservableObject {
     /// notifiable set: chatting address + all spending (reserved pool addresses are
     /// spending-chain indices, so they're covered).
     private func ownInputAddressSet(walletAddress: String) -> Set<String> {
-        var set = spendingAddressSet
+        // Cold Storage addresses too: a KasSigner-signed send's change is never "Received".
+        var set = spendingAddressSet.union(coldOwnSet)
         set.insert(walletAddress)
         return set
     }

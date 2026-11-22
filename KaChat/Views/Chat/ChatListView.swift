@@ -15,13 +15,13 @@ struct ChatListView: View {
     private enum ChatListEntry: Identifiable {
         case chat(Conversation)
         case group(GroupChat)
-        case room(PublicChatChannel)
+        case room(PublicChatRoomSummary)
 
         var id: String {
             switch self {
             case .chat(let conversation): return ChatListView.entryID(conversation)
             case .group(let group): return ChatListView.entryID(group)
-            case .room(let channel): return "r:\(channel.channelName)"
+            case .room(let room): return "r:\(room.channelName)"
             }
         }
     }
@@ -29,9 +29,13 @@ struct ChatListView: View {
     /// What the + sheet is showing: the choice, or the screen it led to.
     private enum CreateStep { case menu, chat, group, publicRoom, publicSettings }
 
-    /// The public rooms (Public Chats live in this list since 2026-11-21). Observed: a room's new
-    /// message moves its row.
-    @ObservedObject private var publicChats = PublicChatService.shared
+    /// The public rooms (Public Chats live in this list since 2026-11-21), as their summaries:
+    /// last message, time and unread count, published only when one changes (audit #29). The
+    /// service itself isn't observed: it publishes for every room event, chess moves included,
+    /// and each of those re-merged and sorted the whole list.
+    @ObservedObject private var roomSummaries = PublicChatRoomSummaries.shared
+    /// For actions only (join, mute, mark read): never read for drawing.
+    private var publicChats: PublicChatService { PublicChatService.shared }
     @State private var selectedPublicRoom: String?
     /// A room you added, waiting on its delete confirmation (a default room is only switched off).
     @State private var roomToLeave: String?
@@ -329,8 +333,8 @@ struct ChatListView: View {
             guard let channel = notification.userInfo?["channel"] as? String else { return }
             openRoomFromHandoff(channel)
         }
-        .onChange(of: publicChats.pendingPublicChatNavigation) { newValue in
-            guard let channel = newValue else { return }
+        .onChange(of: roomSummaries.pendingRoom) { newValue in
+            guard let channel = newValue, publicChats.pendingPublicChatNavigation == channel else { return }
             publicChats.pendingPublicChatNavigation = nil
             openRoomFromHandoff(channel)
         }
@@ -570,16 +574,10 @@ struct ChatListView: View {
                         }
                 }
             case .publicSettings:
-                // the switches for the default rooms and the language rooms
-                NavigationStack {
-                    PublicChatsSettingsView()
-                        .environmentObject(publicChats)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") { showCreateSheet = false }
-                            }
-                        }
-                }
+                // the switches for the default rooms and the language rooms; the view brings its
+                // own NavigationStack and Done
+                PublicChatsSettingsView()
+                    .environmentObject(publicChats)
             }
         }
         .presentationDetents([Self.createMenuHeight, .large], selection: $createDetent)
@@ -738,29 +736,28 @@ struct ChatListView: View {
 
     /// The rooms in the list (default rooms switched off in Edit Default Public Chats are left
     /// out), filtered by the search.
-    private var displayedRooms: [PublicChatChannel] {
-        let rooms = publicChats.listedChannels
+    private var displayedRooms: [PublicChatRoomSummary] {
+        let rooms = roomSummaries.rooms
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return rooms }
         return rooms.filter { $0.channelName.range(of: query, options: .caseInsensitive) != nil }
     }
 
-    /// When a room last had a message: where it sits among the chats. A room nobody has written in
-    /// yet goes to the bottom - the default rooms are all joined at once, on first launch, and by
-    /// their join time they sat above every chat.
-    private func roomActivity(_ channel: PublicChatChannel) -> Date {
-        if let latest = publicChats.messages(forChannel: channel.channelName).last?.blockTime {
-            return Date(timeIntervalSince1970: Double(latest) / 1000)
-        }
-        return .distantPast
+    /// Who wrote a room's newest message, as its row says it.
+    private func roomSenderName(_ room: PublicChatRoomSummary) -> String? {
+        guard let sender = room.lastSender else { return nil }
+        if sender == walletManager.currentWallet?.publicAddress { return AppLocalization.string("You") }
+        return contactsManager.displayName(for: sender)
     }
 
-    private func roomRow(_ channel: PublicChatChannel) -> some View {
-        Button {
+    private func roomRow(_ room: PublicChatRoomSummary) -> some View {
+        let channel = room.channel
+        return Button {
             Haptics.impact(.light)
             openRoom(channel.channelName)
         } label: {
-            PublicChatRow(channelName: channel.channelName, channel: channel)
+            ChatsRoomRow(room: room, senderName: roomSenderName(room))
+                .equatable()
         }
         .buttonStyle(ChatRowPressStyle())
         // Delete and Mute; no full swipe, so a long swipe can't start a delete
@@ -780,9 +777,10 @@ struct ChatListView: View {
             .tint(.orange)
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            if publicChats.unreadCount(forChannel: channel.channelName) > 0 {
+            if room.unreadCount > 0 {
                 Button {
                     publicChats.markChannelRead(channel.channelName)
+                    roomSummaries.recompute()
                 } label: {
                     Label("Mark as Read", systemImage: "envelope.open")
                 }
@@ -790,6 +788,7 @@ struct ChatListView: View {
             } else {
                 Button {
                     publicChats.markChannelUnread(channel.channelName)
+                    roomSummaries.recompute()
                 } label: {
                     Label("Mark as Unread", systemImage: "envelope.badge")
                 }
@@ -804,6 +803,7 @@ struct ChatListView: View {
     private func deleteRoom(_ name: String) {
         if PublicChatService.curatedChannels.contains(name) {
             publicChats.removeFromList(name)
+            roomSummaries.recompute()
             showToast(String(format: AppLocalization.string("#%@ is off - turn it back on in Edit Default Public Chats"),
                              locale: AppLocalization.locale, name))
         } else {
@@ -814,6 +814,7 @@ struct ChatListView: View {
     private func toggleRoomNotify(_ channel: PublicChatChannel) {
         let newValue = !channel.notifyEnabled
         publicChats.setNotifyEnabled(newValue, forChannel: channel.channelName)
+        roomSummaries.recompute()
         let isIndexed = PublicChatService.isIndexerTracked(channel.channelName)
         showToast(AppLocalization.string(newValue
             ? (isIndexed
@@ -837,6 +838,7 @@ struct ChatListView: View {
                 .padding(.horizontal, 24)
             ActionSheetRow(title: "Delete", subtitle: "Removes this room and its messages from this device.", systemImage: "trash", tint: .red) {
                 publicChats.leaveChannel(name)
+                roomSummaries.recompute()
                 if selectedPublicRoom == name { selectedPublicRoom = nil }
                 roomToLeave = nil
             }
@@ -926,7 +928,7 @@ struct ChatListView: View {
         var dated: [(at: Date, entry: ChatListEntry)] = chats
             .map { ($0.lastMessage?.timestamp ?? Date.distantPast, ChatListEntry.chat($0)) }
         dated += displayedGroups.map { (groupMessages[$0.id]?.last?.timestamp ?? $0.createdAt, ChatListEntry.group($0)) }
-        dated += displayedRooms.map { (roomActivity($0), ChatListEntry.room($0)) }
+        dated += displayedRooms.map { ($0.activity, ChatListEntry.room($0)) }
         // ties (rooms nobody has written in) keep their order: `sorted` isn't stable, and they'd
         // swap places from one redraw to the next
         return dated.enumerated()
@@ -1068,7 +1070,7 @@ struct ChatListView: View {
                         switch entry {
                         case .chat(let conversation): chatRow(conversation)
                         case .group(let group): groupRow(group)
-                        case .room(let channel): roomRow(channel)
+                        case .room(let room): roomRow(room)
                         }
                     }
                     .onAppear {
@@ -1486,7 +1488,7 @@ struct ChatListView: View {
 
     private var balanceToolbarView: some View {
         let sompi = walletManager.currentWallet?.balanceSompi
-        let exact = sompi.map(formatKaspaExact) ?? "--"
+        let exact = sompi.map(formatKasExact) ?? "--"
         // Kaspa logo + bold.
         return HStack(spacing: 6) {
             Image("KaspaLogo")
@@ -1504,11 +1506,6 @@ struct ChatListView: View {
             Haptics.success()
             showToast("Balance copied to clipboard.")
         }
-    }
-
-    private func formatKaspaExact(_ sompi: UInt64) -> String {
-        let kas = Double(sompi) / 100_000_000.0
-        return String(format: "%.8f", kas)
     }
 
 
@@ -2230,7 +2227,12 @@ enum LinkSafePreview {
     }()
 
     static func apply(to text: String) -> String {
-        let key = "\(text.utf8.count)|\(text.prefix(24))" as NSString
+        // The whole text is the key (audit #21: "length + first 24 characters" showed one
+        // message's preview for another). A very long one is keyed by a hash of all of it, which
+        // costs far less than the link scan it saves.
+        let key: NSString = text.utf8.count <= 4_096
+            ? "t:\(text)" as NSString
+            : "h:\(text.utf8.count)|\(text.hashValue)" as NSString
         if let cached = cache.object(forKey: key) { return cached as String }
         let result = containsWebLink(text) ? sentALink : text
         cache.setObject(result as NSString, forKey: key)
@@ -2247,6 +2249,82 @@ enum LinkSafePreview {
             stop.pointee = true
         }
         return found
+    }
+}
+
+/// One public room in the Chats list, drawn like a chat row: a "#" avatar, the room name, the
+/// newest message and its time, a bell-off mark when notifications are off, and the unread
+/// count. Drawn from its summary alone (`PublicChatRoomSummary`), so it redraws only when that
+/// changes (audit #29), rather than observing the whole service.
+private struct ChatsRoomRow: View, Equatable {
+    let room: PublicChatRoomSummary
+    /// "You" or the sender's name, worked out by the list (which follows contacts' names).
+    let senderName: String?
+
+    private func timeText(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return SharedFormatting.chatTime.string(from: date) }
+        if calendar.isDateInYesterday(date) { return AppLocalization.string("Yesterday") }
+        return date.formatted(.dateTime.month(.abbreviated).day())
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color.accentColor.opacity(0.2))
+                .frame(width: 50, height: 50)
+                .overlay(
+                    Text(verbatim: "#")
+                        .font(.scaled(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.accentColor)
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(verbatim: "#\(room.displayName)")
+                        .font(.headline)
+                        .lineLimit(1)
+                    if !room.channel.notifyEnabled {
+                        Image(systemName: "bell.slash.fill")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .accessibilityLabel("Notifications off")
+                    }
+                    Spacer()
+                    if let blockTime = room.lastBlockTime {
+                        Text(timeText(Date(timeIntervalSince1970: TimeInterval(blockTime) / 1000)))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                HStack {
+                    if let preview = room.lastPreview {
+                        Text(verbatim: "\(senderName ?? ""): \(preview)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Text(AppLocalization.string("No messages yet"))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .italic()
+                    }
+                    Spacer()
+                    if room.unreadCount > 0 {
+                        Text(verbatim: "\(room.unreadCount)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 }
 

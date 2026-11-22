@@ -484,7 +484,9 @@ final class SharedDataManager {
         // which kept showing a deleted wallet's holdings on the Home Screen.
         for key in [Keys.chatRequestAddresses, Keys.chatBlockedAddresses, Keys.chatRequestsWallet,
                     "chat_request_notified", "chat_request_notified_v2",
+                    // ledgers of the local banners the app no longer posts: only cleared now
                     "chat_push_handled_txids", "group_push_handled_txids",
+                    "chat_local_posted_txids", "group_local_posted_txids", "kaposts_displayed_action_ids",
                     "last_push_payload", "last_push_sender", "last_push_tx_id", "last_push_type",
                     "last_push_decrypt_status",
                     Keys.groupSilentNotifications, Keys.groupMentionsOnlyNotifications, Keys.kaPostsNotificationKinds,

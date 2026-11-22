@@ -44,7 +44,6 @@ struct ChatInfoView: View {
     @State private var messageSent: Int = 0
     @State private var messageReceived: Int = 0
     @FocusState private var isEditing: Bool
-    private let qrContext = CIContext()
 
     /// A KaChat bot's User Info is only its name and its address: nobody to share or manage.
     private var isBot: Bool { KaChatBot.isBot(contact.address) }
@@ -134,9 +133,9 @@ struct ChatInfoView: View {
 
     /// The `.kachat` profile's pieces, each looked up from its social link on this device. They
     /// come first; the KNS ones are the fallback.
-    private var kachatAvatar: String? { socialImages.profile(for: kachatProfile?.avatar)?.avatar }
-    private var kachatBanner: String? { socialImages.profile(for: kachatProfile?.banner)?.banner }
-    private var kachatBio: String? { socialImages.profile(for: kachatProfile?.bio)?.bio }
+    private var kachatAvatar: String? { socialImages.openedProfile(for: kachatProfile?.avatar, address: contact.address)?.avatar }
+    private var kachatBanner: String? { socialImages.openedProfile(for: kachatProfile?.banner, address: contact.address)?.banner }
+    private var kachatBio: String? { socialImages.openedProfile(for: kachatProfile?.bio, address: contact.address)?.bio }
     /// On testnet identity is `.kachat` only: KNS pictures and bios aren't shown there.
     private var usesKNSProfile: Bool { !KachatNamesService.isEnabled }
 
@@ -549,7 +548,7 @@ struct ChatInfoView: View {
                 showToast(contact.address.addressCopiedToastText)
             } label: {
                 VStack(spacing: 12) {
-                    if let qrImage = makeQRCodeImage(from: contact.address) {
+                    if let qrImage = AddressReceiveView<EmptyView, EmptyView>.qrImage(for: contact.address) {
                         Image(uiImage: qrImage)
                             .interpolation(.none)
                             .resizable()
@@ -940,16 +939,6 @@ struct ChatInfoView: View {
         UIPasteboard.general.string = value
         Haptics.success()
         showToast(localizedFormat("%@ copied to clipboard.", fieldName))
-    }
-
-    private func makeQRCodeImage(from string: String) -> UIImage? {
-        let data = Data(string.utf8)
-        let filter = CIFilter.qrCodeGenerator()
-        filter.setValue(data, forKey: "inputMessage")
-        guard let output = filter.outputImage else { return nil }
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-        guard let cgImage = qrContext.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
     }
 }
 

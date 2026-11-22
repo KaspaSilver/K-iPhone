@@ -63,12 +63,13 @@ enum KachatLive {
     /// `KachatNamesRegistry` and `KachatSocialImageResolver`.
     @MainActor static func profileBanner(_ address: String) -> String? {
         let link = KachatNamesRegistry.shared.cachedIdentity(for: address)?.profile?.banner
-        return KachatSocialImageResolver.shared.profile(for: link)?.banner
+        // only a profile screen asks for the banner: the person opened it (audit 2026-11-21, #17)
+        return KachatSocialImageResolver.shared.openedProfile(for: link, address: address)?.banner
     }
 
     @MainActor static func profileBio(_ address: String) -> String? {
         let link = KachatNamesRegistry.shared.cachedIdentity(for: address)?.profile?.bio
-        return KachatSocialImageResolver.shared.profile(for: link)?.bio
+        return KachatSocialImageResolver.shared.openedProfile(for: link, address: address)?.bio
     }
 
     /// The registry parameters, once the manifest is verified.
@@ -698,7 +699,7 @@ struct KachatTxDoneSheet: View {
 
 }
 
-/// A name transaction's progress, followed on a node: sent, in a block, showing in KaPay. In the
+/// A name transaction's progress, followed on a node: sent, in a block, showing in K. In the
 /// receipt half sheet and on the swipe-up screen after a purchase.
 struct KachatTxStageSteps: View {
     let txId: String
@@ -3842,8 +3843,8 @@ enum KachatDeepLink {
     static var pendingMarketplace = false
 }
 
-/// This wallet's .kachat names that have expired and sit in their grace period, for Profile's
-/// banner (`KachatExpiredNamesBanner`): renew before grace ends, or anyone can claim them. A
+/// This wallet's .kachat names that have expired and sit in their grace period, for the Wallet
+/// tab's banner (`KachatExpiredNamesBanner`): renew before grace ends, or anyone can claim them. A
 /// dismissal (the X) is per name and expiry, so a name that expires again brings it back.
 @MainActor
 final class KachatExpiredNamesModel: ObservableObject {
@@ -3863,15 +3864,15 @@ final class KachatExpiredNamesModel: ObservableObject {
         let stored = Set(UserDefaults.standard.stringArray(forKey: storeKey) ?? [])
         if stored != dismissed { dismissed = stored }
         let registry = KachatNamesRegistry.shared
-        // Profile's own loads use five minutes too: a shorter window here refreshed in between
-        // and restarted every task on the Profile screen keyed on the registry's revision.
+        // Five minutes, as the other screens' loads: a shorter window here refreshed in between
+        // and restarted every task keyed on the registry's revision.
         await registry.refreshIfStale(maxAge: 300)
         let grace = registry.graceMs
         let now = KachatNames.nowMs()
         // a failed read keeps the banner as it is
         guard let owned = try? await registry.names(owner: me, includeInactive: true) else { return }
         let inGrace = owned.filter { $0.status(graceMs: grace, nowMs: now) == .grace }.sorted { $0.expiresAt < $1.expiresAt }
-        // assigned only on a change: each assignment redraws the whole Profile scroll
+        // assigned only on a change: each assignment redraws the whole Wallet scroll
         if inGrace != expired { expired = inGrace }
     }
 
@@ -3883,8 +3884,8 @@ final class KachatExpiredNamesModel: ObservableObject {
     }
 }
 
-/// Profile's banner while one of this wallet's .kachat names is in its grace period. Tapping it
-/// opens the name (renew is there); the X hides it.
+/// The Wallet tab's banner while one of this wallet's .kachat names is in its grace period.
+/// Tapping it opens the name (renew is there); the X hides it.
 struct KachatExpiredNamesBanner: View {
     @ObservedObject var model: KachatExpiredNamesModel
     @ObservedObject private var registry = KachatNamesRegistry.shared

@@ -416,11 +416,8 @@ struct KaPostsView: View {
     @State private var isLoadingMyProfilePosts = false
     @State private var myProfileRemoteReplies: [DraftPost] = []
     @State private var myProfileFeedTab: ProfileFeedTab = .posts
-    /// How far your profile's posts sit sideways while a Posts/Replies swipe moves them.
-    @State private var myProfileSlide: CGFloat = 0
     @State private var posterProfileReplies: [DraftPost] = []
     @State private var posterProfileFeedTab: ProfileFeedTab = .posts
-    @State private var posterProfileSlide: CGFloat = 0
     /// Paging state for the four profile feeds (own Posts/Replies, poster Posts/Replies) and
     /// for every open reply thread (keyed by the thread root's local id - the detail sheet's
     /// comment list and each inline "View N replies" chain each get their own).
@@ -498,38 +495,31 @@ struct KaPostsView: View {
         let id: UUID
     }
 
-    /// Left slide-out menu entries - all coming-soon placeholders for now.
+    /// The feed's hamburger menu entries, each opened full screen from the feed.
+    /// No Profile and no Settings: your profile is the dock's Profile tab, and KaPost's settings
+    /// are in the dock's Settings > KaPost (owner's calls, 2026-11-21). No Notifications either:
+    /// every notification is behind Profile's bell (2026-11-21).
     enum SideMenuItem: String, CaseIterable, Identifiable {
-        case profile = "Profile"
         case search = "Search"
-        case notifications = "Notifications"
         case drafts = "Drafts"
         case bookmarks = "Bookmarks"
         case muted = "Muted"
         case blocked = "Blocked"
         case scheduled = "Scheduled"
-        case settings = "Settings"
 
         var id: String { rawValue }
         var icon: String {
             switch self {
-            case .profile: return "person.crop.circle"
             case .search: return "magnifyingglass"
-            case .notifications: return "bell"
             case .drafts: return "square.and.pencil"
             case .bookmarks: return "bookmark"
             case .muted: return "speaker.slash"
             case .blocked: return "hand.raised"
             case .scheduled: return "clock"
-            case .settings: return "gearshape"
             }
         }
 
-        /// What the feed's hamburger menu lists. KaPost has Profile, Notifications and Settings
-        /// as dock tabs; in KaChat, KaPosts is one tab, so they are here (as before the split).
-        /// No Profile and no Settings: your profile is the dock's Profile tab, and KaPosts' settings
-        /// are in the dock's Settings > KaPosts (owner's calls, 2026-11-21).
-        /// No Notifications either: every notification is behind Profile's bell (2026-11-21).
+        /// What the feed's hamburger menu lists, in order.
         static let feedMenu: [SideMenuItem] = [.search, .drafts, .bookmarks, .muted, .blocked, .scheduled]
     }
 
@@ -546,13 +536,20 @@ struct KaPostsView: View {
     @State private var draftSourceFailedId: String?
     /// Why the Scheduled screen's Cancel didn't, with the post still scheduled.
     @State private var scheduledCancelError: String?
-    @ObservedObject private var draftStore = KaPostsDraftStore.shared
-    @ObservedObject private var scheduledStore = KaPostsScheduledStore.shared
+    // Two KaPostsView roots stay alive (Profile and the KaPost feed), so everything observed
+    // here re-runs both whole bodies when it changes (audit 2026-11-21 #32). Stores only one
+    // sheet shows are read through `KaPostsObserving` in that sheet instead, and the wallet
+    // (whose balance changes often) is read without observing it.
+    private var draftStore: KaPostsDraftStore { .shared }
+    private var scheduledStore: KaPostsScheduledStore { .shared }
     @ObservedObject private var knsService = KNSService.shared
     @ObservedObject private var followStore = KaPostsFollowStore.shared
     @ObservedObject private var bookmarkStore = KaPostsBookmarkStore.shared
     @ObservedObject private var moderationStore = KaPostsModerationStore.shared
-    @EnvironmentObject private var walletManager: WalletManager
+    /// Not observed: every balance refresh re-ran both roots. The reply bar's zero-balance look
+    /// observes it alone (`KaPostZeroBalanceGate`), account switches arrive through
+    /// `KaPostsWalletSwitchWatcher`, and the rest only read it inside actions.
+    private var walletManager: WalletManager { WalletManager.shared }
     @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @Environment(\.openURL) private var openURL
 
@@ -660,16 +657,6 @@ struct KaPostsView: View {
                     )
                 case .scheduled:
                     scheduledSheet
-                case .profile:
-                    // KaPost's Profile tab
-                    KaPostsView(rootMode: .myProfile)
-                case .notifications:
-                    KaPostsNotificationsView()
-                        // Opening the list IS seeing them - cleared on appear rather than on
-                        // dismiss, so the badge does not sit there while you read.
-                        .onAppear { KaPostsNotificationCenter.shared.markAllSeen() }
-                case .settings:
-                    KaPostsSettingsView(onClose: { menuSheet = nil })
                 }
             }
             // Quote from a Bookmarks / my-Profile cell: presented from INSIDE this sheet,
@@ -894,10 +881,6 @@ struct KaPostsView: View {
             if KaPostsDeepLink.pendingOpenScheduled {
                 KaPostsDeepLink.pendingOpenScheduled = false
                 kaPostsPresent { menuSheet = .scheduled }
-            } else if KaPostsDeepLink.pendingOpenNotifications {
-                // A tapped KaPosts push that names no post: the Notifications screen.
-                KaPostsDeepLink.pendingOpenNotifications = false
-                kaPostsPresent { menuSheet = .notifications }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openKaPost)) { notification in
@@ -907,20 +890,14 @@ struct KaPostsView: View {
                 Task { await openSharedPost(txId: txId) }
                 return
             }
-            // Push-tap variants: a pending post id or the Scheduled screen (the Notifications
-            // tab is the dock's, see KaPostsTabView).
+            // Push-tap variants: a pending post id or the Scheduled screen (notifications are
+            // behind Profile's bell, `NotificationsRoute`).
             if let pending = KaPostsDeepLink.pendingPostTxId {
                 KaPostsDeepLink.pendingPostTxId = nil
                 Task { await openSharedPost(txId: pending) }
             } else if KaPostsDeepLink.pendingOpenScheduled {
                 KaPostsDeepLink.pendingOpenScheduled = false
                 kaPostsPresent { menuSheet = .scheduled }
-            } else if KaPostsDeepLink.pendingOpenNotifications {
-                KaPostsDeepLink.pendingOpenNotifications = false
-                // After the tab switch has landed, as for a profile below.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    kaPostsPresent { menuSheet = .notifications }
-                }
             } else {
                 presentPendingComposeLink()
             }
@@ -980,7 +957,9 @@ struct KaPostsView: View {
                 if !myProfileRemotePosts.isEmpty { await reloadMyProfileIfStale() }
             }
         }
-        .onChange(of: walletManager.currentWallet?.publicAddress) { _ in
+        // Account switches, watched by a tiny view of their own so the wallet's other changes
+        // (the balance) don't re-run this body.
+        .background(KaPostsWalletSwitchWatcher {
             // Account switch: every surface's cursor belongs to the old identity (K responses
             // are decorated per requesterPubkey), so drop the lot and start over. The epoch
             // bumps make any in-flight page drop its result instead of appending.
@@ -1009,7 +988,7 @@ struct KaPostsView: View {
             if rootMode == .feed {
                 Task { await loadFeed() }
             }
-        }
+        })
     }
 
     // MARK: - Feed tabs (mirrors ChatListView.chatsTopTabBar)
@@ -1294,6 +1273,9 @@ struct KaPostsView: View {
                     guard UIApplication.shared.applicationState == .active else { continue }
                     // Each feed page carries this task; only the one on screen asks.
                     guard selectedFeed == tab else { continue }
+                    // Kaspa Hub keeps KaPost alive (hidden) once left, so the task isn't torn
+                    // down there: it asks only while KaPost is the screen showing.
+                    guard rootMode != .feed || popularSweep.dockOnFeed else { continue }
                     await checkForNewPosts()
                 }
             }
@@ -1965,9 +1947,9 @@ struct KaPostsView: View {
             var counts = poll.counts ?? Array(repeating: 0, count: options.count)
             if counts.count < options.count { counts += Array(repeating: 0, count: options.count - counts.count) }
             mapped.poll = KaPostPoll(
-                options: options, counts: Array(counts.prefix(options.count)),
+                options: options, counts: Array(counts.prefix(options.count)).map(KaPostPoll.clampedCount),
                 closesAt: Date(timeIntervalSince1970: TimeInterval(poll.closesAt) / 1000),
-                myVote: poll.myVote
+                myVote: poll.myVote.flatMap { (0..<options.count).contains($0) ? $0 : nil }
             )
         }
         if let quote = post.quote,
@@ -2778,6 +2760,8 @@ struct KaPostsView: View {
         /// How many probes may be on the wire at once. One flick through a fresh feed reveals
         /// dozens of rows, and each used to fire its request immediately.
         static let maxInFlight = 4
+        /// How long a row must stay on screen before its probe is sent.
+        static let probeDwellNanos: UInt64 = 600_000_000
 
         /// Loaded lazily, on first use: reading a couple of thousand ids out of UserDefaults
         /// before any probe needs them would be a cost of its own.
@@ -2859,11 +2843,18 @@ struct KaPostsView: View {
 
     /// Cheap feed probe, run once per commented post as its cell appears: fetch the first reply
     /// page and check for a self-authored reply (X's own "Show this thread" heuristic).
+    /// Deduped and cached across launches (`ThreadProbeClaims`: one ask per post, its answer kept
+    /// for as long as the post has existed, up to a day), at most `maxInFlight` at once, and only
+    /// for a row that stays on screen `probeDwellNanos`: a fling past fifty rows asks nothing.
+    /// The indexer has no batched replies read to fold these into one request.
     private func probeThreadRoot(_ post: DraftPost) async {
         guard let remoteId = post.remoteId,
               !post.isLocalThreadRoot,
               commentCount(of: post) > 0,
               !threadProbeClaims.isSettled(remoteId) else { return }
+        // A row scrolled past (its `.task` cancelled) during the wait asks nothing.
+        try? await Task.sleep(nanoseconds: ThreadProbeClaims.probeDwellNanos)
+        guard !Task.isCancelled, !threadProbeClaims.isSettled(remoteId) else { return }
         // claim, so one post isn't probed twice while its answer holds
         threadProbeClaims.claim(remoteId, answerLifetime: ThreadProbeClaims.noThreadAnswerLifetime(
             postAge: Date().timeIntervalSince(post.timestamp)
@@ -4636,7 +4627,6 @@ struct KaPostsView: View {
             // their scrolling, which is exactly what puts the header outside them.
             profileFeedPage(
                 items: myProfileFeedTab == .posts ? myPosts : myProfileRemoteReplies,
-                slideOffset: myProfileSlide,
                 isLoading: isLoadingMyProfilePosts,
                 emptyIcon: myProfileFeedTab == .posts ? "square.and.pencil" : "bubble.left",
                 emptyTitle: myProfileFeedTab == .posts ? "No posts yet" : "No replies yet",
@@ -4780,7 +4770,7 @@ struct KaPostsView: View {
                 cell: { post in myProfileCell(post) }
             )
             // slide left or right to change between Posts and Replies (owner's call, 2026-11-21)
-            .modifier(ProfileTabSwipe(selection: $myProfileFeedTab, offset: $myProfileSlide))
+            .modifier(ProfileTabSwipe(selection: $myProfileFeedTab))
             // Banner starts BELOW the bar rather than ignoring the top safe area: it
             // used to run under the notch and under the dot/balance/Done row,
             // leaving the profile's own chrome sitting on top of an image.
@@ -4917,7 +4907,6 @@ struct KaPostsView: View {
             // One scroll for the whole page - see myProfileSheet's note.
             profileFeedPage(
                 items: posterProfileFeedTab == .posts ? posterProfilePosts : posterProfileReplies,
-                slideOffset: posterProfileSlide,
                 isLoading: isLoadingPosterProfile,
                 emptyIcon: posterProfileFeedTab == .posts ? "square.and.pencil" : "bubble.left",
                 emptyTitle: posterProfileFeedTab == .posts ? "No posts yet" : "No replies yet",
@@ -5051,7 +5040,7 @@ struct KaPostsView: View {
                 },
                 cell: { post in posterProfileCell(post) }
             )
-            .modifier(ProfileTabSwipe(selection: $posterProfileFeedTab, offset: $posterProfileSlide))
+            .modifier(ProfileTabSwipe(selection: $posterProfileFeedTab))
             // Banner starts BELOW the bar rather than ignoring the top safe area: it
             // used to run under the notch and under the dot/balance/Done row,
             // leaving the profile's own chrome sitting on top of an image.
@@ -5182,7 +5171,11 @@ struct KaPostsView: View {
                 instantTipFailed(String(format: AppLocalization.string("Tip didn't send: there is no recent KAS price to turn %@ into KAS."), fiatText))
                 return
             }
-            let sompi = UInt64((fiat / price * 100_000_000).rounded())
+            // Checked conversion: a huge saved amount at a tiny price would trap `UInt64(_:)`.
+            guard let sompi = KaPostsSettingsView.sompi(fiat: fiat, price: price) else {
+                tipTarget = TipTarget(address: address, tip: target, failure: KaPostsSettingsView.instantTipLimitNotice)
+                return
+            }
             guard sompi >= KaPostsSettingsView.instantTipMinimumSompi else {
                 instantTipTooSmall()
                 return
@@ -5334,9 +5327,6 @@ struct KaPostsView: View {
     /// each tab's scroll position survives swiping between them.
     private func profileFeedPage<Header: View, Cell: View>(
         items: [DraftPost],
-        /// Sideways shift of everything under the header, so a Posts/Replies swipe slides the
-        /// posts out and the other tab's in (`ProfileTabSwipe`); the header stays put.
-        slideOffset: CGFloat = 0,
         isLoading: Bool,
         emptyIcon: String,
         emptyTitle: String,
@@ -5353,11 +5343,15 @@ struct KaPostsView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 header()
-                Group {
+                // Everything under the header slides sideways during a Posts/Replies swipe
+                // (`ProfileTabSwipe`): each row moves itself (`ProfileSlides`), so a drag frame
+                // redraws those small wrappers, never this whole view; the header stays put.
+                // Applied row by row, not around the group, so the LazyVStack stays lazy.
                 if items.isEmpty, isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 40)
+                        .modifier(ProfileSlides())
                 } else if items.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: emptyIcon)
@@ -5373,21 +5367,23 @@ struct KaPostsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
+                    .modifier(ProfileSlides())
                 } else {
                     let triggerId = kaPostsPrefetchTriggerId(items)
                     ForEach(items) { post in
                         cell(post)
+                            .modifier(ProfileSlides())
                             .onAppear {
                                 guard post.id == triggerId else { return }
                                 onLoadMore()
                             }
                         Divider()
                             .padding(.leading, 68)
+                            .modifier(ProfileSlides())
                     }
                     KaPostsLoadMoreFooter(state: pageState, onLoadMore: onRetryLoadMore)
+                        .modifier(ProfileSlides())
                 }
-                }
-                .offset(x: slideOffset)
             }
         }
         .refreshable { await onRefresh() }
@@ -5570,10 +5566,13 @@ struct KaPostsView: View {
                     let txId = try await KaPostsAPIClient.shared.submitPollVote(pollId: remoteId, optionIndex: option, expectedOwner: owner)
                     mutatePost(id: post.id) { target in
                         guard var current = target.poll else { return }
-                        if let previous = current.myVote, previous < current.counts.count {
+                        // Counts come from the indexer: never trust them to be in range.
+                        if let previous = current.myVote, previous >= 0, previous < current.counts.count {
                             current.counts[previous] = max(0, current.counts[previous] - 1)
                         }
-                        if option < current.counts.count { current.counts[option] += 1 }
+                        if option >= 0, option < current.counts.count {
+                            current.counts[option] = KaPostPoll.clampedCount(current.counts[option] + 1)
+                        }
                         current.myVote = option
                         target.poll = current
                     }
@@ -5645,6 +5644,7 @@ struct KaPostsView: View {
 
     private var scheduledSheet: some View {
         NavigationStack {
+            KaPostsObserving(scheduledStore) {
             Group {
                 if scheduledStore.entries.isEmpty {
                     VStack(spacing: 12) {
@@ -5705,6 +5705,7 @@ struct KaPostsView: View {
                     }
                 }
             }
+            }
             .navigationTitle("Scheduled")
             .navigationBarTitleDisplayMode(.inline)
             .kaPostsStatusChrome()
@@ -5753,6 +5754,7 @@ struct KaPostsView: View {
 
     private var draftsSheet: some View {
         NavigationStack {
+            KaPostsObserving(draftStore) {
             Group {
                 if draftStore.drafts.isEmpty {
                     VStack(spacing: 12) {
@@ -5798,6 +5800,7 @@ struct KaPostsView: View {
                     }
                     .listStyle(.plain)
                 }
+            }
             }
             .navigationTitle("Drafts")
             .navigationBarTitleDisplayMode(.inline)
@@ -6084,19 +6087,7 @@ struct KaPostsView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .grayscale(walletManager.hasConfirmedZeroChattingBalance ? 1 : 0)
-                    .opacity(walletManager.hasConfirmedZeroChattingBalance ? 0.45 : 1)
-                    .overlay {
-                        if walletManager.hasConfirmedZeroChattingBalance {
-                            Color.clear
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    Haptics.impact(.light)
-                                    showReplyFundingSheet = true
-                                }
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.25), value: walletManager.hasConfirmedZeroChattingBalance)
+                    .modifier(KaPostZeroBalanceGate { showReplyFundingSheet = true })
                 }
                 .navigationTitle("Post")
                 .navigationBarTitleDisplayMode(.inline)
@@ -6168,7 +6159,19 @@ struct KaPostPoll: Equatable {
     /// post's time grew it on every retry: the retry moves closesAt, the post's time stays.)
     var length: TimeInterval? = nil
 
-    var total: Int { counts.reduce(0, +) }
+    /// Most votes one option is shown with. Counts come from the indexer, so a wild or negative
+    /// number is clamped here rather than trusted (a sum past `Int.max` traps).
+    static let maxCount = 1_000_000_000
+
+    static func clampedCount(_ count: Int) -> Int { min(max(count, 0), maxCount) }
+
+    /// All votes, summed without overflow (each count clamped first).
+    var total: Int {
+        counts.reduce(0) { sum, count in
+            let (result, overflow) = sum.addingReportingOverflow(Self.clampedCount(count))
+            return overflow ? Int.max : result
+        }
+    }
     var isClosed: Bool { closesAt <= Date() }
 }
 
@@ -6223,8 +6226,9 @@ private struct KaPostPollCard: View {
     }
 
     private func resultRow(index: Int, option: String) -> some View {
-        let count = index < poll.counts.count ? poll.counts[index] : 0
-        let share = poll.total > 0 ? Double(count) / Double(poll.total) : 0
+        let count = index < poll.counts.count ? KaPostPoll.clampedCount(poll.counts[index]) : 0
+        let total = poll.total
+        let share = total > 0 ? min(1, Double(count) / Double(total)) : 0
         let mine = poll.myVote == index
         return ZStack(alignment: .leading) {
             GeometryReader { proxy in
@@ -6405,6 +6409,8 @@ private struct KaPostCellView: View {
            KaChatInternalLink.parse(link.url) == nil,
            KaPostLinkPreviewPolicy.allows(link.url) {
             webLink = link
+            // Its card's fetch, redirects and image are then held to the allow-lists.
+            KaPostLinkPreviewPolicy.markForPreview(link.url)
         }
         // The text as drawn: the post without the links drawn as cards.
         var text = displayed
@@ -7134,9 +7140,12 @@ private struct KaPostCellView: View {
     /// left inert - the card is itself a button through to the quoted post, and a tappable link
     /// inside it would compete with that.
     static func markdownPreview(_ text: String) -> AttributedString {
-        let key = text as NSString
+        // A card shows five lines at most, so only the start of the text is rendered: a
+        // 25,000-character quoted post isn't parsed in full on the main thread for every card.
+        let source = String(text.prefix(markdownPreviewMaxCharacters))
+        let key = source as NSString
         if let cached = markdownPreviewCache.object(forKey: key) { return cached.value }
-        let rendered = KaPostsMarkdown.render(text)
+        let rendered = KaPostsMarkdown.render(source)
         var attributed = AttributedString(rendered.text)
         if rendered.hasFormatting {
             applyMarkdownSpans(
@@ -7149,6 +7158,9 @@ private struct KaPostCellView: View {
         markdownPreviewCache.setObject(LinkifiedBox(attributed), forKey: key)
         return attributed
     }
+
+    /// How much of a quoted post's text a quote card renders.
+    static let markdownPreviewMaxCharacters = 1_200
 
     /// Same reasoning as `linkifiedCache`: a quote card re-rendered the markdown of its quoted
     /// post on every body pass. Keyed by source text.
@@ -7980,13 +7992,6 @@ private struct KaPostTipSheet: View {
 
     private var totalFeeSompi: UInt64? { builtFeeSompi }
 
-    private func trimmedKas(_ sompi: UInt64) -> String {
-        var text = String(format: "%.8f", Double(sompi) / 100_000_000.0)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return text
-    }
-
     private func go(to next: Step) {
         dismissSystemKeyboard()
         stepForward = next.rawValue > currentStep.rawValue
@@ -8224,7 +8229,7 @@ private struct KaPostTipSheet: View {
         if exceedsBalance { return AppLocalization.string("This is more than the address you're sending from holds.") }
         if usedMax && maxCapped { return maxCappedNote }
         guard let availableSompi else { return nil }
-        return KaspaUnit.label(String(format: AppLocalization.string("Available: %@ KAS"), locale: AppLocalization.locale, trimmedKas(availableSompi)))
+        return KaspaUnit.label(String(format: AppLocalization.string("Available: %@ KAS"), locale: AppLocalization.locale, formatKasTrimmed(availableSompi)))
     }
 
     /// "To <the poster>", so the amount step says where the tip goes.
@@ -8292,7 +8297,7 @@ private struct KaPostTipSheet: View {
                     Divider()
                     reviewRow("Total") {
                         if let amountSompi, let totalFeeSompi {
-                            Text(verbatim: "\(trimmedKas(amountSompi + totalFeeSompi)) \(KaspaUnit.symbol)")
+                            Text(verbatim: "\(formatKasTrimmed(amountSompi + totalFeeSompi)) \(KaspaUnit.symbol)")
                                 .fontWeight(.semibold)
                                 .monospacedDigit()
                         } else if isEstimatingFee || isEstimatingMax {
@@ -8314,7 +8319,7 @@ private struct KaPostTipSheet: View {
                     isEditingFee: $isEditingFee,
                     customFeeText: $customFeeText,
                     isEstimatingFee: isEstimatingFee,
-                    feeText: totalFeeSompi.map { "\(trimmedKas($0)) \(KaspaUnit.symbol)" },
+                    feeText: totalFeeSompi.map { "\(formatKasTrimmed($0)) \(KaspaUnit.symbol)" },
                     onStartEditing: startEditingFee,
                     onCommit: commitCustomFee,
                     coinControlSummary: coinControlSummary(manualUtxos),
@@ -8354,7 +8359,7 @@ private struct KaPostTipSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             if let amountSompi {
-                Text(verbatim: "\(trimmedKas(amountSompi)) \(KaspaUnit.symbol)")
+                Text(verbatim: "\(formatKasTrimmed(amountSompi)) \(KaspaUnit.symbol)")
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
@@ -8421,7 +8426,7 @@ private struct KaPostTipSheet: View {
 
     private func openFeeEditor() {
         guard let totalFeeSompi else { return }
-        feeDraft = trimmedKas(totalFeeSompi)
+        feeDraft = formatKasTrimmed(totalFeeSompi)
         go(to: .fee)
     }
 
@@ -8469,7 +8474,7 @@ private struct KaPostTipSheet: View {
 
     private func startEditingFee() {
         guard let totalFeeSompi else { return }
-        customFeeText = trimmedKas(totalFeeSompi)
+        customFeeText = formatKasTrimmed(totalFeeSompi)
         isEditingFee = true
     }
 
@@ -10735,15 +10740,14 @@ struct KaPostsFollowListView: View {
 }
 
 
-// MARK: - Notifications (side menu)
+// MARK: - Notifications (Profile's bell)
 
 /// Who did what to YOUR content, from the indexer's notification stream - likes, dislikes,
 /// replies, quotes/reposts, X-style. Identity is KNS-resolved from the actor's pubkey like
 /// everywhere else; muted/blocked actors are filtered out.
+/// Shown only behind Profile's bell (`AllNotificationsView`): the wallet's notifications mixed in
+/// by time, as a sheet with a large title and Done - no gear, no back arrow, no KaPosts status bar.
 struct KaPostsNotificationsView: View {
-    /// Profile's bell (`AllNotificationsView`): the wallet's notifications mixed in by time, as a
-    /// sheet with a large title and Done - no gear, no back arrow, no KaPosts status bar.
-    var allInOne = false
     @ObservedObject private var walletCenter = GlobalNotificationCenter.shared
     @Environment(\.dismiss) private var dismiss
     /// `.kachat` names, banners and bios (`KachatLive.identityName` and friends) land on their own.
@@ -10857,7 +10861,6 @@ struct KaPostsNotificationsView: View {
     /// stays right as the list grows.
     private func rows(_ visible: [Item]) -> [Row] {
         let posts = visible.map(Row.post)
-        guard allInOne else { return posts }
         var wallet = walletCenter.entries.map(Row.wallet)
         if page.hasMore, page.errorMessage == nil, let oldest = visible.map(\.timestamp).min() {
             wallet = wallet.filter { $0.date >= oldest }
@@ -10867,34 +10870,14 @@ struct KaPostsNotificationsView: View {
 
     var body: some View {
         NavigationStack {
-            if allInOne {
-                listContent
-                    .navigationTitle("Notifications")
-                    .navigationBarTitleDisplayMode(.large)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { dismiss() }
-                        }
+            listContent
+                .navigationTitle("Notifications")
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
                     }
-            } else {
-                listContent
-                    .kaPostsFixedTitle("Notifications")
-                    .navigationTitle("Notifications")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .kaPostsStatusChrome()
-                    // What notifies you: push on or off, the KaPosts kinds, sound. Top left (the dot has
-                    // the right); pushed inside this tab, so the dock stays underneath.
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            NavigationLink {
-                                NotificationsHubPage()
-                            } label: {
-                                Image(systemName: "gearshape")
-                            }
-                            .accessibilityLabel("Notification Settings")
-                        }
-                    }
-            }
+                }
         }
     }
 
@@ -10959,13 +10942,9 @@ struct KaPostsNotificationsView: View {
     /// itself, or your post for a like, repost or tip), on the Feed tab. A follow has no post,
     /// so it opens the follower's profile.
     private func open(_ item: Item) {
-        if allInOne {
-            // the sheet closes first, then the post or profile opens on the KaPosts tab
-            dismiss()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { route(item) }
-        } else {
-            route(item)
-        }
+        // the sheet closes first, then the post or profile opens on the KaPosts tab
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { route(item) }
     }
 
     private func route(_ item: Item) {
@@ -10983,7 +10962,7 @@ struct KaPostsNotificationsView: View {
     private static let relativeTimeFormat = Date.RelativeFormatStyle(presentation: .named)
 
     /// A wallet notification (Kaspa or kUSDT received), drawn like the KaPosts rows; it opens
-    /// what the Wallet's own list opened.
+    /// the address or token it is about (`GlobalNotificationCenter.open`).
     private func walletRow(_ entry: GlobalNotificationCenter.Entry) -> some View {
         HStack(alignment: .top, spacing: 12) {
             ZStack {
@@ -11023,7 +11002,7 @@ struct KaPostsNotificationsView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             Haptics.impact(.light)
-            GlobalNotificationListView.open(entry) { dismiss() }
+            GlobalNotificationCenter.open(entry) { dismiss() }
         }
     }
 
@@ -11093,9 +11072,7 @@ struct KaPostsNotificationsView: View {
                 .foregroundColor(.secondary)
             Text("Nothing yet")
                 .font(.headline)
-            Text(allInOne
-                 ? LocalizedStringKey("When someone likes, replies to or shares your posts, or Kaspa or kUSDT arrives in your wallet, it shows up here.")
-                 : LocalizedStringKey("When someone likes, replies to or shares your posts, it shows up here."))
+            Text("When someone likes, replies to or shares your posts, or Kaspa or kUSDT arrives in your wallet, it shows up here.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -11850,17 +11827,126 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
     }
 }
 
+/// Redraws `content` when `object` changes. KaPostsView reads a store a single sheet shows
+/// through this instead of observing it itself, so the store's changes redraw that sheet, not
+/// the whole KaPost screen twice over (Profile and the feed are both KaPostsView roots).
+private struct KaPostsObserving<Object: ObservableObject, Content: View>: View {
+    @ObservedObject private var object: Object
+    private let content: () -> Content
+
+    init(_ object: Object, @ViewBuilder content: @escaping () -> Content) {
+        _object = ObservedObject(wrappedValue: object)
+        self.content = content
+    }
+
+    var body: some View { content() }
+}
+
+/// Calls `onSwitch` when the account changes (after the new one is stored, as `onChange` does).
+/// Observes the wallet so KaPostsView doesn't have to: a balance change redraws only this.
+private struct KaPostsWalletSwitchWatcher: View {
+    @ObservedObject private var wallet = WalletManager.shared
+    let onSwitch: () -> Void
+
+    init(onSwitch: @escaping () -> Void) {
+        self.onSwitch = onSwitch
+    }
+
+    var body: some View {
+        Color.clear
+            .allowsHitTesting(false)
+            .onChange(of: wallet.currentWallet?.publicAddress) { _ in onSwitch() }
+    }
+}
+
+/// The reply bar's zero-balance look: greyed out, and a tap offers funding instead of sending.
+/// Observes the wallet itself, so a balance change redraws this bar only.
+private struct KaPostZeroBalanceGate: ViewModifier {
+    @ObservedObject private var wallet = WalletManager.shared
+    let onBlockedTap: () -> Void
+
+    init(onBlockedTap: @escaping () -> Void) {
+        self.onBlockedTap = onBlockedTap
+    }
+
+    func body(content: Content) -> some View {
+        let blocked = wallet.hasConfirmedZeroChattingBalance
+        return content
+            .grayscale(blocked ? 1 : 0)
+            .opacity(blocked ? 0.45 : 1)
+            .overlay {
+                if blocked {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            Haptics.impact(.light)
+                            onBlockedTap()
+                        }
+                }
+            }
+            .animation(.easeInOut(duration: 0.25), value: blocked)
+    }
+}
+
+/// Where a profile's posts sit sideways during a Posts/Replies swipe. Held by `ProfileTabSwipe`
+/// (not observed there) and handed down the environment, so the only view that redraws as it
+/// changes is `ProfileSlideOffset`, around each row under the header. It used to be `@State` on KaPostsView,
+/// which re-ran that whole 12,000-line body, re-sorting the posts and rebuilding the header,
+/// on every frame of a drag (audit 2026-11-21 #27).
+final class ProfileSlideModel: ObservableObject {
+    @Published var offset: CGFloat = 0
+}
+
+private struct ProfileSlideModelKey: EnvironmentKey {
+    static let defaultValue: ProfileSlideModel? = nil
+}
+
+extension EnvironmentValues {
+    var profileSlideModel: ProfileSlideModel? {
+        get { self[ProfileSlideModelKey.self] }
+        set { self[ProfileSlideModelKey.self] = newValue }
+    }
+}
+
+/// Moves one row under a profile's header by `ProfileSlideModel.offset`. Without a
+/// `ProfileTabSwipe` above it, the row just sits still.
+struct ProfileSlides: ViewModifier {
+    @Environment(\.profileSlideModel) private var model
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let model {
+            ProfileSlideOffset(model: model, content: content)
+        } else {
+            content
+        }
+    }
+}
+
+/// The only views that observe the slide: each body is just its row's offset.
+private struct ProfileSlideOffset<Content: View>: View {
+    @ObservedObject var model: ProfileSlideModel
+    let content: Content
+
+    var body: some View {
+        content.offset(x: model.offset)
+    }
+}
+
 /// A profile's Posts and Replies, changed by sliding a finger left or right anywhere on the page
 /// (owner's call, 2026-11-21). The page is one scroll (the header travels up with the posts), so
-/// the posts under the header move with the finger (`offset`) instead of a pager: let go far
-/// enough (or flick) and they slide off while the other tab's slide in from the other side;
-/// otherwise they settle back. An up-and-down scroll never moves them sideways. A tap on the
-/// tab bar slides the new tab in the same way (owner, 2026-11-21: "it's like loading the post in
-/// every time I swipe").
+/// the posts under the header move with the finger (`ProfileSlideModel`, drawn row by row by
+/// `ProfileSlides`) instead of a pager: let go far enough (or flick) and they slide off
+/// while the other tab's slide in from the other side; otherwise they settle back. An
+/// up-and-down scroll never moves them sideways. A tap on the tab bar slides the new tab in the
+/// same way (owner, 2026-11-21: "it's like loading the post in every time I swipe"). The drag
+/// lives here and in the model; the page only learns the tab once it changes.
 struct ProfileTabSwipe: ViewModifier {
     @Binding var selection: KaPostsView.ProfileFeedTab
-    @Binding var offset: CGFloat
 
+    /// A reference kept in `@State` and deliberately NOT observed here: its changes redraw
+    /// `ProfileSlideOffset` alone.
+    @State private var model = ProfileSlideModel()
     @State private var width: CGFloat = 390
     /// nil until the drag picks a direction; true once it is clearly sideways
     @State private var horizontal: Bool?
@@ -11872,6 +11958,7 @@ struct ProfileTabSwipe: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .environment(\.profileSlideModel, model)
             .background(GeometryReader { geo in
                 Color.clear
                     .onAppear { width = max(geo.size.width, 1) }
@@ -11895,7 +11982,7 @@ struct ProfileTabSwipe: ViewModifier {
                         }
                         guard horizontal == true else { return }
                         // no tab that way: the posts give a little and stop
-                        offset = neighbor(dx < 0 ? 1 : -1) == nil ? dx / 4 : dx
+                        model.offset = neighbor(dx < 0 ? 1 : -1) == nil ? dx / 4 : dx
                     }
                     .onEnded { value in
                         defer { horizontal = nil }
@@ -11905,12 +11992,12 @@ struct ProfileTabSwipe: ViewModifier {
                         let step = dx < 0 ? 1 : -1
                         guard let next = neighbor(step),
                               abs(dx) > width * 0.25 || abs(flung) > width * 0.6 else {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { offset = 0 }
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { model.offset = 0 }
                             return
                         }
                         Haptics.impact(.light)
                         // slide this tab off toward the finger's side, then the next one in
-                        withAnimation(.easeIn(duration: 0.14)) { offset = step > 0 ? -width : width }
+                        withAnimation(.easeIn(duration: 0.14)) { model.offset = step > 0 ? -width : width }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
                             shown = next
                             var swap = Transaction()
@@ -11931,9 +12018,9 @@ struct ProfileTabSwipe: ViewModifier {
     private func slideIn(fromTrailing: Bool) {
         var place = Transaction()
         place.disablesAnimations = true
-        withTransaction(place) { offset = fromTrailing ? width : -width }
+        withTransaction(place) { model.offset = fromTrailing ? width : -width }
         DispatchQueue.main.async {
-            withAnimation(.easeOut(duration: 0.22)) { offset = 0 }
+            withAnimation(.easeOut(duration: 0.22)) { model.offset = 0 }
         }
     }
 }

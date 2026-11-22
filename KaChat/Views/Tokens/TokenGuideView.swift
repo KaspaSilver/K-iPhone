@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings > Help > kUSDT Guide: what kUSDT is and how KaPay handles it, a card per topic in the
+/// Settings > Help > kUSDT Guide: what kUSDT is and how K handles it, a card per topic in the
 /// style of the .kachat help (`KachatHelpView`). The texts it shares with the "Bridged by Trestly"
 /// sheet (`TokenAboutCard`) are the same strings.
 struct TokenGuideView: View {

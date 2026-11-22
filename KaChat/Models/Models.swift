@@ -2537,8 +2537,6 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
     /// Games (back 2026-11-21, from KaPlay): a card per game; Chess is online 1v1, tournaments
     /// and the bots.
     case games
-    /// The chess leaderboards (back 2026-11-21, from KaPlay): 1v1, tournaments and each bot.
-    case leaderboard
     /// KaChat Stats (back 2026-11-21, phase 5): how many transactions KaChat has put on Kaspa,
     /// by kind, as the indexers count them (STATS_INDEXER.md).
     case kachatStats
@@ -2562,7 +2560,6 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .kachatNames: return ".kachat"
         case .kaposts: return "KaPost"
         case .games: return "KaPlay"
-        case .leaderboard: return "Leaderboard"
         case .kachatStats: return "Stats"
         case .apps: return "Websites"
         }
@@ -2584,9 +2581,8 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .kachatNames: return "at"
         // KaPost's Feed and Public Chats tabs
         case .kaposts: return "square.text.square"
-        // KaPlay's Play and Leaderboard tabs
+        // KaPlay's Play tab (its leaderboards are inside Chess since 2026-11-22)
         case .games: return "gamecontroller"
-        case .leaderboard: return "trophy"
         case .kachatStats: return "chart.bar.xaxis"
         case .apps: return "globe"
         }
@@ -2605,7 +2601,6 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .kachatNames: return 12
         case .kaposts: return 5
         case .games: return 22
-        case .leaderboard: return 24
         // their tags from before they left (2026-10-24)
         case .kachatStats: return 13
         case .apps: return 9
@@ -2709,35 +2704,6 @@ enum KachatNameLabel {
 
     static func display(_ name: String) -> String {
         showsEnding ? "\(name).kachat" : name
-    }
-}
-
-/// How .kas names are shown and found in text. These lived on the KaPosts feed until KaPosts
-/// left the app (2026-10-24); group chats and the notification feed still use them.
-enum KasNameText {
-    /// A name as it is SHOWN: a KNS domain keeps its ".kas" everywhere in the app. Aliases pass
-    /// through as the user wrote them.
-    static func display(_ name: String) -> String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    /// Every @domain in `text`: "@" at a word boundary, lowercased, ".kas" suffix optional (and
-    /// dropped), each once, in order.
-    static func mentionDomains(in text: String) -> [String] {
-        let ns = text as NSString
-        guard let regex = try? NSRegularExpression(
-            pattern: "(^|[\\s(\\[{<\"'])@([a-z0-9-]+(?:\\.[a-z0-9-]+)*)",
-            options: [.caseInsensitive]
-        ) else { return [] }
-        var seen = Set<String>()
-        var out: [String] = []
-        regex.enumerateMatches(in: text, options: [], range: NSRange(location: 0, length: ns.length)) { match, _, _ in
-            guard let match = match, match.numberOfRanges >= 3 else { return }
-            var domain = ns.substring(with: match.range(at: 2)).lowercased()
-            if domain.hasSuffix(".kas") { domain = String(domain.dropLast(4)) }
-            if !domain.isEmpty, seen.insert(domain).inserted { out.append(domain) }
-        }
-        return out
     }
 }
 
@@ -2845,8 +2811,8 @@ struct AppSettings: Codable {
 
     var kaspaRestAPIURL: String
     /// Trestly's API (kusdt-open's coordinator): where kUSDT balances are looked up
-    /// (`/tokens?owner=`), each answer checked on the node. KaChat only reads it; buying and
-    /// swapping happen in KaPay.
+    /// (`/tokens?owner=`), each answer checked on the node. Buying and swapping happen on
+    /// Trestly's site (`trestlySiteURL`).
     var trestlyAPIURL: String
     /// Trestly's site, opened inside KaChat to swap stablecoins (Connection Settings > Trestly).
     var trestlySiteURL: String

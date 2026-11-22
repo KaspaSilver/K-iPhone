@@ -60,6 +60,84 @@ enum ColdStorageError: LocalizedError {
     }
 }
 
+/// Cold storage receive addresses, derived off the main thread and kept per kpub, network and
+/// index (audit 2026-11-21 #34). An address is two elliptic-curve steps; Discover wants a thousand
+/// at once, and every list load derived the whole list again on the main thread. Now each one is
+/// derived once per launch, and the bulk work runs on a background thread. A lock rather than an
+/// actor, so a single lookup (`ColdStorageManager.address(for:at:)`) can still answer at once.
+final class ColdStorageAddressCache: @unchecked Sendable {
+    static let shared = ColdStorageAddressCache()
+
+    private struct ChainKey: Hashable {
+        let kpub: String
+        let network: NetworkType
+    }
+
+    private let lock = NSLock()
+    /// Each kpub's receive chain key (kpub -> 0), the step every address shares.
+    private var receiveChains: [String: KaspaExtendedPublicKey] = [:]
+    private var derivedByChain: [ChainKey: [UInt32: String]] = [:]
+
+    private init() {}
+
+    /// The receive addresses at `indices`, in order, on the calling thread. With `stopOnFailure`
+    /// the list ends at the first index that can't be derived; otherwise that index is skipped.
+    func addresses(kpub: String, network: NetworkType, indices: Range<UInt32>, stopOnFailure: Bool) -> [(UInt32, String)] {
+        guard !indices.isEmpty, let chain = receiveChain(kpub: kpub) else { return [] }
+        let key = ChainKey(kpub: kpub, network: network)
+        lock.lock()
+        let known = derivedByChain[key] ?? [:]
+        lock.unlock()
+
+        var result: [(UInt32, String)] = []
+        result.reserveCapacity(indices.count)
+        var derived: [UInt32: String] = [:]
+        for index in indices {
+            if let address = known[index] {
+                result.append((index, address))
+            } else if let child = try? chain.deriveChild(index: index) {
+                let address = child.address(network: network)
+                derived[index] = address
+                result.append((index, address))
+            } else if stopOnFailure {
+                break
+            }
+        }
+        if !derived.isEmpty {
+            lock.lock()
+            derivedByChain[key, default: [:]].merge(derived) { old, _ in old }
+            lock.unlock()
+        }
+        return result
+    }
+
+    /// One receive address (nil when the kpub or the index can't be derived).
+    func address(kpub: String, network: NetworkType, index: UInt32) -> String? {
+        guard index < UInt32.max else { return nil }
+        return addresses(kpub: kpub, network: network, indices: index..<(index + 1), stopOnFailure: true).first?.1
+    }
+
+    /// `addresses(kpub:network:indices:stopOnFailure:)` on a background thread, for the bulk asks.
+    func addressesInBackground(kpub: String, network: NetworkType, indices: Range<UInt32>, stopOnFailure: Bool) async -> [(UInt32, String)] {
+        await Task.detached(priority: .userInitiated) {
+            self.addresses(kpub: kpub, network: network, indices: indices, stopOnFailure: stopOnFailure)
+        }.value
+    }
+
+    private func receiveChain(kpub: String) -> KaspaExtendedPublicKey? {
+        lock.lock()
+        let cached = receiveChains[kpub]
+        lock.unlock()
+        if let cached { return cached }
+        guard let key = KaspaExtendedPublicKey(kpubString: kpub),
+              let chain = try? key.deriveChild(index: 0) else { return nil }
+        lock.lock()
+        receiveChains[kpub] = chain
+        lock.unlock()
+        return chain
+    }
+}
+
 /// Manages watch-only "cold storage" accounts imported via kpub extended public key
 /// (e.g. exported from a KasSigner hardware device). Storage here is intentionally
 /// separate from WalletManager/KeychainService — a kpub contains no private key or
@@ -72,6 +150,9 @@ final class ColdStorageManager: ObservableObject {
     @Published private(set) var accounts: [ColdStorageAccount] = []
 
     private let legacyStorageKey = "kachat_cold_storage_accounts"
+    /// Bumped whenever an account's hidden addresses change: receive notifications watch only the
+    /// addresses an account shows (`AddressActivityNotifier`).
+    private(set) var hiddenRevision = 0
     private let storageKeyPrefix = "kachat_cold_storage_accounts_"
     private var activeWalletAddress: String?
 
@@ -90,6 +171,7 @@ final class ColdStorageManager: ObservableObject {
         guard activeWalletAddress != normalizedAddress else { return }
         activeWalletAddress = normalizedAddress
         accounts = normalizedAddress == nil ? [] : loadAccounts()
+        AddressActivityNotifier.shared.coldStorageAccountsChanged()
     }
 
     private func normalizeWalletAddress(_ walletAddress: String?) -> String? {
@@ -174,16 +256,19 @@ final class ColdStorageManager: ObservableObject {
     /// sequential "used" scan below) since this is only balance lookups against a gRPC node,
     /// not the REST call that was previously implicated in rate-limit-driven false "used" results.
     func getAddressList(for account: ColdStorageAccount) async -> [ColdStorageAddressEntry] {
-        guard let extendedKey = KaspaExtendedPublicKey(kpubString: account.kpubString) else { return [] }
+        guard KaspaExtendedPublicKey(kpubString: account.kpubString) != nil else { return [] }
         let network = AppSettings.load().networkType
         let labels = loadAddressLabels(accountId: account.id)
         let hidden = loadHiddenIndices(accountId: account.id)
 
+        // Off the main thread, and only the indices not derived before (audit 2026-11-21 #34).
         var addressesByIndex: [Int: String] = [:]
-        for index in 0...account.maxAddressIndex {
-            if let address = try? extendedKey.receiveAddress(at: UInt32(index), network: network) {
-                addressesByIndex[index] = address
-            }
+        let derived = await ColdStorageAddressCache.shared.addressesInBackground(
+            kpub: account.kpubString, network: network,
+            indices: 0..<(UInt32(max(account.maxAddressIndex, 0)) + 1), stopOnFailure: false
+        )
+        for (index, address) in derived {
+            addressesByIndex[Int(index)] = address
         }
 
         let allAddresses = Array(addressesByIndex.values)
@@ -239,7 +324,7 @@ final class ColdStorageManager: ObservableObject {
         gapLimit: Int = 60,
         onProgress: (@MainActor (DiscoveryProgress) -> Void)? = nil
     ) async -> Int {
-        guard let extendedKey = KaspaExtendedPublicKey(kpubString: account.kpubString) else {
+        guard KaspaExtendedPublicKey(kpubString: account.kpubString) != nil else {
             return account.maxAddressIndex
         }
         let network = AppSettings.load().networkType
@@ -285,12 +370,11 @@ final class ColdStorageManager: ObservableObject {
         // only about addresses the chain says were touched, and so is KNS. A balance or a domain
         // cannot sit on an address that has never been touched, so the filter loses nothing, and
         // the ~200 sequential lookups become a handful of concurrent ones.
-        var derivedWindow: [(UInt32, String)] = []
-        for i in 0..<Self.maxScanIndex {
-            guard let address = try? extendedKey.receiveAddress(at: i, network: network) else { break }
-            derivedWindow.append((i, address))
-            if derivedWindow.count >= Int(Self.deepScanFloor) { break }
-        }
+        // Derived off the main thread and kept, so the list loads after this one derive nothing.
+        let derivedWindow = await ColdStorageAddressCache.shared.addressesInBackground(
+            kpub: account.kpubString, network: network,
+            indices: 0..<min(Self.deepScanFloor, Self.maxScanIndex), stopOnFailure: true
+        )
         if let onProgress {
             let snapshot = DiscoveryProgress(checkingIndex: 0, foundCount: 0)
             await MainActor.run { onProgress(snapshot) }
@@ -346,11 +430,9 @@ final class ColdStorageManager: ObservableObject {
                     await MainActor.run { onProgress(snapshot) }
                 }
 
-                var derived: [(UInt32, String)] = []
-                for i in index..<upper {
-                    guard let address = try? extendedKey.receiveAddress(at: i, network: network) else { break }
-                    derived.append((i, address))
-                }
+                let derived = await ColdStorageAddressCache.shared.addressesInBackground(
+                    kpub: account.kpubString, network: network, indices: index..<upper, stopOnFailure: true
+                )
                 if derived.isEmpty { break }
 
                 guard let utxos = try? await NodePoolService.shared.getUtxosByAddresses(derived.map { $0.1 }) else {
@@ -491,9 +573,9 @@ final class ColdStorageManager: ObservableObject {
     /// Derives a single receive address on demand (used by the Address Visibility pager for
     /// rows beyond the derived chain). Returns nil on kpub/derivation failure.
     func address(for account: ColdStorageAccount, at index: Int) -> String? {
-        guard let extendedKey = KaspaExtendedPublicKey(kpubString: account.kpubString) else { return nil }
+        guard index >= 0 else { return nil }
         let network = AppSettings.load().networkType
-        return try? extendedKey.receiveAddress(at: UInt32(index), network: network)
+        return ColdStorageAddressCache.shared.address(kpub: account.kpubString, network: network, index: UInt32(index))
     }
 
     /// Hide variant with the same live-balance re-check the spending side does
@@ -603,6 +685,8 @@ final class ColdStorageManager: ObservableObject {
     private func saveHiddenIndices(_ indices: Set<Int>, accountId: UUID) {
         guard let data = try? JSONEncoder().encode(indices) else { return }
         UserDefaults.standard.set(data, forKey: hiddenIndicesKey(for: accountId))
+        hiddenRevision &+= 1
+        AddressActivityNotifier.shared.coldStorageAccountsChanged()
     }
 
     private func addressBalancesKey(for accountId: UUID) -> String {
@@ -634,6 +718,8 @@ final class ColdStorageManager: ObservableObject {
     }
 
     private func saveAccounts() {
+        // Receive notifications follow the accounts: a switch, a removal or a grown address list.
+        defer { AddressActivityNotifier.shared.coldStorageAccountsChanged() }
         guard let storageKey, let data = try? JSONEncoder().encode(accounts) else { return }
         UserDefaults.standard.set(data, forKey: storageKey)
     }
@@ -647,6 +733,7 @@ final class ColdStorageManager: ObservableObject {
             UserDefaults.standard.removeObject(forKey: storageKey)
         }
         accounts = []
+        AddressActivityNotifier.shared.coldStorageAccountsChanged()
         removePerAccountData(of: removed)
     }
 
@@ -658,7 +745,10 @@ final class ColdStorageManager: ObservableObject {
         let stored = UserDefaults.standard.data(forKey: key)
             .flatMap { try? JSONDecoder().decode([ColdStorageAccount].self, from: $0) } ?? []
         UserDefaults.standard.removeObject(forKey: key)
-        if activeWalletAddress == normalized { accounts = [] }
+        if activeWalletAddress == normalized {
+            accounts = []
+            AddressActivityNotifier.shared.coldStorageAccountsChanged()
+        }
         removePerAccountData(of: stored)
     }
 

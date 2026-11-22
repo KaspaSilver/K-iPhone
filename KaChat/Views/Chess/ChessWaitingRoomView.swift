@@ -72,8 +72,10 @@ struct ChessWaitingRoomView: View {
                 .fittedSheetDetent(estimate: 300)
                 .presentationDragIndicator(.visible)
         }
-        .onAppear { service.acquire(); appearedAt = clock.now; check() }
-        .onDisappear { service.release() }
+        .onAppear { appearedAt = clock.now; check() }
+        // Through onScreenPresence: Kaspa Hub keeps KaPlay alive (hidden) once left, and the arena
+        // is watched only while this screen shows.
+        .onScreenPresence(appear: { service.acquire() }, disappear: { service.release() })
         .onChange(of: tournament?.status) { _ in check() }
         .onChange(of: clock.now) { _ in check() }
     }

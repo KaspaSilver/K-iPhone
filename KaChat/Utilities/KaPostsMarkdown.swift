@@ -158,6 +158,8 @@ enum KaPostsMarkdown {
     ) {
         var i = 0
         var runStart = out.count
+        // Built only when the text has a `[` at all: most posts have no link markup.
+        let linkIndex: LinkIndex? = chars.contains("[") ? LinkIndex(chars) : nil
 
         func flushPlainRun() {
             guard !style.isPlain, out.count > runStart else { return }
@@ -165,7 +167,7 @@ enum KaPostsMarkdown {
         }
 
         while i < chars.count {
-            if let link = matchLink(chars, at: i) {
+            if let index = linkIndex, let link = matchLink(chars, at: i, index: index) {
                 flushPlainRun()
                 var linkStyle = style
                 linkStyle.link = link.url
@@ -189,16 +191,48 @@ enum KaPostsMarkdown {
         flushPlainRun()
     }
 
+    /// Longest link label and link target the parser looks for. Past these a `[` is plain text.
+    /// Without a bound every unmatched `[` searched to the end of the line, so a long post of
+    /// `[`s cost the square of its length on the main thread (audit 2026-11-21 #15).
+    static let maxLinkLabelLength = 500
+    static let maxLinkTargetLength = 2_048
+
+    /// Where the next `]` and `)` are from each position (`chars.count` when there is none),
+    /// worked out in one pass, so finding a link's ends is a lookup and the parse stays linear.
+    private struct LinkIndex {
+        let nextCloseBracket: [Int]
+        let nextCloseParen: [Int]
+
+        init(_ chars: [Character]) {
+            var brackets = [Int](repeating: chars.count, count: chars.count + 1)
+            var parens = brackets
+            var i = chars.count - 1
+            while i >= 0 {
+                brackets[i] = chars[i] == "]" ? i : brackets[i + 1]
+                parens[i] = chars[i] == ")" ? i : parens[i + 1]
+                i -= 1
+            }
+            nextCloseBracket = brackets
+            nextCloseParen = parens
+        }
+    }
+
     /// `[label](url)` at `i`. The URL must parse and carry a scheme we are willing to open, so a
-    /// post cannot dress `javascript:` up as friendly link text.
+    /// post cannot dress `javascript:` up as friendly link text. The label and target are bounded
+    /// (`maxLinkLabelLength`, `maxLinkTargetLength`).
     private static func matchLink(
         _ chars: [Character],
-        at i: Int
+        at i: Int,
+        index: LinkIndex
     ) -> (label: String, url: URL, next: Int)? {
-        guard chars[i] == "[" else { return nil }
-        guard let labelEnd = index(of: "]", in: chars, from: i + 1), labelEnd > i + 1 else { return nil }
+        guard chars[i] == "[", i + 1 <= chars.count else { return nil }
+        let labelEnd = index.nextCloseBracket[i + 1]
+        guard labelEnd < chars.count, labelEnd > i + 1,
+              labelEnd - (i + 1) <= maxLinkLabelLength else { return nil }
         guard labelEnd + 1 < chars.count, chars[labelEnd + 1] == "(" else { return nil }
-        guard let urlEnd = index(of: ")", in: chars, from: labelEnd + 2), urlEnd > labelEnd + 2 else { return nil }
+        let urlEnd = index.nextCloseParen[labelEnd + 2]
+        guard urlEnd < chars.count, urlEnd > labelEnd + 2,
+              urlEnd - (labelEnd + 2) <= maxLinkTargetLength else { return nil }
 
         let label = String(chars[(i + 1)..<labelEnd])
         let rawTarget = String(chars[(labelEnd + 2)..<urlEnd]).trimmingCharacters(in: .whitespaces)
@@ -269,15 +303,6 @@ enum KaPostsMarkdown {
             return false
         }
         return true
-    }
-
-    private static func index(of character: Character, in chars: [Character], from start: Int) -> Int? {
-        var i = start
-        while i < chars.count {
-            if chars[i] == character { return i }
-            i += 1
-        }
-        return nil
     }
 
     /// Collapses spans that touch and share a style, so a bold run split by a nested parse does

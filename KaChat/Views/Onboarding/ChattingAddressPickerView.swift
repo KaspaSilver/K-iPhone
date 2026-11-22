@@ -149,7 +149,7 @@ struct ChattingAddressPickerView: View {
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     HStack(spacing: 6) {
-                        Text(verbatim: "\(formatKas(candidate.balanceSompi)) \(KaspaUnit.symbol)")
+                        Text(verbatim: "\(formatKasTrimmed(candidate.balanceSompi)) \(KaspaUnit.symbol)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         if candidate.nameCount > 0 {
@@ -196,13 +196,6 @@ struct ChattingAddressPickerView: View {
             scanFailed = true
         }
         isScanning = false
-    }
-
-    private func formatKas(_ sompi: UInt64) -> String {
-        var text = String(format: "%.8f", Double(sompi) / 100_000_000.0)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return text
     }
 }
 
@@ -256,7 +249,7 @@ struct ChattingAddressDetailView: View {
                         Label("Balance", systemImage: "circlebadge.2.fill")
                             .font(.subheadline.weight(.semibold))
                         Spacer()
-                        Text(verbatim: "\(formatKas(candidate.balanceSompi)) \(KaspaUnit.symbol)")
+                        Text(verbatim: "\(formatKasTrimmed(candidate.balanceSompi)) \(KaspaUnit.symbol)")
                             .font(.subheadline.monospacedDigit())
                             .foregroundColor(.secondary)
                     }
@@ -385,12 +378,5 @@ struct ChattingAddressDetailView: View {
             errorMessage = UserFacingError.message(for: error)
             isSwitching = false
         }
-    }
-
-    private func formatKas(_ sompi: UInt64) -> String {
-        var text = String(format: "%.8f", Double(sompi) / 100_000_000.0)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return text
     }
 }

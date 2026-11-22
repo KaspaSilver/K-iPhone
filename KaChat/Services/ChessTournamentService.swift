@@ -683,9 +683,6 @@ final class ChessTournamentService: ObservableObject {
         return tournament.games.values.contains { !$0.isOver && $0.decidedWinner(at: now) == me }
     }
 
-    var openTournaments: [ChessTournament] {
-        tournaments.values.filter { $0.status == .open }.sorted { $0.createdAt > $1.createdAt }
-    }
     /// Rooms with a game still being played. A live room whose clocks have all run out with
     /// no claim posted is not one of them (see `ChessTournamentGame.flaggedSide`).
     @Published private(set) var liveTournaments: [ChessTournament] = []

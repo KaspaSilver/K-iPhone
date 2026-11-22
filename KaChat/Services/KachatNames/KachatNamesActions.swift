@@ -1156,6 +1156,11 @@ final class KachatNamesActions: ObservableObject {
         // record both go out now; the driver registers once the commit has aged.
         let lapsed = try await claimable(name, manifest)
         let (b, env, wallet) = try await context(s, feerate: await claimFeerate(feeTier, customFeerate))
+        // The reads above can outlast a sign-out or account switch: the claim, its salt and its
+        // coins are the account that started it, so nothing goes out for it from another.
+        guard myAddress == walletAddress else {
+            throw KachatNames.Failure(AppLocalization.string("The account changed, so nothing was sent."))
+        }
         let salt = try KachatNamesService.newSalt()
         let plan = try b.commit(env: env, wallet: wallet, name: name, salt: salt)
         guard let commit = plan.newCommit, let script = commit.utxo?.entry.script else { throw KachatNames.Failure("commit: no record") }
@@ -1177,21 +1182,36 @@ final class KachatNamesActions: ObservableObject {
             record.commitSentAt = KachatNames.nowMs()
             record.stage = .waiting
             record.updatedAt = KachatNames.nowMs()
-            upsert(record)
+            upsert(record, wallet: walletAddress)
             // The reclaim needs nothing from the wallet (its fee comes out of the freed deposit),
-            // so it runs while the commit ages instead of after. If it fails, the driver sends it.
-            if let lapsed { try? await sendReclaim(of: lapsed, for: record) }
+            // so it runs while the commit ages instead of after. If it fails (or the account
+            // changed meanwhile), the driver sends it once this account is back.
+            if let lapsed, myAddress == walletAddress { try? await sendReclaim(of: lapsed, for: record) }
         } catch {
             // The node may still have taken it: keep the record (and the salt) until the driver
             // sees the commit on chain or gives up on it.
             record.lastError = error.localizedDescription
             record.updatedAt = KachatNames.nowMs()
-            upsert(record)
-            startDriver()
+            upsert(record, wallet: walletAddress)
+            if myAddress == walletAddress { startDriver() }
             throw error
         }
-        startDriver()
+        if myAddress == walletAddress { startDriver() }
         return record.commitTxId
+    }
+
+    /// `upsert` for a claim whose submit was awaited: the account that started it may have
+    /// signed out or switched meanwhile, and then the record goes into that account's own claims
+    /// file, never into the list on screen (another account's, or none).
+    private func upsert(_ p: KachatNames.PendingRegistration, wallet address: String) {
+        if pendingWallet == address {
+            upsert(p)
+            return
+        }
+        var list = KachatNamesRegistry.readFile(Self.file(address))
+            .flatMap { try? JSONDecoder().decode([KachatNames.PendingRegistration].self, from: $0) } ?? []
+        if let i = list.firstIndex(where: { $0.id == p.id }) { list[i] = p } else { list.append(p) }
+        if let data = try? JSONEncoder().encode(list) { KachatNamesRegistry.writeFile(Self.file(address), data) }
     }
 
     /// What claiming `name` starts from: nil when it is free in a gap a node holds right now, the
@@ -1629,6 +1649,50 @@ final class KachatNamesActions: ObservableObject {
     // MARK: - Persistence (Application Support/KachatNames/<network>/pending-<wallet>.json)
 
     private static func file(_ address: String) -> String { "pending-\(KachatNamesRegistry.walletSuffix(address)).json" }
+
+    /// Delete Account: everything the names feature keeps on this phone for `wallet` (a chatting
+    /// address, one network encoding; the caller passes each), on every network - its claims in
+    /// progress (`pending-<wallet>.json`), the spending addresses an earlier build bought with,
+    /// the names notifier's record, the expired-names banner's dismissal, its own profile copy, and
+    /// the owned-names cache of the wallet and of `addresses` (its spending addresses). The commit
+    /// salts and the reminders have removers of their own (`deleteAllKachatCommitSalts`,
+    /// `KachatNameReminders.removeAll`).
+    static func removeAllLocalData(forWallet wallet: String, addresses: [String] = []) {
+        let lowered = wallet.lowercased()
+        guard !lowered.isEmpty else { return }
+        let defaults = UserDefaults.standard
+        let marketKey = "kachat_market_addresses.\(lowered)"
+        let marketAddresses = defaults.stringArray(forKey: marketKey) ?? []
+        defaults.removeObject(forKey: marketKey)
+        defaults.removeObject(forKey: "kachatNamesNotifier.\(lowered)")
+        defaults.removeObject(forKey: "kachatExpiredBannerDismissed.\(lowered)")
+        // `KachatOwnedNamesCache`'s keys, on both networks
+        for address in [lowered] + (addresses + marketAddresses).map({ $0.lowercased() }) {
+            for network in ["mainnet", "testnet"] {
+                defaults.removeObject(forKey: "kachat_owned_names_\(network)_\(address)")
+            }
+        }
+        // `KachatNamesRegistry`'s cache folder (Application Support/KachatNames/<network>/): the
+        // claims file and the own-profile copy (`profile-<wallet>.json`)
+        if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let suffix = KachatNamesRegistry.walletSuffix(lowered)
+            for network in ["mainnet", "testnet-10"] {
+                let dir = base.appendingPathComponent("KachatNames", isDirectory: true)
+                    .appendingPathComponent(network, isDirectory: true)
+                for name in [file(lowered), "profile-\(suffix).json"] {
+                    try? FileManager.default.removeItem(at: dir.appendingPathComponent(name))
+                }
+            }
+        }
+        // the list on screen, so nothing saves it back
+        let actions = shared
+        if actions.pendingWallet == lowered {
+            actions.driver?.cancel()
+            actions.driver = nil
+            actions.pending = []
+            actions.pendingWallet = nil
+        }
+    }
 
     private func loadPending(for address: String) {
         let address = address.lowercased()

@@ -238,13 +238,6 @@ struct ChessTournamentGame: Identifiable, Equatable {
     func chargedMs(elapsed: Int64) -> Int64 {
         max(0, elapsed - ChessTournamentCodec.allowanceMs(ply: moves.count + 1, startedAt: startedAt))
     }
-
-    /// The allowance still unspent on the current move, for the phone to show ("clock starts
-    /// in 0:42"); zero once the clock is running.
-    func allowanceLeftMs(at now: Int64) -> Int64 {
-        guard !isOver else { return 0 }
-        return max(0, ChessTournamentCodec.allowanceMs(ply: moves.count + 1, startedAt: startedAt) - max(0, now - lastEventAt))
-    }
 }
 
 struct ChessTournamentMove: Equatable, Identifiable {

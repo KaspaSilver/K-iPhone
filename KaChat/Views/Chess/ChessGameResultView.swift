@@ -156,13 +156,14 @@ struct ChessGameResultView: View {
             }
         }
         .onAppear {
-            service.acquire()
             sortBoard()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { revealed = true }
             }
         }
-        .onDisappear { service.release() }
+        // Through onScreenPresence: Kaspa Hub keeps KaPlay alive (hidden) once left, and the arena
+        // is watched only while this screen shows.
+        .onScreenPresence(appear: { service.acquire() }, disappear: { service.release() })
         .onChange(of: service.boardsRevision) { _ in sortBoard() }
         .onChange(of: tournament?.isDuel) { _ in sortBoard() }
     }

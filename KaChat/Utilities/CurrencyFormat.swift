@@ -25,7 +25,6 @@ func formatCurrencyAmountPlain(_ value: Double, currency: AppCurrency) -> String
     String(format: "%.\(currency == .bitcoin ? 8 : 2)f", value)
 }
 
-/// Trimmed 8-decimal KAS amount (e.g. "12.5" rather than "12.50000000").
 /// Exact plain KAS text for a sompi amount, by integer math (no Double rounding at large
 /// balances): "12.5", "0.00000001", "90000000.12345678".
 func formatKasAmountPlain(sompi: UInt64) -> String {
@@ -36,9 +35,22 @@ func formatKasAmountPlain(sompi: UInt64) -> String {
     return fraction.isEmpty ? String(whole) : "\(whole).\(fraction)"
 }
 
+/// Trimmed 8-decimal KAS amount (e.g. "12.5" rather than "12.50000000").
 func formatKasAmountPlain(_ value: Double) -> String {
     var text = String(format: "%.8f", value)
     while text.hasSuffix("0") { text.removeLast() }
     if text.hasSuffix(".") { text.removeLast() }
     return text
+}
+
+/// A sompi amount as KAS with all 8 decimals ("12.50000000"). The one copy of what several
+/// screens each used to define for themselves.
+func formatKasExact(_ sompi: UInt64) -> String {
+    String(format: "%.8f", Double(sompi) / 100_000_000.0)
+}
+
+/// A sompi amount as KAS, trailing zeros trimmed ("12.5"), through a Double as before
+/// (`formatKasAmountPlain(sompi:)` is the integer-exact one).
+func formatKasTrimmed(_ sompi: UInt64) -> String {
+    formatKasAmountPlain(Double(sompi) / 100_000_000.0)
 }

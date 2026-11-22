@@ -109,6 +109,13 @@ struct TrestlyApprovalSheet: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    // Trestly's pinned code reads the coins and sends the trade over its own
+                    // WebSocket to a public Kaspa node, which K can't reroute (audit 2026-11-21, #6)
+                    Text(AppLocalization.string("Trestly's code reads this address's coins and sends the trade through public Kaspa nodes (kaspa.stream and its mirrors), not the node chosen in Settings. Those nodes see this address and your IP address."))
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(20)
             }

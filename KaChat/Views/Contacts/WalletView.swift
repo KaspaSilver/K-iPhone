@@ -9,7 +9,6 @@ struct WalletView: View {
     @EnvironmentObject private var walletManager: WalletManager
     @ObservedObject private var backupStatus = AccountBackupStatus.shared
     @ObservedObject private var priceModel = KasPriceModel.shared
-    @ObservedObject private var notifCenter = GlobalNotificationCenter.shared
 
     /// Every revealed spending address together. Nil until it's known, which shows as a dash.
     @State private var spendingTotalSompi: UInt64?
@@ -33,6 +32,8 @@ struct WalletView: View {
     @State private var isScanningAddresses = false
     /// The tallest page, so the swipeable card is as tall as its content.
     @State private var balanceCardHeight: CGFloat = 196
+    /// .kachat names of this wallet in their grace period: the banner at the top.
+    @StateObject private var expiredKachatNames = KachatExpiredNamesModel()
 
     private enum WalletAction: String, Identifiable {
         case send, receive, request
@@ -69,7 +70,7 @@ struct WalletView: View {
                     SendAssetChooser(kaspaTotal: totalSompi(walletManager.currentWallet))
                 case .receive:
                     NavigationStack {
-                        ProfileView.ReceiveKaspaQRView()
+                        ReceiveKaspaQRView()
                             .navigationBarTitleDisplayMode(.inline)
                             .toolbar {
                                 ToolbarItem(placement: .confirmationAction) {
@@ -112,6 +113,9 @@ struct WalletView: View {
                 appearRefreshedAt = Date()
                 Task { await refresh(force: false) }
             }
+            // its own modifier, so this chain stays within what the type checker solves
+            .modifier(KachatExpiredNamesLoading(model: expiredKachatNames,
+                                                address: walletManager.currentWallet?.publicAddress))
             .onReceive(NotificationCenter.default.publisher(for: .ownAddressUtxoActivity)) { _ in
                 scheduleRefresh()
             }
@@ -128,6 +132,11 @@ struct WalletView: View {
 
     private func content(_ wallet: Wallet) -> some View {
         VStack(alignment: .leading, spacing: 16) {
+            // one of your .kachat names expired and is in grace: renew it in time (at the top of
+            // the Wallet tab, as KaPay has it)
+            if !expiredKachatNames.visible.isEmpty {
+                KachatExpiredNamesBanner(model: expiredKachatNames)
+            }
             balancePager(wallet)
             if isScanningAddresses {
                 HStack(spacing: 8) {
@@ -151,7 +160,7 @@ struct WalletView: View {
             // moved here from Profile (owner's call, 2026-11-19), as KaPay's Wallet tab has it
             buyStablecoinsCard
             YourDomainsCard(onToast: { message, style in showToast(message, style: style) })
-            // Notifications are behind Profile's bell since 2026-11-21, with KaPosts'
+            // No Notifications card: they are behind Profile's bell since 2026-11-21, with KaPost's.
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -330,46 +339,6 @@ struct WalletView: View {
         .buttonStyle(.plain)
     }
 
-    /// Notifications (Kaspa and kUSDT received) as a card in the list, as KaPay has it: a red dot
-    /// and the count while any are unread.
-    private var notificationsSection: some View {
-        NavigationLink {
-            GlobalNotificationListView(isPushed: true)
-        } label: {
-            HStack {
-                Label("Notifications", systemImage: "bell")
-                    .foregroundColor(.primary)
-                Spacer()
-                if notifCenter.unreadCount > 0 {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 8, height: 8)
-                        Text(verbatim: "\(notifCenter.unreadCount)")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(16)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(cardBackground)
-    }
-
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
-    }
-
     /// The Chatting Address's QR page, as a card in the list (as KaPay's Wallet tab has it).
     private func chattingAddressSection(_ wallet: Wallet) -> some View {
         NavigationLink {
@@ -515,5 +484,23 @@ private struct BalanceCardHeightReader: View {
         GeometryReader { proxy in
             Color.clear.preference(key: BalanceCardHeightKey.self, value: proxy.size.height)
         }
+    }
+}
+
+/// Loads the expired-names banner (`KachatExpiredNamesModel`) for the signed-in account, and again
+/// whenever the .kachat registry changes.
+private struct KachatExpiredNamesLoading: ViewModifier {
+    let model: KachatExpiredNamesModel
+    let address: String?
+    @State private var revision = 0
+
+    func body(content: Content) -> some View {
+        content
+            .task(id: "\(address ?? "")-\(revision)") {
+                await model.load()
+            }
+            .onReceive(KachatNamesRegistry.shared.$revision) { new in
+                if revision != new { revision = new }
+            }
     }
 }

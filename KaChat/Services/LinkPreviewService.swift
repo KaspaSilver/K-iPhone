@@ -706,6 +706,16 @@ enum KaPostLinkPreviewPolicy {
         domains.contains(where: { host == $0 || host.hasSuffix("." + $0) })
     }
 
+    /// Links a KaPost card is drawing. `LinkPreviewService` holds these to this policy on every
+    /// hop: the page must pass `allowsPage`, a redirect `allowsRedirect`, and the card's image
+    /// `allowsImage` (audit 2026-11-21 #25). Links in 1:1 chats and groups keep their own rules.
+    private static let marked = MarkedLinkSet()
+
+    /// Called where a KaPost decides to draw a link as a card, before the card fetches it.
+    static func markForPreview(_ url: URL) { marked.insert(url.absoluteString) }
+
+    static func isMarkedForPreview(_ url: URL) -> Bool { marked.contains(url.absoluteString) }
+
     /// The URL decoded (twice-encoded too, "%2570orn"), lowercased, then checked: the
     /// unambiguous words anywhere, the rest only as whole words.
     private static func hasBlockedWords(_ url: URL) -> Bool {
@@ -884,9 +894,22 @@ actor LinkPreviewService {
     /// `maxBytes` overrides the default 5 MB cap — the Nextcloud full-quality photo viewer
     /// passes a much higher limit since it deliberately fetches the original file.
     func imageData(_ url: URL, referer: URL, maxBytes: Int? = nil) async -> Data? {
+        // A KaPost card's image: only from the site or its image servers, and every redirect
+        // held to the same rule (`KaPostLinkPreviewPolicy.allowsImage`).
+        let kaPostPage = KaPostLinkPreviewPolicy.isMarkedForPreview(referer)
+        if kaPostPage, !KaPostLinkPreviewPolicy.allowsImage(url, forPage: referer) {
+            AppLog.log("[LinkPreview] KaPost image refused for %@", Self.logLabel(url))
+            return nil
+        }
+        let redirectPolicy: (@Sendable (URL) -> Bool)?
+        if kaPostPage {
+            redirectPolicy = { @Sendable (next: URL) -> Bool in KaPostLinkPreviewPolicy.allowsImage(next, forPage: referer) }
+        } else {
+            redirectPolicy = nil
+        }
         // Keyed by URL and cap: the full-quality Nextcloud fetch must not be answered from a
         // capped request's bytes (or vice versa).
-        let key = "\(url.absoluteString)|\(maxBytes ?? maxImageBytes)"
+        let key = "\(url.absoluteString)|\(maxBytes ?? maxImageBytes)" + (kaPostPage ? "|kapost" : "")
         if let cached = imageCache.object(forKey: key as NSString) {
             return cached as Data
         }
@@ -901,9 +924,9 @@ actor LinkPreviewService {
             // The page's address goes only to the page's own site: an image on another server
             // never learns which link was opened.
             let sameSiteReferer = Self.isSameSite(url, referer) ? referer : nil
-            if let data = await self.fetchImageBytes(url, userAgentOverride: nil, referer: sameSiteReferer, maxBytes: maxBytes) { return data }
+            if let data = await self.fetchImageBytes(url, userAgentOverride: nil, referer: sameSiteReferer, maxBytes: maxBytes, redirectPolicy: redirectPolicy) { return data }
             guard Self.isMetaImageHost(url) else { return nil }
-            return await self.fetchImageBytes(url, userAgentOverride: Self.facebookExternalHitUserAgent, referer: nil, maxBytes: maxBytes)
+            return await self.fetchImageBytes(url, userAgentOverride: Self.facebookExternalHitUserAgent, referer: nil, maxBytes: maxBytes, redirectPolicy: redirectPolicy)
         }
         imageInFlight[key] = task
         let data = await task.value
@@ -915,13 +938,13 @@ actor LinkPreviewService {
         return data
     }
 
-    private func fetchImageBytes(_ url: URL, userAgentOverride: String?, referer: URL?, maxBytes: Int? = nil) async -> Data? {
+    private func fetchImageBytes(_ url: URL, userAgentOverride: String?, referer: URL?, maxBytes: Int? = nil, redirectPolicy: (@Sendable (URL) -> Bool)? = nil) async -> Data? {
         var request = URLRequest(url: url)
         if let userAgentOverride { request.setValue(userAgentOverride, forHTTPHeaderField: "User-Agent") }
         if let referer { request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
         request.setValue("image/avif,image/webp,image/png,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
         do {
-            let (data, response) = try await fetchCapped(request, limit: maxBytes ?? maxImageBytes, onOverflow: .fail)
+            let (data, response) = try await fetchCapped(request, limit: maxBytes ?? maxImageBytes, onOverflow: .fail, redirectPolicy: redirectPolicy)
             guard let http = response as? HTTPURLResponse,
                   (200..<300).contains(http.statusCode) else { return nil }
             return data
@@ -932,8 +955,8 @@ actor LinkPreviewService {
 
     /// A body read no further than `limit` bytes, on its own session so the reader can be its
     /// delegate. See `CappedResponseReader`.
-    private func fetchCapped(_ request: URLRequest, limit: Int, onOverflow: CappedResponseReader.Overflow) async throws -> (Data, URLResponse) {
-        let reader = CappedResponseReader(limit: limit, onOverflow: onOverflow)
+    private func fetchCapped(_ request: URLRequest, limit: Int, onOverflow: CappedResponseReader.Overflow, redirectPolicy: (@Sendable (URL) -> Bool)? = nil) async throws -> (Data, URLResponse) {
+        let reader = CappedResponseReader(limit: limit, onOverflow: onOverflow, redirectPolicy: redirectPolicy)
         let cappedSession = URLSession(configuration: session.configuration, delegate: reader, delegateQueue: nil)
         defer { cappedSession.finishTasksAndInvalidate() }
         return try await reader.read(request, using: cappedSession)
@@ -1006,7 +1029,7 @@ actor LinkPreviewService {
     /// zero async gap, so no late height change after the fact (the root cause of link previews
     /// disrupting scroll position when a row's height pops in after the fact).
     nonisolated func cachedResultIfKnown(for url: URL) -> LinkPreviewData?? {
-        Self.syncCache.value(for: url.absoluteString)
+        Self.syncCache.value(for: Self.cacheKey(for: url))
     }
 
     private static let syncCache = SyncCacheMirror()
@@ -1018,8 +1041,14 @@ actor LinkPreviewService {
         store(data, forKey: data.url.absoluteString)
     }
 
+    /// A KaPost link (`KaPostLinkPreviewPolicy.isMarkedForPreview`) is cached apart from the same
+    /// link in a chat, since it's fetched under stricter rules.
+    nonisolated static func cacheKey(for url: URL) -> String {
+        KaPostLinkPreviewPolicy.isMarkedForPreview(url) ? "kapost|" + url.absoluteString : url.absoluteString
+    }
+
     func preview(for url: URL) async -> LinkPreviewData? {
-        let key = url.absoluteString
+        let key = Self.cacheKey(for: url)
         if let cached = cache[key] {
             if let storedAt = cacheStoredAt[key], Date().timeIntervalSince(storedAt) >= Self.cacheTTL {
                 // Expired: drop it entirely and fall through to a fresh fetch, which re-stores
@@ -1245,9 +1274,22 @@ actor LinkPreviewService {
             return nil
         }
 
+        // A KaPost card: the page must be on the allow-list, and so must every redirect.
+        let kaPostLink = KaPostLinkPreviewPolicy.isMarkedForPreview(url)
+        if kaPostLink, !KaPostLinkPreviewPolicy.allowsPage(url) {
+            AppLog.log("[LinkPreview] KaPost page refused for %@", LinkPreviewService.logLabel(url))
+            return nil
+        }
+        let redirectPolicy: (@Sendable (URL) -> Bool)?
+        if kaPostLink {
+            redirectPolicy = { @Sendable (next: URL) -> Bool in KaPostLinkPreviewPolicy.allowsRedirect(to: next) }
+        } else {
+            redirectPolicy = nil
+        }
+
         // Nextcloud public shares are media files, not pages — no Open Graph to scrape. Type
         // comes from a HEAD on the raw-file endpoint instead (see fetchNextcloudPreview).
-        if let endpoints = Self.nextcloudShareEndpoints(for: url) {
+        if !kaPostLink, let endpoints = Self.nextcloudShareEndpoints(for: url) {
             return await fetchNextcloudPreview(for: url, endpoints: endpoints)
         }
 
@@ -1279,7 +1321,7 @@ actor LinkPreviewService {
             // a `URLSession.AsyncBytes` loop - reading up to a million individual `UInt8` awaits
             // turned out unreliable in practice (device-dependent slowness compounding with the
             // 8s timeout, silently yielding no preview).
-            let (data, response) = try await fetchCapped(request, limit: maxBodyBytes, onOverflow: .truncate)
+            let (data, response) = try await fetchCapped(request, limit: maxBodyBytes, onOverflow: .truncate, redirectPolicy: redirectPolicy)
             guard let httpResponse = response as? HTTPURLResponse else {
                 AppLog.log("[LinkPreview] non-HTTP response for %@", LinkPreviewService.logLabel(url))
                 return nil
@@ -1457,6 +1499,33 @@ actor LinkPreviewService {
 
 /// Thread-safe, non-actor-isolated cache mirror so `LinkPreviewCardView.init` can synchronously
 /// check for an already-known result before the view's first render, without needing `await`.
+/// The links KaPost cards are drawing (`KaPostLinkPreviewPolicy.markForPreview`), readable from
+/// any thread. Bounded: the oldest fall out past `limit`, and a forgotten link is only fetched
+/// under the chat rules' own checks plus `KaPostLinkPreviewPolicy.allows`, which the card ran.
+final class MarkedLinkSet: @unchecked Sendable {
+    private let lock = NSLock()
+    private var members: Set<String> = []
+    private var order: [String] = []
+    private let limit = 4_096
+
+    func insert(_ key: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard members.insert(key).inserted else { return }
+        order.append(key)
+        if order.count > limit {
+            let dropped = order.removeFirst()
+            members.remove(dropped)
+        }
+    }
+
+    func contains(_ key: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return members.contains(key)
+    }
+}
+
 private final class SyncCacheMirror: @unchecked Sendable {
     private let lock = NSLock()
     private var storage: [String: (value: LinkPreviewData?, storedAt: Date)] = [:]
@@ -1513,13 +1582,16 @@ final class CappedResponseReader: NSObject, URLSessionDataDelegate, @unchecked S
 
     private let limit: Int
     private let onOverflow: Overflow
+    /// A stricter rule for redirects on top of `isAllowedRedirect` (a KaPost card's allow-list).
+    private let redirectPolicy: (@Sendable (URL) -> Bool)?
     private var buffer = Data()
     private var response: URLResponse?
     private var continuation: CheckedContinuation<(Data, URLResponse), Error>?
 
-    init(limit: Int, onOverflow: Overflow) {
+    init(limit: Int, onOverflow: Overflow, redirectPolicy: (@Sendable (URL) -> Bool)? = nil) {
         self.limit = limit
         self.onOverflow = onOverflow
+        self.redirectPolicy = redirectPolicy
     }
 
     func read(_ request: URLRequest, using session: URLSession) async throws -> (Data, URLResponse) {
@@ -1566,7 +1638,8 @@ final class CappedResponseReader: NSObject, URLSessionDataDelegate, @unchecked S
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
         guard let url = request.url,
-              LinkPreviewService.isAllowedRedirect(from: task.currentRequest?.url ?? task.originalRequest?.url, to: url) else {
+              LinkPreviewService.isAllowedRedirect(from: task.currentRequest?.url ?? task.originalRequest?.url, to: url),
+              redirectPolicy?(url) ?? true else {
             completionHandler(nil)
             return
         }

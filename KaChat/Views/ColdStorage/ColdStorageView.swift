@@ -3,6 +3,24 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import UIKit
 
+/// A kpub on the clipboard: it reveals every address of the account and their whole history, so
+/// it's copied like the app's other sensitive values (Settings' private key, Manage Addresses):
+/// this phone only (no Universal Clipboard) and gone after 30 seconds, by the system's expiry and
+/// an in-app clear as well (audit 2026-11-21 #4).
+enum ColdStorageClipboard {
+    static func copyKpub(_ kpub: String) {
+        UIPasteboard.general.setItems(
+            [["public.utf8-plain-text": kpub]],
+            options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(30)]
+        )
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
+            if UIPasteboard.general.string == kpub {
+                UIPasteboard.general.string = ""
+            }
+        }
+    }
+}
+
 /// Cold Storage — a fully separate area of the app for watching/spending funds held on an
 /// air-gapped KasSigner device. Everything here is watch-only (public keys only); signing always
 /// happens on the physical device via QR exchange, never inside KaChat.
@@ -103,7 +121,7 @@ struct ColdStorageListView: View {
             ColdStorageAccountActionsSheet(
                 account: account,
                 onCopyKpub: {
-                    UIPasteboard.general.string = account.kpubString
+                    ColdStorageClipboard.copyKpub(account.kpubString)
                     Haptics.success()
                     showToast("kpub copied to clipboard.")
                 },
@@ -596,7 +614,7 @@ struct ColdStorageDetailView: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.primary)
                 Button {
-                    UIPasteboard.general.string = currentAccount.kpubString
+                    ColdStorageClipboard.copyKpub(currentAccount.kpubString)
                     Haptics.success()
                     showToast("kpub copied to clipboard.")
                 } label: {
@@ -606,14 +624,9 @@ struct ColdStorageDetailView: View {
                 }
                 .buttonStyle(.plain)
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Total Balance")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(verbatim: "\(KaspaUnit.groupedExact(totalBalanceSompi)) \(KaspaUnit.symbol)")
-                    .font(.title2)
-                    .fontWeight(.bold)
-            }
+            // The same card as Manage Addresses' total (and an address's own page), with its
+            // worth in your currency on mainnet.
+            KaspaAddressBalanceCard(label: AppLocalization.string("Total Balance"), sompi: totalBalanceSompi)
 
             // Directly under the balance rather than pinned to the bottom of the screen: the
             // actions are about this account, so they belong with the account, and a floating
@@ -1212,7 +1225,7 @@ private struct ColdSendFlowView: View {
 
     /// Normal/Fast/Priority multiplier system, same inline (no separate screen) pattern as the
     /// main-address withdraw flow and Manage Addresses' consolidate flow — see
-    /// `WithdrawFeeTier` and `ContactsView`'s withdraw sheet.
+    /// `WithdrawFeeTier` and `WithdrawKaspaView`.
     private var extraFeeSompi: UInt64 {
         if let customExtraFeeSompi { return customExtraFeeSompi }
         return defaultFeeSompi * (feeTier.multiplier - 1)
@@ -1376,7 +1389,7 @@ private struct ColdSendFlowView: View {
                     footnote: exceedsBalance
                         ? AppLocalization.string("This is more than the address you're sending from holds.")
                         : KaspaUnit.label(String(format: AppLocalization.string("Available: %@ KAS"),
-                                                 locale: AppLocalization.locale, formatKas(availableBalanceSompi))),
+                                                 locale: AppLocalization.locale, formatKasExact(availableBalanceSompi))),
                     footnoteIsError: exceedsBalance,
                     onMax: setMaxAmount
                 )
@@ -1898,10 +1911,6 @@ private struct ColdSendFlowView: View {
             }
         }
     }
-
-    private func formatKas(_ sompi: UInt64) -> String {
-        String(format: "%.8f", Double(sompi) / 100_000_000.0)
-    }
 }
 
 /// Coin control — lets the user fix the exact UTXO set a send spends from instead of the
@@ -2016,7 +2025,7 @@ struct CoinControlView: View {
                                                 .fontWeight(.bold)
                                                 .foregroundColor(.accentColor)
                                         }
-                                        Text(verbatim: "\(formatKas(utxo.amount)) \(KaspaUnit.symbol)")
+                                        Text(verbatim: "\(formatKasExact(utxo.amount)) \(KaspaUnit.symbol)")
                                             .font(.subheadline)
                                             .fontWeight(.semibold)
                                             .foregroundColor(.primary)
@@ -2039,7 +2048,7 @@ struct CoinControlView: View {
                         }
                     } footer: {
                         if !selectedKeys.isEmpty {
-                            let amount = "\(formatKas(selectedTotalSompi)) \(KaspaUnit.symbol)"
+                            let amount = "\(formatKasExact(selectedTotalSompi)) \(KaspaUnit.symbol)"
                             Text(verbatim: selectedKeys.count == 1
                                  ? String(format: AppLocalization.string("Selected: %@ (1 UTXO)"), locale: AppLocalization.locale, amount)
                                  : String(format: AppLocalization.string("Selected: %@ (%lld UTXOs)"), locale: AppLocalization.locale, amount, selectedKeys.count))
@@ -2089,10 +2098,6 @@ struct CoinControlView: View {
                 }
             }
         }
-    }
-
-    private func formatKas(_ sompi: UInt64) -> String {
-        String(format: "%.8f", Double(sompi) / 100_000_000.0)
     }
 }
 
@@ -2922,7 +2927,7 @@ private struct ColdStorageKpubQRView: View {
     }
 
     private func copyKpub() {
-        UIPasteboard.general.string = account.kpubString
+        ColdStorageClipboard.copyKpub(account.kpubString)
         Haptics.success()
         showToast("kpub copied to clipboard.")
     }

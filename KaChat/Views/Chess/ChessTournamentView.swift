@@ -45,8 +45,9 @@ struct ChessTournamentView: View {
                 ChessTournamentGameView(tournamentId: tournamentId, gameId: gameId)
             }
         }
-        .onAppear { service.acquire() }
-        .onDisappear { service.release() }
+        // Through onScreenPresence: Kaspa Hub keeps KaPlay alive (hidden) once left, and the arena
+        // is watched only while this screen shows.
+        .onScreenPresence(appear: { service.acquire() }, disappear: { service.release() })
         // The player's game came into being: open it (once per game).
         .onChange(of: tournament?.games.count) { _ in autoOpenMyGameIfNeeded() }
         // The cool-down runs out: the arena's clock, without observing it (a tick must not

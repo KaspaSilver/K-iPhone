@@ -1,22 +1,24 @@
+import Combine
 import Foundation
 import SwiftUI
 
-/// The bell on the Profile screen holds Kaspa arriving in one of your own addresses - the
-/// chatting address or a spending address (fed by AddressActivityNotifier). .kachat name news
-/// left with the .kachat market on 2026-10-24.
-/// Not group chats (they keep their own unread counts in the Chats tab). Entries are account-scoped, persisted, deduped by id, and capped; opening the
-/// list marks everything seen.
+/// The wallet's half of Profile's bell: Kaspa arriving in one of your own addresses - the
+/// chatting address or a spending address (fed by AddressActivityNotifier) - and tokens received.
+/// Not group chats (they keep their own unread counts in the Chats tab). Entries are
+/// account-scoped, persisted, deduped by id, and capped; opening the list marks everything seen.
 @MainActor
 final class GlobalNotificationCenter: ObservableObject {
     static let shared = GlobalNotificationCenter()
 
     struct Entry: Identifiable, Codable, Equatable {
         enum Source: String, Codable {
-            /// RETIRED with KaPosts and Public Chats (2026-10-24): kept only so a feed saved by
-            /// an older build still decodes - `reload` drops those rows.
+            /// `kaposts`, `group` and `publicChat` are no longer recorded here (KaPosts activity has
+            /// its own center, groups and rooms their own counts): kept only so a feed saved by an
+            /// older build still decodes - `reload` drops those rows.
             case kaposts, group, wallet
             case publicChat = "broadcast"
-            /// RETIRED with the .kachat market (2026-10-24): a .kachat name event.
+            /// A .kachat name event (`KachatNamesNotifier`). Not in the bell (`inBell`), so these
+            /// are refused on record and dropped on load.
             case kachat
             /// A token received (kUSDT); `targetId` is the token's id.
             case token
@@ -65,29 +67,60 @@ final class GlobalNotificationCenter: ObservableObject {
         entries.filter { $0.timestamp > lastSeenAt }.count
     }
 
+    /// The account `entries` were loaded for. The feed is read and saved under this address, not
+    /// whatever wallet is current at write time, so one account's rows never land under another's
+    /// key. Empty while no one is signed in: nothing is shown and nothing is saved.
+    private var loadedAddress = ""
+    private var walletCancellable: AnyCancellable?
+
     private init() {
+        loadedAddress = WalletManager.shared.currentWallet?.publicAddress ?? ""
         reload()
+        // Log Out, sign-in, import and account switches all change `currentWallet`. Reloading only
+        // at launch left the last account's rows in the bell, and the next account's first
+        // notification saved them under its own key for good (as `KaPostsNotificationCenter`).
+        // `@Published` fires before the value is stored, so the new address comes from the sink,
+        // not from `WalletManager`.
+        walletCancellable = WalletManager.shared.$currentWallet
+            .map { $0?.publicAddress ?? "" }
+            .removeDuplicates()
+            .sink { [weak self] address in
+                guard let self, address != self.loadedAddress else { return }
+                self.loadedAddress = address
+                self.reload()
+            }
     }
 
     // MARK: - Persistence (account-scoped)
 
-    private var walletAddress: String { WalletManager.shared.currentWallet?.publicAddress ?? "" }
-    private var entriesKey: String { "globalNotifCenter.entries.\(walletAddress)" }
-    private var seenKey: String { "globalNotifCenter.seenAt.\(walletAddress)" }
+    private var entriesKey: String { "globalNotifCenter.entries.\(loadedAddress)" }
+    private var seenKey: String { "globalNotifCenter.seenAt.\(loadedAddress)" }
 
-    /// Delete Account: one wallet's feed, from this device.
+    /// Delete Account: one wallet's feed, from this device (and from the bell, when it is the
+    /// one showing, so nothing saves it back).
     static func removeAllData(forWalletAddress walletAddress: String) {
         UserDefaults.standard.removeObject(forKey: "globalNotifCenter.entries.\(walletAddress)")
         UserDefaults.standard.removeObject(forKey: "globalNotifCenter.seenAt.\(walletAddress)")
+        let center = shared
+        if !walletAddress.isEmpty, center.loadedAddress == walletAddress {
+            center.entries = []
+            center.lastSeenAt = 0
+        }
     }
 
-    /// Call on account switch (and at init) to load the active wallet's feed.
+    /// Loads the active wallet's feed (account switches reload by themselves, see `init`).
     func reload() {
+        guard !loadedAddress.isEmpty else {
+            // signed out: the bell is empty, never the last account's
+            entries = []
+            lastSeenAt = 0
+            return
+        }
         if let data = UserDefaults.standard.data(forKey: entriesKey),
            let decoded = try? JSONDecoder().decode([Entry].self, from: data) {
-            // Wallet rows only. Group mentions carry their own counts in the Chats tab, and
-            // KaPosts, Public Chats and the .kachat market are gone; anything an older build
-            // saved for those is dropped here.
+            // Wallet rows only (`inBell`). Group mentions carry their own counts in the Chats tab,
+            // and KaPosts activity has its own center; anything an older build saved for those is
+            // dropped here.
             let kept = decoded.filter { Entry.Source.inBell.contains($0.source) }
             entries = kept
             if kept.count != decoded.count { persist() }
@@ -98,6 +131,7 @@ final class GlobalNotificationCenter: ObservableObject {
     }
 
     private func persist() {
+        guard !loadedAddress.isEmpty else { return }
         if let data = try? JSONEncoder().encode(Array(entries.prefix(maxEntries))) {
             UserDefaults.standard.set(data, forKey: entriesKey)
         }
@@ -108,6 +142,8 @@ final class GlobalNotificationCenter: ObservableObject {
     func record(id: String, source: Entry.Source, title: String, body: String, timestamp: Int64, targetId: String?) {
         // Only what the bell lists. Refused here rather than merely left uncalled.
         guard Entry.Source.inBell.contains(source) else { return }
+        // no one signed in: there is no account to keep it for
+        guard !loadedAddress.isEmpty else { return }
         guard !id.isEmpty, !entries.contains(where: { $0.id == id }) else { return }
         entries.insert(Entry(id: id, source: source, title: title, body: body, timestamp: timestamp, targetId: targetId), at: 0)
         if entries.count > maxEntries { entries = Array(entries.prefix(maxEntries)) }
@@ -115,6 +151,7 @@ final class GlobalNotificationCenter: ObservableObject {
     }
 
     func markAllSeen() {
+        guard !loadedAddress.isEmpty else { return }
         lastSeenAt = Int64(Date().timeIntervalSince1970 * 1000)
         UserDefaults.standard.set(NSNumber(value: lastSeenAt), forKey: seenKey)
     }
@@ -124,108 +161,17 @@ final class GlobalNotificationCenter: ObservableObject {
         persist()
     }
 
-    // MARK: - Group @mentions (called from GroupChatService on incoming messages)
-
-    /// Records a center entry (the OS banner stays GroupChatService's business) when `text`
-    /// @mentions one of the current wallet's own KNS domains.
-    /// Group chats carry their own unread counts and mention handling in the Chats tab, so
-    /// mentions no longer go through the bell. Kept as a no-op for the call site; rows an
-    /// older build recorded are dropped on load (see `reload`).
-    func recordGroupMentionIfNeeded(groupId: String, groupName: String, senderAddress: String, text: String, txId: String?, timestampMs: Int64) {}
-}
-
-/// Notifications: newest-first feed of all sources, source-tagged rows, Clear all.
-/// Opening it marks everything seen (clears the Wallet tab's dot). The Wallet tab pushes it as
-/// its own screen (`isPushed`, a large "Notifications" title, as KaPay has it, 2026-11-20);
-/// elsewhere it's a sheet with Done.
-struct GlobalNotificationListView: View {
-    var isPushed = false
-    @ObservedObject private var center = GlobalNotificationCenter.shared
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        if isPushed {
-            list
-        } else {
-            NavigationStack { list }
-        }
-    }
-
-    private var list: some View {
-            Group {
-                if center.entries.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "bell")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text("No notifications yet")
-                            .font(.headline)
-                        Text("Kaspa arriving in your addresses shows up here.")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List(center.entries) { entry in
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: entry.source.icon)
-                                .font(.subheadline)
-                                .foregroundColor(.accentColor)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(entry.title)
-                                    .font(.subheadline.weight(.semibold))
-                                if !entry.body.isEmpty {
-                                    Text(entry.body)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                }
-                                HStack(spacing: 6) {
-                                    Text(entry.source.label)
-                                    Text(Date(timeIntervalSince1970: TimeInterval(entry.timestamp) / 1000)
-                                        .formatted(.relative(presentation: .named)))
-                                }
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                        // Every row deep-opens its subject through the same pending-deep-link
-                        // flow the OS notification taps use: wallet rows the address.
-                        .contentShape(Rectangle())
-                        .onTapGesture { Self.open(entry) { dismiss() } }
-                    }
-                    .listStyle(.plain)
-                }
-            }
-            .navigationTitle("Notifications")
-            .navigationBarTitleDisplayMode(isPushed ? .large : .inline)
-            .toolbar {
-                if !isPushed {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") { dismiss() }
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Clear All") { center.clearAll() }
-                        .disabled(center.entries.isEmpty)
-                }
-            }
-            .onAppear { center.markAllSeen() }
-    }
+    // MARK: - Opening a row
 
     /// Routes a tapped row to its subject. The sheet has to close first (only one sheet presents
     /// at a time), so the pending target is staged now and the tab switch posted after the
     /// dismissal animation - the same two-step every notification tap uses.
-    /// Static so the all-in-one Notifications list (Profile's bell) opens wallet rows the same way.
+    /// Called by the Notifications list behind Profile's bell (`KaPostsNotificationsView`).
     static func open(_ entry: GlobalNotificationCenter.Entry, dismiss: () -> Void) {
         let target = entry.targetId ?? ""
         switch entry.source {
         case .kaposts, .publicChat, .kachat:
-            // Retired sources; `reload` drops their rows, so there is nothing to open.
+            // Not in the bell; `reload` drops their rows, so there is nothing to open.
             return
         case .group:
             guard !target.isEmpty else { return }
@@ -288,7 +234,7 @@ struct AllNotificationsBadge {
 /// them. A sheet from Profile's bell: no back arrow and no settings gear; swipe down or Done closes it.
 struct AllNotificationsView: View {
     var body: some View {
-        KaPostsNotificationsView(allInOne: true)
+        KaPostsNotificationsView()
             // seeing the list is seeing them, both kinds
             .onAppear {
                 KaPostsNotificationCenter.shared.markAllSeen()

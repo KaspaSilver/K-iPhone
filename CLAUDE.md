@@ -22,13 +22,18 @@ briefly on 2026-11-21 and the owner changed it back; Settings keeps its "Chats" 
 shortcuts, the KaChat-NFC applet, and the "KaChat" Nextcloud folder and archive. The
 Trestly provider announces itself as "K" with the `KLogo` globe (its rdns stays `com.kachat.wallet`). The project, targets, bundle id and URL schemes are unchanged. The sign-in
 screen (`OnboardingView`) shows the K globe (`KLogo`, cut from the app icon) with a teal glow over
-"Digital Freedom on the Kaspa Network"; `KaChatLogo` (the chat bubble) is no longer on it.
+"Digital Freedom on the Kaspa Network"; the old `KaChatLogo` and `KaChatAppIcon` images are deleted (2026-11-22).
 
 **Dock and Kaspa Hub (phase 1, 2026-11-20):** the dock is Kaspa Hub and Profile (both pinned,
 `AppTab.pinnedToDock`) plus up to three tabs the person picks (`DockLayout`, saved on the device;
 new installs: Kaspa Hub, Wallet, KaChat (the `.chats` tab, labeled "KaChat" since 2026-11-21 for the rebrand of the app as "K"), Profile, Settings), and every other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
 `Views/Ecosystem/KaspaHubView.swift`), where it opens full screen; tapping Kaspa Hub again goes back
-to the grid (`HubRouter`). Customize Dock (the Hub's slider button, or Settings > Customization)
+to the grid (`HubRouter`). A section opened from the Hub stays alive, hidden, when you leave it
+(audit 2026-11-21 #28): KaPost, Portfolio, KaPlay, .kachat, Stats and Cold Storage come back exactly
+as left (Chats, Wallet, Contacts, Settings and Websites still close). Hidden sections pause their
+polling through the `hubSectionHidden` environment value and `onScreenPresence(appear:disappear:)`,
+which counts a hidden section as gone; use it, not onAppear/onDisappear, for any new timer or poll in
+a Hub section. Customize Dock (the Hub's slider button, or Settings > Customization)
 is a sheet with two drag lists. A tab's screen is the same in either place (`AppTabContent`);
 routes open a tab wherever it lives (`MainTabView.show`), and the Hub's dock badge adds up the
 tabs inside it. A new feature is a new `AppTab` case; it lands in the Hub. Chats shows the unread count of its chats and groups on the dock, Wallet a dot
@@ -61,6 +66,33 @@ is See All Posts (opens the KaPosts tab), and Profile has KaPosts' compose butto
 lists notifications any more; a push naming no post opens the bell (`NotificationsRoute`). Posts
 and Replies on a profile change with a sideways swipe (`ProfileTabSwipe`). On every KaPosts
 screen the connection dot is top left, as elsewhere in KaChat.
+**Rules from the 2026-11-21 audit (fixed 2026-11-22, AUDIT_2026-11-21.md):**
+- Public rooms: the block stream only covers rooms with no working indexer and the room open on
+  Wi-Fi; other bell-on rooms come from the 20 s sweep and push. With no such room the block handler
+  is removed. The Chats list watches `PublicChatRoomSummaries` (publishes only on a real change), not
+  the service. Room reply quotes come from the stored original (`replyToId`), never the envelope.
+- Trestly: a trade whose `execute` gives no answer is "maybe sent": its coins are reserved and the
+  address refuses new trades for 10 minutes or until the earlier trade shows on chain.
+- The in-app browser (Websites, explorer, faucet) keeps to its starting site, sends other sites to
+  Safari, shows the live host, and uses a non-persistent data store.
+- `.kachat` social avatars resolve only for you, your contacts and chats, and profiles you opened
+  (`KachatSocialImageResolver.mayLookUp`); identity lookups are batched (`/identity/batch`).
+- Delete Account removes every ported store (`WalletManager.removeLocalData`); Log Out keeps the
+  `.kachat` reminders (`kachat-reminder-` ids). The Profile bell reloads per account.
+- Banners while the app is open (owner, 2026-11-22): the app banners new 1:1, group and room
+  messages itself (`InAppBanner` in KaChatApp.swift) and new KaPost activity on your posts (the
+  20 s `KaPostsNotificationService` poll, `KaPostsBannerLedger`), one banner per message or action:
+  skipped when its push is already showing, and a later push is listed without a banner
+  (`willPresent`). In the background and when closed, pushes alone.
+- Push registration sends `"app": "k"` (K takes every push kind: chats, groups, KaPost, rooms,
+  Received KAS, .kachat) and `watch_only_addresses` (spending and notifying Cold Storage
+  addresses; empty with Address Activity off), both in the change signature. The server side is
+  kachat-indexer `docs/K_ALL_IN_ONE_PUSH.md`. The extension shows `name_event` pushes; a tapped one
+  opens .kachat, a tapped `address_activity` push the address's history.
+- Unfinished `.kachat` claims resume on every activation and reopen their sheet
+  (`KachatRegistrationPresenter` on MainTabView); the expired-names banner is on the Wallet tab.
+- KaPost indexer answers are size-capped and sanity-checked; KaPost notifications poll every 5 min
+  when push is registered. Markdown links are parsed in linear time.
 **Back from KaPay (phase 2, 2026-11-21):** Portfolio (`Views/Portfolio/`, kept on the phone: KaChat's
 Nextcloud backs up contacts only), Cold Storage (`Views/ColdStorage/`, KasSigner; Coin Control is KaPay's
 `CoinControlView` there, showing spending and KasSigner coin labels), the full `.kachat` market (claim,
@@ -80,7 +112,8 @@ tips go through `ChatService.sendPayment(tip:)`) and Public Chats (`Views/Chat/P
 `PublicChatService`, `PublicChatStore` in `KaChatBroadcasts-<hash>.sqlite`). Public rooms are rows in
 the Chats list with the chats and groups, by latest activity (`ChatListView`: Delete switches a
 default room off or leaves your own, Mute, Mark as Read), and the Chats +'s New sheet has New Public
-Chat (join or create a room) and Edit Default Public Chats (`PublicChatsSettingsView`: each default
+Chat (join or create a room) and Edit Default Public Chats (`PublicChatsSettingsView` in
+`Views/Chat/PublicChatRoomViews.swift`: each default
 room and the language rooms on or off). Rooms with their bell on add to the Chats badge. KaPosts
 starts in Kaspa Hub with its own badge (`AppTabBadge`); both open from links and pushes
 (`KaPostsRoutes` in MainTabView; `.kaPost` and `.publicChatRoom` links open in the app), and the push
@@ -91,8 +124,8 @@ support).
 `ChessTournamentService`, `ChessTournamentEngine`, `ChessBotGame`, `ChessBotLeaderboardService`,
 `ChessBotLinks`, `Utilities/ChessBotEngine.swift`): the `.games` tab, called KaPlay (owner's call, 2026-11-21; a card per game; Chess is online
 1v1 and 8-player tournaments in the hidden `chess-arena` room, and five bots whose results are
-stamped on chain in `chess-bots`) and the `.leaderboard` tab (`ChessLeaderboardTabView`), both
-starting in Kaspa Hub. KaPlay's arena side is merged into `PublicChatService`: chess sends tied to
+stamped on chain in `chess-bots`), starting in Kaspa Hub. The leaderboards are inside KaPlay >
+Chess > Leaderboard (`ChessLeaderboardView`; owner's call, 2026-11-22: no longer a Hub tile). KaPlay's arena side is merged into `PublicChatService`: chess sends tied to
 their account (`sendPublicChat(deferNoInputRetry:expectedSender:)`), own arena rows waiting for
 the chain's time (`localStampSentAt`, dropped by `checkUnconfirmedServiceRows` at about 75 s), the
 arena indexer's own health (`PublicChatIndexerClient.arenaHealth`, `ArenaIndexerHealth`,

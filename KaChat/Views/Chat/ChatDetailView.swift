@@ -1498,7 +1498,7 @@ struct ChatDetailView: View {
 
     private func highFeeAlertMessage() -> Text {
         let format = AppLocalization.string("%@ KAS is much more than the network needs to send a message.")
-        let line = String(format: format, locale: AppLocalization.locale, formatKaspaExact(pendingHighFeeSompi ?? 0))
+        let line = String(format: format, locale: AppLocalization.locale, formatKasExact(pendingHighFeeSompi ?? 0))
         return Text(verbatim: KaspaUnit.label(line))
     }
 
@@ -3095,7 +3095,7 @@ struct ChatDetailView: View {
         .allowsHitTesting(true)
         .onTapGesture {
             guard feeIsAdjustable, !isEstimatingFee, let currentFee = (feeIsAdjustable ? feeOverrideSompi : nil) ?? feeEstimateSompi ?? recordingFeeSompi else { return }
-            feeEditorText = formatKaspaExact(currentFee)
+            feeEditorText = formatKasExact(currentFee)
             showFeeEditor = true
         }
     }
@@ -3705,16 +3705,6 @@ struct ChatDetailView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(glassBackground(cornerRadius: 22))
-    }
-
-    private func glassBackground(cornerRadius: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
     }
 
     // MARK: - Zero-Balance Chat Gate
@@ -5384,14 +5374,9 @@ struct ChatDetailView: View {
         }
     }
 
-    private func formatKaspaExact(_ sompi: UInt64) -> String {
-        let kas = Double(sompi) / 100_000_000.0
-        return String(format: "%.8f", kas)
-    }
-
     private func localizedFeeText(_ feeSompi: UInt64) -> String {
         let template = KaspaUnit.label(AppLocalization.string("fee: %@ KAS"))
-        return String(format: template, locale: AppLocalization.locale, formatKaspaExact(feeSompi))
+        return String(format: template, locale: AppLocalization.locale, formatKasExact(feeSompi))
     }
 
     private func parseAmountSompi(_ text: String) -> UInt64 {
@@ -6329,7 +6314,7 @@ struct ZeroBalanceFundingCardView: View {
                 qrImage = nil
                 return
             }
-            qrImage = Self.makeChattingAddressQRCode(from: address)
+            qrImage = AddressReceiveView<EmptyView, EmptyView>.qrImage(for: address)
         }
     }
 
@@ -6342,18 +6327,6 @@ struct ZeroBalanceFundingCardView: View {
                     .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
             )
             .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
-    }
-
-    /// Same CIFilter QR pattern as `ChatInfoView.makeQRCodeImage` - plain string payload, so
-    /// any wallet/scanner reads the address directly.
-    static func makeChattingAddressQRCode(from string: String) -> UIImage? {
-        let filter = CIFilter.qrCodeGenerator()
-        filter.setValue(Data(string.utf8), forKey: "inputMessage")
-        guard let output = filter.outputImage else { return nil }
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
     }
 }
 

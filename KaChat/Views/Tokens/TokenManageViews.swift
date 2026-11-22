@@ -4,7 +4,7 @@ import WebKit
 // Managing a token, the way Manage Addresses manages Kaspa (owner's design, 2026-11-19, ported
 // from KaPay): the addresses holding it, each with its own page (its history of just that token,
 // Receive and Send), and a floating options button at the bottom right. KaChat holds, receives and
-// sends kUSDT only: buying, swapping and the pool are KaPay's (Trestly's site opens there, never
+// sends kUSDT only: buying, swapping and the pool are K's (Trestly's site opens there, never
 // here).
 
 // MARK: - Manage kUSDT
@@ -895,7 +895,7 @@ struct TokenAboutSheet: View {
 }
 
 /// "Bridged by Trestly": what the token is, the not-audited warning, the KAS each coin holds,
-/// and a link to the vault. No link into Trestly's site: that's KaPay's.
+/// and a link to the vault. No link into Trestly's site: that's K's.
 struct TokenAboutCard: View {
     let token: WalletToken
 
@@ -977,7 +977,7 @@ struct TrestlyTarget: Identifiable, Equatable {
 
 /// Swap Stablecoins' kUSDT (`BuyStablecoinsSheet`, the only way in): which address the site works
 /// with (the Chatting Address, every address holding the token, regular addresses holding KAS,
-/// or a fresh one), then the site itself inside KaPay.
+/// or a fresh one), then the site itself inside K.
 struct TrestlyConnectSheet: View {
     let token: WalletToken
     @Environment(\.dismiss) private var dismiss
@@ -1142,12 +1142,12 @@ struct TrestlyConnectSheet: View {
     }
 }
 
-/// Trestly's site inside KaPay, full screen, working with one address: Done, the site, and a
+/// Trestly's site inside K, full screen, working with one address: Done, the site, and a
 /// strip saying which address it's connected to.
 ///
-/// The page gets KaPay's wallet provider (`TrestlyProvider`, kusdt-open SPEC section 14) for `target`
+/// The page gets K's wallet provider (`TrestlyProvider`, kusdt-open SPEC section 14) for `target`
 /// only: it connects, reads the network and that address's balances, and swaps or moves liquidity
-/// through Trestly's own code after KaPay's Approve. Send and redeem are answered 4200. The page
+/// through Trestly's own code after K's Approve. Send and redeem are answered 4200. The page
 /// can't leave Trestly's site (`TrestlyWebView.Coordinator`).
 struct TrestlyBrowserView: View {
     let target: TrestlyTarget
@@ -1235,7 +1235,7 @@ struct TrestlyBrowserView: View {
     }
 }
 
-/// The page itself: a `WKWebView` with its own data store (nothing shared with the app) and KaPay's
+/// The page itself: a `WKWebView` with its own data store (nothing shared with the app) and K's
 /// wallet provider (`TrestlyProvider`) for `target`, on the Trestly site only.
 private struct TrestlyWebView: UIViewRepresentable {
     let url: URL

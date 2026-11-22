@@ -1152,9 +1152,24 @@ private struct PortfolioAreaChart: View {
             guard xInPlot >= 0, xInPlot <= plot.width else { return nil }
         }
         guard let date: Date = proxy.value(atX: xInPlot) else { return nil }
-        return points.min(by: {
-            abs($0.timestamp.timeIntervalSince(date)) < abs($1.timestamp.timeIntervalSince(date))
-        })
+        return Self.nearest(to: date, in: points)
+    }
+
+    /// The point nearest a date. The series run oldest first, so a scrub step is a binary
+    /// search, not a walk through every point (audit 2026-11-21 #33).
+    private static func nearest(to date: Date, in points: [PricePoint]) -> PricePoint? {
+        guard !points.isEmpty else { return nil }
+        var low = 0
+        var high = points.count - 1
+        while low < high {
+            let mid = (low + high) / 2
+            if points[mid].timestamp < date { low = mid + 1 } else { high = mid }
+        }
+        // `low` is the first point at or after the date; the one before may be nearer.
+        guard low > 0 else { return points[low] }
+        let after = points[low]
+        let before = points[low - 1]
+        return abs(before.timestamp.timeIntervalSince(date)) <= abs(after.timestamp.timeIntervalSince(date)) ? before : after
     }
 }
 

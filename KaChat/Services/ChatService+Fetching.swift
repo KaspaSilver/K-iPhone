@@ -3492,6 +3492,13 @@ extension ChatService {
             recoverMissingReplyOriginalIfNeeded(for: message, contactAddress: contactAddress)
         }
 
+        // While the app is open, a new incoming message gets its banner from here at once
+        // (`InAppBanner`), unless that very chat is on screen.
+        let isBackfilledHistory = message.blockTime > 0 && Int64(message.blockTime) <= importBaselineMs
+        if isNewMessage && !message.isOutgoing && !isUserViewing && !isBackfilledHistory && !isLaterVoicePart {
+            postInAppBanner(for: message, from: contact)
+        }
+
         // If user is currently viewing this chat, advance read marker immediately
         // to prevent unread counter resurrection after store reload/merge.
         if isNewMessage && !message.isOutgoing && isUserViewing && message.blockTime > 0 {
@@ -3500,16 +3507,6 @@ extension ChatService {
                 lastReadTxId: message.txId,
                 lastReadBlockTime: message.blockTime
             )
-        }
-
-        // Send local notification for new incoming messages.
-        // Only suppress when the app is actively in the foreground AND the user is viewing that conversation.
-        let isViewingConversation = activeConversationAddress == contactAddress &&
-            UIApplication.shared.applicationState == .active
-        // Backfilled pre-import history never notifies either - restoring is not receiving.
-        let isBackfilledHistory = message.blockTime > 0 && Int64(message.blockTime) <= importBaselineMs
-        if isNewMessage && !message.isOutgoing && !isViewingConversation && !isBackfilledHistory && !isLaterVoicePart {
-            sendLocalNotification(for: message, from: contact)
         }
     }
 
@@ -3693,105 +3690,39 @@ extension ChatService {
         }
     }
 
-    /// App Group ledger of 1:1 txIds the MAIN APP posted a local banner for - the 1:1
-    /// counterpart of `GroupChatService.localPostedTxIdsKey`. `AppDelegate.willPresent` drops
-    /// a foreground push whose tx_id appears here.
-    static let localPostedTxIdsKey = "chat_local_posted_txids"
-
-    /// Returns false when this txId already produced a banner - the notification extension
-    /// handled its push (`chat_push_handled_txids`, written in NotificationService.didReceive),
-    /// or the main app already posted a local banner for it. Records the claim and returns
-    /// true otherwise. Bounded FIFO, mirroring `GroupChatService.claimGroupBannerSlot`.
-    private static func claimChatBannerSlot(txId: String) -> Bool {
-        guard let defaults = UserDefaults(suiteName: "group.com.kachat.app") else { return true }
-        let pushHandled = defaults.stringArray(forKey: "chat_push_handled_txids") ?? []
-        guard !pushHandled.contains(txId) else { return false }
-        var posted = defaults.stringArray(forKey: localPostedTxIdsKey) ?? []
-        guard !posted.contains(txId) else { return false }
-        posted.append(txId)
-        if posted.count > 300 { posted.removeFirst(posted.count - 300) }
-        defaults.set(posted, forKey: localPostedTxIdsKey)
-        return true
-    }
-
-    func sendLocalNotification(for message: ChatMessage, from contact: Contact) {
-        // The remote push is the only banner source - see `localBannersEnabled`.
-        guard Self.localBannersEnabled else { return }
+    /// A new 1:1 message's banner while the app is open (`InAppBanner`), with the same rules as its
+    /// push: notifications on, this contact not muted, no request or blocked sender, nothing
+    /// pending or hidden, nothing during the first sync after an import.
+    private func postInAppBanner(for message: ChatMessage, from contact: Contact) {
         let settings = currentSettings
-        // Check if notifications are enabled
-        guard settings.notificationsEnabled else { return }
-        // Foreground: the app's own live sync paths (subscription, sweep, open-chat poll,
-        // catch-up) are the notification source no matter the push mode - remote push only
-        // matters for background/closed. Background keeps the remote-push suppression so
-        // users whose push works don't get double banners there.
-        if UIApplication.shared.applicationState != .active {
-            guard settings.notificationMode != .remotePush else { return }
-        }
-
-        // Don't notify during initial sync after wallet import/create
-        guard !suppressNotificationsUntilSynced else { return }
-
-        // Respect global defaults + optional per-contact override.
-        guard settings.shouldDeliverIncomingNotification(for: contact) else { return }
-
-        // Don't notify for pending messages
-        guard message.deliveryStatus != .pending else { return }
-        // nor for one the chat won't show (undecryptable / cross-device placeholder)
-        guard !message.isHiddenPlaceholder else { return }
-
-        // One banner per txId across the local-vs-APNs race: skip if the notification
-        // extension already handled this message's push, and record this local post so a
-        // foreground push duplicate is dropped in AppDelegate.willPresent.
-        guard Self.claimChatBannerSlot(txId: message.txId) else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = contact.alias
-        content.body = notificationBody(for: message)
-        let shouldPlaySound = settings.shouldPlayIncomingNotificationSound(for: contact)
-        content.sound = shouldPlaySound ? .default : nil
-        content.threadIdentifier = contact.address
-        content.categoryIdentifier = AppDelegate.messageCategoryId
-
-        if !shouldPlaySound &&
-            settings.incomingNotificationVibrationEnabled &&
-            UIApplication.shared.applicationState == .active {
-            Haptics.impact(.light)
-        }
-
-        let request = UNNotificationRequest(
-            identifier: message.txId,
-            content: content,
-            trigger: nil // Deliver immediately
-        )
-
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                AppLog.log("%@", "[ChatService] Failed to send notification: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    /// Banner text for one incoming message.
-    ///
-    /// Some message contents are internal PLACEHOLDERS, not text the sender wrote: a handshake
-    /// carries "[Request to communicate]", an undecryptable message carries "[Encrypted
-    /// message]". The chat bubble renders those as proper UI and the push extension has its own
-    /// wording for them, but this path put the bracketed placeholder straight into the banner, so
-    /// a connect request arrived on screen as literally "[Request to communicate]".
-    ///
-    /// Handshake wording is kept in step with `KaChatNotificationService`, which sees only the
-    /// push type and so cannot tell a request from an acceptance; this path can, and says so.
-    private func notificationBody(for message: ChatMessage) -> String {
+        guard settings.notificationsEnabled,
+              !suppressNotificationsUntilSynced,
+              settings.shouldDeliverIncomingNotification(for: contact),
+              message.deliveryStatus != .pending,
+              !message.isHiddenPlaceholder,
+              InAppBanner.isRecent(blockTimeMs: Int64(message.blockTime)),
+              !isChatBlocked(contact.address),
+              !conversations.contains(where: { $0.contact.address == contact.address && isMessageRequest($0) })
+        else { return }
         let raw = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body: String
         if message.messageType == .handshake {
-            return raw == "[Request accepted]"
-                ? NSLocalizedString("Accepted your request to communicate", comment: "Banner body when a contact accepts a handshake")
-                : NSLocalizedString("Started a conversation", comment: "Push body for handshake notification")
+            body = raw == "[Request accepted]"
+                ? AppLocalization.string("Accepted your request to communicate")
+                : AppLocalization.string("Started a conversation")
+        } else if raw == "[Encrypted message]" {
+            body = AppLocalization.string("Sent you a message")
+        } else {
+            body = formatNotificationBody(message.content)
         }
-        if raw == "[Encrypted message]" {
-            return NSLocalizedString("Sent you a message", comment: "Banner body for a message that could not be decrypted")
-        }
-        return formatNotificationBody(message.content)
+        InAppBanner.post(
+            txId: message.txId,
+            title: contact.alias,
+            body: body,
+            threadIdentifier: contact.address,
+            categoryIdentifier: AppDelegate.messageCategoryId,
+            sound: settings.shouldPlayIncomingNotificationSound(for: contact)
+        )
     }
 
     func formatNotificationBody(_ content: String) -> String {

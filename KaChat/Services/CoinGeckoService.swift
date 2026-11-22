@@ -263,8 +263,7 @@ final class CoinGeckoService: Sendable {
                     }
                 }
                 guard attempt == 0, http.statusCode == 429 || http.statusCode >= 500 else { return [] }
-                let retryAfter = min(Double(http.value(forHTTPHeaderField: "Retry-After") ?? "") ?? 2, 10)
-                try await Task.sleep(nanoseconds: UInt64(retryAfter * 1_000_000_000))
+                try await Task.sleep(nanoseconds: Self.retryDelayNanoseconds(http))
             } catch {
                 // Includes Task cancellation during the retry sleep — bail out quietly.
                 return []
@@ -282,6 +281,19 @@ final class CoinGeckoService: Sendable {
     /// Same 429/5xx retry as `getPriceHistory`: the keyless tier throttles bursts, and this
     /// endpoint is the per-day fallback the portfolio price backfill leans on — one Retry-After-
     /// honoring retry (capped at 10s) turns a throttle window into a delay instead of a miss.
+    /// The server's Retry-After in nanoseconds, capped at 10 s. Only a finite number of seconds
+    /// in 0...600 counts; anything else (negative, NaN, a date, garbage) is 2 s, since turning a
+    /// negative or NaN into UInt64 would crash the app (audit 2026-11-21, #20).
+    private static func retryDelayNanoseconds(_ http: HTTPURLResponse) -> UInt64 {
+        var seconds: Double = 2
+        if let raw = http.value(forHTTPHeaderField: "Retry-After"),
+           let parsed = Double(raw.trimmingCharacters(in: .whitespaces)),
+           parsed.isFinite, (0...600).contains(parsed) {
+            seconds = parsed
+        }
+        return UInt64(min(seconds, 10) * 1_000_000_000)
+    }
+
     func getHistoricalPrice(date: Date, currency: AppCurrency) async -> Double? {
         guard var components = URLComponents(string: baseURL + "/api/v3/coins/kaspa/history") else { return nil }
         components.queryItems = [
@@ -299,8 +311,7 @@ final class CoinGeckoService: Sendable {
                     return decoded.marketData?.currentPrice?[currency.rawValue]
                 }
                 guard attempt == 0, http.statusCode == 429 || http.statusCode >= 500 else { return nil }
-                let retryAfter = min(Double(http.value(forHTTPHeaderField: "Retry-After") ?? "") ?? 2, 10)
-                try await Task.sleep(nanoseconds: UInt64(retryAfter * 1_000_000_000))
+                try await Task.sleep(nanoseconds: Self.retryDelayNanoseconds(http))
             } catch {
                 // Includes Task cancellation during the retry sleep — bail out quietly.
                 return nil
@@ -311,10 +322,9 @@ final class CoinGeckoService: Sendable {
 }
 
 
-/// The KAS price in the chosen currency, for the Send screens' KAS / currency switch. It used to
-/// come from Portfolio's view model; Portfolio left the app on 2026-10-24 (it lives in the KaChat
-/// wallet app), so this keeps just the price: the last one is persisted, a failed fetch retries on
-/// a growing pause, and a currency change in Settings fetches again.
+/// The KAS price in the chosen currency, for the Send screens' KAS / currency switch and the
+/// Wallet tab. Just the price, apart from Portfolio's view model: the last one is persisted, a
+/// failed fetch retries on a growing pause, and a currency change in Settings fetches again.
 @MainActor
 final class KasPriceModel: ObservableObject {
     static let shared = KasPriceModel()

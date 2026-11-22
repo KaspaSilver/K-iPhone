@@ -15,7 +15,7 @@ struct ChessTournamentsView: View {
     }
     enum Tab: CaseIterable { case play, activeGames, finished }
     /// Both screens: play, Active (watch-only), Finished. The leaderboards have a tab of their
-    /// own in the dock (`ChessLeaderboardTabView`).
+    /// own inside Chess (`ChessLeaderboardView`).
     private var tabs: [Tab] { [.play, .activeGames, .finished] }
 
     /// Fixed for the screen's life: this is the 1v1 screen or the Tournaments screen.
@@ -185,8 +185,9 @@ struct ChessTournamentsView: View {
         }
         // One toast at a time: the waiting room's note first, then the service's error.
         .toast(message: waitingNotice ?? service.lastError, style: .error)
-        .onAppear { service.acquire() }
-        .onDisappear { service.release() }
+        // Through onScreenPresence: Kaspa Hub keeps KaPlay alive (hidden) once left, and the arena
+        // is watched only while this screen shows.
+        .onScreenPresence(appear: { service.acquire() }, disappear: { service.release() })
     }
 
     private func showNotice(_ notice: String) {

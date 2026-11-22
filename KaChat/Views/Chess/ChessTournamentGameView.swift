@@ -111,8 +111,10 @@ struct ChessTournamentGameView: View {
             }
         }
         .background(ChessNavigationPopper(request: popRequest))
-        .onAppear { service.acquire(); rememberRecord() }
-        .onDisappear { service.release() }
+        .onAppear { rememberRecord() }
+        // Through onScreenPresence: Kaspa Hub keeps KaPlay alive (hidden) once left, and the arena
+        // is watched only while this screen shows.
+        .onScreenPresence(appear: { service.acquire() }, disappear: { service.release() })
         .onChange(of: game?.isOver) { _ in gameEndedIfNeeded() }
         .onChange(of: tournament?.games.count) { _ in switchToMyGameIfNeeded() }
         // Keep the "before" record fresh while the game is on (the arena may still be loading

@@ -372,7 +372,7 @@ final class PostTranslationService: ObservableObject {
         guard let url = components.url else { return nil }
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        guard let (data, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse, http.statusCode == 200,
               let decoded = try? JSONDecoder().decode(LanguagesResponse.self, from: data) else {
             return nil
@@ -384,6 +384,22 @@ final class PostTranslationService: ObservableObject {
     }
 
     // MARK: - Wire
+
+    /// Translation requests have a session of their own: ephemeral, no cookies, no cache, no
+    /// credentials. The service shares a host with the KaPost indexer, whose reads name the reader
+    /// (`requesterPubkey`); on `URLSession.shared` both rode one connection and cookie jar, which
+    /// could tie what a reader translated to who they are (audit 2026-11-21 #24). A separate
+    /// session never reuses the indexer's connections.
+    private static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.httpShouldSetCookies = false
+        configuration.urlCredentialStorage = nil
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: configuration)
+    }()
 
     private struct TranslationResult {
         let text: String
@@ -433,7 +449,7 @@ final class PostTranslationService: ObservableObject {
         // turned that one reader's request into a failure banner.
         request.timeoutInterval = 45
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw TranslationError.badResponse }
         guard http.statusCode == 200 else {
             let decoded = try? JSONDecoder().decode(APIError.self, from: data)

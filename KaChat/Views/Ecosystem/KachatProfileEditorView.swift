@@ -412,11 +412,3 @@ struct KachatLiveProfileEditor: View {
 
 }
 
-
-/// What .kachat names are, what they cost and how to claim one: the page on home.kachat.app that
-/// "Get a .kachat name" (Edit Profile) and "Get a .kachat domain" (Your Domains) open. Names are
-/// bought in KaPay, never in this app.
-enum KachatNamesInfo {
-    static let pageURL = URL(string: "https://home.kachat.app/kachat/")!
-}
-

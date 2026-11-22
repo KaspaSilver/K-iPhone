@@ -10,7 +10,30 @@ final class PortfolioViewModel: ObservableObject {
     /// PortfolioView is observing, instead of writing straight to PortfolioLedgerStore behind
     /// its back - that used to leave Portfolio showing stale data until the app was relaunched
     /// (the view model only ever loaded from disk once, in its own init).
-    static let shared = PortfolioViewModel()
+    ///
+    /// Made the first time something reads it (Portfolio, Add to Portfolio, a Cold Storage
+    /// send), never at launch: its init starts the CoinGecko burst (price, stats, chart, 7-day),
+    /// which every launch sent even when Portfolio was never opened, competing with the price
+    /// tips use. The signed-in wallet is handed to it then (`walletDidChange`).
+    static var shared: PortfolioViewModel {
+        if let instance = sharedInstance { return instance }
+        let instance = PortfolioViewModel()
+        sharedInstance = instance
+        instance.setCurrentWallet(signedInWalletAddress)
+        return instance
+    }
+    private static var sharedInstance: PortfolioViewModel?
+    /// The signed-in wallet as `WalletManager` last reported it, for the instance to load once
+    /// it is made.
+    private static var signedInWalletAddress: String?
+
+    /// `WalletManager`'s account changes (after `PortfolioManager.setCurrentWallet` for the same
+    /// wallet): kept for when the view model is made, and passed on now if it already exists.
+    /// Never makes it.
+    static func walletDidChange(_ walletAddress: String?) {
+        signedInWalletAddress = walletAddress
+        sharedInstance?.setCurrentWallet(walletAddress)
+    }
 
     @Published private(set) var transactions: [PortfolioTransaction] = []
     /// Network fees imported addresses paid, every portfolio's (see `PortfolioFeeRecord`).
@@ -82,12 +105,47 @@ final class PortfolioViewModel: ObservableObject {
     /// idle. Cancelled on wallet switch/clear so a pass never writes into the wrong ledger.
     private var priceBackfillTask: Task<Void, Never>?
 
+    // MARK: - Derived from the ledger, cached
+
+    /// The figures below are worked out once per change of what they come from (the ledger, the
+    /// active portfolio, the price series, the range, the price) and then served as they are. A
+    /// chart scrub redraws its screen on every step, and each draw asked for the summary and the
+    /// value series - a replay of the whole ledger against the price series - more than once,
+    /// and the transactions list sorted the ledger up to five times (audit 2026-11-21 #33).
+    /// Inputs are compared rather than versioned by hand: an unchanged array shares its storage,
+    /// so the compare is one pointer check, and no write site can forget to invalidate.
+    private var scopedKey: (transactions: [PortfolioTransaction], activeId: UUID?)?
+    private var scopedValue: [PortfolioTransaction] = []
+    /// Bumped whenever `scopedValue` is worked out again; everything cached below keys on it.
+    private var scopedVersion = 0
+    private var descendingCache: (version: Int, value: [PortfolioTransaction])?
+    private var summaryCache: (version: Int, price: Double, value: PortfolioSummary)?
+    private var realizedCache: (version: Int, year: Int, value: RealizedPL)?
+    /// The last few value series (the app currency's and a flipped pair's), each with what it
+    /// was built from.
+    private var valueHistoryCache: [(version: Int, rangeDays: Int, prices: [PricePoint], value: [PricePoint])] = []
+    /// Each portfolio card's value and today's change, for the ledger, price and 7-day series
+    /// they were worked out from.
+    private var cardCacheKey: (transactions: [PortfolioTransaction], price: Double, sevenDay: [PricePoint])?
+    private var cardValueCache: [UUID: Double] = [:]
+    private var cardChangeCache: [UUID: (amount: Double, percent: Double)?] = [:]
+
     /// This wallet's transactions belonging to whichever portfolio is currently active. `transactions`
     /// itself holds every portfolio's rows for the wallet (filtering here is free and avoids a
     /// disk round-trip on every portfolio switch — see `PortfolioManager`).
     var scopedTransactions: [PortfolioTransaction] {
-        guard let activeId = PortfolioManager.shared.activePortfolioId else { return [] }
-        return transactions.filter { $0.portfolioId == activeId }
+        let activeId = PortfolioManager.shared.activePortfolioId
+        if let key = scopedKey, key.activeId == activeId, key.transactions == transactions {
+            return scopedValue
+        }
+        if let activeId {
+            scopedValue = transactions.filter { $0.portfolioId == activeId }
+        } else {
+            scopedValue = []
+        }
+        scopedKey = (transactions, activeId)
+        scopedVersion &+= 1
+        return scopedValue
     }
 
     /// The active portfolio's fees, for the Fees Spent card.
@@ -104,18 +162,29 @@ final class PortfolioViewModel: ObservableObject {
 
     /// The active portfolio's realized profit and loss for the current calendar year.
     var realizedPLThisYear: RealizedPL {
-        Self.computeRealizedPL(
-            transactions: scopedTransactions,
-            year: Calendar.current.component(.year, from: Date())
-        )
+        let scoped = scopedTransactions
+        let year = Calendar.current.component(.year, from: Date())
+        if let cached = realizedCache, cached.version == scopedVersion, cached.year == year { return cached.value }
+        let value = Self.computeRealizedPL(transactions: scoped, year: year)
+        realizedCache = (scopedVersion, year, value)
+        return value
     }
 
     var transactionsDescending: [PortfolioTransaction] {
-        scopedTransactions.sorted { $0.timestamp > $1.timestamp }
+        let scoped = scopedTransactions
+        if let cached = descendingCache, cached.version == scopedVersion { return cached.value }
+        let value = scoped.sorted { $0.timestamp > $1.timestamp }
+        descendingCache = (scopedVersion, value)
+        return value
     }
 
     var summary: PortfolioSummary {
-        Self.computeSummary(transactions: scopedTransactions, currentPriceUsd: currentPriceUsd ?? 0)
+        let scoped = scopedTransactions
+        let price = currentPriceUsd ?? 0
+        if let cached = summaryCache, cached.version == scopedVersion, cached.price == price { return cached.value }
+        let value = Self.computeSummary(transactions: scoped, currentPriceUsd: price)
+        summaryCache = (scopedVersion, price, value)
+        return value
     }
 
     var valueHistory: [PricePoint] { valueHistory(from: priceHistory) }
@@ -123,10 +192,27 @@ final class PortfolioViewModel: ObservableObject {
     /// Holdings over time priced by the given series - the app-currency one, or bitcoin's
     /// when a chart is flipped to it.
     private func valueHistory(from priceSeries: [PricePoint]) -> [PricePoint] {
-        let series = Self.computeValueHistory(transactions: scopedTransactions, priceHistory: priceSeries)
+        let scoped = scopedTransactions
+        let version = scopedVersion
+        let rangeDays = priceRangeDays
+        if let cached = valueHistoryCache.first(where: {
+            $0.version == version && $0.rangeDays == rangeDays && $0.prices == priceSeries
+        }) {
+            return cached.value
+        }
+        let value = Self.trimmedValueHistory(transactions: scoped, priceSeries: priceSeries, rangeDays: rangeDays)
+        // The app currency's series and a flipped pair's, with room for one more in passing.
+        valueHistoryCache.removeAll { $0.version != version || $0.rangeDays != rangeDays }
+        if valueHistoryCache.count >= 3 { valueHistoryCache.removeFirst() }
+        valueHistoryCache.append((version, rangeDays, priceSeries, value))
+        return value
+    }
+
+    private static func trimmedValueHistory(transactions: [PortfolioTransaction], priceSeries: [PricePoint], rangeDays: Int) -> [PricePoint] {
+        let series = computeValueHistory(transactions: transactions, priceHistory: priceSeries)
         // All: from the first transaction to today. The price history reaches back to 2023,
         // and before anything was bought the value is a flat zero - not the portfolio's story.
-        guard priceRangeDays == 0, let firstTransaction = scopedTransactions.map(\.timestamp).min() else { return series }
+        guard rangeDays == 0, let firstTransaction = transactions.map(\.timestamp).min() else { return series }
         let start = firstTransaction.addingTimeInterval(-86_400)
         let trimmed = series.filter { $0.timestamp >= start }
         return trimmed.count >= 2 ? trimmed : series
@@ -135,8 +221,24 @@ final class PortfolioViewModel: ObservableObject {
     /// Current holdings value for a specific portfolio (not necessarily the active one) — used
     /// by the picker header to show every portfolio's card simultaneously.
     func currentValue(for portfolioId: UUID) -> Double {
+        refreshCardCacheKey()
+        if let cached = cardValueCache[portfolioId] { return cached }
         let scoped = transactions.filter { $0.portfolioId == portfolioId }
-        return Self.computeSummary(transactions: scoped, currentPriceUsd: currentPriceUsd ?? 0).currentValue
+        let value = Self.computeSummary(transactions: scoped, currentPriceUsd: currentPriceUsd ?? 0).currentValue
+        cardValueCache[portfolioId] = value
+        return value
+    }
+
+    /// Empties the cards' cache when the ledger, the price or the 7-day series moved.
+    private func refreshCardCacheKey() {
+        let price = currentPriceUsd ?? 0
+        if let key = cardCacheKey, key.price == price, key.transactions == transactions,
+           key.sevenDay == sevenDayPriceHistory {
+            return
+        }
+        cardCacheKey = (transactions, price, sevenDayPriceHistory)
+        cardValueCache = [:]
+        cardChangeCache = [:]
     }
 
     /// Today's $ and % change for a specific portfolio, derived from `sevenDayPriceHistory` so
@@ -144,9 +246,13 @@ final class PortfolioViewModel: ObservableObject {
     /// a value-history sample at least 24h old (e.g. a portfolio created today) — callers should
     /// show a neutral/no-data state rather than a misleading number.
     func todayChange(for portfolioId: UUID) -> (amount: Double, percent: Double)? {
+        refreshCardCacheKey()
+        if let cached = cardChangeCache[portfolioId] { return cached }
         let scoped = transactions.filter { $0.portfolioId == portfolioId }
         let history = Self.computeValueHistory(transactions: scoped, priceHistory: sevenDayPriceHistory)
-        return Self.computeTodayChange(valueHistory: history)
+        let change = Self.computeTodayChange(valueHistory: history)
+        cardChangeCache[portfolioId] = .some(change)
+        return change
     }
 
     // MARK: - Charts against a pair
@@ -492,7 +598,6 @@ final class PortfolioViewModel: ObservableObject {
             return
         }
         transactions = PortfolioLedgerStore.load(walletAddress: normalizedAddress, defaultPortfolioId: defaultPortfolioId)
-        savedTransactions = transactions
         fees = PortfolioLedgerStore.loadFees(walletAddress: normalizedAddress)
         // Rows left unpriced by an import the app was killed/backgrounded during (or by an older
         // build with no backfill at all) resume pricing here.
@@ -952,73 +1057,13 @@ final class PortfolioViewModel: ObservableObject {
         persist()
     }
 
-    /// The ledger as last saved, so a save can tell what changed (stamped) and what went.
-    private var savedTransactions: [PortfolioTransaction] = []
-
-    /// Saves the ledger: rows added or edited are stamped, rows gone are recorded as deleted, and
-    /// the Nextcloud backup is marked to upload.
+    /// Saves the ledger. Portfolios stay on the phone: KaChat's Nextcloud backs up contacts only.
     private func persist() {
-        let result = PortfolioLedgerStore.stamped(previous: savedTransactions, current: transactions, now: Date()) { $0.updatedAt = $1 }
-        if result.items != transactions { transactions = result.items }
-        PortfolioLedgerStore.recordDeletions(
-            result.removed.map { PortfolioTombstone(kind: .transaction, id: $0, deletedAt: Date()) },
-            walletAddress: activeWalletAddress
-        )
         PortfolioLedgerStore.save(transactions, walletAddress: activeWalletAddress)
-        savedTransactions = transactions
-        // portfolios stay on the phone: KaChat's Nextcloud backs up contacts only
     }
 
     private func persistFees() {
         PortfolioLedgerStore.saveFees(fees, walletAddress: activeWalletAddress)
-        // portfolios stay on the phone: KaChat's Nextcloud backs up contacts only
-    }
-
-    /// Re-reads this wallet's ledger after a Nextcloud restore wrote a merged one.
-    func reloadFromStore() {
-        guard let wallet = activeWalletAddress, let defaultId = PortfolioManager.shared.portfolios.first?.id else { return }
-        transactions = PortfolioLedgerStore.load(walletAddress: wallet, defaultPortfolioId: defaultId)
-        savedTransactions = transactions
-        fees = PortfolioLedgerStore.loadFees(walletAddress: wallet)
-        startPriceBackfillIfNeeded()
-    }
-
-    /// This wallet's portfolios as the Nextcloud backup carries them.
-    var syncState: PortfolioSync {
-        PortfolioSync(
-            portfolios: PortfolioManager.shared.portfolios,
-            transactions: transactions,
-            fees: fees,
-            tombstones: PortfolioLedgerStore.loadTombstones(walletAddress: activeWalletAddress)
-        )
-    }
-
-    /// A restore: merges the backup's portfolios into this wallet's (newest edit or deletion
-    /// wins per item) and reloads. Returns whether anything here changed.
-    @discardableResult
-    func importFromArchive(_ incoming: PortfolioSync) -> Bool {
-        guard let wallet = activeWalletAddress, !incoming.isEmpty else { return false }
-        // Another device's untouched "Portfolio 1" (in a file only to carry a deletion) is never
-        // taken: this device has its own, and would show two.
-        var incoming = incoming
-        incoming.portfolios.removeAll {
-            PortfolioSync.isPristineSeed($0, transactions: incoming.transactions, fees: incoming.fees)
-        }
-        var merged = PortfolioSync.merge([syncState, incoming])
-        // compared in the merge's own order, so a backup that adds nothing writes nothing
-        guard merged != PortfolioSync.merge([syncState]) else { return false }
-        // Every portfolio here was deleted on another device: back to an untouched one, as a new
-        // wallet starts. Refusing the import left the deleted one here, to come back from an edit.
-        if merged.portfolios.isEmpty {
-            merged.portfolios = [Portfolio(id: UUID(), name: "Portfolio 1", sortOrder: 0, createdAt: Date())]
-        }
-        PortfolioLedgerStore.savePortfolios(merged.portfolios, walletAddress: wallet)
-        PortfolioLedgerStore.save(merged.transactions, walletAddress: wallet)
-        PortfolioLedgerStore.saveFees(merged.fees, walletAddress: wallet)
-        PortfolioLedgerStore.saveTombstones(merged.tombstones, walletAddress: wallet)
-        PortfolioManager.shared.reloadFromStore()
-        reloadFromStore()
-        return true
     }
 
     /// A deleted portfolio's rows and fees, out of memory as well as off disk - otherwise the
@@ -1039,7 +1084,6 @@ final class PortfolioViewModel: ObservableObject {
         PortfolioLedgerStore.save([], walletAddress: activeWalletAddress)
         PortfolioLedgerStore.saveFees([], walletAddress: activeWalletAddress)
         transactions = []
-        savedTransactions = []
         fees = []
     }
 
@@ -1308,7 +1352,7 @@ final class PortfolioViewModel: ObservableObject {
             return existing.id
         }
         if manager.portfolios.count == 1, let only = manager.portfolios.first,
-           PortfolioSync.isPristineSeed(only, transactions: transactions, fees: fees) {
+           PortfolioLedgerStore.isPristineSeed(only, transactions: transactions, fees: fees) {
             manager.renamePortfolio(only.id, to: name)
             return only.id
         }
@@ -1333,6 +1377,10 @@ final class PortfolioViewModel: ObservableObject {
                 .compactMap { $0.sourceTxId }
         )
         let existingFeeTxIds = Set(fees.filter { $0.portfolioId == activePortfolioId }.map(\.txId))
+        // The import reads the address's whole history and prices it, which can outlast a
+        // sign-out or account switch: its rows are the account that started it, so they never
+        // land in the next one's ledger.
+        let wallet = activeWalletAddress
         let result = await PortfolioAddressImporter.importAddress(
             address,
             portfolioId: activePortfolioId,
@@ -1341,6 +1389,9 @@ final class PortfolioViewModel: ObservableObject {
             currency: currentCurrency,
             onProgress: onProgress
         )
+        guard wallet != nil, activeWalletAddress == wallet else {
+            return .failure(.noActivePortfolio)
+        }
         if case .success(let importResult) = result {
             transactions.append(contentsOf: importResult.imported)
             persist()

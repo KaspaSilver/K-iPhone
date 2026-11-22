@@ -91,7 +91,7 @@ final class KusdtNetRelay: NSObject, WKScriptMessageHandlerWithReply {
 /// positions it made, coins it knows, transactions it's following), per network and owner key.
 /// Kept as one JSON file in Application Support (not UserDefaults: it can grow), 2 MB at most in
 /// all, only keys starting `kusdt.`. Nothing secret goes in it: their code keeps keys elsewhere,
-/// and KaPay hands a key in only for one call. An account's entries go with the account
+/// and K hands a key in only for one call. An account's entries go with the account
 /// (`forget(ownerHex:)`, from `TokenWallet.forgetLocalData`).
 @MainActor
 final class KusdtStoreRelay: NSObject, WKScriptMessageHandlerWithReply {

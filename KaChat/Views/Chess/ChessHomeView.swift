@@ -1,13 +1,15 @@
 import SwiftUI
 
 /// Play > Chess: choose your game. 1v1 or a tournament, each its own screen
-/// (`ChessTournamentsView`), or the bots (`ChessBotsView`). If the player is
-/// already waiting or playing somewhere, that is offered first.
+/// (`ChessTournamentsView`), or the bots (`ChessBotsView`), and the leaderboards under them
+/// (`ChessLeaderboardView`). If the player is already waiting or playing somewhere, that is
+/// offered first.
 struct ChessHomeView: View {
     @ObservedObject private var service = ChessTournamentService.shared
     @EnvironmentObject private var walletManager: WalletManager
     @State private var openMode: ChessTournamentsView.Mode?
     @State private var openBots = false
+    @State private var openLeaderboard = false
     @ObservedObject private var links = ChessBotLinkRouter.shared
     /// A challenge from a post being shown (`ChessBotLinks`).
     @State private var openChallenge: ChessBotChallenge?
@@ -70,6 +72,11 @@ struct ChessHomeView: View {
                     title: "Bots",
                     detail: "Five bots, level 1 to 5, from Kaspa Silver to Yonatan Sompolinsky. Beat one to unlock the next. The result goes on Kaspa."
                 ) { openBots = true }
+                gameCard(
+                    icon: "list.number",
+                    title: "Leaderboard",
+                    detail: "Who's on top in 1v1 and tournaments, this month or all time, and against each bot."
+                ) { openLeaderboard = true }
             }
             .padding(.bottom, 24)
         }
@@ -91,6 +98,9 @@ struct ChessHomeView: View {
         .navigationDestination(isPresented: $openBots) {
             ChessBotsView()
         }
+        .navigationDestination(isPresented: $openLeaderboard) {
+            ChessLeaderboardView()
+        }
         .navigationDestination(isPresented: Binding(
             get: { openChallenge != nil },
             set: { if !$0 { openChallenge = nil } }
@@ -106,9 +116,11 @@ struct ChessHomeView: View {
         }
         .onAppear {
             isVisible = true
-            service.acquire()
             takeChallenge()
         }
+        // Through onScreenPresence: Kaspa Hub keeps KaPlay alive (hidden) once left, and the arena
+        // is watched only while this screen shows.
+        .onScreenPresence(appear: { service.acquire() }, disappear: { service.release() })
         // Never from under a pushed screen (a bot game, a board): it waits in the router until
         // this screen is back.
         .onChange(of: links.challenge) { _ in if isVisible { takeChallenge() } }
@@ -117,7 +129,6 @@ struct ChessHomeView: View {
         .onChange(of: service.isBusyOnline) { busy in if !busy, isVisible { takeChallenge() } }
         .onDisappear {
             isVisible = false
-            service.release()
         }
     }
 

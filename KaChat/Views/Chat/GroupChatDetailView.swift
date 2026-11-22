@@ -939,7 +939,7 @@ struct GroupChatDetailView: View {
             Button("Cancel", role: .cancel) { pendingHighFeeSompi = nil }
         } message: {
             Text(verbatim: KaspaUnit.label(String(format: AppLocalization.string("%@ KAS is much more than the network needs to send a message."),
-                                                  locale: AppLocalization.locale, formatKaspaExact(pendingHighFeeSompi ?? 0))))
+                                                  locale: AppLocalization.locale, formatKasExact(pendingHighFeeSompi ?? 0))))
         }
     }
 
@@ -1266,7 +1266,7 @@ struct GroupChatDetailView: View {
         .allowsHitTesting(true)
         .onTapGesture {
             guard feeIsAdjustable, !isEstimatingFee, let currentFee = (feeIsAdjustable ? feeOverrideSompi : nil) ?? feeEstimateSompi else { return }
-            feeEditorText = formatKaspaExact(currentFee)
+            feeEditorText = formatKasExact(currentFee)
             showFeeEditor = true
         }
     }
@@ -1299,11 +1299,7 @@ struct GroupChatDetailView: View {
 
     private func localizedFeeText(_ feeSompi: UInt64) -> String {
         let template = KaspaUnit.label(AppLocalization.string("fee: %@ KAS"))
-        return String(format: template, locale: AppLocalization.locale, formatKaspaExact(feeSompi))
-    }
-
-    private func formatKaspaExact(_ sompi: UInt64) -> String {
-        String(format: "%.8f", Double(sompi) / 100_000_000.0)
+        return String(format: template, locale: AppLocalization.locale, formatKasExact(feeSompi))
     }
 
     /// While typing (`force` false): waits for a 0.6 s pause, and skips the estimate while the
@@ -2608,16 +2604,6 @@ struct GroupChatDetailView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("Group info for \(group.name)"))
-    }
-
-    private func glassBackground(cornerRadius: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
     }
 
     /// "Today"/"Yesterday"/date pill between message groups - visually identical to 1:1 chat's

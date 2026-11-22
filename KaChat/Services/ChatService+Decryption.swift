@@ -414,9 +414,9 @@ extension ChatService {
         var addressBook: [AddressBookEntry]? = nil
         var addressBookDeleted: [AddressBookTombstone]? = nil
         // Portfolios (`portfolios`, `portfolioTransactions`, `portfolioFees`, `portfolioDeleted`)
-        // are no longer read or written here: Portfolio left the app on 2026-10-24. The upload
-        // merge starts from the server copy, so the other apps' portfolio keys are kept as they
-        // are (NEXTCLOUD_SYNC.md section 5).
+        // are not read or written here: KaChat's Nextcloud backs up contacts only, and portfolios
+        // stay on the phone. The upload merge starts from the server copy, so portfolio keys an
+        // older app wrote are kept as they are (NEXTCLOUD_SYNC.md section 5).
     }
 
     struct ChatHistoryArchiveConversation: Codable {

@@ -40,6 +40,16 @@ struct KaPostsSettingsView: View {
     static var instantTipMinimumText: String { "\(KaspaUnit.plain(instantTipMinimumSompi)) \(KaspaUnit.symbol)" }
     static let instantTipLimitNotice = "Instant tips are limited to 10 KAS. Swipe up to send this one."
 
+    /// A currency amount in sompi at a KAS price, or nil when the answer isn't a real amount: not
+    /// finite, negative, or more than all the KAS there will ever be (`KaspaUnit.maxTypedSompi`).
+    /// `UInt64(_:)` traps past `UInt64.max`, so every currency-to-sompi conversion goes through here.
+    static func sompi(fiat: Double, price: Double) -> UInt64? {
+        guard fiat.isFinite, price.isFinite, fiat >= 0, price > 0 else { return nil }
+        let value = (fiat / price * 100_000_000).rounded()
+        guard value.isFinite, value >= 0, value <= Double(KaspaUnit.maxTypedSompi) else { return nil }
+        return UInt64(value)
+    }
+
     var body: some View {
         if embedded {
             form
@@ -241,7 +251,14 @@ struct KaPostsSettingsView: View {
         guard let amount = typedAmount, amount > 0 else { return nil }
         guard tipInFiat else { return KaspaUnit.sompi(fromUserText: defaultTipText) }
         guard let price = tipPrice(in: tipCurrency), price > 0 else { return nil }
-        return UInt64((amount / price * 100_000_000).rounded())
+        return Self.sompi(fiat: amount, price: price)
+    }
+
+    /// A currency amount worth more KAS than can exist at today's price: not a tip, not saved.
+    private var tipOutOfRange: Bool {
+        guard tipInFiat, let amount = typedAmount, amount > 0,
+              let price = tipPrice(in: tipCurrency), price > 0 else { return false }
+        return Self.sompi(fiat: amount, price: price) == nil
     }
 
     /// The KAS price a currency tip is measured at here: the fresh one tips are sent at
@@ -252,7 +269,7 @@ struct KaPostsSettingsView: View {
 
     /// An amount that can be saved: above zero and not under the network's minimum.
     private var tipAmountIsValid: Bool {
-        (typedAmount ?? 0) > 0 && !tipBelowMinimum
+        (typedAmount ?? 0) > 0 && !tipBelowMinimum && !tipOutOfRange
     }
 
     /// Under the smallest tip the network takes (`instantTipMinimumSompi`): not saved.

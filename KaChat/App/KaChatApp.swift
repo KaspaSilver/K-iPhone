@@ -179,8 +179,12 @@ struct KaChatApp: App {
             ChatService.shared.startForegroundContactSweep()
             // And the 2s open-chat poll, if a conversation was open when we went to background.
             ChatService.shared.resumeActiveChatPollIfNeeded()
-            // The .kachat registry, for name lookups (the market itself left the app on 2026-10-24).
+            // The .kachat registry, for name lookups and the market.
             Task { @MainActor in await KachatNamesRegistry.shared.refreshIfStale() }
+            // .kachat registrations in flight (testnet only; no-op on mainnet) resume after a
+            // relaunch: commit -> wait -> register continues by itself, and a claim still in
+            // progress brings its half sheet back up once (`KachatRegistrationPresenter`), as in KaPay.
+            KachatNamesActions.shared.resume()
             // Group traffic from the indexer while the app is open (block stream as fallback).
             GroupChatService.shared.startLivePolling()
             ContactsManager.shared.startProfileRescans()
@@ -312,7 +316,7 @@ struct KaChatApp: App {
         }
 
         // A KaPlay bot challenge (`kachatchess://bot/...`, registered here since KaPlay retired):
-        // the game opens here, in KaPlay.
+        // the game opens here, in the Games tab.
         if ChessBotLinks.challenge(from: url) != nil {
             ChessBotLinks.open(url)
             return
@@ -670,9 +674,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             // already existed for the read-state auto-mark but was never consulted here.
             let isActiveGroup = threadId.hasPrefix("group:") &&
                 GroupChatService.shared.activeGroupId == String(threadId.dropFirst("group:".count))
-            // The push is the only banner source now (see `ChatService.localBannersEnabled`).
-            // The one rule here is about the reader, not the plumbing: no banner for the chat
-            // they are looking at.
+            // The remote push is the only banner source: the app posts none of its own for the
+            // messages, group traffic, rooms and KaPost activity it discovers itself (the same
+            // message used to arrive as two differently-worded banners). Discovery still runs;
+            // rooms the push server does not index, and anything the push service misses,
+            // notify nothing - on purpose. The one rule here is about the reader: no banner for
+            // the chat they are looking at.
 
             // Message Requests: the extension already decided (one "New message request", then
             // silence; nothing from a blocked address) - a push it emptied must not surface as a
@@ -691,6 +698,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 completionHandler([])
             } else if (userInfo["kachat_quiet_voice_part"] as? Bool) == true {
                 // A later part of a long voice note: its first part already announced it.
+                completionHandler([.list])
+            } else if !InAppBanner.isOwn(notification), !InAppBanner.claim(InAppBanner.txId(of: notification)) {
+                // The app already bannered this message while open (`InAppBanner`).
                 completionHandler([.list])
             } else {
                 var options: UNNotificationPresentationOptions = [.banner, .badge]
@@ -723,6 +733,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             options.insert(.sound)
         }
         if threadId == "kaposts" {
+            // The bell's count comes from the poll, which runs every 5 minutes with push on.
+            KaPostsNotificationService.shared.pollSoon()
             // Nothing from someone you blocked or muted, as in the in-app count, when the push
             // names who acted (`actor_pubkey`).
             let actorHidden = (userInfo["actor_pubkey"] as? String)
@@ -733,6 +745,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 || (UIApplication.shared.applicationState == .active
                     && KaPostsNotificationService.shared.isNotificationsScreenVisible) {
                 return []
+            }
+            // One banner per action: a push whose action the in-app banner already showed is
+            // held back (and claims it when it comes first). The app's own banners pass.
+            if !notification.request.identifier.hasPrefix(KaPostsBannerLedger.localIdentifierPrefix) {
+                let key = KaPostsBannerLedger.key(
+                    actorPubkey: userInfo["actor_pubkey"] as? String,
+                    postId: userInfo["postId"] as? String,
+                    kind: KaPostsBannerLedger.kind(pushKind: userInfo["kaposts_kind"] as? String, body: body)
+                )
+                if !KaPostsBannerLedger.claim(key) { return [] }
             }
         } else if threadId.hasPrefix("broadcast:") {
             // No banner for the room you are reading.
@@ -746,6 +768,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             guard let room = KaChatInternalLink.normalizeAndValidateChannel(channel),
                   PublicChatService.shared.wantsRoomPush(channel: room) else {
                 return []
+            }
+            // The app already bannered this message while open (`InAppBanner`).
+            if !InAppBanner.isOwn(notification), !InAppBanner.claim(InAppBanner.txId(of: notification)) {
+                return [.list]
             }
             // A long voice note's later parts: listed, no banner or sound.
             if RoomVoicePushBursts.isLaterPart(
@@ -969,14 +995,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // else the Notifications screen (from KaPost).
         if threadIdentifier == "kaposts" {
             let userInfo = response.notification.request.content.userInfo
-            // A tapped push leaves Notification Center, so the poller can no longer see it:
-            // record its action id so the next poll doesn't banner it again.
-            if response.notification.request.trigger is UNPushNotificationTrigger {
-                let actionId = response.notification.request.identifier
-                Task { @MainActor in
-                    KaPostsNotificationService.shared.recordDisplayed(actionId: actionId)
-                }
-            }
             let body = response.notification.request.content.body
             let actionId = response.notification.request.identifier
             if Self.kaPostsPushOpensAction(userInfo: userInfo, body: body), Self.isTxId(actionId) {
@@ -1009,10 +1027,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return
         }
 
-        // A .kachat name event (offer, sale, renewal - thread "kachat-names") left with the
-        // .kachat market on 2026-10-24; a stray one lands on Chats.
-        if threadIdentifier == "kachat-names" {
-            NotificationCenter.default.post(name: .openChat, object: nil, userInfo: [:])
+        // A .kachat name event (an offer, a sale, a renewal reminder: the push's `name_event` or
+        // a local reminder on thread "kachat-names"): the .kachat section, wherever it lives.
+        // `PendingTabRoute` covers the cold start.
+        if threadIdentifier == "kachat-names"
+            || (response.notification.request.content.userInfo["type"] as? String) == "name_event" {
+            PendingTabRoute.pending = .kachatNames
+            NotificationCenter.default.post(name: .openKachatName, object: nil)
+            completionHandler()
+            return
+        }
+
+        // A Received KAS push (`address_activity`, thread "funds:<address>"): that address's
+        // history, as the app's own notice opens it; a Cold Storage address opens Wallet.
+        if threadIdentifier.hasPrefix("funds:")
+            || (response.notification.request.content.userInfo["type"] as? String) == "address_activity" {
+            let address = (response.notification.request.content.userInfo["address"] as? String)
+                ?? String(threadIdentifier.dropFirst("funds:".count))
+            Task { @MainActor in
+                if AddressActivityNotifier.shared.opensHistory(for: address) {
+                    OwnAddressRoute.pending = address
+                    NotificationCenter.default.post(name: .openOwnAddress, object: nil)
+                } else {
+                    PendingTabRoute.pending = .wallet
+                    NotificationCenter.default.post(name: .openProfile, object: nil)
+                }
+            }
             completionHandler()
             return
         }
@@ -1433,8 +1473,6 @@ enum KaChatLinkRouter {
 /// if KaPostsView isn't mounted yet.
 enum KaPostsDeepLink {
     static var pendingPostTxId: String?
-    /// KaPosts push tapped without a specific post - open the Notifications screen on mount.
-    static var pendingOpenNotifications = false
     /// The scheduled-post reminder tapped - open the Scheduled screen on mount.
     static var pendingOpenScheduled = false
     /// Someone's KaPosts profile, asked for from another tab (a Public Chats member, a link).
@@ -1468,6 +1506,88 @@ extension Notification.Name {
 /// leaving the first banner and one quiet entry per note. Two separate voice messages from one
 /// sender within a minute ring once; the room still shows both.
 ///
+/// Banners the app posts itself while it is open (owner, 2026-11-22, after a TestFlight build
+/// showed none in the app: "same should happen for messages I get in one-on-one chats, public
+/// chats or group chats"). The app finds a new 1:1, group or room message on its own, through its
+/// subscription, sweeps and polls, and banners it at once, so nothing waits on the push service.
+/// One banner per message: the app's banner is skipped when that message's push is already in
+/// Notification Center, and a push arriving after the app's banner is held back in `willPresent`
+/// (`claim`). Only while the app is active; in the background and when closed, pushes alone.
+@MainActor
+enum InAppBanner {
+    /// Marks the app's own banners, so `willPresent` lets them through.
+    static let userInfoKey = "kachat_in_app_banner"
+    /// A message older than this when the app finds it gets no banner: it's catch-up, not news.
+    static let maxAgeMs: Int64 = 3 * 60 * 1000
+    private static let window: TimeInterval = 15 * 60
+    private static var claimed: [String: Date] = [:]
+
+    /// True the first time a message (its txid) is claimed in the window.
+    static func claim(_ txId: String) -> Bool {
+        let key = txId.lowercased()
+        guard !key.isEmpty else { return true }
+        let now = Date()
+        claimed = claimed.filter { now.timeIntervalSince($0.value) < window }
+        guard claimed[key] == nil else { return false }
+        claimed[key] = now
+        return true
+    }
+
+    /// Whether a message with this block time (ms; 0 = not in a block yet) is recent enough.
+    static func isRecent(blockTimeMs: Int64) -> Bool {
+        guard blockTimeMs > 0 else { return true }
+        return Int64(Date().timeIntervalSince1970 * 1000) - blockTimeMs <= maxAgeMs
+    }
+
+    /// Whether a local push banner is a message's own.
+    static func isOwn(_ notification: UNNotification) -> Bool {
+        (notification.request.content.userInfo[userInfoKey] as? Bool) == true
+    }
+
+    /// The txid a push names: `tx_id` for chats and groups, else the request's id (a room push's
+    /// `apns-collapse-id` is the message's txid).
+    static func txId(of notification: UNNotification) -> String {
+        (notification.request.content.userInfo["tx_id"] as? String) ?? notification.request.identifier
+    }
+
+    /// Posts the banner now, once per txid, only while the app is active, and not when the
+    /// message's push is already showing.
+    static func post(
+        txId: String,
+        title: String,
+        subtitle: String? = nil,
+        body: String,
+        threadIdentifier: String,
+        categoryIdentifier: String? = nil,
+        sound: Bool
+    ) {
+        guard UIApplication.shared.applicationState == .active, !txId.isEmpty else { return }
+        guard claim(txId) else { return }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        if let subtitle, !subtitle.isEmpty { content.subtitle = subtitle }
+        content.body = body
+        content.threadIdentifier = threadIdentifier
+        if let categoryIdentifier { content.categoryIdentifier = categoryIdentifier }
+        content.sound = sound ? .default : nil
+        content.userInfo = [userInfoKey: true, "tx_id": txId]
+        let center = UNUserNotificationCenter.current()
+        center.getDeliveredNotifications { delivered in
+            let lowered = txId.lowercased()
+            let alreadyShown = delivered.contains { note in
+                note.request.identifier.lowercased() == lowered
+                    || (note.request.content.userInfo["tx_id"] as? String)?.lowercased() == lowered
+            }
+            guard !alreadyShown else { return }
+            center.add(UNNotificationRequest(identifier: txId, content: content, trigger: nil)) { error in
+                if let error {
+                    AppLog.log("[InAppBanner] Failed: %@", error.localizedDescription)
+                }
+            }
+        }
+    }
+}
+
 /// This only runs while KaChat is open (`willPresent`). With the app in the background or
 /// closed, iOS shows every part's push as it arrives.
 @MainActor

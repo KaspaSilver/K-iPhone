@@ -359,29 +359,32 @@ struct KaChatStatsView: View {
         guard let snapshot = model.snapshot else { return nil }
         let counts = KaChatStatCategory.allCases.filter(\.isKachat).compactMap { snapshot.counts[$0] }
         guard !counts.isEmpty else { return nil }
+        // saturating: an indexer's numbers must never crash Stats (audit 2026-11-21, #20)
         func sum(_ value: (KaChatStatCounts) -> Int64?) -> UInt64 {
-            counts.reduce(0) { $0 + UInt64(max(value($1) ?? 0, 0)) }
+            counts.reduce(0) { KachatNamesRegistry.add($0, UInt64(max(value($1) ?? 0, 0))) }
         }
         return KachatNamesRegistry.Totals(last24h: sum(\.last24h), last7d: sum(\.last7d), total: sum(\.total))
     }
 
     /// Every KaChat transaction, all time: each kind's all-time count plus .kachat's.
     private var allTimeTotal: Int64? {
-        var sum: Int64 = 0
+        // saturating, and a negative count is none: an indexer's numbers must never crash Stats
+        // (audit 2026-11-21, #20)
+        var sum: UInt64 = 0
         var any = false
         if let snapshot = model.snapshot {
             for category in Self.chatCategories {
                 if let total = snapshot.counts[category]?.total {
-                    sum += total
+                    sum = KachatNamesRegistry.add(sum, UInt64(max(total, 0)))
                     any = true
                 }
             }
         }
         if let kachat = kachatTotals {
-            sum += Int64(kachat.total)
+            sum = KachatNamesRegistry.add(sum, kachat.total)
             any = true
         }
-        return any ? sum : nil
+        return any ? Int64(clamping: sum) : nil
     }
 
     // MARK: - Hero

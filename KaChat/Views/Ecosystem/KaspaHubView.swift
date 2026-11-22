@@ -123,9 +123,6 @@ struct AppTabContent: View {
         case .games:
             GamesView()
                 .environmentObject(PublicChatService.shared)
-        case .leaderboard:
-            ChessLeaderboardTabView()
-                .environmentObject(PublicChatService.shared)
         case .kachatStats:
             KaChatStatsView()
         case .apps:
@@ -150,23 +147,73 @@ struct KaspaHubView: View {
     @ObservedObject private var layout = DockLayout.shared
     @ObservedObject private var router = HubRouter.shared
 
+    /// Sections opened since the Hub came up that stay alive (hidden) once left, so coming back
+    /// shows them exactly as they were: KaPost's feed, scroll position and pushed screens, as from
+    /// a dock slot (audit 2026-11-21 #28). In the order they were first opened.
+    @State private var keptSections: [AppTab] = []
+
+    /// The sections kept alive when left. Each was checked for what it does while on screen:
+    /// KaPost's feed polls only while it shows (`KaPostsDockRouter.kaPostsOnScreen`), and the
+    /// chess screens watch the arena through `onScreenPresence`, which counts a hidden section as
+    /// gone. The others (Chats, Wallet, Contacts, Settings, Kaspa Websites) still close when left:
+    /// an open chat or room marks itself read and polls until its onDisappear, which a hidden
+    /// section never gets, and a web page would keep playing.
+    private static let keptAlive: Set<AppTab> = [
+        .kaposts, .portfolio, .games, .kachatNames, .kachatStats, .coldStorage,
+    ]
+
     /// Three across, so the tiles line up the same way whatever the count.
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 3)
 
+    /// The section on screen, if it's still one of the Hub's.
+    private var openSection: AppTab? {
+        guard let open = router.openSection, layout.hub.contains(open) else { return nil }
+        return open
+    }
+
+    /// The kept sections to draw. The one being opened is in the list from its first frame,
+    /// before `keep` stores it, so its identity (and state) never changes between the two.
+    private var aliveSections: [AppTab] {
+        guard let open = openSection, Self.keptAlive.contains(open), !keptSections.contains(open) else {
+            return keptSections
+        }
+        return keptSections + [open]
+    }
+
     var body: some View {
-        Group {
-            if let open = router.openSection, layout.hub.contains(open) {
-                // The section owns the whole screen with its own navigation bar, exactly as it
-                // looks from its own dock slot. Not animated: a cross-fade dimmed the bar's balance.
+        let open = openSection
+        ZStack {
+            grid
+                .hubLayerHidden(open != nil)
+            // Each section owns the whole screen with its own navigation bar, exactly as it looks
+            // from its own dock slot; a hidden one's bar is hidden with it. Not animated: a
+            // cross-fade dimmed the bar's balance.
+            ForEach(aliveSections) { tab in
+                AppTabContent(tab: tab)
+                    .hubLayerHidden(tab != open)
+                    .environment(\.hubSectionHidden, tab != open)
+            }
+            if let open, !Self.keptAlive.contains(open) {
                 AppTabContent(tab: open)
-            } else {
-                grid
             }
         }
-        // a section moved into the dock meanwhile must not stay open here too
+        .onAppear { keep(router.openSection) }
+        .onChange(of: router.openSection) { section in keep(section) }
+        // a section moved into the dock meanwhile must not stay open (or kept) here too
         .onChange(of: layout.hub) { hub in
             if let open = router.openSection, !hub.contains(open) { router.close() }
+            keptSections.removeAll { !hub.contains($0) }
         }
+        // Short of memory: the hidden sections go; they load again when next opened.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            keptSections.removeAll { $0 != router.openSection }
+        }
+    }
+
+    private func keep(_ section: AppTab?) {
+        guard let section, Self.keptAlive.contains(section), layout.hub.contains(section),
+              !keptSections.contains(section) else { return }
+        keptSections.append(section)
     }
 
     private var grid: some View {
@@ -486,6 +533,72 @@ extension View {
     /// `AccountBackupBanner` under the navigation bar of one of the main tabs (KaPay's).
     func accountBackupBanner() -> some View {
         safeAreaInset(edge: .top, spacing: 0) { AccountBackupBanner() }
+    }
+}
+
+// MARK: - Sections kept alive in Kaspa Hub
+
+private struct HubSectionHiddenKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// True inside a Kaspa Hub section that is kept alive but hidden (another section or the grid
+    /// is showing). Such a section gets no onDisappear, so anything that should run only while it
+    /// shows reads this, usually through `onScreenPresence`.
+    var hubSectionHidden: Bool {
+        get { self[HubSectionHiddenKey.self] }
+        set { self[HubSectionHiddenKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// A Kaspa Hub layer that is kept but not showing: invisible, untouchable and silent to
+    /// VoiceOver. Its navigation bar and toolbar are hidden with it.
+    fileprivate func hubLayerHidden(_ hidden: Bool) -> some View {
+        opacity(hidden ? 0 : 1)
+            .allowsHitTesting(!hidden)
+            .accessibilityHidden(hidden)
+    }
+
+    /// `onAppear` / `onDisappear` that also count a kept-alive, hidden Kaspa Hub section as gone:
+    /// `appear` runs when the view is on screen and its section shows, `disappear` when either
+    /// stops. Always in pairs, never twice in a row.
+    func onScreenPresence(appear: @escaping () -> Void, disappear: @escaping () -> Void) -> some View {
+        modifier(OnScreenPresence(appear: appear, disappear: disappear))
+    }
+}
+
+private struct OnScreenPresence: ViewModifier {
+    let appear: () -> Void
+    let disappear: () -> Void
+    @Environment(\.hubSectionHidden) private var hidden
+
+    /// A box, so the appear / disappear callbacks see each other's writes at once.
+    private final class Box {
+        var inHierarchy = false
+        var active = false
+    }
+    @State private var state = Box()
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                state.inHierarchy = true
+                update(hidden: hidden)
+            }
+            .onDisappear {
+                state.inHierarchy = false
+                update(hidden: hidden)
+            }
+            .onChange(of: hidden) { newValue in update(hidden: newValue) }
+    }
+
+    private func update(hidden: Bool) {
+        let shouldBeActive = state.inHierarchy && !hidden
+        guard shouldBeActive != state.active else { return }
+        state.active = shouldBeActive
+        if shouldBeActive { appear() } else { disappear() }
     }
 }
 

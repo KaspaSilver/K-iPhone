@@ -1212,7 +1212,23 @@ extension KachatNames {
             let names: [String]?
             let profile: Profile?
 
-            var identity: Identity { Identity(address: address, label: label, names: names ?? [], profile: profile?.sanitized()) }
+            /// At most this many names are taken from one answer (audit 2026-11-21, #19).
+            static let maxNames = 100
+
+            /// Only what a name can be: the label and each name must pass the registry's own rule
+            /// (a-z, 0-9 and '-', 1..32 bytes), so an indexer can't put any text where a name
+            /// shows. A label that fails is no label (audit 2026-11-21, #19).
+            var identity: Identity {
+                let validLabel = label.map(Codec.normalize).flatMap { Codec.isValid($0) ? $0 : nil }
+                var validNames: [String] = []
+                for raw in (names ?? []).prefix(Self.maxNames * 2) {
+                    let n = Codec.normalize(raw)
+                    guard Codec.isValid(n), !validNames.contains(n) else { continue }
+                    validNames.append(n)
+                    if validNames.count == Self.maxNames { break }
+                }
+                return Identity(address: address, label: validLabel, names: validNames, profile: profile?.sanitized())
+            }
         }
 
         struct StatusJSON: Decodable {

@@ -137,32 +137,14 @@ final class PortfolioManager: ObservableObject {
         PortfolioLedgerStore.saveActivePortfolioId(id, walletAddress: activeWalletAddress)
     }
 
-    /// Saves the list: anything added, renamed or moved is stamped, anything gone is recorded
-    /// as deleted, and the Nextcloud backup is marked to upload.
+    /// Saves the list: anything added, renamed or moved is stamped (so a touched "Portfolio 1"
+    /// is no longer the untouched seed, `PortfolioLedgerStore.isPristineSeed`). Portfolios stay on
+    /// the phone: KaChat's Nextcloud backs up contacts only (NEXTCLOUD_SYNC.md).
     private func persist() {
-        let result = PortfolioLedgerStore.stamped(previous: savedPortfolios, current: portfolios, now: Date()) { $0.updatedAt = $1 }
-        if result.items != portfolios { portfolios = result.items }
-        PortfolioLedgerStore.recordDeletions(
-            result.removed.map { PortfolioTombstone(kind: .portfolio, id: $0.uuidString, deletedAt: Date()) },
-            walletAddress: activeWalletAddress
-        )
+        let stamped = PortfolioLedgerStore.stamped(previous: savedPortfolios, current: portfolios, now: Date()) { $0.updatedAt = $1 }
+        if stamped != portfolios { portfolios = stamped }
         PortfolioLedgerStore.savePortfolios(portfolios, walletAddress: activeWalletAddress)
         savedPortfolios = portfolios
-        // KaChat's Nextcloud backs up contacts only (NEXTCLOUD_SYNC.md): portfolios stay on the phone
-    }
-
-    /// Re-reads this wallet's list after a Nextcloud restore wrote a merged one.
-    func reloadFromStore() {
-        guard let wallet = activeWalletAddress else { return }
-        let loaded = PortfolioLedgerStore.loadPortfolios(walletAddress: wallet)
-        guard !loaded.isEmpty else { return }
-        portfolios = Self.normalizingSortOrder(loaded.sorted {
-            $0.sortOrder == $1.sortOrder ? $0.createdAt < $1.createdAt : $0.sortOrder < $1.sortOrder
-        })
-        savedPortfolios = portfolios
-        if !portfolios.contains(where: { $0.id == activePortfolioId }) {
-            setActivePortfolio(portfolios.first?.id)
-        }
     }
 
     /// Permanently deletes this wallet's portfolio list (and, via the ledger store, every

@@ -278,10 +278,15 @@ struct ManageAddressesView: View {
                     Text(verbatim: "\(wallet.balanceSompi.map { formatKasExact($0) } ?? "--") \(KaspaUnit.symbol)")
                         .font(.subheadline)
                         .fontWeight(.semibold)
-                    Text("Used")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.orange)
+                    HStack(spacing: 6) {
+                        Text("Used")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.orange)
+                        if domainOwningAddresses.contains(wallet.publicAddress) {
+                            ContainsDomainTag()
+                        }
+                    }
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
@@ -777,7 +782,8 @@ struct ManageAddressesView: View {
         // batched KNS lookup ContactsManager.fetchKNSDomainsForAllContacts uses: capped
         // concurrency, per-address debounce and failure cooldown, shared in-flight requests -
         // so re-opening this screen reads warm cache instead of re-firing a request burst.
-        let addresses = baseEntries.map { $0.address }
+        // The chatting address first: it can hold a domain as much as any spending address.
+        let addresses = (walletManager.currentWallet.map { [$0.publicAddress] } ?? []) + baseEntries.map { $0.address }
         await KNSService.shared.refreshIfNeeded(for: addresses)
         var owners: Set<String> = []
         for address in addresses where KNSService.shared.domainCache[address]?.allDomains.isEmpty == false {
@@ -929,10 +935,6 @@ struct ManageAddressesView: View {
         }
     }
 
-    private func formatKasExact(_ sompi: UInt64) -> String {
-        String(format: "%.8f", Double(sompi) / 100_000_000.0)
-    }
-
     private func showToast(_ message: String, style: ToastStyle = .success) {
         let token = UUID()
         toastToken = token
@@ -947,20 +949,10 @@ struct ManageAddressesView: View {
             }
         }
     }
-
-    private func glassBackground(cornerRadius: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
-    }
 }
 
-/// Small teal-tinted capsule shown on address rows that own at least one KNS domain. Shared by
-/// ManageAddressesView's spending-address list. Same
+/// Small teal-tinted capsule shown on address rows that own at least one KNS or .kachat domain:
+/// Manage Addresses (the chatting address and the spending ones) and Cold Storage. Same
 /// capsule treatment as the app's other inline badges (e.g. KNSDomainCard's "Primary"), tinted
 /// with the accent color instead of drawn on a dark card.
 struct ContainsDomainTag: View {
@@ -1128,7 +1120,7 @@ struct SpendingAddressWithdrawView: View {
     }
 
     private func showFeeEditor(_ show: Bool) {
-        if show, let totalFeeSompi { feeDraft = formatKas(totalFeeSompi) }
+        if show, let totalFeeSompi { feeDraft = formatKasTrimmed(totalFeeSompi) }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { editingFee = show }
     }
 
@@ -1174,7 +1166,7 @@ struct SpendingAddressWithdrawView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                             if let amountSompi {
-                                Text(verbatim: "\(formatKas(amountSompi)) \(KaspaUnit.symbol)")
+                                Text(verbatim: "\(formatKasTrimmed(amountSompi)) \(KaspaUnit.symbol)")
                                     .font(.system(size: 40, weight: .bold, design: .rounded))
                                     .monospacedDigit()
                                     .lineLimit(1)
@@ -1203,7 +1195,7 @@ struct SpendingAddressWithdrawView: View {
                     } label: {
                         SendInfoPill {
                             HStack(spacing: 6) {
-                                KaspaUnit.text("Available: %@ KAS", formatKas(source.balanceSompi))
+                                KaspaUnit.text("Available: %@ KAS", formatKasTrimmed(source.balanceSompi))
                                 Text(verbatim: "·")
                                 Text(source.displayLabel)
                                 if !isCompoundMode {
@@ -1222,7 +1214,7 @@ struct SpendingAddressWithdrawView: View {
                         isEditingFee: $isEditingFee,
                         customFeeText: $customFeeText,
                         isEstimatingFee: isEstimatingFee,
-                        feeText: totalFeeSompi.map { "\(formatKas($0)) \(KaspaUnit.symbol)" },
+                        feeText: totalFeeSompi.map { "\(formatKasTrimmed($0)) \(KaspaUnit.symbol)" },
                         onStartEditing: startEditingFee,
                         onCommit: commitCustomFee,
                         coinControlSummary: coinControlSummary(manualUtxos),
@@ -1508,7 +1500,7 @@ struct SpendingAddressWithdrawView: View {
 
     private func startEditingFee() {
         guard let totalFeeSompi else { return }
-        customFeeText = formatKas(totalFeeSompi)
+        customFeeText = formatKasTrimmed(totalFeeSompi)
         isEditingFee = true
     }
 
@@ -1557,13 +1549,6 @@ struct SpendingAddressWithdrawView: View {
             }
         }
     }
-
-    private func formatKas(_ sompi: UInt64) -> String {
-        var text = String(format: "%.8f", Double(sompi) / 100_000_000.0)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return text
-    }
 }
 
 /// White-background QR display for a single spending address, matching the same visual
@@ -1607,7 +1592,7 @@ struct SpendingSourcePicker: View {
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                Text(verbatim: "\(Self.formatKas(entry.balanceSompi)) \(KaspaUnit.symbol)")
+                                Text(verbatim: "\(formatKasTrimmed(entry.balanceSompi)) \(KaspaUnit.symbol)")
                                     .font(.subheadline.monospacedDigit())
                                     .foregroundColor(entry.balanceSompi > 0 ? .primary : .secondary)
                                 if entry.index == currentIndex {
@@ -1639,13 +1624,6 @@ struct SpendingSourcePicker: View {
                 .filter { !$0.hidden || $0.balanceSompi > 0 || $0.index == currentIndex }
                 .sorted { ($0.balanceSompi > 0 ? 0 : 1, $0.index) < ($1.balanceSompi > 0 ? 0 : 1, $1.index) }
         }
-    }
-
-    private static func formatKas(_ sompi: UInt64) -> String {
-        var text = String(format: "%.8f", Double(sompi) / 100_000_000)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return text
     }
 }
 
@@ -2206,10 +2184,6 @@ struct SpendingAddressTransactionHistoryView: View {
             }
         }
         .padding(.vertical, 4)
-    }
-
-    private func formatKasExact(_ sompi: UInt64) -> String {
-        String(format: "%.8f", Double(sompi) / 100_000_000.0)
     }
 
     private func loadTransactions() async {

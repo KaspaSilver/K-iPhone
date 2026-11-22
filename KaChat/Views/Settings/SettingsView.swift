@@ -523,7 +523,7 @@ struct SettingsView: View {
 
     private var balanceToolbarView: some View {
         let sompi = walletManager.currentWallet?.balanceSompi
-        let exact = sompi.map(formatKaspaExact) ?? "--"
+        let exact = sompi.map(formatKasExact) ?? "--"
         // Kaspa logo + bold, matching the balance style on every other screen's top bar.
         return HStack(spacing: 6) {
             Image("KaspaLogo")
@@ -665,11 +665,6 @@ struct SettingsView: View {
                 }
             }
         }
-    }
-
-    private func formatKaspaExact(_ sompi: UInt64) -> String {
-        let kas = Double(sompi) / 100_000_000.0
-        return String(format: "%.8f", kas)
     }
 
 }
@@ -1576,6 +1571,8 @@ struct WalletNotificationSettingsView: View {
                 Toggle("Address Activity", isOn: $settingsViewModel.settings.addressActivityNotificationsEnabled)
                     .onChange(of: settingsViewModel.settings.addressActivityNotificationsEnabled) { _ in
                         settingsViewModel.saveSettings()
+                        // Received KAS pushes follow the switch (`watch_only_addresses`)
+                        AddressActivityNotifier.pushAddressesMayHaveChanged()
                     }
                 // This account's own switch: the spending addresses' receives, not every
                 // address the wallet watches.
@@ -2358,7 +2355,7 @@ struct ConnectionSettingsView: View {
     }
 
     /// Trestly's API: where kUSDT balances are looked up, each answer checked on the node.
-    /// KaChat only reads balances here; buying and swapping kUSDT happen in KaPay.
+    /// Buying and swapping kUSDT happen on Trestly's site, opened from Swap Stablecoins.
     @ViewBuilder
     private var trestlySections: some View {
         Section {
@@ -4115,17 +4112,6 @@ struct ChatRestoreProgressModal: View {
         }
         return text
     }
-
-    /// Same glass card treatment the app's other overlays use.
-    private func glassBackground(cornerRadius: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
-    }
 }
 
 // MARK: - Wipe-and-resync coordinator (blocking progress modal)
@@ -4366,17 +4352,6 @@ struct IncomingResyncProgressModal: View {
             .buttonStyle(.bordered)
             .controlSize(.large)
         }
-    }
-
-    /// Same glass card treatment the app's other overlays use.
-    private func glassBackground(cornerRadius: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
     }
 }
 
