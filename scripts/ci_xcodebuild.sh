@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-PROJECT="${PROJECT:-KaChat.xcodeproj}"
-SCHEME="${SCHEME:-KaChat}"
+PROJECT="${PROJECT:-K.xcodeproj}"
+SCHEME="${SCHEME:-K}"
 CONFIGURATION="${CONFIGURATION:-Release}"
 DESTINATION="${DESTINATION:-generic/platform=iOS}"
 DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$ROOT_DIR/build/DerivedData-CI}"

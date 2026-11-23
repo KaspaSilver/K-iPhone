@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2660"
+   wasCreatedForAppExtension = "YES"
    version = "2.0">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -15,10 +16,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "SHREXT000100010000000006"
-               BuildableName = "KaChatShareExtension.appex"
-               BlueprintName = "KaChatShareExtension"
-               ReferencedContainer = "container:KaChat.xcodeproj">
+               BlueprintIdentifier = "43BBF3452F15A52900B42BDA"
+               BuildableName = "KaChatNotificationService.appex"
+               BlueprintName = "KaChatNotificationService"
+               ReferencedContainer = "container:K.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -32,7 +33,7 @@
                BlueprintIdentifier = "E80000032D4C000000000003"
                BuildableName = "KaChat.app"
                BlueprintName = "KaChat"
-               ReferencedContainer = "container:KaChat.xcodeproj">
+               ReferencedContainer = "container:K.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -63,7 +64,7 @@
             BlueprintIdentifier = "E80000032D4C000000000003"
             BuildableName = "KaChat.app"
             BlueprintName = "KaChat"
-            ReferencedContainer = "container:KaChat.xcodeproj">
+            ReferencedContainer = "container:K.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -82,7 +83,7 @@
             BlueprintIdentifier = "E80000032D4C000000000003"
             BuildableName = "KaChat.app"
             BlueprintName = "KaChat"
-            ReferencedContainer = "container:KaChat.xcodeproj">
+            ReferencedContainer = "container:K.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

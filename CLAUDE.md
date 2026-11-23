@@ -20,7 +20,7 @@ real: the chats tab (`AppTab.chats`) and its list (the wallet tab stays "Wallet"
 briefly on 2026-11-21 and the owner changed it back; Settings keeps its "Chats" category), .kachat names and profiles ("KaChat Profile",
 "KaChat Link", "Shared a KaChat profile"), KaChat Stats (the protocol's transactions), the Siri
 shortcuts, the KaChat-NFC applet, and the "KaChat" Nextcloud folder and archive. The
-Trestly provider announces itself as "K" with the `KLogo` globe (its rdns stays `com.kachat.wallet`). The project, targets, bundle id and URL schemes are unchanged. The sign-in
+Trestly provider announces itself as "K" with the `KLogo` globe (its rdns stays `com.kachat.wallet`). The project file and main scheme are `K` (`K.xcodeproj`, owner, 2026-11-23; Xcode Cloud's workflow points at them); the targets (and so the `KaChat` module name, which saved data can carry), bundle id and URL schemes are unchanged. The sign-in
 screen (`OnboardingView`) shows the K globe (`KLogo`, cut from the app icon) with a teal glow over
 "Digital Freedom on the Kaspa Network"; the old `KaChatLogo` and `KaChatAppIcon` images are deleted (2026-11-22).
 The app icon is dark only (owner, 2026-11-22): `AppIcon` has the dark globe (`dark.png`) for every
@@ -198,16 +198,16 @@ Important, never build yourself, always ask user to build.
 
 ```bash
 # Open project in Xcode
-open KaChat.xcodeproj
+open K.xcodeproj
 
 # Build from command line
-xcodebuild -project KaChat.xcodeproj -scheme KaChat -destination 'platform=iOS Simulator,name=iPhone 17' build
+xcodebuild -project K.xcodeproj -scheme K -destination 'platform=iOS Simulator,name=iPhone 17' build
 
 # Tests: no command runs them. KaChatTests/ isn't in any target and the scheme's TestAction is
 # empty, so `xcodebuild ... test` has nothing to run.
 
 # Clean build
-xcodebuild -project KaChat.xcodeproj -scheme KaChat clean
+xcodebuild -project K.xcodeproj -scheme K clean
 ```
 
 ## Architecture

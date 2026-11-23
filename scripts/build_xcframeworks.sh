@@ -18,8 +18,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-PROJECT="$PROJECT_DIR/KaChat.xcodeproj"
-SCHEME="KaChat"
+PROJECT="$PROJECT_DIR/K.xcodeproj"
+SCHEME="K"
 CONFIG="Release"
 BUILD_ROOT="${XCFW_BUILD_ROOT:-/tmp/kachat-xcfw-build}"
 STAGE="$BUILD_ROOT/stage"
@@ -368,7 +368,7 @@ done
 echo ""
 echo "=== Step 4/4: Recording versions ==="
 
-RESOLVED="$PROJECT_DIR/KaChat.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+RESOLVED="$PROJECT_DIR/K.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 
 {
   echo "# Prebuilt XCFramework Versions"
@@ -405,6 +405,6 @@ echo ""
 cat "$OUTPUT/VERSIONS"
 echo ""
 echo "Next steps:"
-echo "  1. Modify KaChat.xcodeproj to reference xcframeworks instead of SPM"
+echo "  1. Modify K.xcodeproj to reference xcframeworks instead of SPM"
 echo "  2. Add SWIFT_INCLUDE_PATHS for GRPCAll modules"
 echo "  3. Clean build and verify"
