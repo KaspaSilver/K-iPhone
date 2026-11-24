@@ -1894,6 +1894,7 @@ struct KaPostsView: View {
     static func mapRemotePost(_ post: KaPostsAPIClient.KPost) -> DraftPost? {
         guard let content = post.decodedContent,
               let address = KaPostsAPIClient.kaspaAddress(fromPubkey: post.userPublicKey) else { return nil }
+        KaPostMentionSources.notePoster(address)
         var mapped = DraftPost(
             text: KaPostsAPIClient.stripMarker(content),
             timestamp: Date(timeIntervalSince1970: TimeInterval(post.timestamp) / 1000),
@@ -8563,6 +8564,8 @@ enum KaPostRepostAction {
 /// match). Rendered above the input so the keyboard can never hide it; tapping a row
 /// completes the @token in the bound text.
 private struct KaPostMentionSuggestionBar: View {
+    /// Names landing redraw the list (usernames are looked up as people are considered).
+    @ObservedObject private var registry = KachatNamesRegistry.shared
     @Binding var text: String
     /// The bound field's caret. Completing a mention rewrites the text from OUTSIDE the field, so
     /// without this the caret keeps its old offset and lands mid-sentence; the completion always
@@ -8591,23 +8594,8 @@ private struct KaPostMentionSuggestionBar: View {
     /// old body read it four times, including once per row inside the ForEach.
     private var suggestions: [String] {
         guard let query = mentionQuery else { return [] }
-        var out: [String] = []
-        // contacts' .kachat names come first
-        var kachat: [String] = []
-        for contact in ContactsManager.shared.activeContacts {
-            guard let label = KachatNamesRegistry.shared.cachedIdentity(for: contact.address)?.label,
-                  query.isEmpty || label.hasPrefix(query) else { continue }
-            // as names show in K (the ending only with Show .kachat Endings on, 2026-11-24)
-            let full = KachatNameLabel.display(KachatNames.Codec.normalize(label))
-            if !kachat.contains(full) { kachat.append(full) }
-        }
-        out = kachat.sorted() + out
-        // a live-resolved name matching the query (any service, .kachat first) rides along
-        if let extra = resolvedAnyDomain.map({ KachatNameLabel.display(KachatNames.Codec.normalize($0)) }),
-           !out.contains(extra), query.isEmpty || extra.hasPrefix(query) {
-            out.append(extra)
-        }
-        return out
+        // follows, recent posters and contacts with a username (`KaPostMentionSources`)
+        return KaPostMentionSources.handles(query: query, extra: resolvedAnyDomain)
     }
 
     var body: some View {
@@ -9541,6 +9529,8 @@ private struct KaPostComposerView: View {
 /// The composer's @mention list, split out so it - and not the whole composer - is what
 /// re-renders when a KNS lookup lands. See the note on `KaPostComposerView.knsService`.
 private struct KaPostComposerMentionBar: View {
+    /// Names landing redraw the list (usernames are looked up as people are considered).
+    @ObservedObject private var registry = KachatNamesRegistry.shared
     let query: String?
     let resolvedAnyDomain: String?
     let onSelect: (String) -> Void
@@ -9548,24 +9538,8 @@ private struct KaPostComposerMentionBar: View {
 
     private var mentionSuggestions: [String] {
         guard let query else { return [] }
-        var out: [String] = []
-        // Live-resolved non-contact domain matching the current query rides along at the end.
-        // contacts' .kachat names come first
-        var kachat: [String] = []
-        for contact in ContactsManager.shared.activeContacts {
-            guard let label = KachatNamesRegistry.shared.cachedIdentity(for: contact.address)?.label,
-                  query.isEmpty || label.hasPrefix(query) else { continue }
-            // as names show in K (the ending only with Show .kachat Endings on, 2026-11-24)
-            let full = KachatNameLabel.display(KachatNames.Codec.normalize(label))
-            if !kachat.contains(full) { kachat.append(full) }
-        }
-        out = kachat.sorted() + out
-        // a live-resolved name matching the query (any service, .kachat first) rides along
-        if let extra = resolvedAnyDomain.map({ KachatNameLabel.display(KachatNames.Codec.normalize($0)) }),
-           !out.contains(extra), query.isEmpty || extra.hasPrefix(query) {
-            out.append(extra)
-        }
-        return out
+        // follows, recent posters and contacts with a username (`KaPostMentionSources`)
+        return KaPostMentionSources.handles(query: query, extra: resolvedAnyDomain)
     }
 
     private func insertMention(_ domain: String) { onSelect(domain) }

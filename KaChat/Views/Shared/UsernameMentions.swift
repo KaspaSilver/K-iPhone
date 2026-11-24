@@ -129,15 +129,18 @@ struct MentionCandidate: Identifiable, Hashable {
     var id: String { address.lowercased() }
 }
 
-/// The list of people to @ above a composer: tap one to insert their username.
+/// The list of people to @ above a composer: tap one to insert their username. Worked out in the
+/// list itself, which watches the names registry, so people show as their usernames arrive.
 struct MentionSuggestionList: View {
-    let candidates: [MentionCandidate]
+    @ObservedObject private var registry = KachatNamesRegistry.shared
+    let source: () -> [MentionCandidate]
     let onPick: (MentionCandidate) -> Void
 
     private static let rowHeight: CGFloat = 44
-    private static let visibleRows = 4
+    private static let visibleRows = 5
 
     var body: some View {
+        let candidates = source()
         if !candidates.isEmpty {
             ScrollView {
                 VStack(spacing: 0) {
@@ -171,5 +174,52 @@ struct MentionSuggestionList: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 6)
         }
+    }
+}
+
+/// Who KaPost's @ suggests (2026-11-24: it offered chat contacts only, so one person): the people
+/// you follow, people whose posts you've seen lately, then your contacts - only those with a
+/// username, never you - plus a name looked up as you type.
+enum KaPostMentionSources {
+    private static let lock = NSLock()
+    private static var recent: [String] = []
+
+    /// A poster whose post was read (the feed, threads, profiles): offered by the @.
+    static func notePoster(_ address: String) {
+        let key = address.lowercased()
+        lock.lock(); defer { lock.unlock() }
+        if let index = recent.firstIndex(of: key) { recent.remove(at: index) }
+        recent.insert(key, at: 0)
+        if recent.count > 300 { recent.removeLast(recent.count - 300) }
+    }
+
+    private static var recentPosters: [String] {
+        lock.lock(); defer { lock.unlock() }
+        return recent
+    }
+
+    /// The usernames to offer for `query` (what's typed after the "@"), as K shows names.
+    @MainActor
+    static func handles(query: String, extra: String?) -> [String] {
+        let me = WalletManager.shared.currentWallet?.publicAddress.lowercased()
+        let typed = KachatNames.Codec.normalize(query)
+        var seen = Set<String>()
+        var out: [String] = []
+        func consider(_ address: String) {
+            let key = address.lowercased()
+            guard key != me, seen.insert(key).inserted, let handle = UsernameMention.handle(for: address),
+                  typed.isEmpty || KachatNames.Codec.normalize(handle).hasPrefix(typed),
+                  !out.contains(handle) else { return }
+            out.append(handle)
+        }
+        for address in KaPostsFollowStore.shared.following.sorted() { consider(address) }
+        for address in recentPosters.prefix(200) { consider(address) }
+        for contact in ContactsManager.shared.activeContacts { consider(contact.address) }
+        var result = Array(out.prefix(30))
+        if let extra = extra.map({ KachatNameLabel.display(KachatNames.Codec.normalize($0)) }),
+           !result.contains(extra), typed.isEmpty || KachatNames.Codec.normalize(extra).hasPrefix(typed) {
+            result.insert(extra, at: 0)
+        }
+        return result
     }
 }

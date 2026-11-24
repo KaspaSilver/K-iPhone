@@ -865,24 +865,26 @@ struct PublicChatChannelView: View {
         var out: [MentionCandidate] = []
         func consider(_ address: String, handle: String? = nil) {
             let key = address.lowercased()
-            guard key != me, !seen.contains(key), let handle = handle ?? UsernameMention.handle(for: address) else { return }
-            seen.insert(key)
+            // each person once, named or not (their name is looked up as they're considered)
+            guard key != me, seen.insert(key).inserted,
+                  let handle = handle ?? UsernameMention.handle(for: address) else { return }
             if typed.isEmpty || KachatNames.Codec.normalize(handle).hasPrefix(typed) {
                 out.append(MentionCandidate(address: address, handle: handle))
             }
         }
         if let lookedUpMention { consider(lookedUpMention.address, handle: lookedUpMention.handle) }
-        for message in publicChatService.messages(forChannel: channelName).suffix(300).reversed() {
+        // everyone who has written in this room (newest first), then your contacts
+        for message in publicChatService.messages(forChannel: channelName).reversed() {
             consider(message.senderAddress)
         }
         for contact in ContactsManager.shared.activeContacts { consider(contact.address) }
-        return Array(out.prefix(20))
+        return Array(out.prefix(50))
     }
 
     private var composeBar: some View {
         VStack(spacing: 8) {
             if MentionsFeature.enabled, let mentionQuery {
-                MentionSuggestionList(candidates: roomMentionCandidates(mentionQuery)) { candidate in
+                MentionSuggestionList(source: { roomMentionCandidates(mentionQuery) }) { candidate in
                     emojiInsertionRequest = ComposerTextView.TextInsertionRequest(
                         id: UUID(), text: "@\(candidate.handle) ", replacesMentionToken: true
                     )
