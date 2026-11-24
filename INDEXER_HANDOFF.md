@@ -15,7 +15,18 @@ item stands on its own.
 
 ## Open
 
-_Nothing open._
+- **2026-11-23 - KaPlay arcade boards (Snake, 2048).** Not committed yet (iPhone working tree);
+  spec ARCADE.md. The app stamps every finished game as a plaintext broadcast in the hidden room
+  `#kplay-arcade` (ARCADE.md §1) and reads the boards from
+  `GET /arcade/leaderboard?game=snake|2048&period=month|all&limit=100` (§5). The indexer:
+  1. follows `#kplay-arcade` broadcasts as it does `#chess-bots` (sender = the player);
+  2. replays each stamp with the rules in §2-§4 and keeps only those whose replay reaches the
+     stamped `score` (one per game id `g`); the test vectors in §2-§4 must pass;
+  3. serves the endpoint: per address its best checked score in the period (`month` = the UTC
+     calendar month as the chess boards count it, `all` = since the chess fresh-start cutoff),
+     highest first, earlier stamp on a tie, with `games` (checked stamps in the period), `since`
+     and each row's `at` (block time, ms) and `tx`.
+  Until it is served, the app shows each player's own stamped scores only.
 
 ## Done
 
