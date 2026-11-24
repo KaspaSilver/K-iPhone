@@ -501,8 +501,9 @@ struct GroupChatDetailView: View {
                                 daySeparator(day)
                             case .message(let message):
                                 if message.senderAddress == GroupChatService.systemSender {
-                                    // iMessage-style membership line — centered, no bubble/avatar.
-                                    Text(message.content)
+                                    // iMessage-style membership line — centered, no bubble/avatar,
+                                    // each address as that person's current name.
+                                    Text(verbatim: GroupSystemLine.display(message.content) { contactsManager.displayName(for: $0) })
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                         .multilineTextAlignment(.center)
@@ -1394,10 +1395,17 @@ struct GroupChatDetailView: View {
         return true
     }
 
-    /// Members mentionable via the inline "@" autocomplete: those with an explicit primary .kas
-    /// name, which K no longer reads (2026-11-23), so none.
+    /// Members mentionable via the inline "@" autocomplete: those with a .kachat username
+    /// (owner, 2026-11-24: you can @ someone only if they have one), whose username starts with
+    /// what's typed after the "@", yourself left out.
     private func mentionCandidates(for query: String) -> [(member: GroupMember, domain: String)] {
-        []
+        let me = WalletManager.shared.currentWallet?.publicAddress.lowercased()
+        let typed = KachatNames.Codec.normalize(query)
+        return group.members
+            .filter { $0.address.lowercased() != me }
+            .compactMap { member in UsernameMention.handle(for: member.address).map { (member: member, domain: $0) } }
+            .filter { typed.isEmpty || KachatNames.Codec.normalize($0.domain).hasPrefix(typed) }
+            .sorted { $0.domain < $1.domain }
     }
 
     /// Safety cap on how many matches are considered at all, well above what anyone would
@@ -1997,9 +2005,23 @@ struct GroupChatDetailView: View {
         // *rendering* (decodeForDisplay), which stays permissive so historical mentions still
         // show something sensible. A member with no explicit primary returns "" here, which
         // GroupMentionCodec.encodeForSending already skips.
-        return GroupMentionCodec.encodeForSending(text, members: group.members) { address in
-            _ = address; return ""
+        // Each member with a username: "@alice" or "@alice.kachat" (any case) becomes
+        // "@<their address>", the group wire format. A name that isn't a member's stays text.
+        var result = text
+        let named = group.members.compactMap { member -> (name: String, address: String)? in
+            guard let handle = UsernameMention.handle(for: member.address) else { return nil }
+            return (KachatNames.Codec.normalize(handle), member.address)
         }
+        // longest first, so "@alice2" isn't caught by "@alice"
+        for entry in named.sorted(by: { $0.name.count > $1.name.count }) {
+            let pattern = "@" + NSRegularExpression.escapedPattern(for: entry.name) + #"(\.kachat)?(?![A-Za-z0-9-])"#
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+            result = regex.stringByReplacingMatches(
+                in: result, range: NSRange(location: 0, length: (result as NSString).length),
+                withTemplate: NSRegularExpression.escapedTemplate(for: "@" + entry.address)
+            )
+        }
+        return result
     }
 
     private func send() {
@@ -2539,36 +2561,37 @@ struct GroupChatDetailView: View {
         Button {
             showInfo = true
         } label: {
-            VStack(spacing: -12) {
+            VStack(spacing: -5) {
                 Group {
                     if let hex = groupChatService.groupPhotos[group.id],
-                       let img = GroupAvatar.decodedGroupPhoto(groupId: group.id, hex: hex, maxPixelSize: 138) {
+                       let img = GroupAvatar.decodedGroupPhoto(groupId: group.id, hex: hex, maxPixelSize: 180) {
                         Image(uiImage: img).resizable().scaledToFill()
                     } else {
                         ZStack {
                             Circle().fill(Color.accentColor.opacity(0.2))
                             Image(systemName: "person.3.fill")
-                                .font(.scaled(size: 18))
+                                .font(.scaled(size: 24))
                                 .foregroundColor(.accentColor)
                         }
                     }
                 }
-                .frame(width: 46, height: 46)
+                .frame(width: 60, height: 60)
                 .clipShape(Circle())
                 .zIndex(1)
 
                 HStack(spacing: 4) {
                     Text(group.name)
-                        .font(.subheadline.weight(.bold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundColor(.secondary)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(.secondary.opacity(0.6))
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 15)
-                .padding(.bottom, 5)
+                // Messages' header (owner, 2026-11-24): a slim pill tucked just under a big photo
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
                 // iMessage's floating pill: a thin material so the messages scrolling underneath
                 // actually show through it (the scroll view extends under this inset, so there IS
                 // live content to blur), a hairline edge to keep it legible against a light
@@ -2583,7 +2606,8 @@ struct GroupChatDetailView: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ChatHeaderChipButtonStyle())
+        .simultaneousGesture(TapGesture().onEnded { Haptics.selection() })
         .accessibilityLabel(Text("Group info for \(group.name)"))
     }
 
@@ -3841,8 +3865,12 @@ private struct AddGroupMembersView: View {
     @State private var searchText = ""
     @State private var selectedAddresses: Set<String> = []
     @State private var isAdding = false
-    @State private var resultMessage: String?
     @State private var showAddConfirm = false
+    /// Add was tapped on the confirm sheet: the members are added once that sheet is gone.
+    @State private var addConfirmed = false
+    /// The steps of adding, on their own half sheet (owner, 2026-11-24).
+    @State private var addProgress: GroupActionProgress?
+    @State private var addedAll = false
     /// Address a typed domain resolved to (.kachat first, like everywhere else an address is
     /// accepted), the name it resolved as, and every service's answer for "Other domains".
     @State private var resolvedDomainAddress: String?
@@ -3941,28 +3969,51 @@ private struct AddGroupMembersView: View {
         return all.filter { contactsManager.displayName(for: $0).lowercased().contains(query) || $0.address.lowercased().contains(query) }
     }
 
+    /// Adds each picked person in turn. Each add rotates the group key and sends it to every
+    /// member, so the sheet shows who is being added and which member the new key is going to.
     private func addSelected() {
         let addresses = Array(selectedAddresses)
         guard !addresses.isEmpty else { return }
         isAdding = true
-        Task {
+        let steps = addresses.map { address -> GroupActionProgress.Step in
+            let name = contactsManager.getContact(byAddress: address).map { contactsManager.displayName(for: $0) }
+                ?? Contact.generateDefaultAlias(from: address)
+            return .init(id: address, title: String(format: AppLocalization.string("Adding %@"), name))
+        }
+        let progress = GroupActionProgress(
+            headline: addresses.count == 1
+                ? AppLocalization.string("Adding 1 member")
+                : String(format: AppLocalization.string("Adding %lld members"), addresses.count),
+            steps: steps
+        )
+        addProgress = progress
+        Task { @MainActor in
             var failures = 0
             for address in addresses {
                 let contact = contactsManager.getContact(byAddress: address)
                     ?? contactsManager.getOrCreateContact(address: address)
-                do { try await groupChatService.addMember(contact, to: group.id) }
-                catch { failures += 1 }
-            }
-            await MainActor.run {
-                isAdding = false
-                if failures == 0 { dismiss() }
-                else {
-                    // Translated, one key per form (audit 2026-11-24 #33/#34).
-                    resultMessage = failures == 1
-                        ? AppLocalization.string("1 member could not be added. Please try again.")
-                        : String(format: AppLocalization.string("%lld members could not be added. Please try again."), failures)
+                progress.set(address, .working)
+                // the members the new key goes to, counted as it goes
+                let myAddress = WalletManager.shared.currentWallet?.publicAddress
+                let total = (groupChatService.groups.first { $0.id == group.id }?.members ?? group.members)
+                    .filter { $0.address != myAddress }.count + 1
+                var sent = 0
+                do {
+                    try await groupChatService.addMember(contact, to: group.id) { _, phase in
+                        if case .started = phase {
+                            sent += 1
+                            progress.setDetail(address, String(format: AppLocalization.string("Sending the new group key: %lld of %lld"), min(sent, total), total))
+                        }
+                    }
+                    progress.set(address, .done)
+                } catch {
+                    failures += 1
+                    progress.set(address, .failed(error.localizedDescription))
                 }
             }
+            isAdding = false
+            addedAll = failures == 0
+            progress.finish()
         }
     }
 
@@ -4066,16 +4117,29 @@ private struct AddGroupMembersView: View {
                 }
             }
         }
-        .alert("Add members", isPresented: $showAddConfirm) {
-            Button("Add") { addSelected() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Add \(selectedAddresses.count) member\(pluralS(selectedAddresses.count)) to the group?\(addFeeSuffix())")
+        // A half sheet, then the progress of every add (owner, 2026-11-24).
+        .sheet(isPresented: $showAddConfirm, onDismiss: {
+            if addConfirmed {
+                addConfirmed = false
+                addSelected()
+            }
+        }) {
+            let k = selectedAddresses.count
+            GroupActionConfirmSheet(
+                title: "Add members",
+                message: k == 1
+                    ? AppLocalization.string("Add 1 member to the group?")
+                    : String(format: AppLocalization.string("Add %lld members to the group?"), k),
+                feeLine: addFeeSuffix().trimmingCharacters(in: .whitespacesAndNewlines),
+                confirmTitle: "Add",
+                onConfirm: { addConfirmed = true }
+            )
         }
-        .alert("Add Members", isPresented: Binding(get: { resultMessage != nil }, set: { if !$0 { resultMessage = nil } })) {
-            Button("OK", role: .cancel) { resultMessage = nil }
-        } message: {
-            Text(resultMessage ?? "")
+        .sheet(item: $addProgress) { progress in
+            GroupActionProgressSheet(progress: progress) {
+                addProgress = nil
+                if addedAll { dismiss() }
+            }
         }
     }
 }

@@ -949,3 +949,18 @@ older build already stored is hidden like the other placeholders (`ChatMessage.i
 The notification extension silences their pushes the same way (`isCallSignal` in
 NotificationService.swift). Nothing ever answers them, so a caller on another client rings out.
 
+
+## @mentions by username (2026-11-24)
+
+Only someone with a .kachat username can be mentioned. A token is `@name` or `@name.kachat`
+(any case; `a-z 0-9 -`, 1-32 characters, no hyphen at either end), after the start of the text, a
+space or an opening bracket or quote, ending at the next character outside `a-z 0-9 -`.
+
+- **Group chats:** the wire format is unchanged: the sender's client replaces each `@name` of a
+  member with `@<member address>` before sealing, and readers show it as their name for that
+  member. A mention of me is `@<my address>` in the text (what "Only Notify if I'm Mentioned"
+  checks).
+- **Public chats (rooms):** plain text, `@name` as typed. A message mentions me when one of its
+  tokens is my username. Clients style and link the token (iPhone opens the profile).
+- **KaPost:** plain `@name` in the post text, plus the mentioned keys in the signed `mentions`
+  array (KAPOSTS_INDEXER.md), which is what notifies them.

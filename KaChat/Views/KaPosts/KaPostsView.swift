@@ -8597,13 +8597,14 @@ private struct KaPostMentionSuggestionBar: View {
         for contact in ContactsManager.shared.activeContacts {
             guard let label = KachatNamesRegistry.shared.cachedIdentity(for: contact.address)?.label,
                   query.isEmpty || label.hasPrefix(query) else { continue }
-            let full = "\(label).kachat"
+            // as names show in K (the ending only with Show .kachat Endings on, 2026-11-24)
+            let full = KachatNameLabel.display(KachatNames.Codec.normalize(label))
             if !kachat.contains(full) { kachat.append(full) }
         }
         out = kachat.sorted() + out
         // a live-resolved name matching the query (any service, .kachat first) rides along
-        if let extra = resolvedAnyDomain, !out.contains(extra),
-           query.isEmpty || extra.hasPrefix(query) {
+        if let extra = resolvedAnyDomain.map({ KachatNameLabel.display(KachatNames.Codec.normalize($0)) }),
+           !out.contains(extra), query.isEmpty || extra.hasPrefix(query) {
             out.append(extra)
         }
         return out
@@ -9554,13 +9555,14 @@ private struct KaPostComposerMentionBar: View {
         for contact in ContactsManager.shared.activeContacts {
             guard let label = KachatNamesRegistry.shared.cachedIdentity(for: contact.address)?.label,
                   query.isEmpty || label.hasPrefix(query) else { continue }
-            let full = "\(label).kachat"
+            // as names show in K (the ending only with Show .kachat Endings on, 2026-11-24)
+            let full = KachatNameLabel.display(KachatNames.Codec.normalize(label))
             if !kachat.contains(full) { kachat.append(full) }
         }
         out = kachat.sorted() + out
         // a live-resolved name matching the query (any service, .kachat first) rides along
-        if let extra = resolvedAnyDomain, !out.contains(extra),
-           query.isEmpty || extra.hasPrefix(query) {
+        if let extra = resolvedAnyDomain.map({ KachatNameLabel.display(KachatNames.Codec.normalize($0)) }),
+           !out.contains(extra), query.isEmpty || extra.hasPrefix(query) {
             out.append(extra)
         }
         return out

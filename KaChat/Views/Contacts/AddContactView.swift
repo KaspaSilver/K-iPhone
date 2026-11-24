@@ -49,6 +49,12 @@ struct AddContactView: View {
     @State private var groupPhotoHex: String?
     @State private var isCreatingGroup = false
     @State private var showCreateGroupConfirm = false
+    /// Create was tapped on the confirm sheet: the group is made once that sheet is gone.
+    @State private var createConfirmed = false
+    /// The steps of creating the group, on their own half sheet.
+    @State private var groupProgress: GroupActionProgress?
+    /// The group just made, opened when its progress sheet's Done is tapped.
+    @State private var createdGroup: GroupChat?
     @State private var scanningGroupRowID: UUID?
     private static let maxGroupMembers = 50
 
@@ -267,21 +273,38 @@ struct AddContactView: View {
                     }
                 }
             }
-            .alert("Create group", isPresented: $showCreateGroupConfirm) {
-                Button("Create") { createGroupChat() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
+            // A half sheet, then the progress of every step (owner, 2026-11-24).
+            .sheet(isPresented: $showCreateGroupConfirm, onDismiss: {
+                if createConfirmed {
+                    createConfirmed = false
+                    createGroupChat()
+                }
+            }) {
                 // one key per sentence and plural form (audit 2026-11-24 #34)
                 let k = selectedMemberAddresses.count
                 let txCount = k + 1
                 let name = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let question = k == 1
-                    ? String(format: AppLocalization.string("Create \"%@\" and invite 1 member?"), name)
-                    : String(format: AppLocalization.string("Create \"%@\" and invite %lld members?"), name, k)
-                let feeText = groupChatService.estimateGroupActionFeeKas(groupId: "", controlTx: txCount, photoTx: 0)
-                    .map { String(format: AppLocalization.string("Estimated network fee ≈ %@ %@ across %lld transactions."), $0, KaspaUnit.symbol, txCount) }
-                    ?? String(format: AppLocalization.string("(%lld network transactions.)"), txCount)
-                Text(verbatim: question + "\n\n" + feeText)
+                GroupActionConfirmSheet(
+                    title: "Create group",
+                    message: k == 1
+                        ? String(format: AppLocalization.string("Create \"%@\" and invite 1 member?"), name)
+                        : String(format: AppLocalization.string("Create \"%@\" and invite %lld members?"), name, k),
+                    feeLine: groupChatService.estimateGroupActionFeeKas(groupId: "", controlTx: txCount, photoTx: 0)
+                        .map { String(format: AppLocalization.string("Estimated network fee ≈ %@ %@ across %lld transactions."), $0, KaspaUnit.symbol, txCount) }
+                        ?? String(format: AppLocalization.string("(%lld network transactions.)"), txCount),
+                    confirmTitle: "Create",
+                    onConfirm: { createConfirmed = true }
+                )
+            }
+            .sheet(item: $groupProgress) { progress in
+                GroupActionProgressSheet(progress: progress) {
+                    groupProgress = nil
+                    if let group = createdGroup {
+                        createdGroup = nil
+                        onCreateGroup?(group)
+                        dismiss()
+                    }
+                }
             }
             .onChange(of: groupPhotoPickerItem) { newItem in
                 handleGroupPhotoSelection(newItem)
@@ -843,7 +866,27 @@ struct AddContactView: View {
         isCreatingGroup = true
         error = nil
 
-        Task {
+        // The steps the sheet shows: setting up, each invite, the recovery copy, the photo.
+        var steps = [GroupActionProgress.Step(id: GroupChatService.GroupActionStep.setUp,
+                                              title: AppLocalization.string("Setting up the group"))]
+        for address in addresses {
+            let name = contactsManager.getContact(byAddress: address).map { contactsManager.displayName(for: $0) }
+                ?? Contact.generateDefaultAlias(from: address)
+            steps.append(.init(id: address, title: String(format: AppLocalization.string("Inviting %@"), name)))
+        }
+        steps.append(.init(id: GroupChatService.GroupActionStep.recoveryCopy,
+                           title: AppLocalization.string("Saving a recovery copy")))
+        let photoStep = "#photo"
+        if let hex = groupPhotoHex, !hex.isEmpty {
+            steps.append(.init(id: photoStep, title: AppLocalization.string("Adding the group photo")))
+        }
+        let progress = GroupActionProgress(
+            headline: String(format: AppLocalization.string("Creating \"%@\""), trimmedName),
+            steps: steps
+        )
+        groupProgress = progress
+
+        Task { @MainActor in
             do {
                 var members: [Contact] = []
                 for address in addresses {
@@ -853,23 +896,28 @@ struct AddContactView: View {
                         members.append(try contactsManager.addContact(address: address, alias: ""))
                     }
                 }
-                let group = try await groupChatService.createGroup(name: trimmedName, members: members)
+                let group = try await groupChatService.createGroup(name: trimmedName, members: members) { key, phase in
+                    progress.apply(key, phase)
+                }
                 // The photo can only be pushed once the group has an id. Best effort: a failed
                 // photo send must not undo a group that was created successfully - the admin can
                 // set it again from Group Info.
                 if let hex = groupPhotoHex, !hex.isEmpty {
-                    try? await groupChatService.setGroupPhoto(group.id, photoHex: hex)
+                    progress.set(photoStep, .working)
+                    do {
+                        try await groupChatService.setGroupPhoto(group.id, photoHex: hex)
+                        progress.set(photoStep, .done)
+                    } catch {
+                        progress.set(photoStep, .failed(error.localizedDescription))
+                    }
                 }
-                await MainActor.run {
-                    isCreatingGroup = false
-                    onCreateGroup?(group)
-                    dismiss()
-                }
+                isCreatingGroup = false
+                createdGroup = group
+                progress.finish()
             } catch {
-                await MainActor.run {
-                    isCreatingGroup = false
-                    self.error = error.localizedDescription
-                }
+                isCreatingGroup = false
+                progress.finish(failing: error.localizedDescription)
+                self.error = error.localizedDescription
             }
         }
     }

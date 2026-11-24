@@ -2696,14 +2696,13 @@ enum NotificationMode: String, Codable, CaseIterable {
 
 // MARK: - Mentions
 
-/// @mentions are built on .kas (KNS) names - the autocomplete offers a person's primary .kas
-/// domain and groups swap it for their address. 5.2 turns
-/// them off app-wide until they are rebuilt on KaChat's own .kachat names. Every mention entry
-/// point checks this; flipping it back on restores them as they were. While off: no @
-/// suggestions, no mentions sent (group text is not encoded), and no "only notify if I'm mentioned" (a stored choice is kept, not applied).
-/// Mentions other clients already sent still display.
+/// @mentions by .kachat username (owner, 2026-11-24), in group chats, public chats and KaPost:
+/// only someone with a username can be @'d (`UsernameMention`, Views/Shared/UsernameMentions.swift).
+/// Groups send a mention as `@<address>` and show it as the member's name; rooms and KaPost send
+/// the plain `@username` (KaPost also signs the mentioned keys). Every mention entry point checks
+/// this switch (it was off from 5.2 until mentions moved from .kas to .kachat).
 enum MentionsFeature {
-    static let enabled = false
+    static let enabled = true
 }
 
 /// Settings > Chats > Who Can Message You? (owner's call, 2026-11-23): Anyone, or Only Users with a

@@ -1109,7 +1109,24 @@ final class GroupChatService: ObservableObject {
 
     // MARK: - GroupChat creation & membership
 
-    func createGroup(name: String, members: [Contact]) async throws -> GroupChat {
+    /// One step of creating a group or changing its members, reported as it happens so the
+    /// screen can show the progress (owner, 2026-11-24: "so you are not lost thinking it broke").
+    /// `key` is a member's address, or `GroupActionStep.setUp` / `.recoveryCopy`.
+    typealias GroupActionReport = @MainActor (_ key: String, _ phase: GroupActionPhase) -> Void
+
+    enum GroupActionStep {
+        static let setUp = "#setup"
+        static let recoveryCopy = "#recovery"
+    }
+
+    enum GroupActionPhase {
+        case started
+        case finished
+        case failed(Error)
+    }
+
+    func createGroup(name: String, members: [Contact], report: GroupActionReport? = nil) async throws -> GroupChat {
+        report?(GroupActionStep.setUp, .started)
         guard let wallet = WalletManager.shared.currentWallet,
               let privateKey = WalletManager.shared.getPrivateKey() else {
             throw KasiaError.walletNotFound
@@ -1159,16 +1176,20 @@ final class GroupChatService: ObservableObject {
             setMemberStatus(GroupMemberStatusCodec.Status.invited.rawValue, address: member.address, groupId: group.id)
         }
         updateScanningStateIfNeeded()
+        report?(GroupActionStep.setUp, .finished)
 
         // Distribute gctl_root to each initial member directly - they must already be 1:1
         // contacts, i.e. their pubkey is resolvable from their address (every member is added
         // this way; there's no invite-link bootstrap path, see file doc).
         var sendErrors: [Error] = []
         for member in roster where !member.isAdmin {
+            report?(member.address, .started)
             do {
                 try await sendRootControlMessage(group: group, bag: bag, to: member.address, privateKey: privateKey)
+                report?(member.address, .finished)
             } catch {
                 sendErrors.append(error)
+                report?(member.address, .failed(error))
             }
         }
         if !sendErrors.isEmpty {
@@ -1177,7 +1198,13 @@ final class GroupChatService: ObservableObject {
         }
         // Self-addressed recovery copy (seed-carrying) so a seedless re-import finds this group.
         // Best-effort: failure just leaves selfInviteEpoch unset and the sync backfill retries.
-        try? await sendSelfRootControlMessage(group: group, bag: bag, privateKey: privateKey)
+        report?(GroupActionStep.recoveryCopy, .started)
+        do {
+            try await sendSelfRootControlMessage(group: group, bag: bag, privateKey: privateKey)
+            report?(GroupActionStep.recoveryCopy, .finished)
+        } catch {
+            report?(GroupActionStep.recoveryCopy, .failed(error))
+        }
 
         return group
     }
@@ -1185,8 +1212,8 @@ final class GroupChatService: ObservableObject {
     /// Adds a member directly (requires an existing 1:1-resolvable address) - bumps the epoch
     /// and redistributes the new root to every member (old + new), matching the reference
     /// spec's "membership change -> epoch rotation" model.
-    func addMember(_ contact: Contact, to groupId: String) async throws {
-        try await rotateEpoch(groupId: groupId, reason: .add) { roster in
+    func addMember(_ contact: Contact, to groupId: String, report: GroupActionReport? = nil) async throws {
+        try await rotateEpoch(groupId: groupId, reason: .add, report: report) { roster in
             guard let xOnlyPub = KaspaAddress.publicKey(from: contact.address) else {
                 throw KasiaError.invalidAddress
             }
@@ -1437,6 +1464,12 @@ final class GroupChatService: ObservableObject {
         return Contact.generateDefaultAlias(from: address)
     }
 
+    /// A member as a membership line stores them: the full address, which the thread swaps for
+    /// their current name as it draws the line (`GroupSystemLine.display`), so a .kachat name or
+    /// a contact name that lands later shows too. The short address saved before never updated
+    /// (2026-11-24: "joined the group is showing my address not the domain").
+    private func systemLineMember(_ address: String) -> String { address }
+
     /// Insert one iMessage-style system line (photo/name change) into a group thread.
     /// `stableKey`, when given, makes the row's txId deterministic (derived from the control's
     /// block time) so re-processing the same control can't insert a duplicate line — the DB dedupes
@@ -1455,19 +1488,20 @@ final class GroupChatService: ObservableObject {
         var t = Int64(Date().timeIntervalSince1970 * 1000)
         for m in newMembers where !oldAddrs.contains(m.address) {
             setMemberStatus(GroupMemberStatusCodec.Status.invited.rawValue, address: m.address, groupId: groupId)
-            let label = groupMemberLabel(m.address, fallback: m.displayName)
+            let label = systemLineMember(m.address)
             store.insertImportedPlaintextMessage(txId: "sys_\(groupId.prefix(8))_\(t)_add", groupId: groupId, senderAddress: Self.systemSender, senderIdHex: "", msgIdHex: "", content: "\(label) was invited to the group chat", blockTime: t, isOutgoing: false)
             t += 1
         }
         for m in oldMembers where !newAddrs.contains(m.address) {
             setMemberStatus(nil, address: m.address, groupId: groupId)
-            let label = groupMemberLabel(m.address, fallback: m.displayName)
+            let label = systemLineMember(m.address)
             store.insertImportedPlaintextMessage(txId: "sys_\(groupId.prefix(8))_\(t)_rem", groupId: groupId, senderAddress: Self.systemSender, senderIdHex: "", msgIdHex: "", content: "\(label) was removed from the group chat", blockTime: t, isOutgoing: false)
             t += 1
         }
     }
 
-    private func rotateEpoch(groupId: String, reason: GroupCipher.EpochChangeReason, mutateRoster: (inout [GroupMember]) throws -> Void) async throws {
+    private func rotateEpoch(groupId: String, reason: GroupCipher.EpochChangeReason, report: GroupActionReport? = nil,
+                             mutateRoster: (inout [GroupMember]) throws -> Void) async throws {
         // Catch up on our OWN control stream before reading the roster.
         //
         // The same account can be admin on two devices. Each holds its own copy of the roster,
@@ -1526,11 +1560,14 @@ final class GroupChatService: ObservableObject {
 
         var sendErrors: [Error] = []
         for member in roster where member.address != wallet.publicAddress {
+            report?(member.address, .started)
             do {
                 try await sendEpochControlMessage(groupId: gid, epoch: newEpoch, reason: reason, to: member.address, adminPrivateKey: privateKey)
                 try await sendRootControlMessage(group: group, bag: bag, to: member.address, privateKey: privateKey)
+                report?(member.address, .finished)
             } catch {
                 sendErrors.append(error)
+                report?(member.address, .failed(error))
             }
         }
         // A newly-added member should also receive the current group photo (root doesn't carry it).
@@ -3167,7 +3204,7 @@ final class GroupChatService: ObservableObject {
         setMemberStatus(status.rawValue, address: address, groupId: groupId)
         let isRecent = blockTime > 0 && Date().timeIntervalSince1970 * 1000 - Double(blockTime) < Self.systemMessageLifetime * 1000
         guard changed, isRecent, address != WalletManager.shared.currentWallet?.publicAddress else { return }
-        let label = groupMemberLabel(address, fallback: nil)
+        let label = systemLineMember(address)
         insertGroupSystemLine(groupId, status == .joined ? "\(label) joined the group" : "\(label) declined the invite", stableKey: "status_\(txId.prefix(12))")
     }
 

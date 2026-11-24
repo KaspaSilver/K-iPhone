@@ -241,6 +241,11 @@ extension WalletManager {
     ///    balance shows under spending then reverts" flicker. Addresses are deterministic, so a
     ///    cached value is always correct and never needs invalidation.
     /// 2. Speed — skips Secure Enclave decrypt + PBKDF2 + 5 HMAC derivations per lookup.
+    // `@inline(never)`: Xcode 27.2's Swift 6.4.2 optimizer crashed ("consuming post-dominance
+    // failure" in CopyPropagation) on this key's string interpolation inlined into
+    // `sweepAddresses(inRange:account:)`, failing the Xcode Cloud archive (2026-11-24). A compiler
+    // bug, not ours; keeping these out of line avoids it and costs nothing (they derive keys).
+    @inline(never)
     private func spendingAddressCacheKey(owner: String? = nil) -> String? {
         guard let base = spendingDefaultsKey("derived_addresses", owner: owner) else { return nil }
         return "\(base)_\(SettingsViewModel.loadSettings().networkType.rawValue)"
@@ -337,6 +342,7 @@ extension WalletManager {
 
     /// Derives the quantum address at public index `base + n`, through the shared per-index
     /// address cache (same dictionary as the legacy chain: the index spaces cannot collide).
+    @inline(never)
     private func quantumAddress(at index: Int, chainKey: (key: Data, chainCode: Data), owner: String? = nil) -> String? {
         guard Self.isQuantumIndex(index) else { return nil }
         let cacheKey = spendingAddressCacheKey(owner: owner)
@@ -353,6 +359,7 @@ extension WalletManager {
         return address
     }
 
+    @inline(never)
     private func spendingAddress(at index: Int, changeKey: (key: Data, chainCode: Data), owner: String? = nil) -> String? {
         // legacy chain only: `changeKey` is m/44'/111111'/1'/0 - a quantum index goes through
         // `quantumAddress(at:chainKey:)` with the m/22' node

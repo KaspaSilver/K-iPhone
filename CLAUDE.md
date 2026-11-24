@@ -58,7 +58,10 @@ invites aren't affected. Being added to a group
 is only a request: it waits in Message Requests (`GroupChatService.groupInvites`, its keys in the
 Keychain) and you aren't in the group until you accept. Your answer goes on chain, encrypted, so
 your other devices, a restore of your words and the group all know (MESSAGING.md, "Group invites");
-member rows show Invited or Declined. Chats'
+member rows show Invited or Declined. Creating a group and adding members confirm in a half sheet, then show
+every transaction in a progress half sheet (`GroupActionSheets.swift`, fed by `GroupChatService`'s
+`GroupActionReport`: setting up, each invite or "Sending the new group key: 3 of 10", the recovery
+copy, the photo), which can't be swiped away until Done (owner, 2026-11-24). Chats'
 floating + opens a half sheet: New Chat or New Group Chat. Wallet (`WalletView`, since 2026-11-04)
 holds the account's money, laid out as KaPay's Wallet tab (2026-11-19): the balance card (swipes
 Kaspa ⇄ kUSDT; Tap to Manage opens Manage Addresses or Manage kUSDT), then Send, Receive,
@@ -584,6 +587,20 @@ reads the network without copying the settings, and `KachatNameLabel.showsEnding
 lays itself out in one pass (`KaPostActionRowLayout`: 18, 12 or 8 pt gaps, whichever fits; not
 ViewThatFits). The Chats list rebuilds coalesced (180 ms, never held past a second) and only writes
 a changed list.
+
+### @mentions (2026-11-24)
+
+You can @ someone in group chats, public chats and KaPost only if they have a .kachat username
+(`MentionsFeature.enabled`, `UsernameMention` and `MentionSuggestionList` in
+Views/Shared/UsernameMentions.swift). Typing "@" suggests usernames: group members, a room's recent
+senders and your contacts, plus a looked-up name for 2+ letters (rooms, KaPost). Groups send
+`@<address>` (`GroupMentionCodec`, unchanged wire format; `encodeMentions` matches "@alice" and
+"@alice.kachat") and show the member's name; the push extension shows those as names too
+(`mentionsAsNames`), and "Only Notify if I'm Mentioned" works again. Rooms and KaPost send plain
+`@username`: room bubbles style and link each one (`UsernameMention.attributed`, tap opens the
+profile) and outline a message that @'s you; KaPost signs the mentioned keys
+(`mentionedPubkeys`), which drives its "mentioned you" notification. Room mention pushes for
+bell-off rooms are an indexer handoff (INDEXER_HANDOFF.md).
 
 ### Long-press menus
 

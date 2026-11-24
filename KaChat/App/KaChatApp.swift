@@ -693,6 +693,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             // blank banner, and a pending request's or blocked sender's message never rings.
             let content = notification.request.content
             let emptiedByExtension = content.title.isEmpty && content.body.isEmpty
+            // A group push the notification extension never reworded (it timed out, or didn't
+            // run) still has the server's raw text: the sender's address and "New group message",
+            // even for a member accepting an invite, which isn't a message at all. While K is
+            // open it banners the group messages it reads itself (`postInAppBanner`), so the raw
+            // push is never shown (2026-11-24).
+            let pushType = userInfo["type"] as? String
+            let rawGroupPush = (pushType == "group_message" || pushType == "group_control")
+                && !content.threadIdentifier.hasPrefix("group:")
+                && content.threadIdentifier != "message_requests"
+                && UIApplication.shared.applicationState == .active
+            if rawGroupPush {
+                completionHandler([])
+                return
+            }
             let fromRequestOrBlocked = contactAddress.map { address in
                 ChatService.shared.isChatBlocked(address)
                     || ChatService.shared.conversations.contains { $0.contact.address == address && ChatService.shared.isMessageRequest($0) }

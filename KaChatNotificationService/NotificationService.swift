@@ -950,7 +950,8 @@ class NotificationService: UNNotificationServiceExtension {
                 ?? formatAddress(match.senderAddress)
             content.title = match.groupName
             content.subtitle = senderName
-            content.body = displayBody
+            // "@kaspa:qq…" mentions (the group wire format) read as names (2026-11-24)
+            content.body = mentionsAsNames(displayBody)
             content.threadIdentifier = "group:\(match.groupId)"
             // A long voice note in a group: keyed by (group, sender, voicePart.id), as the app.
             voicePartKey = Self.voicePartKey(in: match.plaintext, sender: "group:\(match.groupId.lowercased())|\(match.senderAddress)")
@@ -1478,6 +1479,25 @@ class NotificationService: UNNotificationServiceExtension {
     /// A mention is `@{fullKaspaAddress}` (see the main app's `GroupMentionCodec` doc comment).
     /// Android's `@{primaryKNSDomain}` form isn't matched: K reads no .kas names (2026-11-23).
     /// No wallet address available = treat as a mention (don't suppress).
+    /// Group text names a mentioned member by address ("@kaspa:qq…"): in a banner, the name
+    /// this phone knows them by (a contact's name, else their .kachat name from the app's cache),
+    /// else the short address.
+    private func mentionsAsNames(_ text: String) -> String {
+        guard text.contains("@kaspa"),
+              let regex = try? NSRegularExpression(pattern: "@(kaspa(?:test)?:[a-z0-9]{40,90})") else { return text }
+        let names = UserDefaults(suiteName: appGroupIdentifier)?.dictionary(forKey: "shared_identity_names") as? [String: String]
+        let ns = text as NSString
+        var out = text
+        for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
+            let address = ns.substring(with: match.range(at: 1))
+            let alias = getSharedContact(address: address)?.alias ?? ""
+            let cached = names?[address.lowercased()] ?? ""
+            let name = !alias.isEmpty ? alias : (!cached.isEmpty ? cached : formatAddress(address))
+            if let range = Range(match.range, in: out) { out.replaceSubrange(range, with: "@" + name) }
+        }
+        return out
+    }
+
     private func mentionsMe(_ text: String) -> Bool {
         guard let myAddress = getWalletAddress() else { return true }
         return text.contains("@\(myAddress)")

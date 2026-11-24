@@ -2330,11 +2330,11 @@ struct ChatDetailView: View {
         Button {
             showChatInfo = true
         } label: {
-            VStack(spacing: -12) {
+            VStack(spacing: -5) {
                 KNSAvatarView(
                     avatarURLString: nil,
                     fallbackText: contactsManager.displayName(for: contact),
-                    size: 46,
+                    size: 60,
                     contactAddress: contact.address
                 )
                 // Drawn over the capsule, which tucks under it - the negative spacing is what
@@ -2343,16 +2343,17 @@ struct ChatDetailView: View {
 
                 HStack(spacing: 4) {
                     Text(contactsManager.displayName(for: contact))
-                        .font(.subheadline.weight(.bold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundColor(.secondary)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(.secondary.opacity(0.6))
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 15)
-                .padding(.bottom, 5)
+                // Messages' header (owner, 2026-11-24): a slim pill tucked just under a big photo
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
                 // iMessage's floating pill: a thin material so the messages scrolling underneath
                 // actually show through it (the scroll view extends under this inset, so there IS
                 // live content to blur), a hairline edge to keep it legible against a light
@@ -2367,7 +2368,8 @@ struct ChatDetailView: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ChatHeaderChipButtonStyle())
+        .simultaneousGesture(TapGesture().onEnded { Haptics.selection() })
         .accessibilityLabel(Text("Chat info for \(contactsManager.displayName(for: contact))"))
     }
 

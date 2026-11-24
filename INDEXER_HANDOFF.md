@@ -15,7 +15,7 @@ item stands on its own.
 
 ## Open
 
-- **2026-11-23 - KaPlay arcade boards (Snake, 2048).** Not committed yet (iPhone working tree);
+- **2026-11-23 - KaPlay arcade boards (Snake, 2048).** Committed (518fdc8c);
   spec ARCADE.md. The app stamps every finished game as a plaintext broadcast in the hidden room
   `#kplay-arcade` (ARCADE.md §1) and reads the boards from
   `GET /arcade/leaderboard?game=snake|2048&period=month|all&limit=100` (§5). The indexer:
@@ -27,6 +27,25 @@ item stands on its own.
      highest first, earlier stamp on a tie, with `games` (checked stamps in the period), `since`
      and each row's `at` (block time, ms) and `tx`.
   Until it is served, the app shows each player's own stamped scores only.
+
+- **2026-11-24 - Push for @username mentions in public chats.** Not committed yet (iPhone
+  working tree). People can now be @'d by their .kachat username in public chats (rooms), as plain
+  text in the message: `@alice` or `@alice.kachat` (any case) after the start of the text, a space
+  or an opening bracket or quote, `a-z 0-9 -`, 1-32 characters, the ending optional; the token ends
+  at the next character outside `a-z 0-9 -`. Rooms only push to people whose bell is on for that
+  room, so a mention in any other room reaches nobody while their app is closed. The indexer:
+  1. for each new room message (not the hidden `chess-arena`, `chess-bots`, `kplay-arcade` rooms,
+     not edits or reactions), finds the @tokens, looks each name up in the names registry (the
+     address its owner set, as `/identity` and profiles answer) and drops names that aren't
+     registered and the sender's own;
+  2. pushes each mentioned address that has a registered device, once per message, whether or not
+     its bell is on for the room: the room push as today (`type` the room's, thread
+     `broadcast:<room>`), with `mention: true` in the payload so the extension can say
+     "mentioned you in #room". A muted or hidden sender (the device's own lists) is not the
+     indexer's to judge; the app filters those.
+  The app already outlines messages that @ the reader and banners while open; this is only the
+  closed-app push. KaPost mentions need nothing new (the signed `mentions` array already drives
+  the `mention` notification).
 
 ## Done
 

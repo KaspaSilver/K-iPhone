@@ -59,6 +59,10 @@ struct PublicChatChannelView: View {
     @State private var isMessageFocused = false
     @State private var showDesktopEmojiPicker = false
     @State private var emojiInsertionRequest: ComposerTextView.TextInsertionRequest?
+    /// The @token being typed (nil: none), for the mention suggestions (2026-11-24).
+    @State private var mentionQuery: String?
+    /// Someone found by looking the typed username up, who may be in no message or contact here.
+    @State private var lookedUpMention: MentionCandidate?
     @State private var isSending = false
     @State private var toastMessage: String?
     /// Message whose reactor list is on screen.
@@ -852,8 +856,50 @@ struct PublicChatChannelView: View {
         .padding()
     }
 
+    /// People to @ in this room: those who wrote here lately, your contacts, and anyone whose
+    /// username was looked up - only people with a username (owner, 2026-11-24), never you.
+    private func roomMentionCandidates(_ query: String) -> [MentionCandidate] {
+        let me = WalletManager.shared.currentWallet?.publicAddress.lowercased()
+        let typed = KachatNames.Codec.normalize(query)
+        var seen = Set<String>()
+        var out: [MentionCandidate] = []
+        func consider(_ address: String, handle: String? = nil) {
+            let key = address.lowercased()
+            guard key != me, !seen.contains(key), let handle = handle ?? UsernameMention.handle(for: address) else { return }
+            seen.insert(key)
+            if typed.isEmpty || KachatNames.Codec.normalize(handle).hasPrefix(typed) {
+                out.append(MentionCandidate(address: address, handle: handle))
+            }
+        }
+        if let lookedUpMention { consider(lookedUpMention.address, handle: lookedUpMention.handle) }
+        for message in publicChatService.messages(forChannel: channelName).suffix(300).reversed() {
+            consider(message.senderAddress)
+        }
+        for contact in ContactsManager.shared.activeContacts { consider(contact.address) }
+        return Array(out.prefix(20))
+    }
+
     private var composeBar: some View {
         VStack(spacing: 8) {
+            if MentionsFeature.enabled, let mentionQuery {
+                MentionSuggestionList(candidates: roomMentionCandidates(mentionQuery)) { candidate in
+                    emojiInsertionRequest = ComposerTextView.TextInsertionRequest(
+                        id: UUID(), text: "@\(candidate.handle) ", replacesMentionToken: true
+                    )
+                    self.mentionQuery = nil
+                }
+                .task(id: mentionQuery) {
+                    // anyone with a username, not only people seen here: look the typed name up
+                    lookedUpMention = nil
+                    let typed = KachatNames.Codec.normalize(mentionQuery)
+                    guard typed.count >= 2, KachatNames.Codec.isValid(typed) else { return }
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    guard !Task.isCancelled,
+                          let found = NameServicesClient.primary(of: await NameServicesClient.shared.resolveEverywhere(typed), typed: typed),
+                          let address = found.address, !Task.isCancelled else { return }
+                    lookedUpMention = MentionCandidate(address: address, handle: KachatNameLabel.display(KachatNames.Codec.normalize(found.fullName)))
+                }
+            }
             if let editing = publicChatService.editTarget(inChannel: channelName) {
                 editBanner(for: editing)
             } else if let reply = publicChatService.replyTarget(inChannel: channelName) {
@@ -882,7 +928,8 @@ struct PublicChatChannelView: View {
                                 if emojiInsertionRequest?.id == requestID {
                                     emojiInsertionRequest = nil
                                 }
-                            }
+                            },
+                            onMentionQuery: { mentionQuery = $0 }
                         )
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -1408,14 +1455,14 @@ private struct PublicChatRoomTitleChip: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: -12) {
+            VStack(spacing: -5) {
                 ZStack {
                     Circle().fill(Color.accentColor.opacity(0.2))
                     Image(systemName: "number")
-                        .font(.scaled(size: 18, weight: .semibold))
+                        .font(.scaled(size: 24, weight: .semibold))
                         .foregroundColor(.accentColor)
                 }
-                .frame(width: 46, height: 46)
+                .frame(width: 60, height: 60)
                 // Drawn over the capsule, which tucks under it - the negative spacing is what
                 // makes the two read as one piece rather than a stack.
                 .zIndex(1)
@@ -1423,16 +1470,17 @@ private struct PublicChatRoomTitleChip: View {
                 HStack(spacing: 4) {
                     // bidi controls stripped, as in the Chats list (audit #22)
                     Text(verbatim: "#" + KaPostsMarkdown.strippingBidiControls(channelName))
-                        .font(.subheadline.weight(.bold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundColor(.secondary)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(.secondary.opacity(0.6))
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 15)
-                .padding(.bottom, 5)
+                // Messages' header (owner, 2026-11-24): a slim pill tucked just under a big photo
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
                 // iMessage's floating pill: a thin material so the messages scrolling underneath
                 // actually show through it, a hairline edge to keep it legible against a light
                 // bubble, and a soft shadow so it reads as sitting above the thread.
@@ -1445,7 +1493,8 @@ private struct PublicChatRoomTitleChip: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ChatHeaderChipButtonStyle())
+        .simultaneousGesture(TapGesture().onEnded { Haptics.selection() })
         .accessibilityLabel(Text("Room info for #\(channelName)"))
     }
 }
@@ -1742,6 +1791,11 @@ private struct PublicChatMessageRow: View, Equatable {
         MessageTextRenderPlan.firstHTTPLink(in: displayText)
     }
 
+    /// Someone else's message that @'s you by your username.
+    private var mentionsMe: Bool {
+        MentionsFeature.enabled && !isOwnMessage && UsernameMention.mentionsMe(shownText)
+    }
+
     @ViewBuilder
     private func bubbleContent(voicePayload: VoiceMessageSniff.Payload?) -> some View {
         if let voiceNote {
@@ -1750,6 +1804,15 @@ private struct PublicChatMessageRow: View, Equatable {
             PublicChatAudioBubble(data: voicePayload.data, isOwnMessage: isOwnMessage)
         } else if shownText.utf8.count > Self.inlineTextTruncationThreshold {
             truncatedTextContent
+        } else if MentionsFeature.enabled, let mentioned = UsernameMention.attributed(shownText, isOutgoing: isOwnMessage) {
+            // @usernames styled and tappable: a tap opens that person's profile (2026-11-24)
+            Text(mentioned)
+                .foregroundColor(isOwnMessage ? .white : .primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .environment(\.openURL, OpenURLAction { url in
+                    UsernameMention.handle(url: url) ? .handled : .discarded
+                })
         } else if MessageTextRenderPlan.prefersUIKitTextView(shownText) {
             LinkifiedMessageTextView(
                 text: shownText,
@@ -1905,6 +1968,11 @@ private struct PublicChatMessageRow: View, Equatable {
                 bubbleContent(voicePayload: voicePayload)
                     .background(isOwnMessage ? OutgoingBubble.color : Color(UIColor.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+                    // a message that @'s you by your username stands out (2026-11-24)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.accentColor, lineWidth: mentionsMe ? 1.5 : 0)
+                    )
                     // Only the plain bubble gets this menu - `LinkPreviewCardView` carries its
                     // own (Open Link / Copy Link / View in Explorer), and stacking a second
                     // long-press menu on top of it would fight it. Matches group bubbles.

@@ -274,6 +274,8 @@
 		SWPB33C72D4CF80939A90C29 /* ArcadeServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF33C72D4CF80939A90C29 /* ArcadeServices.swift */; };
 		SWPB7A02603BDE2024404229 /* ArcadeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF7A02603BDE2024404229 /* ArcadeViews.swift */; };
 		SWPBACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPFACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift */; };
+		SWPB3EE11F0DD5AA53DABDED /* GroupActionSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF3EE11F0DD5AA53DABDED /* GroupActionSheets.swift */; };
+		SWPB5AAC1862CE031DE3E822 /* UsernameMentions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF5AAC1862CE031DE3E822 /* UsernameMentions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -612,6 +614,8 @@
 		SWPF33C72D4CF80939A90C29 /* ArcadeServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcadeServices.swift; sourceTree = "<group>"; };
 		SWPF7A02603BDE2024404229 /* ArcadeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcadeViews.swift; sourceTree = "<group>"; };
 		SWPFACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KNSRevealRecovery.swift; sourceTree = "<group>"; };
+		SWPF3EE11F0DD5AA53DABDED /* GroupActionSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupActionSheets.swift; sourceTree = "<group>"; };
+		SWPF5AAC1862CE031DE3E822 /* UsernameMentions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsernameMentions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -974,6 +978,7 @@
 		E80000192D4C000000000019 /* Chat */ = {
 			isa = PBXGroup;
 			children = (
+				SWPF3EE11F0DD5AA53DABDED /* GroupActionSheets.swift */,
 				PUBCF4D1618A0B10D36051F3 /* HiddenPublicChatSendersView.swift */,
 				PUBCF99C413063431EA3C463 /* PublicChatRoomInfoView.swift */,
 				PUBCF044732384DCF0F9301F /* PublicChatRoomViews.swift */,
@@ -1028,6 +1033,7 @@
 		E8F100132D4C0001000000FF /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				SWPF5AAC1862CE031DE3E822 /* UsernameMentions.swift */,
 				P4BFD85A32621D5AA01E9C55 /* FittedSheet.swift */,
 				P4F5452B1CB580CE25FAF382 /* ChessTabIcon.swift */,
 				KPSTF8668B84195879D5D37E /* KaPlayChallengeViews.swift */,
@@ -1415,6 +1421,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				SWPB5AAC1862CE031DE3E822 /* UsernameMentions.swift in Sources */,
+				SWPB3EE11F0DD5AA53DABDED /* GroupActionSheets.swift in Sources */,
 				SWPBACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift in Sources */,
 				SWPB7A02603BDE2024404229 /* ArcadeViews.swift in Sources */,
 				SWPB33C72D4CF80939A90C29 /* ArcadeServices.swift in Sources */,

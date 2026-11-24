@@ -1019,9 +1019,14 @@ private struct ChatHeaderTapBand: ViewModifier {
 
     /// Extra reach either side of the chip, so a tap just off the pill still counts.
     private let chipMargin: CGFloat = 40
+    /// Pressed through the bar's tap area (the photo's half): the chip dims there too.
+    @State private var barPressed = false
 
     func body(content: Content) -> some View {
         content
+            .opacity(barPressed ? 0.6 : 1)
+            .scaleEffect(barPressed ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.12), value: barPressed)
             .background(
                 GeometryReader { chip in
                     Color.clear.preference(key: ChatHeaderChipWidthKey.self, value: chip.size.width)
@@ -1030,10 +1035,24 @@ private struct ChatHeaderTapBand: ViewModifier {
             .onPreferenceChange(ChatHeaderChipWidthKey.self) { chipWidth = $0 }
             .toolbar {
                 ToolbarItem(placement: .principal) {
+                    // The photo half of the chip sits inside the navigation bar, which takes the
+                    // touches there: this catches them. A press (not just a tap) so the chip
+                    // answers the moment a finger lands, and a small slide still counts
+                    // (2026-11-24: "hard to click, sometimes no click happens").
                     Color.clear
                         .frame(width: max(chipWidth, 120) + chipMargin * 2, height: 44)
                         .contentShape(Rectangle())
-                        .onTapGesture(perform: onChip)
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { _ in if !barPressed { barPressed = true } }
+                                .onEnded { value in
+                                    barPressed = false
+                                    if abs(value.translation.width) < 30, abs(value.translation.height) < 30 {
+                                        Haptics.selection()
+                                        onChip()
+                                    }
+                                }
+                        )
                         // the chip below already says what this does
                         .accessibilityHidden(true)
                 }
@@ -1050,6 +1069,7 @@ private struct ChatHeaderTapBand: ViewModifier {
                             SpatialTapGesture().onEnded { tap in
                                 let reach = chipWidth / 2 + chipMargin
                                 if abs(tap.location.x - band.size.width / 2) <= reach {
+                                    Haptics.selection()
                                     onChip()
                                 } else {
                                     onBand()
@@ -1318,5 +1338,16 @@ extension ChessLeaderboardPeriod {
         case .month: return "This month"
         case .allTime: return "All time"
         }
+    }
+}
+
+/// A chat header chip's press: it dims and shrinks a little under the finger and taps lightly,
+/// so a tap that landed is felt at once (the plain style showed nothing).
+struct ChatHeaderChipButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

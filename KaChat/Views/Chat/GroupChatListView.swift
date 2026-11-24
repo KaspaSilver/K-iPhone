@@ -109,8 +109,11 @@ struct GroupChatRow: View {
     private func previewText(for message: GroupMessage) -> String {
         let key = "\(group.id)|\(message.id.uuidString)|\(groupMemoContentStamp(message.content))|\(group.members.count)|\(KachatNamesRegistry.shared.identityRevision)|\(GroupDisplayNamesRevision.shared.value)" as NSString
         if let cached = Self.previewMemo.object(forKey: key) { return cached as String }
-        let text = GroupMentionCodec.decodeForDisplay(LinkSafePreview.apply(to: MessageReplyCodec.previewText(for: message.content)),
-                                                      members: group.members, resolveDisplayName: resolveDisplayName(for:))
+        // a membership line ("<address> joined the group") reads as it does in the thread
+        let text = message.senderAddress == GroupChatService.systemSender
+            ? GroupSystemLine.display(message.content, name: resolveDisplayName(for:))
+            : GroupMentionCodec.decodeForDisplay(LinkSafePreview.apply(to: MessageReplyCodec.previewText(for: message.content)),
+                                                 members: group.members, resolveDisplayName: resolveDisplayName(for:))
         Self.previewMemo.setObject(text as NSString, forKey: key)
         return text
     }
