@@ -555,6 +555,9 @@ extension KachatNames {
         var avatar: String?
         var banner: String?
         var bio: String?
+        /// The platform said there is no such account (Discord: "Unknown Invite"), rather than an
+        /// account with nothing set. nil for every other answer.
+        var notFound: Bool?
         var isEmpty: Bool { avatar == nil && banner == nil && bio == nil }
     }
 

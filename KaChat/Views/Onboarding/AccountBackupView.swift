@@ -1,8 +1,9 @@
 import SwiftUI
 import UIKit
 
-/// The strip under the balance on every main screen while an account isn't backed up. It stays
-/// until the backup steps are finished, and turns red once the chatting address holds funds.
+/// The strip at the top of Profile while an account isn't backed up (owner's call, 2026-11-23:
+/// Profile only; the dock's Profile icon carries a yellow dot meanwhile, `ProfileDockIcon`). It
+/// stays until the backup steps are finished, and turns red once the chatting address holds funds.
 struct AccountBackupBanner: View {
     @ObservedObject private var walletManager = WalletManager.shared
     @ObservedObject private var backupStatus = AccountBackupStatus.shared

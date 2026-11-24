@@ -291,7 +291,7 @@ struct KachatStatusPill: View {
 
 /// A square tile for one name in the marketplace grids (For sale, Available): the full name -
 /// it wraps onto more lines, never truncates, and the tile grows to fit - with ".kachat" under
-/// it, and the price (or a Reclaim button) at the bottom.
+/// it when endings are shown, and the price (or a Reclaim button) at the bottom.
 struct KachatNameTile<Footer: View>: View {
     let name: String
     @ViewBuilder var footer: Footer
@@ -306,9 +306,13 @@ struct KachatNameTile<Footer: View>: View {
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(verbatim: ".kachat")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(.accentColor)
+                // the ending only when Show .kachat Endings is on (off by default): the
+                // marketplace sells names, and a name is just the name
+                if KachatNameLabel.showsEnding {
+                    Text(verbatim: ".kachat")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.accentColor)
+                }
             }
             footer
             Spacer(minLength: 0)
@@ -496,7 +500,7 @@ struct KachatLiveSearchResult: View {
         case .free(let free, let gap) where free == name:
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: "\(free).kachat").font(.headline).lineLimit(1)
+                    Text(verbatim: KachatNameLabel.display(free)).font(.headline).lineLimit(1)
                     // no price here: a name's first year and later years cost differently (the
                     // claim's "For how long?" shows each)
                     Text("Available")
@@ -517,7 +521,7 @@ struct KachatLiveSearchResult: View {
             row(subtitle: Text(verbatim: message))
         default:
             HStack(spacing: 10) {
-                Text(verbatim: "\(name).kachat").font(.headline).lineLimit(1)
+                Text(verbatim: KachatNameLabel.display(name)).font(.headline).lineLimit(1)
                 Spacer()
                 ProgressView()
             }
@@ -527,7 +531,7 @@ struct KachatLiveSearchResult: View {
     private func row(subtitle: Text) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: "\(name).kachat").font(.headline).lineLimit(1)
+                Text(verbatim: KachatNameLabel.display(name)).font(.headline).lineLimit(1)
                 subtitle.font(.caption).foregroundColor(.secondary)
             }
             Spacer()
@@ -756,7 +760,7 @@ struct KachatRegistrationProgressSheet: View {
         ScrollView {
             VStack(spacing: 14) {
                 if let registration {
-                    Text(String(format: AppLocalization.string("Claiming %@"), "\(registration.name).kachat"))
+                    Text(String(format: AppLocalization.string("Claiming %@"), KachatNameLabel.display(registration.name)))
                         .font(.headline)
                         .multilineTextAlignment(.center)
                         .padding(.top, 22)
@@ -888,7 +892,7 @@ struct KachatRegistrationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(verbatim: "\(registration.name).kachat")
+                Text(verbatim: KachatNameLabel.display(registration.name))
                     .font(.headline)
                 Spacer()
                 if registration.needsDriving {
@@ -1260,7 +1264,7 @@ struct KachatEventRow: View {
                 HStack(spacing: 4) {
                     Text(KachatLive.eventTitle(event.op))
                     if showName, let name = event.name {
-                        Text(verbatim: "\(name).kachat")
+                        Text(verbatim: KachatNameLabel.display(name))
                     }
                 }
                 .font(.subheadline.weight(.semibold))
@@ -1423,7 +1427,7 @@ struct KachatOfferTile: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 if showsName, let n = state.offer.name {
-                    Text(verbatim: "\(n).kachat")
+                    Text(verbatim: KachatNameLabel.display(n))
                         .font(.caption.weight(.semibold))
                         .foregroundColor(.accentColor)
                         .lineLimit(1)
@@ -1485,7 +1489,7 @@ struct KachatOfferDetailSheet: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
                         if let n = state.offer.name ?? state.name?.name {
-                            Text(verbatim: "\(n).kachat")
+                            Text(verbatim: KachatNameLabel.display(n))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.accentColor)
                         }
@@ -2211,7 +2215,7 @@ struct KachatClaimSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     SendStepQuestion(text: "For how long?")
-                    Text(verbatim: "\(target.name).kachat")
+                    Text(verbatim: KachatNameLabel.display(target.name))
                         .font(.headline)
                         .foregroundColor(.accentColor)
                     ForEach(1...max(1, Int(maxYears)), id: \.self) { y in
@@ -2286,7 +2290,7 @@ struct KachatClaimSheet: View {
             isBusy: starting,
             isEnabled: quote?.affordable == true,
             amountSompi: quote?.total,
-            recipient: "\(target.name).kachat",
+            recipient: KachatNameLabel.display(target.name),
             sent: nil,
             failureMessage: startError,
             labels: .claim,
@@ -2315,7 +2319,7 @@ struct KachatClaimSheet: View {
                 }
 
                 KachatCard {
-                    LabeledRow(title: "Name", value: "\(target.name).kachat")
+                    LabeledRow(title: "Name", value: KachatNameLabel.display(target.name))
                     HStack {
                         Text("Length")
                         Spacer()
@@ -2862,7 +2866,7 @@ struct KachatLiveNameDetail: View {
                     } else if case .kasSigner(let account, let index, _)? = heldBy {
                         Text("Your KasSigner address (\(account) #\(index))").font(.subheadline.weight(.semibold))
                     } else if let ownerLabel {
-                        Text(verbatim: "\(ownerLabel).kachat").font(.subheadline.weight(.semibold))
+                        Text(verbatim: KachatNameLabel.display(ownerLabel)).font(.subheadline.weight(.semibold))
                     }
                     if let ownerAddress {
                         // The whole address doesn't fit on two lines: show its network prefix
@@ -3105,7 +3109,7 @@ struct KachatLiveOfferSheet: View {
                 : "Your KAS stays locked on chain until the owner accepts or declines, you withdraw the offer, or it expires - then anyone can send it back to you.",
             rows: rows,
             operation: operation, operationKey: "\(amount ?? 0)-\(days)-\(virtualDaa ?? 0)",
-            swipeUp: KachatSwipeUp(bar: "Swipe up to Offer", labels: .transaction(done: "Offer sent"), recipient: "\(name).kachat"),
+            swipeUp: KachatSwipeUp(bar: "Swipe up to Offer", labels: .transaction(done: "Offer sent"), recipient: KachatNameLabel.display(name)),
             entryQuestion: "How much do you offer?",
             canContinue: operation != nil
         ) {
@@ -3148,7 +3152,7 @@ struct KachatLiveOfferSheet: View {
     }
 
     private var rows: [KachatTxRow] {
-        var r: [KachatTxRow] = [.init(title: "Name", value: "\(name).kachat")]
+        var r: [KachatTxRow] = [.init(title: "Name", value: KachatNameLabel.display(name))]
         if info.isListed { r.append(.init(title: "Listed at", value: KaspaUnit.amount(info.price))) }
         r.append(.init(title: "Expires", value: KachatLive.day(info.expiresAt)))
         if let amount { r.append(.init(title: "Offer", value: KaspaUnit.amount(amount))) }
@@ -3403,7 +3407,7 @@ struct KachatTransferSheet: View {
                         onSelectResolution: { _ = use($0) },
                         focusOnAppear: true
                     )
-                    Text("An address or a domain - .kachat names are looked up first, and it's resolved to the address shown.")
+                    Text("An address or a username - it's resolved to the address shown.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -3449,7 +3453,7 @@ struct KachatTransferSheet: View {
         }
         // a name on any service, .kachat first (the ending typed, else .kachat only (the others wait under Other domains))
         guard NameServicesClient.looksLikeName(t) else {
-            resolveError = AppLocalization.string("Enter an address or a domain.")
+            resolveError = AppLocalization.string("Enter an address or a username.")
             return
         }
         resolving = true
@@ -3515,7 +3519,7 @@ struct KachatLiveDomainsTab: View {
                             Image(systemName: "at.circle")
                                 .font(.system(size: 44, weight: .semibold))
                                 .foregroundColor(.accentColor)
-                            Text("No .kachat names yet")
+                            Text("No usernames yet")
                                 .font(.headline)
                         }
                         .frame(maxWidth: .infinity)
@@ -3563,7 +3567,7 @@ struct KachatLiveDomainsTab: View {
             PendingTabRoute.pending = .kachatNames
             NotificationCenter.default.post(name: .openKachatName, object: nil)
         } label: {
-            Text("Claim a Name")
+            Text("Claim a Username")
                 .font(.subheadline)
                 .fontWeight(.bold)
                 .foregroundColor(.accentColor)
@@ -3575,7 +3579,7 @@ struct KachatLiveDomainsTab: View {
         .buttonStyle(.plain)
         .padding(.horizontal)
         .padding(.bottom, 16)
-        .accessibilityHint(Text("Opens the .kachat tab"))
+        .accessibilityHint(Text("Opens the Usernames tab"))  // Usernames naming (audit 2026-11-24 #36)
     }
 
     /// The card badge for a name: Listed, or Expired (in grace). Shared with the per-address
@@ -3702,7 +3706,7 @@ struct KachatProfileSaveSheet: View {
                         LabeledRow(title: "Banner", value: source(profile.banner, .banner))
                         LabeledRow(title: "Bio", value: source(profile.bio, .bio))
                         LabeledRow(title: "Linktree", value: profile.linktree.map { $0.replacingOccurrences(of: "https://", with: "") } ?? AppLocalization.string("None"))
-                        LabeledRow(title: "Primary name", value: profile.primaryName.map { "\($0).kachat" } ?? AppLocalization.string("None"))
+                        LabeledRow(title: "Primary name", value: profile.primaryName.map { KachatNameLabel.display($0) } ?? AppLocalization.string("None"))
                     } header: {
                         Text("Your Profile")
                     }
@@ -3899,12 +3903,13 @@ struct KachatExpiredNamesBanner: View {
                     .padding(.top, 2)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(visible.count == 1
-                         ? AppLocalization.string("One of your .kachat domains expired")
-                         : String(format: AppLocalization.string("%lld of your .kachat domains expired"), visible.count))
+                         // Usernames naming (audit 2026-11-24 #36)
+                         ? AppLocalization.string("One of your usernames expired")
+                         : String(format: AppLocalization.string("%lld of your usernames expired"), visible.count))
                         .font(.subheadline.weight(.semibold))
                     Text(visible.count == 1
                          ? String(format: AppLocalization.string("Renew %@ before its grace period ends on %@ to keep it."),
-                                  "\(n.name).kachat", KachatNamesActions.dayString(KachatNames.clampedSum(n.expiresAt, registry.graceMs)))
+                                  KachatNameLabel.display(n.name), KachatNamesActions.dayString(KachatNames.clampedSum(n.expiresAt, registry.graceMs)))
                          : AppLocalization.string("Renew them before their grace periods end to keep them."))
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -3967,7 +3972,7 @@ struct KachatNameRouteView: View {
                 freeName(gap)
             case .failed:
                 VStack(spacing: 12) {
-                    Text(verbatim: "\(name).kachat").font(.headline)
+                    Text(verbatim: KachatNameLabel.display(name)).font(.headline)
                     Text("Couldn't look that name up.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -3995,7 +4000,7 @@ struct KachatNameRouteView: View {
                         .fill(Color.accentColor)
                         .frame(height: 110)
                         .overlay(
-                            Text(verbatim: "\(name).kachat")
+                            Text(verbatim: KachatNameLabel.display(name))
                                 .font(.title2.weight(.heavy))
                                 .foregroundColor(.black)
                                 .lineLimit(1)

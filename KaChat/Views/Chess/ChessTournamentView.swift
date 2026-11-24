@@ -239,7 +239,7 @@ struct ChessTournamentView: View {
     private func playerRow(seed: Int, address: String) -> some View {
         HStack(spacing: 12) {
             KNSAvatarView(
-                avatarURLString: KNSService.shared.profileCache[address]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: ContactsManager.shared.displayName(for: address),
                 size: 36,
                 contactAddress: address

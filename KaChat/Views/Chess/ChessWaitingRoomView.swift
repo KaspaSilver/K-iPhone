@@ -293,7 +293,7 @@ struct ChessWaitingRoomView: View {
     private func seat(address: String, label: String) -> some View {
         VStack(spacing: 8) {
             KNSAvatarView(
-                avatarURLString: KNSService.shared.profileCache[address]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: label,
                 size: 64,
                 contactAddress: address

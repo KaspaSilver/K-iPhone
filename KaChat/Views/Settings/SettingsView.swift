@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import OSLog
 import SwiftUI
@@ -7,7 +8,8 @@ import UIKit
 struct SettingsView: View {
     @EnvironmentObject var walletManager: WalletManager
     @EnvironmentObject var settingsViewModel: SettingsViewModel
-    @EnvironmentObject var contactsManager: ContactsManager
+    // Not observing ContactsManager either: nothing here read it, and every contact update
+    // redrew Settings (audit 2026-11-24 #29).
     // Deliberately NOT observing ChatService here: this screen only *calls* it in actions (via
     // ChatService.shared), it never reads its @Published state in the Form body. Observing it made
     // the whole Settings Form recompute on ChatService's high-frequency sync churn for the first
@@ -89,10 +91,10 @@ struct SettingsView: View {
                     }
                     // moved here from the old Profile screen, which became your KaPosts profile
                     // (2026-11-21)
-                    // KaPosts' own settings (tips, cooldown, notifications), here since 2026-11-21
-                    // rather than in the feed's menu
+                    // KaPosts' own settings (the cool down), here since 2026-11-21 rather than in the
+                    // feed's menu; its tips moved to Customization > Tipping on 2026-11-23
                     settingsCategoryRow("KaPost", icon: "square.text.square", tint: .accentColor) {
-                        KaPostsSettingsView(onClose: {}, embedded: true)
+                        KaPostsSettingsView(onClose: {}, embedded: true, part: .kaPost)
                     }
                     settingsCategoryRow("Help", icon: "questionmark.circle", tint: .accentColor) {
                         ProfileHelpView(onWelcomeGuide: { showWelcomeGuideReplay = true })
@@ -255,17 +257,18 @@ struct SettingsView: View {
                 } footer: {
                     Text("Turn off to show names like alice instead of alice.kachat. A name you gave someone yourself never has the ending.")
                 }
-            // the dock and Kaspa Hub: a sheet over the tabs (`.openCustomizeDock`), since each
-            // move rebuilds the tab bar this page sits in
-            Section {
-                Button {
-                    NotificationCenter.default.post(name: .openCustomizeDock, object: nil)
-                } label: {
-                    Label("Customize Dock", systemImage: "dock.rectangle")
+
+                // What Tip sends, the same in KaPost and in a 1:1 chat's + (owner's call, 2026-11-23:
+                // moved here from Settings > KaPost)
+                Section {
+                    NavigationLink {
+                        KaPostsSettingsView(onClose: {}, embedded: true, part: .tipping)
+                    } label: {
+                        Label("Tipping", systemImage: "gift")
+                    }
+                } footer: {
+                    Text("What Tip sends, on a post and in a chat.")
                 }
-            } footer: {
-                Text("Pick what's in your dock. Everything else is in Kaspa Hub.")
-            }
         }
         .navigationTitle("Customization")
         .navigationBarTitleDisplayMode(.inline)
@@ -281,6 +284,11 @@ struct SettingsView: View {
 
     private var chatsPage: some View {
         Form {
+            Section {
+                WhoCanMessageRow()
+            } footer: {
+                Text("Who can start a chat with you. People you already chat with aren't affected.")
+            }
             Section("Chats") {
                     NavigationLink {
                         QuickReactionEmojisSettingsView(settingsViewModel: settingsViewModel)
@@ -299,7 +307,67 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Storage hub: a category list like the main Settings screen — each provider row leads
+    /// The Chats page's row: its own view so it follows the choice (`@AppStorage`) when you come back.
+struct WhoCanMessageRow: View {
+    @AppStorage(WhoCanMessage.key) private var raw = WhoCanMessage.anyone.rawValue
+
+    var body: some View {
+        NavigationLink {
+            WhoCanMessageView()
+        } label: {
+            HStack {
+                Label("Who Can Message You?", systemImage: "person.crop.circle.badge.questionmark")
+                Spacer()
+                Text(LocalizedStringKey((WhoCanMessage(rawValue: raw) ?? .anyone).title))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+}
+
+/// Settings > Chats > Who Can Message You?: Anyone, or Only Users with a Username.
+struct WhoCanMessageView: View {
+    @State private var choice = WhoCanMessage.current
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(WhoCanMessage.allCases, id: \.self) { option in
+                    Button {
+                        guard option != choice else { return }
+                        Haptics.selection()
+                        choice = option
+                        WhoCanMessage.current = option
+                        // Message Requests and the chat list's row count again
+                        ChatService.shared.objectWillChange.send()
+                        ChatService.shared.shareChatRequestsWithExtension()
+                    } label: {
+                        HStack {
+                            Text(LocalizedStringKey(option.title))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if option == choice {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            } footer: {
+                Text(choice == .anyone
+                     ? "Anyone can send you a first message. It waits in Message Requests until you accept it."
+                     : "Only people with a username (a .kachat name) can reach your Message Requests. First messages from anyone else are hidden and don't notify you; choose Anyone to see them again. People you already chat with aren't affected.")
+            }
+        }
+        .navigationTitle("Who Can Message You?")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Storage hub: a category list like the main Settings screen — each provider row leads
     /// into its own screen.
     private var storagePage: some View {
         Form {
@@ -870,14 +938,15 @@ struct SecuritySettingsPage: View {
 
 /// Settings > Customization > Show .kachat Endings. Its own view so it owns the @AppStorage:
 /// held by SettingsView, the pushed Customization page never redrew and the switch didn't move.
-/// Off shows .kachat names bare ("alice"); on by default, because the ending is how a registered
-/// name tells itself apart from a name you gave someone yourself.
+/// Off (the default, owner's call 2026-11-23: .kachat is the only name service) shows .kachat
+/// names bare ("alice"); on writes the ending out ("alice.kachat").
 struct KachatEndingsToggle: View {
-    @AppStorage(KachatNameLabel.showEndingsKey) private var showEndings = true
+    @AppStorage(KachatNameLabel.showEndingsKey) private var showEndings = false
 
     var body: some View {
         Toggle("Show .kachat Endings", isOn: $showEndings)
             .onChange(of: showEndings) { _ in
+                KachatNameLabel.invalidateShowsEnding()
                 NotificationCenter.default.post(name: .settingsDidChange, object: nil)
                 // Names are read from UserDefaults as rows draw, and nothing those rows watch
                 // changed: the chat list, Contacts and the headers kept the old form until a
@@ -2304,34 +2373,6 @@ struct ConnectionSettingsView: View {
         } header: {
             Text(".kachat Names")
         }
-        // The other name services this app reads (see `NameServicesClient`). Shown, not
-        // editable. The .kas URL had no empty-string fallback, so saving it blank wrote "" and
-        // every lookup then failed with an unsupported-URL error until it was typed back in. It
-        // now follows the selected network.
-        Section {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: ".kas")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(settingsViewModel.knsBaseURL)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .textSelection(.enabled)
-            }
-            ForEach([NameServiceTLD.k, .kaspa], id: \.self) { tld in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: tld.suffix)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(tld.apiBaseURL(for: settingsViewModel.settings.networkType) ?? AppLocalization.string("Not available on this network"))
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
-                }
-            }
-        } header: {
-            Text("Other Domains")
-        }
     }
 
     @ViewBuilder
@@ -2790,23 +2831,93 @@ struct KaspaNodeQuickAccessSections: View {
 
 // MARK: - Connection Status Indicator
 
-struct ConnectionStatusIndicator: View {
-    @EnvironmentObject var chatService: ChatService
-    @State private var showDetail = false
-    /// Red is reserved for SUSTAINED disconnection. `.disconnected` is also what the status
-    /// reads at cold start before the first subscribe and in the gaps between reconnect
-    /// attempts, and flashing red there tells the user they're offline when they aren't -
-    /// those windows show orange until the state has persisted for the grace period.
-    @State private var disconnectedSince: Date?
-    @State private var disconnectGraceElapsed = false
+/// How connected K is, as one color: the dot at the top of Settings and the dot on the dock's
+/// Settings icon (owner's call, 2026-11-23: the dot left every other screen; the dock shows it
+/// everywhere). Red is reserved for SUSTAINED disconnection: `.disconnected` is also what the
+/// status reads at cold start before the first subscribe and between reconnect attempts, so those
+/// windows show orange until the state has lasted `disconnectGrace`.
+@MainActor
+final class ConnectionHealth: ObservableObject {
+    static let shared = ConnectionHealth()
+
+    enum Level: Equatable {
+        case connected
+        /// Connected, but the indexer looks throttled by the network (deep packet inspection).
+        case connectedThrottled
+        case connecting
+        case disconnected
+    }
+
+    @Published private(set) var level: Level = .connecting
+    private var disconnectedSince: Date?
+    private var graceTask: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
     private static let disconnectGrace: TimeInterval = 8
+
+    private init() {
+        NodePoolService.shared.$subscriptionState.map { _ in () }
+            .merge(with: ChatService.shared.$isRpcSubscribed.map { _ in () })
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.update() }
+            .store(in: &cancellables)
+        // The throttled (DPI) look follows `KasiaAPIClient.isDpiSuspected` (audit 2026-11-24 #29).
+        NotificationCenter.default.publisher(for: .kasiaDpiSuspectedChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.update() }
+            .store(in: &cancellables)
+        update()
+    }
+
+    private func update() {
+        let next: Level
+        switch ChatService.shared.connectionStatus {
+        case .connected:
+            disconnectedSince = nil
+            graceTask?.cancel()
+            next = KasiaAPIClient.shared.isDpiSuspected ? .connectedThrottled : .connected
+        case .connecting:
+            disconnectedSince = nil
+            graceTask?.cancel()
+            next = .connecting
+        case .disconnected:
+            if disconnectedSince == nil {
+                disconnectedSince = Date()
+                graceTask?.cancel()
+                graceTask = Task { @MainActor [weak self] in
+                    try? await Task.sleep(nanoseconds: UInt64(Self.disconnectGrace * 1_000_000_000))
+                    guard !Task.isCancelled else { return }
+                    self?.update()
+                }
+            }
+            let lasted = Date().timeIntervalSince(disconnectedSince ?? Date()) >= Self.disconnectGrace - 0.05
+            next = lasted ? .disconnected : .connecting
+        }
+        if next != level { level = next }
+    }
+
+    var color: Color { Color(uiColor) }
+
+    var uiColor: UIColor {
+        switch level {
+        case .connected: return .systemGreen
+        case .connectedThrottled: return UIColor(red: 0.0, green: 0.50, blue: 0.0, alpha: 1)
+        case .connecting: return .systemOrange
+        case .disconnected: return .systemRed
+        }
+    }
+}
+
+/// The connection dot at the top of Settings; tapping it opens the connection details.
+struct ConnectionStatusIndicator: View {
+    @ObservedObject private var health = ConnectionHealth.shared
+    @State private var showDetail = false
 
     var body: some View {
         Button {
             showDetail = true
         } label: {
             Circle()
-                .fill(statusColor)
+                .fill(health.color)
                 .frame(width: 12, height: 12)
                 .overlay(
                     Circle()
@@ -2814,45 +2925,69 @@ struct ConnectionStatusIndicator: View {
                 )
         }
         .sheet(isPresented: $showDetail) {
-            // A full-height sheet, not a detented one: this is a page. It is still an OVERLAY
-            // over whatever you were reading rather than a push, so Done puts you back exactly
-            // where you were, from any of the fourteen places the dot appears.
+            // A full-height sheet, not a detented one: this is a page.
             ConnectionStatusDetailView()
         }
-        .onAppear { syncDisconnectedAnchor() }
-        .onChange(of: chatService.connectionStatus) { _ in syncDisconnectedAnchor() }
-        .task(id: disconnectedSince) {
-            disconnectGraceElapsed = false
-            guard let since = disconnectedSince else { return }
-            let remaining = Self.disconnectGrace - Date().timeIntervalSince(since)
-            if remaining > 0 {
-                try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
-            }
-            if !Task.isCancelled, chatService.connectionStatus == .disconnected {
-                disconnectGraceElapsed = true
-            }
-        }
+    }
+}
+
+/// A dock icon with a status dot at its top right, drawn as one full-colour image (a tab bar item
+/// can only be an image): the Settings gear with the connection dot (`ConnectionHealth`), and the
+/// Profile picture with a yellow dot while the account's backup is owed (`AccountBackupStatus`).
+/// A symbol is drawn in the tab bar's own colours: the accent when selected, the label colour
+/// otherwise.
+@MainActor
+enum DockDotIcon {
+    private static var cache: [String: UIImage] = [:]
+
+    static func symbol(_ name: String, selected: Bool, dark: Bool) -> UIImage {
+        let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .medium)
+        let color: UIColor = selected ? (UIColor(named: "AccentColor") ?? .systemTeal) : (dark ? .white : .black)
+        return UIImage(systemName: name, withConfiguration: config)?
+            .withTintColor(color, renderingMode: .alwaysOriginal) ?? UIImage()
     }
 
-    private func syncDisconnectedAnchor() {
-        if chatService.connectionStatus == .disconnected {
-            if disconnectedSince == nil { disconnectedSince = Date() }
-        } else {
-            disconnectedSince = nil
-        }
+    /// `base` with `dot` at its top right; `base` as is when there's no dot.
+    static func image(_ base: UIImage, dot: UIColor?, dark: Bool, key: String) -> UIImage {
+        guard let dot else { return base.withRenderingMode(.alwaysOriginal) }
+        let cacheKey = "\(key)-\(dot.description)-\(dark)"
+        if let cached = cache[cacheKey] { return cached }
+        let dotSide: CGFloat = 9
+        let ring: CGFloat = 1.5
+        let size = CGSize(width: base.size.width + dotSide / 2, height: base.size.height + dotSide / 2)
+        let image = UIGraphicsImageRenderer(size: size).image { _ in
+            base.draw(at: CGPoint(x: 0, y: dotSide / 2))
+            let dotRect = CGRect(x: size.width - dotSide - ring, y: ring, width: dotSide, height: dotSide)
+            (dark ? UIColor.black : UIColor.white).setFill()
+            UIBezierPath(ovalIn: dotRect.insetBy(dx: -ring, dy: -ring)).fill()
+            dot.setFill()
+            UIBezierPath(ovalIn: dotRect).fill()
+        }.withRenderingMode(.alwaysOriginal)
+        if cache.count > 64 { cache.removeAll() }
+        cache[cacheKey] = image
+        return image
     }
+}
 
-    private var statusColor: Color {
-        switch chatService.connectionStatus {
-        case .connected:
-            return KasiaAPIClient.shared.isDpiSuspected
-                ? Color(red: 0.0, green: 0.50, blue: 0.0)
-                : .green
-        case .connecting:
-            return .orange
-        case .disconnected:
-            return disconnectGraceElapsed ? .red : .orange
-        }
+/// The dock's Settings icon: the gear with the connection dot, green connected, red not.
+@MainActor
+enum SettingsDockIcon {
+    static func image(dot: UIColor, selected: Bool, dark: Bool) -> UIImage {
+        DockDotIcon.image(DockDotIcon.symbol("gearshape.fill", selected: selected, dark: dark),
+                          dot: dot, dark: dark, key: "settings-\(selected)")
+    }
+}
+
+/// The dock's Profile icon: your picture (or the person symbol), with a yellow dot while the
+/// account isn't backed up (owner's call, 2026-11-23: the backup card shows on Profile only).
+@MainActor
+enum ProfileDockIcon {
+    /// `avatarKey` names the picture (`DockAvatar.shownKey`): the composite is cached by it, not
+    /// by the image's object address, which a later picture can reuse (audit 2026-11-24 #29).
+    static func image(avatar: UIImage?, avatarKey: String?, backupOwed: Bool, selected: Bool, dark: Bool) -> UIImage {
+        let base = avatar ?? DockDotIcon.symbol("person.crop.circle.fill", selected: selected, dark: dark)
+        let key = avatar.map { _ in "profile-photo-\(avatarKey ?? "unknown")" } ?? "profile-symbol-\(selected)"
+        return DockDotIcon.image(base, dot: backupOwed ? .systemYellow : nil, dark: dark, key: key)
     }
 }
 
@@ -4445,7 +4580,7 @@ struct ResyncChatPickerView: View {
         } label: {
             HStack(spacing: 12) {
                 KNSAvatarView(
-                    avatarURLString: KNSService.shared.profileCache[address]?.avatarURL,
+                    avatarURLString: nil,
                     fallbackText: ContactsManager.shared.displayName(for: conversation.contact),
                     size: 44,
                     contactAddress: address

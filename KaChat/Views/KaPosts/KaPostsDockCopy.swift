@@ -44,6 +44,8 @@ extension Notification.Name {
 struct KaPostsDockCopy: View {
     @ObservedObject private var router = KaPostsDockRouter.shared
     @ObservedObject private var layout = DockLayout.shared
+    @ObservedObject private var connection = ConnectionHealth.shared
+    @ObservedObject private var backupStatus = AccountBackupStatus.shared
     @ObservedObject private var notifCenter = KaPostsNotificationCenter.shared
     @ObservedObject private var publicChatBadge = PublicChatUnreadBadge.shared
     @ObservedObject private var globalNotifCenter = GlobalNotificationCenter.shared
@@ -129,6 +131,16 @@ struct KaPostsDockCopy: View {
             Image(systemName: tab.icon)
                 .symbolVariant(.fill)
                 .font(.system(size: 20, weight: .medium))
+                // Settings carries the connection dot, Profile the backup dot, as on the real dock
+                .overlay(alignment: .topTrailing) {
+                    if tab == .settings || (tab == .profile && backupStatus.isPending(WalletManager.shared.currentWallet?.publicAddress)) {
+                        Circle()
+                            .fill(tab == .settings ? connection.color : Color.yellow)
+                            .frame(width: 9, height: 9)
+                            .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 1.5))
+                            .offset(x: 4, y: -3)
+                    }
+                }
         }
     }
 

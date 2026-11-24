@@ -46,7 +46,7 @@ struct KachatSocialPreview: View {
                 case .found:
                     found(source)
                 case .empty:
-                    note("person.crop.circle.badge.exclamationmark", missingText(source.platform))
+                    note("person.crop.circle.badge.exclamationmark", missingText(source))
                 case .unreachable:
                     HStack(spacing: 10) {
                         Image(systemName: "wifi.exclamationmark").foregroundColor(.secondary)
@@ -111,7 +111,13 @@ struct KachatSocialPreview: View {
         .padding(.vertical, 4)
     }
 
-    private func missingText(_ platform: KachatNames.SocialSource.Platform) -> String {
+    private func missingText(_ source: KachatNames.SocialSource) -> String {
+        let platform = source.platform
+        // Discord is read from a server invite: a username isn't one (2026-11-23)
+        if platform == .discord, resolved?.notFound == true {
+            return String(format: AppLocalization.string("There's no Discord invite called %@. Use a server's invite code, like discord.gg/abc123: Discord accounts can't be looked up by username."),
+                          source.handle)
+        }
         let key: String
         switch kind {
         case .avatar: key = "No avatar on this %@ profile."
@@ -273,6 +279,35 @@ struct KachatLiveProfileEditor: View {
         NavigationStack {
             Form {
                 Section {
+                    // The primary name needs the registry: until it launches on this network
+                    // (mainnet) there's no name to pick, so the profile saves without one.
+                    if KachatNamesService.isLaunched {
+                        Picker("Primary name", selection: $primary) {
+                            Text("None").tag("")
+                            ForEach(activeNames, id: \.self) { n in Text(verbatim: KachatNameLabel.display(n)).tag(n) }
+                        }
+                    } else {
+                        HStack {
+                            Text("Primary name")
+                            Spacer()
+                            Text("Coming soon").foregroundColor(.secondary)
+                        }
+                    }
+                    // names are claimed right here in KaChat now (2026-11-21): this sheet closes and
+                    // the .kachat tab opens, wherever it lives (dock or Kaspa Hub)
+                    Button {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            NotificationCenter.default.post(name: .openKachatName, object: nil)
+                        }
+                    } label: {
+                        Label("Get a username", systemImage: "at")
+                    }
+                } header: {
+                    // first, and called Username (owner's call, 2026-11-23)
+                    Text("Username")
+                }
+                Section {
                     sourceField($avatarIn, .avatar, $avatarLookup)
                 } header: { Text("Avatar") } footer: {
                     if avatarIn.isBad(.avatar) { invalidHandleNote }
@@ -306,34 +341,6 @@ struct KachatLiveProfileEditor: View {
                     if badLinktree {
                         Text("Enter your Linktree username: letters, numbers, dots, dashes or underscores.").foregroundColor(.red)
                     }
-                }
-                Section {
-                    // The primary name needs the registry: until it launches on this network
-                    // (mainnet) there's no name to pick, so the profile saves without one.
-                    if KachatNamesService.isLaunched {
-                        Picker("Primary name", selection: $primary) {
-                            Text("None").tag("")
-                            ForEach(activeNames, id: \.self) { n in Text(verbatim: KachatNameLabel.display(n)).tag(n) }
-                        }
-                    } else {
-                        HStack {
-                            Text("Primary name")
-                            Spacer()
-                            Text("Coming soon").foregroundColor(.secondary)
-                        }
-                    }
-                    // names are claimed right here in KaChat now (2026-11-21): this sheet closes and
-                    // the .kachat tab opens, wherever it lives (dock or Kaspa Hub)
-                    Button {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                            NotificationCenter.default.post(name: .openKachatName, object: nil)
-                        }
-                    } label: {
-                        Label("Get a .kachat name", systemImage: "at")
-                    }
-                } header: {
-                    Text(".kachat Name")
                 }
                 Section {
                     Button {

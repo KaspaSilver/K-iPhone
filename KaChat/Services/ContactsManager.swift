@@ -29,7 +29,6 @@ final class ContactsManager: ObservableObject {
     }
     @Published var isLoading = false
     @Published var error: KasiaError?
-    @Published var isFetchingKNS = false
     @Published private(set) var contactBalances: [String: UInt64] = [:]
 
     private let userDefaults = UserDefaults.standard
@@ -65,7 +64,6 @@ final class ContactsManager: ObservableObject {
     private var lastPushUpdateAt: Date?
     private let minSharedSyncInterval: TimeInterval = 5.0
     private let minPushUpdateInterval: TimeInterval = 5.0
-    private let knsService = KNSService.shared
     private var balanceFetchInFlight: Set<String> = []
     private var balanceLastFetch: [String: Date] = [:]
     private let balanceMinInterval: TimeInterval = 30.0
@@ -135,81 +133,6 @@ final class ContactsManager: ObservableObject {
     /// any device (fresh install included) skips chats the user deleted.
     var deletedAddressSnapshot: [String] {
         Array(deletedAddresses)
-    }
-
-    // MARK: - KNS Integration
-
-    /// When the last full sweep finished, so repeat callers do not re-run it.
-    private var lastFullKNSSweepAt: Date?
-    /// How long a completed sweep stands for. Shorter than KNSService's own 10-minute per-address
-    /// debounce, so a sweep inside this window still costs nothing, but this stops the WALK
-    /// itself - hundreds of addresses each checked and re-published - from happening at all.
-    private static let fullKNSSweepInterval: TimeInterval = 5 * 60
-
-    /// Fetch KNS domains for all contacts.
-    ///
-    /// Guarded twice, because this walks EVERY contact through two KNS passes and is called from
-    /// screens that open often - the chat list.
-    ///
-    /// `isFetchingKNS` was being set and never read, so two callers (opening the composer while
-    /// the chat list had one running, or the two composer views together) each started their own
-    /// full sweep over the same addresses. And nothing remembered a sweep had just finished, so
-    /// every composer open started another walk: with a large contact list that is hundreds of
-    /// requests, and hundreds of profile-cache publishes into an `@ObservedObject` the composer
-    /// is watching, which is a re-render of the editor per landing profile. Reported as the app
-    /// freezing on opening a screen, with a burst of KNS profile calls before it.
-    ///
-    /// `force` is for the pull-to-refresh paths, where the user has explicitly asked.
-    func fetchKNSDomainsForAllContacts(network: NetworkType = .mainnet, force: Bool = false) async {
-        // Every result of this sweep is a .kas name to show for a contact, which 5.2 stopped
-        // doing (`KNSService.showsDomainNamesAsIdentity`), so it no longer asks KNS at all.
-        guard KNSService.showsDomainNamesAsIdentity else { return }
-        guard !contacts.isEmpty else { return }
-        guard !isFetchingKNS else { return }
-        if !force, let last = lastFullKNSSweepAt,
-           Date().timeIntervalSince(last) < Self.fullKNSSweepInterval {
-            return
-        }
-
-        isFetchingKNS = true
-        defer {
-            isFetchingKNS = false
-            lastFullKNSSweepAt = Date()
-        }
-
-        let addresses = contacts.map { $0.address }
-        await knsService.refreshIfNeeded(for: addresses, network: network)
-        await knsService.refreshProfilesIfNeeded(for: addresses, network: network)
-
-        // Keeps an existing domain-based name fresh. Nothing here NAMES a contact - an
-        // unnamed one stays unnamed and resolves through `displayName(for:)` instead.
-        for contact in contacts {
-            if let knsInfo = knsService.domainCache[contact.address],
-               let primaryDomain = knsInfo.primaryDomain {
-                // An unnamed contact is deliberately left unnamed: `displayName(for:)` shows
-                // their KNS domain, so baking it into the alias would only freeze a name the
-                // user never chose - and leave it stale once the domain moves.
-                if contact.assignedName == nil {
-                    continue
-                }
-                if contact.alias.lowercased().hasSuffix(".kas") && contact.alias != primaryDomain {
-                    // Keep KNS domain fresh when alias is domain-based
-                    var updatedContact = contact
-                    updatedContact.alias = primaryDomain
-                    updateContact(updatedContact)
-                }
-            }
-        }
-    }
-
-    /// Get KNS info for a contact
-    func getKNSInfo(for contact: Contact) -> KNSAddressInfo? {
-        knsService.identityInfo(for: contact.address)
-    }
-
-    /// Get selected KNS profile for a contact address (primary domain if available).
-    func getKNSProfile(for contact: Contact) -> KNSAddressProfileInfo? {
-        knsService.profileCache[contact.address]
     }
 
     func balanceSompi(for address: String) -> UInt64? {
@@ -395,7 +318,6 @@ final class ContactsManager: ObservableObject {
     /// another platform wrote, or by an older build - and it must not stay (a removed one kept
     /// reappearing). The person is then shown by their .kachat name or address until named.
     private func clearKasDomainAliases(_ input: [Contact], contactsKey: String) -> [Contact] {
-        guard !KNSService.showsDomainNamesAsIdentity else { return input }
         var didClear = false
         let cleared = input.map { contact -> Contact in
             guard Contact.isKasDomainName(contact.alias) else {
@@ -584,7 +506,6 @@ final class ContactsManager: ObservableObject {
             }
             return Contact.generateDefaultAlias(from: address)
         }
-        if let domain = KNSService.shared.profileCache[address]?.domainName, !domain.isEmpty { return domain }
         return Contact.generateDefaultAlias(from: address)
     }
 
@@ -682,9 +603,6 @@ final class ContactsManager: ObservableObject {
                 if let link = links.avatar, let url = answers[link]?.avatar { pictures.append(url) }
                 if let link = links.banner, let url = answers[link]?.banner { pictures.append(url) }
             }
-        } else if let info = await KNSService.shared.fetchProfile(for: address, force: true) {
-            if let url = info.avatarURL { pictures.append(url) }
-            if let url = info.profile?.bannerUrl { pictures.append(url) }
         }
         _ = await KNSProfileImageCacheControl.refetch(pictures)
     }
@@ -713,22 +631,6 @@ final class ContactsManager: ObservableObject {
 
         contacts.append(contact)
         saveContacts()
-
-        // Fetch KNS info in background - only while .kas names are shown as names at all.
-        if KNSService.showsDomainNamesAsIdentity {
-            Task {
-                if let knsInfo = await knsService.fetchInfo(for: address),
-                   let primaryDomain = knsInfo.primaryDomain {
-                    // If the alias is still the auto-generated one, update it to the KNS domain.
-                    let autoAlias = Contact.generateDefaultAlias(from: address)
-                    if let index = contacts.firstIndex(where: { $0.address == address }),
-                       contacts[index].alias == autoAlias {
-                        contacts[index].alias = primaryDomain
-                        saveContacts(publishContacts: true)
-                    }
-                }
-            }
-        }
 
         return contact
     }

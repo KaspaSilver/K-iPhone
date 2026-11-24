@@ -48,6 +48,9 @@ private final class AppSettingsCache: @unchecked Sendable {
     func get() -> AppSettings? { lock.lock(); defer { lock.unlock() }; return cached }
     func set(_ settings: AppSettings) { lock.lock(); defer { lock.unlock() }; cached = settings }
     func invalidate() { lock.lock(); defer { lock.unlock() }; cached = nil }
+    /// Just the network, without copying the whole settings struct (asked for by every avatar and
+    /// row while scrolling).
+    func network() -> NetworkType? { lock.lock(); defer { lock.unlock() }; return cached?.networkType }
 }
 
 /// Extension to load settings from any context (not MainActor-isolated)
@@ -71,6 +74,11 @@ extension AppSettings {
         }
         defaults.set(true, forKey: doneKey)
     }()
+
+    /// The network the app runs on: `load().networkType`, without the copy once settings are cached.
+    static var activeNetwork: NetworkType {
+        AppSettingsCache.shared.network() ?? load().networkType
+    }
 
     /// Load settings from UserDefaults (can be called from any context). Cached - see
     /// `AppSettingsCache`.
@@ -174,8 +182,6 @@ final class SettingsViewModel: ObservableObject {
     var selectedNetworkType: NetworkType { PendingNetworkSwitch.target ?? settings.networkType }
 
     // MARK: - Convenience Methods
-    /// Read-only: the KNS endpoint is fixed to the network's default (see `AppSettings`).
-    var knsBaseURL: String { settings.knsBaseURL }
 
     var kaspaExplorer: KaspaExplorer {
         get { settings.kaspaExplorer }

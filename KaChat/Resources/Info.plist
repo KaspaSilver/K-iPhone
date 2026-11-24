@@ -66,6 +66,14 @@
 		</dict>
 		<dict>
 			<key>CFBundleURLName</key>
+			<string>com.kachat.arcade</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kachatarcade</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
 			<string>com.kachat.kaposts</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
@@ -102,7 +110,14 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<key>ChangeNowAPIKey</key>
+	<string>$(CHANGENOW_API_KEY)</string>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>KLogo</string>
+	</dict>
 </dict>
 </plist>

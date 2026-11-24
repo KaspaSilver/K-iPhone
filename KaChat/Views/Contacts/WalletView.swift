@@ -24,8 +24,9 @@ struct WalletView: View {
     @State private var showManageAddresses = false
     /// A token's page of the balance card, tapped: Manage kUSDT (`TokenManageView`), pushed.
     @State private var openToken: WalletToken?
-    /// Swap Stablecoins: "Which stablecoin?", then Trestly's site for it (`BuyStablecoinsSheet`).
-    @State private var showBuyStablecoins = false
+    /// Swap (owner's call, 2026-11-23: it replaced Swap Stablecoins): the agreements the first
+    /// time, then the swap screen (`SwapView`), full screen.
+    @State private var showSwap = false
     /// The balance card's page: 0 is Kaspa, then one per token (`TokenWallet.tokens`).
     @State private var balancePage = 0
     /// The pull's address sweep is still going (it runs on after the spinner ends).
@@ -55,9 +56,6 @@ struct WalletView: View {
             .navigationTitle("Wallet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    ConnectionStatusIndicator()
-                }
                 ToolbarItem(placement: .principal) {
                     balanceToolbarView
                 }
@@ -93,14 +91,8 @@ struct WalletView: View {
             }
             // a tapped "Received kUSDT" notification (`TokenRoute`): its Manage screen
             .onReceive(NotificationCenter.default.publisher(for: .openToken)) { _ in takeTokenRoute() }
-            .sheet(isPresented: $showBuyStablecoins) {
-                BuyStablecoinsSheet()
-            }
-            // Done in Trestly: back to the top of the Wallet tab, whatever it was opened from
-            .onReceive(NotificationCenter.default.publisher(for: .trestlyDone)) { _ in
-                openToken = nil
-                showManageAddresses = false
-                showBuyStablecoins = false
+            .fullScreenCover(isPresented: $showSwap) {
+                SwapView()
             }
             .onAppear {
                 takeTokenRoute()
@@ -158,7 +150,6 @@ struct WalletView: View {
             }
             chattingAddressSection(wallet)
             // moved here from Profile (owner's call, 2026-11-19), as KaPay's Wallet tab has it
-            buyStablecoinsCard
             YourDomainsCard(onToast: { message, style in showToast(message, style: style) })
             // No Notifications card: they are behind Profile's bell since 2026-11-21, with KaPost's.
         }
@@ -315,6 +306,7 @@ struct WalletView: View {
             actionButton(title: "Send", icon: "arrow.up") { action = .send }
             actionButton(title: "Receive", icon: "arrow.down") { action = .receive }
             actionButton(title: "Request", icon: "doc.text") { action = .request }
+            actionButton(title: "Swap", icon: "arrow.left.arrow.right") { showSwap = true }
         }
     }
 
@@ -432,28 +424,6 @@ struct WalletView: View {
         guard let address = await walletManager.freshReceiveAddress() else { return }
         ReceiveAddressWarmCache.store(address, for: walletManager.currentWallet?.publicAddress)
         ProfileQRCodeCache.preload(address: address, completion: nil)
-    }
-
-    /// Swap Stablecoins (from KaPay, 2026-11-21): "Which stablecoin?" first (kUSDT today), then
-    /// Trestly's site inside KaChat, connected to the address you pick.
-    private var buyStablecoinsCard: some View {
-        Button {
-            Haptics.impact(.light)
-            showBuyStablecoins = true
-        } label: {
-            HStack {
-                Label("Swap Stablecoins", systemImage: "dollarsign.circle")
-                    .foregroundColor(.primary)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(16)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(glassBackground(cornerRadius: 18))
     }
 
     private func showToast(_ message: String, style: ToastStyle = .success) {

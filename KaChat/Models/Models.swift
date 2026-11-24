@@ -2233,7 +2233,7 @@ enum NetworkType: String, Codable, CaseIterable {
     /// in the wrong network's chats.
     static func isOnActiveNetwork(_ address: String) -> Bool {
         guard let network = NetworkType(address: address) else { return true }
-        return network == AppSettings.load().networkType
+        return network == AppSettings.activeNetwork
     }
 }
 
@@ -2570,7 +2570,8 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .hub: return "Kaspa Hub"
         case .portfolio: return "Portfolio"
         case .coldStorage: return "Cold Storage"
-        case .kachatNames: return ".kachat"
+        // "Usernames", its icon the .kachat wordmark (owner's call, 2026-11-23)
+        case .kachatNames: return "Usernames"
         case .kaposts: return "KaPost"
         case .games: return "KaPlay"
         case .kachatStats: return "Stats"
@@ -2705,18 +2706,106 @@ enum MentionsFeature {
     static let enabled = false
 }
 
+/// Settings > Chats > Who Can Message You? (owner's call, 2026-11-23): Anyone, or Only Users with a
+/// Username. With usernames only, a Message Request from someone with no .kachat name is hidden
+/// (not deleted: Anyone shows it again) and rings nothing: the push extension reads the choice
+/// from the App Group (`appGroupKey`) and stays silent for a sender with no name it knows.
+/// Accepted chats, contacts and groups are never affected.
+enum WhoCanMessage: String, CaseIterable {
+    case anyone
+    case usernames
+
+    static let key = "kachat_who_can_message"
+    /// The extension's copy.
+    static let appGroupKey = "chat_who_can_message"
+
+    /// Read once and kept, not read from UserDefaults on every draw of the requests count
+    /// (audit 2026-11-24 #28). Any defaults write empties it (Settings' row writes the key
+    /// through `@AppStorage` too).
+    private static let cached = DefaultsBackedCache<WhoCanMessage> {
+        UserDefaults.standard.string(forKey: key).flatMap(WhoCanMessage.init(rawValue:)) ?? .anyone
+    }
+
+    static var current: WhoCanMessage {
+        get { cached.value }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: key)
+            UserDefaults(suiteName: "group.com.kachat.app")?.set(newValue.rawValue, forKey: appGroupKey)
+            cached.invalidate()
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .anyone: return "Anyone"
+        case .usernames: return "Only Users with a Username"
+        }
+    }
+}
+
 /// How a .kachat name is shown: "alice.kachat" by default, or "alice" when Settings >
 /// Customization > Show .kachat Endings is off. Display only: typing, copying and anything sent
 /// keep working with either form (the codec strips the ending).
 enum KachatNameLabel {
     static let showEndingsKey = "kachat_show_name_endings"
 
-    static var showsEnding: Bool {
-        UserDefaults.standard.object(forKey: showEndingsKey) as? Bool ?? true
+    /// Read once and kept: every name drawn asked UserDefaults (audit 2026-11-24 #28). The toggle
+    /// writes the key through `@AppStorage`, so any defaults write empties it, and the toggle
+    /// calls `invalidateShowsEnding()` as well.
+    private static let showsEndingCache = DefaultsBackedCache<Bool> {
+        UserDefaults.standard.object(forKey: showEndingsKey) as? Bool ?? false
     }
+
+    static var showsEnding: Bool { showsEndingCache.value }
+
+    static func invalidateShowsEnding() { showsEndingCache.invalidate() }
 
     static func display(_ name: String) -> String {
         showsEnding ? "\(name).kachat" : name
+    }
+}
+
+/// A value read from UserDefaults once and kept until any UserDefaults write in the app
+/// (`UserDefaults.didChangeNotification`) or `invalidate()`, for settings read on every row
+/// draw (audit 2026-11-24 #28). Safe from any thread.
+final class DefaultsBackedCache<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Value?
+    /// Bumped by `invalidate`, so a read that raced a write doesn't keep the old value.
+    private var generation = 0
+    private let read: () -> Value
+    private var observer: NSObjectProtocol?
+
+    init(read: @escaping () -> Value) {
+        self.read = read
+        observer = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: nil
+        ) { [weak self] _ in
+            self?.invalidate()
+        }
+    }
+
+    var value: Value {
+        lock.lock()
+        if let stored {
+            lock.unlock()
+            return stored
+        }
+        let started = generation
+        lock.unlock()
+        // read outside the lock: a defaults read never waits on our invalidation
+        let fresh = read()
+        lock.lock()
+        if generation == started { stored = fresh }
+        lock.unlock()
+        return fresh
+    }
+
+    func invalidate() {
+        lock.lock()
+        stored = nil
+        generation &+= 1
+        lock.unlock()
     }
 }
 
@@ -2804,18 +2893,6 @@ struct AppSettings: Codable {
     /// their chats. Starts as the same KaChat indexer as `indexerURL`; settings saved before the
     /// field existed take whatever `indexerURL` held then, which is where names were read from.
     var kachatNamesIndexerURL: String
-    /// The Kaspa Name Service endpoint. Fixed to the current network's default, never stored and
-    /// never user-editable.
-    ///
-    /// It used to be an editable field with no empty-string fallback (unlike the indexer
-    /// fields, which fall back to their defaults). Saving Connection Settings
-    /// with that field blank wrote "" straight through, and an empty base URL builds a
-    /// scheme-less URL that URLSession rejects with NSURLErrorUnsupportedURL (-1002) - so every
-    /// KNS call failed until it was typed back in by hand.
-    ///
-    /// Deriving it from `networkType` also means switching networks moves it, instead of leaving
-    /// a testnet wallet pointed at the mainnet registry.
-    var knsBaseURL: String { Self.defaultKNSURL(for: networkType) }
     /// KaPosts, Public Chats and post translation run on KaChat's own indexer, so they follow
     /// `indexerURL` (empty on testnet, where they are off). KaPost has a field for each.
     var kaPostIndexerURL: String { indexerURL }
@@ -2890,8 +2967,6 @@ struct AppSettings: Codable {
         default: return url
         }
     }
-    static let defaultKNSMainnetURL = "https://api.knsdomains.org/mainnet/api/v1"
-    static let defaultKNSTestnetURL = "https://api.knsdomains.org/tn10/api/v1"
     static let defaultKaspaMainnetURL = "https://api.kaspa.org"
     /// Testnet means testnet-10: it carries the Toccata covenants (`.kachat` names test there)
     /// and is where the node pool's testnet DNS seeds (port 16210) already point.
@@ -2994,10 +3069,6 @@ struct AppSettings: Codable {
         trestlyAPIURL = next.trestlyAPIURL ?? Self.defaultTrestlyAPIURL(for: network)
         trestlySiteURL = next.trestlySiteURL ?? Self.defaultTrestlySiteURL(for: network)
         networkType = network
-    }
-
-    static func defaultKNSURL(for network: NetworkType) -> String {
-        network == .mainnet ? defaultKNSMainnetURL : defaultKNSTestnetURL
     }
 
     static func defaultKaspaRestURL(for network: NetworkType) -> String {
@@ -3251,8 +3322,7 @@ struct AppSettings: Codable {
             pushIndexerURL = AppSettings.defaultPushIndexerURL
         }
 
-        // knsBaseURL is computed from networkType now, so any value in an existing blob - including
-        // the empty string that broke it - is simply ignored.
+        // A `knsBaseURL` in an older blob is ignored: K reads no .kas names (2026-11-23).
         kaspaRestAPIURL = try container.decodeIfPresent(String.self, forKey: .kaspaRestAPIURL) ?? AppSettings.defaultKaspaRestURL(for: networkType)
         // blank or missing (settings from before kUSDT): this network's default
         let storedTrestly = (try container.decodeIfPresent(String.self, forKey: .trestlyAPIURL) ?? "")

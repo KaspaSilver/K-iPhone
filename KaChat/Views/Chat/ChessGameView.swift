@@ -529,9 +529,10 @@ struct ChessGameView: View {
     /// keep this secondary surface lightweight.
     private func compactPreviewText(for message: ChatMessage) -> String {
         switch message.messageType {
-        case .payment: return "💰 Payment"
-        case .handshake: return "👋 Handshake"
-        case .audio: return "🎤 Voice message"
+        // translated labels (audit 2026-11-24 #40)
+        case .payment: return "💰 " + AppLocalization.string("Payment")
+        case .handshake: return "👋 " + AppLocalization.string("Handshake")
+        case .audio: return "🎤 " + AppLocalization.string("Voice message")
         case .contextual: break
         }
         let unwrapped = MessageReplyCodec.unwrappedText(message.content)
@@ -544,9 +545,9 @@ struct ChessGameView: View {
             return unwrapped
         }
         let mime = mimeType.lowercased()
-        if mime.hasPrefix("image/") { return "📷 Photo" }
-        if mime.hasPrefix("video/") { return "🎬 Video" }
-        return "📎 File"
+        if mime.hasPrefix("image/") { return "📷 " + AppLocalization.string("Photo") }
+        if mime.hasPrefix("video/") { return "🎬 " + AppLocalization.string("Video") }
+        return "📎 " + AppLocalization.string("File")
     }
 
 
@@ -787,7 +788,8 @@ struct ChessGameView: View {
         }
     }
 
-    private func capturedGroup(pieces: [ChessPieceType], pieceColor: ChessColor, label: String) -> some View {
+    // A key, not a String: `Text(String)` skipped the translation (audit 2026-11-24 #40).
+    private func capturedGroup(pieces: [ChessPieceType], pieceColor: ChessColor, label: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.caption2)
@@ -960,7 +962,12 @@ private struct ChessChatComposer: View {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.scaled(size: 28))
                     .foregroundColor(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : .accentColor)
+                    // a 44 pt target and a VoiceOver name, as the other composers' send buttons
+                    // have (audit 2026-11-24 #39)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel(Text("Send"))
             .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
         }
         .padding(.horizontal)

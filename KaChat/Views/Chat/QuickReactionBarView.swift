@@ -55,8 +55,11 @@ struct QuickReactionBarView: View {
                         .font(.scaled(size: 15, weight: .semibold))
                         .foregroundColor(.accentColor)
                         .frame(width: 30, height: 30)
+                        // A 44 pt target without moving the bar's layout (audit 2026-11-24 #39).
+                        .contentShape(Rectangle().inset(by: -7))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Text("Reply"))
             }
         }
         .padding(.horizontal, 14)

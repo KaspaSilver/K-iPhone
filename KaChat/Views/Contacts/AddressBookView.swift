@@ -64,9 +64,6 @@ struct AddressBookView: View {
             .navigationTitle("Contacts")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    ConnectionStatusIndicator()
-                }
                 ToolbarItem(placement: .principal) {
                     BalanceToolbarLabel()
                 }
@@ -538,10 +535,9 @@ struct AddressBookEntryEditor: View {
     /// The name "Use Their Domain Name" fills in: a typed domain that resolved, else the address's
     /// .kachat name. Saved in full ("alice.kachat"), never the shortened form the hide-endings
     /// setting shows, since the book syncs to Nextcloud and KaPay, where that setting doesn't
-    /// apply. Never a .kas domain: since 5.2 a .kas name is cleared from contacts on every load
-    /// (`ContactsManager.clearKasDomainAliases`), so it wouldn't stay.
+    /// apply.
     private var domainSuggestion: String? {
-        if resolvedAddress != nil, let resolvedName, let tld = selectedTLD, tld != .kas {
+        if resolvedAddress != nil, let resolvedName, let tld = selectedTLD {
             let lower = resolvedName.lowercased()
             return lower.hasSuffix(tld.suffix) ? resolvedName : resolvedName + tld.suffix
         }
@@ -598,7 +594,7 @@ struct AddressBookEntryEditor: View {
                             name = domainSuggestion
                         } label: {
                             Label {
-                                Text("Use Their Domain Name") + Text(verbatim: " (\(domainSuggestion))").foregroundColor(.secondary)
+                                Text("Use Their Username") + Text(verbatim: " (\(domainSuggestion))").foregroundColor(.secondary)
                             } icon: {
                                 Image(systemName: "at")
                             }
@@ -612,7 +608,7 @@ struct AddressBookEntryEditor: View {
                             .font(.footnote.monospaced())
                             .foregroundColor(.secondary)
                     } else {
-                        TextField("kaspa:qr... or domain", text: $addressInput, axis: .vertical)
+                        TextField("kaspa:qr... or username", text: $addressInput, axis: .vertical)
                             .font(.footnote.monospaced())
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -620,7 +616,7 @@ struct AddressBookEntryEditor: View {
                         if isResolving {
                             HStack(spacing: 6) {
                                 ProgressView().scaleEffect(0.8)
-                                Text("Looking up domain...")
+                                Text("Looking up username...")
                             }
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -639,9 +635,6 @@ struct AddressBookEntryEditor: View {
                             Label(lookupError, systemImage: "xmark.circle.fill")
                                 .font(.caption)
                                 .foregroundColor(.red)
-                        }
-                        if !isResolving {
-                            OtherDomainsDropdown(resolutions: nameResolutions, selected: selectedTLD, onSelect: selectResolution)
                         }
                         HStack {
                             Button {

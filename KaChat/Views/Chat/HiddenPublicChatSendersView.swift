@@ -8,7 +8,6 @@ struct HiddenPublicChatSendersView: View {
 
     @EnvironmentObject var publicChatService: PublicChatService
     @EnvironmentObject var contactsManager: ContactsManager
-    @ObservedObject private var knsService = KNSService.shared
 
     @State private var hiddenAddresses: [String] = []
 
@@ -36,10 +35,6 @@ struct HiddenPublicChatSendersView: View {
                             reload()
                         }
                         .font(.caption)
-                    }
-                    .task(id: address) {
-                        guard knsService.profileCache[address] == nil else { return }
-                        _ = await knsService.fetchProfile(for: address)
                     }
                 }
             }

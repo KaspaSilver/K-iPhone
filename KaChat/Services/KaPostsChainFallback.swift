@@ -451,12 +451,19 @@ final class KaPostsLiveChainFeed: ObservableObject {
             }
             Task { await NodePoolService.shared.subscribeBlockAdded(client: Self.client) }
         } else {
-            // The indexer has these now. The handler stays, as for rooms: `add` ignores it.
+            // The indexer has these now. The handler goes too, as rooms' does (`stopScanning`):
+            // a connection already registered for blocks keeps pushing them, and groups or the
+            // inbox scan can still want them, so a kept handler parsed every later block for
+            // nothing (audit 2026-11-24 #26). `add` still ignores a scan already in flight.
             posts = []
             amendments = [:]
             seenPayloads = []
             seenOrder = []
             Task { await NodePoolService.shared.unsubscribeBlockAdded(client: Self.client) }
+            if let id = handlerId {
+                BlockScanRegistry.shared.remove(id)
+                handlerId = nil
+            }
         }
     }
 

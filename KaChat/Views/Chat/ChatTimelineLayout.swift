@@ -20,10 +20,23 @@ enum ChatTimelineLayout {
         calendar: Calendar = .autoupdatingCurrent
     ) -> [ChatTimelineItem] {
         var items: [ChatTimelineItem] = []
+        items.reserveCapacity(messages.count + 8)
         var previousDay: Date?
+        // The day being filled, as a range: a message inside it needs no Calendar call (two per
+        // message before, over the whole loaded window on every rebuild).
+        var dayRange: Range<Date>?
 
         for (index, message) in messages.enumerated() {
+            if let dayRange, dayRange.contains(message.timestamp) {
+                items.append(.message(index: index, message))
+                continue
+            }
             let messageDay = calendar.startOfDay(for: message.timestamp)
+            if let next = calendar.date(byAdding: .day, value: 1, to: messageDay), next > messageDay {
+                dayRange = messageDay..<next
+            } else {
+                dayRange = nil
+            }
             if previousDay.map({ calendar.isDate($0, inSameDayAs: messageDay) }) != true {
                 items.append(.daySeparator(messageDay))
                 previousDay = messageDay

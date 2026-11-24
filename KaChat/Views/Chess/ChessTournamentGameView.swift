@@ -438,7 +438,7 @@ private struct ChessTournamentClockChip: View {
         let stroke: Color = isLow ? Color.red.opacity(0.55) : (isActive ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.12))
         return HStack(spacing: 8) {
             KNSAvatarView(
-                avatarURLString: KNSService.shared.profileCache[address]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: name,
                 size: 26,
                 contactAddress: address

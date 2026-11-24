@@ -76,7 +76,6 @@ struct AddContactView: View {
         }
     }
 
-    private let knsService = KNSService.shared
 
     /// The actual address to use (resolved or direct input)
     /// Preview of the person behind the address: their avatar and name, once resolved.
@@ -115,11 +114,11 @@ struct AddContactView: View {
                 } else {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Kaspa Address or Domain")
+                        Text("Kaspa Address or Username")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        TextField("kaspa:qr... or domain", text: $addressInput)
+                        TextField("kaspa:qr... or username", text: $addressInput)
                             .font(.system(.body, design: .monospaced))
                             .autocapitalization(.none)
                             .autocorrectionDisabled()
@@ -133,7 +132,7 @@ struct AddContactView: View {
                                 HStack {
                                     ProgressView()
                                         .scaleEffect(0.8)
-                                    Text("Looking up domain...")
+                                    Text("Looking up username...")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -145,7 +144,6 @@ struct AddContactView: View {
                                         .font(.caption)
                                         .foregroundColor(.red)
                                 }
-                                OtherDomainsDropdown(resolutions: nameResolutions, selected: selectedResolutionTLD, onSelect: applyResolution)
                             } else if let resolved = resolvedAddress {
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack {
@@ -160,7 +158,6 @@ struct AddContactView: View {
                                         .foregroundColor(.secondary)
                                         .lineLimit(1)
                                 }
-                                OtherDomainsDropdown(resolutions: nameResolutions, selected: selectedResolutionTLD, onSelect: applyResolution)
                             } else {
                                 HStack {
                                     Image(systemName: isValidAddress ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -222,7 +219,7 @@ struct AddContactView: View {
                 } header: {
                     Text("Address")
                 } footer: {
-                    Text("Enter a Kaspa address (kaspa:...) or a domain (e.g. alice.kachat). .kachat names are looked up first.")
+                    Text("Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat).")
                 }
 
                 // Private: no first-contact signal at all (NO_HANDSHAKE_MESSAGING.md §3.1).
@@ -274,12 +271,17 @@ struct AddContactView: View {
                 Button("Create") { createGroupChat() }
                 Button("Cancel", role: .cancel) {}
             } message: {
+                // one key per sentence and plural form (audit 2026-11-24 #34)
                 let k = selectedMemberAddresses.count
                 let txCount = k + 1
+                let name = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let question = k == 1
+                    ? String(format: AppLocalization.string("Create \"%@\" and invite 1 member?"), name)
+                    : String(format: AppLocalization.string("Create \"%@\" and invite %lld members?"), name, k)
                 let feeText = groupChatService.estimateGroupActionFeeKas(groupId: "", controlTx: txCount, photoTx: 0)
-                    .map { "\n\nEstimated network fee ≈ \($0) \(KaspaUnit.symbol) across \(txCount) transactions." }
-                    ?? "\n\n(\(txCount) network transactions.)"
-                Text("Create \"\(groupName.trimmingCharacters(in: .whitespacesAndNewlines))\" and invite \(k) member\(pluralS(k))?\(feeText)")
+                    .map { String(format: AppLocalization.string("Estimated network fee ≈ %@ %@ across %lld transactions."), $0, KaspaUnit.symbol, txCount) }
+                    ?? String(format: AppLocalization.string("(%lld network transactions.)"), txCount)
+                Text(verbatim: question + "\n\n" + feeText)
             }
             .onChange(of: groupPhotoPickerItem) { newItem in
                 handleGroupPhotoSelection(newItem)
@@ -511,7 +513,7 @@ struct AddContactView: View {
         Section {
             ForEach($groupAddressEntries) { $entry in
                 VStack(alignment: .leading, spacing: 10) {
-                    TextField("kaspa:qr... or domain", text: $entry.text)
+                    TextField("kaspa:qr... or username", text: $entry.text)
                         .font(.system(.body, design: .monospaced))
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
@@ -571,7 +573,7 @@ struct AddContactView: View {
         } header: {
             Text("Add Members")
         } footer: {
-            Text("Pick people from your contacts, or add anyone by Kaspa address or domain.")
+            Text("Pick people from your contacts, or add anyone by Kaspa address or username.")
         }
     }
 
@@ -595,7 +597,7 @@ struct AddContactView: View {
                     ForEach(sortedSelectedMembers, id: \.self) { address in
                         HStack(spacing: 12) {
                             KNSAvatarView(
-                                avatarURLString: knsService.profileCache[address]?.avatarURL,
+                                avatarURLString: nil,
                                 fallbackText: memberDisplayName(address),
                                 size: 40,
                                 contactAddress: address
@@ -709,7 +711,7 @@ struct AddContactView: View {
         } else if entry.isResolvingKNS {
             HStack {
                 ProgressView().scaleEffect(0.8)
-                Text("Looking up domain...")
+                Text("Looking up username...")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -721,7 +723,6 @@ struct AddContactView: View {
                     .font(.caption)
                     .foregroundColor(.red)
             }
-            groupOtherDomains(for: entry)
         } else if let effective = entry.effectiveAddress, duplicateEffectiveAddresses.contains(effective.lowercased()) {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -746,7 +747,6 @@ struct AddContactView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            groupOtherDomains(for: entry)
         } else if !entry.looksLikeDomain {
             let isValid = KaspaAddress.isValidOnActiveNetwork(entry.trimmedText)
             HStack {
@@ -756,18 +756,6 @@ struct AddContactView: View {
                     .font(.caption)
                     .foregroundColor(isValid ? .green : .red)
             }
-        }
-    }
-
-    /// The same name on the other services, under the row's answer; picking one switches the row.
-    private func groupOtherDomains(for entry: GroupAddressEntry) -> some View {
-        OtherDomainsDropdown(resolutions: entry.nameResolutions, selected: entry.selectedTLD) { resolution in
-            guard let address = resolution.address,
-                  let i = groupAddressEntries.firstIndex(where: { $0.id == entry.id }) else { return }
-            groupAddressEntries[i].resolvedAddress = address
-            groupAddressEntries[i].resolvedDomain = resolution.display
-            groupAddressEntries[i].selectedTLD = resolution.tld
-            groupAddressEntries[i].knsError = nil
         }
     }
 
@@ -843,11 +831,12 @@ struct AddContactView: View {
         let addresses = Array(selectedMemberAddresses)
 
         guard !trimmedName.isEmpty else {
-            error = "Enter a group name."
+            // `Text(error)` shows a String as is, so translated here (audit 2026-11-24 #33).
+            error = AppLocalization.string("Enter a group name.")
             return
         }
         guard !addresses.isEmpty else {
-            error = "Add at least one member."
+            error = AppLocalization.string("Add at least one member.")
             return
         }
 

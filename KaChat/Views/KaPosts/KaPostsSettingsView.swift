@@ -9,6 +9,10 @@ struct KaPostsSettingsView: View {
     let onClose: () -> Void
     /// Pushed from Settings rather than presented: no stack of its own.
     var embedded = false
+    /// Which page: Settings > KaPost (the cool down) or Settings > Customization > Tipping (what
+    /// Tip sends, on a post and in a 1:1 chat's +, since 2026-11-23).
+    enum Part { case kaPost, tipping }
+    var part: Part = .kaPost
 
     @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @ObservedObject private var priceService = KasPriceModel.shared
@@ -39,6 +43,40 @@ struct KaPostsSettingsView: View {
     static let instantTipMinimumSompi: UInt64 = KasiaTransactionBuilder.dustThreshold
     static var instantTipMinimumText: String { "\(KaspaUnit.plain(instantTipMinimumSompi)) \(KaspaUnit.symbol)" }
     static let instantTipLimitNotice = "Instant tips are limited to 10 KAS. Swipe up to send this one."
+
+    /// What a Kaspa tip with the saved default ("Send a default tip instantly") does now.
+    enum InstantTip {
+        /// No default tip: the tip screen asks the amount.
+        case none
+        /// Send this at once; `fiatText` is the currency amount it was worked out from.
+        case send(sompi: UInt64, fiatText: String?)
+        /// Above the instant limit (or not a real amount): the tip screen, which says why.
+        case overLimit
+        /// Under what the network takes.
+        case tooSmall
+        /// A currency default with no recent price to turn into KAS.
+        case noPrice(fiatText: String)
+    }
+
+    /// The saved default tip as it stands now (shared by KaPost and a chat's Tip).
+    @MainActor
+    static func instantTip(_ settings: AppSettings) -> InstantTip {
+        if let fiat = settings.kaPostsDefaultTipFiat, fiat > 0 {
+            let currency = settings.kaPostsDefaultTipFiatCurrency ?? settings.currency
+            let fiatText = formatFiatAmount(fiat, currency: currency)
+            guard let price = KasPriceModel.shared.freshPrice(in: currency), price > 0 else { return .noPrice(fiatText: fiatText) }
+            guard let sompi = sompi(fiat: fiat, price: price) else { return .overLimit }
+            guard sompi >= instantTipMinimumSompi else { return .tooSmall }
+            guard sompi <= instantTipLimitSompi else { return .overLimit }
+            return .send(sompi: sompi, fiatText: fiatText)
+        }
+        if let amount = settings.kaPostsDefaultTipSompi, amount > 0 {
+            guard amount >= instantTipMinimumSompi else { return .tooSmall }
+            guard amount <= instantTipLimitSompi else { return .overLimit }
+            return .send(sompi: amount, fiatText: nil)
+        }
+        return .none
+    }
 
     /// A currency amount in sompi at a KAS price, or nil when the answer isn't a real amount: not
     /// finite, negative, or more than all the KAS there will ever be (`KaspaUnit.maxTypedSompi`).
@@ -71,6 +109,7 @@ struct KaPostsSettingsView: View {
 
     private var form: some View {
             Form {
+                if part == .kaPost {
                 Section {
                     Toggle("Cool down before post", isOn: $cooldownEnabled)
                         .onChange(of: cooldownEnabled) { enabled in
@@ -83,7 +122,9 @@ struct KaPostsSettingsView: View {
                          ? "Posts, comments, likes, reposts, votes, edits and deletes wait 5 seconds, with an Undo, before they go on chain."
                          : "Posts, comments, likes, reposts, votes, edits and deletes go on chain at once, with no Undo.")
                 }
+                }
 
+                if part == .tipping {
                 Section {
                     Picker("Tip In", selection: $tipAsset) {
                         Text("Ask Each Time").tag(KaPostsTipAsset?.none)
@@ -212,7 +253,7 @@ struct KaPostsSettingsView: View {
                     if tipAsset == nil {
                         Text("Tip asks whether to send Kaspa or kUSDT each time.")
                     } else if tipAsset == .kusdt {
-                        Text("Tip sends kUSDT to the poster's chatting address. kUSDT tips aren't counted on the post.")
+                        Text("Tip sends kUSDT to their chatting address. kUSDT tips aren't counted on a post.")
                     } else if instantTipEnabled {
                         VStack(alignment: .leading, spacing: 6) {
                             if tipBelowMinimum {
@@ -224,8 +265,9 @@ struct KaPostsSettingsView: View {
                         }
                     }
                 }
+                }
             }
-            .navigationTitle(embedded ? "KaPost" : "KaPost Settings")
+            .navigationTitle(part == .tipping ? "Tipping" : (embedded ? "KaPost" : "KaPost Settings"))
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 cooldownEnabled = settingsViewModel.settings.kaPostsCooldownEnabled
@@ -384,7 +426,8 @@ struct KaPostsSettingsView: View {
 }
 
 
-/// KaPosts > Settings > Tips From: the address tips leave from unless the tip sheet picks another.
+/// Settings > Customization > Tipping > Tips From: the address tips leave from unless the tip
+/// sheet picks another.
 /// The chatting address sends a tip that counts on the post; another address sends it privately
 /// (`ChatService.sendPayment`: no post named, nothing counted, nobody listed as the tipper).
 private struct TipSourcePage: View {
@@ -393,7 +436,7 @@ private struct TipSourcePage: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Tips from your Chatting Address count on the post, and you're listed as a tipper. From another address a tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you.")
+                Text("Tips from your Chatting Address count on the post, and you're listed as a tipper. From another address a tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you. A tip in a chat comes from here too.")
                     .font(.footnote)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

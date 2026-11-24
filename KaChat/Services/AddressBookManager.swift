@@ -65,6 +65,11 @@ final class AddressBookManager: ObservableObject {
             entries = []
             deleted = [:]
             rebuildIndex()
+            // signed out: the last account's assigned photos must not keep showing
+            // (audit 2026-11-24 #17)
+            photoCache.removeAllObjects()
+            photolessAddresses.removeAll()
+            photoVersion &+= 1
             return
         }
         let stored = defaults.data(forKey: Self.entriesKeyPrefix + wallet)
@@ -111,6 +116,10 @@ final class AddressBookManager: ObservableObject {
         if let directory = Self.photosDirectory(wallet: wallet) {
             try? FileManager.default.removeItem(at: directory)
         }
+        // the deleted photos must not keep showing from the cache (audit 2026-11-24 #17)
+        photoCache.removeAllObjects()
+        photolessAddresses.removeAll()
+        photoVersion &+= 1
     }
 
     // MARK: - Reading
@@ -204,15 +213,22 @@ final class AddressBookManager: ObservableObject {
 
     /// The photo you assigned to `address`, if any.
     func photo(for address: String?) -> UIImage? {
-        guard let address else { return nil }
+        // no account, no assigned photos (audit 2026-11-24 #17)
+        guard let address, walletAddress?.isEmpty == false else { return nil }
         let normalized = Self.normalize(address)
-        guard !photolessAddresses.contains(normalized), let url = photoURL(for: normalized) else { return nil }
-        let key = url.path as NSString
+        guard !photolessAddresses.contains(normalized) else { return nil }
+        // Keyed by the address (the cache is emptied when the wallet changes), so a cached photo
+        // costs no file URL: building one hashes the wallet and the address on every avatar body
+        // while scrolling.
+        let key = normalized as NSString
         if let cached = photoCache.object(forKey: key) { return cached }
-        guard let image = UIImage(contentsOfFile: url.path) else {
+        guard let url = photoURL(for: normalized) else { return nil }
+        guard let raw = UIImage(contentsOfFile: url.path) else {
             photolessAddresses.insert(normalized)
             return nil
         }
+        // decoded now, once, rather than at draw time on every frame it scrolls through
+        let image = raw.preparingForDisplay() ?? raw
         photoCache.setObject(image, forKey: key)
         return image
     }
@@ -310,7 +326,7 @@ final class AddressBookManager: ObservableObject {
         guard let url = photoURL(for: normalizedAddress) else { return }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: url, options: .atomic)
-        photoCache.removeObject(forKey: url.path as NSString)
+        photoCache.removeObject(forKey: normalizedAddress as NSString)
         photolessAddresses.remove(normalizedAddress)
         photoVersion &+= 1
     }
@@ -318,7 +334,7 @@ final class AddressBookManager: ObservableObject {
     private func deletePhoto(for normalizedAddress: String) {
         guard let url = photoURL(for: normalizedAddress), FileManager.default.fileExists(atPath: url.path) else { return }
         try? FileManager.default.removeItem(at: url)
-        photoCache.removeObject(forKey: url.path as NSString)
+        photoCache.removeObject(forKey: normalizedAddress as NSString)
         photolessAddresses.remove(normalizedAddress)
         photoVersion &+= 1
     }

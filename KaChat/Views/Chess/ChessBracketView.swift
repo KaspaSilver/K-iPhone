@@ -127,7 +127,7 @@ struct ChessBracketView: View {
         let toMove = !game.isDecided(at: now) && game.address(of: game.sideToMove) == address
         return HStack(spacing: 6) {
             KNSAvatarView(
-                avatarURLString: KNSService.shared.profileCache[address]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: ContactsManager.shared.displayName(for: address),
                 size: 20,
                 contactAddress: address
@@ -186,7 +186,7 @@ struct ChessBracketView: View {
         return HStack(spacing: 8) {
             if let champion {
                 KNSAvatarView(
-                    avatarURLString: KNSService.shared.profileCache[champion]?.avatarURL,
+                    avatarURLString: nil,
                     fallbackText: ContactsManager.shared.displayName(for: champion),
                     size: 28,
                     contactAddress: champion

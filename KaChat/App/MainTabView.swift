@@ -38,14 +38,18 @@ struct MainTabView: View {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     /// The address a tapped "Received" notification opened (its history, in a sheet).
     @State private var ownAddressSheet: OwnAddressSheetTarget?
-    // Red dot on the Profile tab while the bell (which lives on the Profile screen)
-    // holds unread notifications.
-    @ObservedObject private var notifCenter = GlobalNotificationCenter.shared
+    // Not observed here: nothing in this view read it, so every bell entry redrew the root.
+    // The dock's badges follow it through `DockBadgeSync` (audit 2026-11-24 #29).
     /// The dock's tabs, as Customize Dock arranged them (Kaspa Hub always among them).
     @ObservedObject private var layout = DockLayout.shared
+    /// The dot on the dock's Settings icon (owner's call, 2026-11-23). Publishes only when the
+    /// color changes.
+    @ObservedObject private var connection = ConnectionHealth.shared
+    /// The yellow dot on the dock's Profile icon while the account's backup is owed.
+    @ObservedObject private var backupStatus = AccountBackupStatus.shared
+    @Environment(\.colorScheme) private var colorScheme
     /// Your avatar for the Profile tab's icon (the person glyph until you have one).
     @ObservedObject private var dockAvatar = DockAvatar.shared
-    @State private var showCustomizeDock = false
 
     /// The dock's TabView on its own, so `body` stays small enough for the type checker.
     private var dockTabView: some View {
@@ -60,8 +64,22 @@ struct MainTabView: View {
                         } icon: {
                             if tab == .hub, let logo = KaspaDockIcon.image {
                                 logo
-                            } else if tab == .profile, let avatar = dockAvatar.image {
-                                Image(uiImage: avatar)
+                            } else if tab == .profile {
+                                // your picture, with a yellow dot while the backup is owed
+                                Image(uiImage: ProfileDockIcon.image(
+                                    avatar: dockAvatar.image,
+                                    avatarKey: dockAvatar.shownKey,
+                                    backupOwed: backupStatus.isPending(WalletManager.shared.currentWallet?.publicAddress),
+                                    selected: selectedTab == tab.tag,
+                                    dark: colorScheme == .dark))
+                            } else if tab == .settings {
+                                // the gear with the connection dot: green connected, red not
+                                Image(uiImage: SettingsDockIcon.image(dot: connection.uiColor,
+                                                                      selected: selectedTab == tab.tag,
+                                                                      dark: colorScheme == .dark))
+                            } else if tab == .kachatNames {
+                                // the ".kachat" wordmark, small enough to sit between the tabs
+                                Image(uiImage: KachatTabIcon.image(side: 24, fontScale: 0.42))
                             } else {
                                 Image(systemName: tab.icon)
                             }
@@ -89,12 +107,6 @@ struct MainTabView: View {
         // a .kachat registration in flight: its progress half sheet, back up after a relaunch
         // (as KaPay has it; `KachatNamesActions.resume` sets it on activation)
         .modifier(KachatRegistrationPresenter())
-        .onReceive(NotificationCenter.default.publisher(for: .openCustomizeDock)) { _ in
-            showCustomizeDock = true
-        }
-        .sheet(isPresented: $showCustomizeDock) {
-            CustomizeDockView()
-        }
         // the tab on screen left the dock: Kaspa Hub, where it now lives
         .onChange(of: layout.dock) { dock in
             if !dock.contains(where: { $0.tag == selectedTab }) {
@@ -219,8 +231,10 @@ struct MainTabView: View {
         if layout.dock.contains(tab) {
             handleTabSelectionChange(tab.tag)
         } else {
+            // Not as a tap on Kaspa Hub: from inside the Hub (KaPlay's Share to KaPost) that
+            // read as "Hub tapped again" and closed the section just opened, back to the grid.
+            if selectedTab != AppTab.hub.tag { handleTabSelectionChange(AppTab.hub.tag) }
             HubRouter.shared.open(tab)
-            handleTabSelectionChange(AppTab.hub.tag)
         }
     }
 

@@ -600,7 +600,7 @@ struct WelcomeGuideView: View {
                             icon: "eye.fill",
                             title: "What Others Can See",
                             address: "",
-                            caption: "Anyone can see this address and its balance on the Kaspa network, but they can't read your messages. Use it only for chatting and .kachat domains."
+                            caption: "Anyone can see this address and its balance on the Kaspa network, but they can't read your messages. Use it only for chatting and usernames."
                         )
                     }
                     .padding(.horizontal, 24)

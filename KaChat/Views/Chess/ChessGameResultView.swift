@@ -213,7 +213,7 @@ struct ChessGameResultView: View {
                         .foregroundColor(.secondary)
                         .frame(width: 24, alignment: .trailing)
                     KNSAvatarView(
-                        avatarURLString: KNSService.shared.profileCache[row.address]?.avatarURL,
+                        avatarURLString: nil,
                         fallbackText: ContactsManager.shared.displayName(for: row.address),
                         size: 32,
                         contactAddress: row.address

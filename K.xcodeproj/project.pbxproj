@@ -35,7 +35,6 @@
 		KCNM00000000020001000000 /* KachatNamesTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCNM00000000020000000000 /* KachatNamesTransaction.swift */; };
 		KCNM00000000010001000000 /* KachatNamesCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCNM00000000010000000000 /* KachatNamesCodec.swift */; };
 		KCB300000000010001000000 /* Blake3.swift in Sources */ = {isa = PBXBuildFile; fileRef = KCB300000000010000000000 /* Blake3.swift */; };
-		19319293ACD84C2AB108D745 /* KNSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A61ACF41FEA483D9EF0924F /* KNSService.swift */; };
 		3068057B0F9F4906B2600F39 /* ChatInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4C922EA822400194F497F9 /* ChatInfoView.swift */; };
 		3F4C10012F72000100000002 /* LaunchRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4C10012F72000100000001 /* LaunchRouter.swift */; };
 		3F4C10022F72000100000002 /* ChatListSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4C10022F72000100000001 /* ChatListSnapshotStore.swift */; };
@@ -215,7 +214,6 @@
 		TRSTBB65F64C8D27858EEF36 /* kusdt-wallet.js.txt in Resources */ = {isa = PBXBuildFile; fileRef = TRSTF2DAAE2617D5C8CCE81B /* kusdt-wallet.js.txt */; };
 		KPSTB62B6BA64F3F4C8866EC /* KaPostsDockCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTFEF2C55E85C025092A5C /* KaPostsDockCopy.swift */; };
 		KPSTB05129F86EA73DB3BC51 /* KaPostsFeedDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF8B668E17862FAC77A96 /* KaPostsFeedDrawer.swift */; };
-		KPSTB6EC5AF0A6EE0794CAF5 /* KaPostsFeedPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF94162C0569CD3157988 /* KaPostsFeedPager.swift */; };
 		KPSTB72BDAD0A332924CAADB /* KaPostsSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF7CED3C2EC37D16B1885 /* KaPostsSearchView.swift */; };
 		KPSTB296BB91B40809636E13 /* KaPostsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF3E1EDD9B8461789C47E /* KaPostsSettingsView.swift */; };
 		KPSTB4273DB8E1AC3AB9B4CB /* KaPostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPSTF10358A30A1688EF87D5 /* KaPostsView.swift */; };
@@ -252,12 +250,10 @@
 		P4B06187C59E8F6FAC48DD20 /* ChessTabIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F5452B1CB580CE25FAF382 /* ChessTabIcon.swift */; };
 		P4B5689D10AAE5A2800FE8CB /* ChessBoardComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FC15FA48112C689CD5DB82 /* ChessBoardComponents.swift */; };
 		P4BC1DE9F8E82B59EE16D965 /* ChessBotGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F81526E97BA185693387B9 /* ChessBotGameView.swift */; };
-		P4B6CCB6CD961CE007E490C0 /* ChessBotLeaderboardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FC71435CD6881081013847 /* ChessBotLeaderboardViews.swift */; };
 		P4B17576FB8264682E5D8DA0 /* ChessBotsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F424E50DD3A9ABECA0ED77 /* ChessBotsView.swift */; };
 		P4BEEF43227E1C366511F00D /* ChessBracketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FC918045982119F329742A /* ChessBracketView.swift */; };
 		P4B5B3396572971973F1895E /* ChessGameResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */; };
 		P4BFF44229E3E35DB10F720D /* ChessHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */; };
-		P4BC31820131CAADEC9A2138 /* ChessLeaderboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F025FC39829E27CC676C1A /* ChessLeaderboardView.swift */; };
 		P4B8E7554C0DDAA56836EAE9 /* ChessPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FF70345120972E649163DC /* ChessPlayerView.swift */; };
 		P4B0E896CEE591C99F3D3D6D /* ChessText.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FE99E88F843D256855D454 /* ChessText.swift */; };
 		P4BFC7420076E07A48448F1A /* ChessTournamentGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */; };
@@ -269,6 +265,15 @@
 		P5B0F6238B43DD8FC63C05F0 /* KaspaWebsitesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5FB7D7D3BAB15B749134713 /* KaspaWebsitesView.swift */; };
 		P5TB336207E299AF38A80DDA /* TermsOfUseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5TF31FE02495A3C860324BC /* TermsOfUseView.swift */; };
 		P5GBEF99EC3EE12C1EC2C325 /* KachatSetupGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5GF75C63E0E8A4ABC2D9FFD /* KachatSetupGuideView.swift */; };
+		SWPB799F718596E111DF9E36 /* SwapModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF799F718596E111DF9E36 /* SwapModels.swift */; };
+		SWPB6E70BCFA013E2985B337 /* ChangeNowAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF6E70BCFA013E2985B337 /* ChangeNowAPIClient.swift */; };
+		SWPB7D656481ADC6CE7FDE26 /* SwapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF7D656481ADC6CE7FDE26 /* SwapService.swift */; };
+		SWPB640915434456890E959D /* SwapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF640915434456890E959D /* SwapView.swift */; };
+		SWPB02F40588D5EF1BF904D3 /* TrestlyTrade.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF02F40588D5EF1BF904D3 /* TrestlyTrade.swift */; };
+		SWPB69C1DF314D4C7C529F68 /* ArcadeEngines.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF69C1DF314D4C7C529F68 /* ArcadeEngines.swift */; };
+		SWPB33C72D4CF80939A90C29 /* ArcadeServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF33C72D4CF80939A90C29 /* ArcadeServices.swift */; };
+		SWPB7A02603BDE2024404229 /* ArcadeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF7A02603BDE2024404229 /* ArcadeViews.swift */; };
+		SWPBACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPFACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -345,7 +350,6 @@
 		4D3D20062F72000600000001 /* DesktopEmojiLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopEmojiLibrary.swift; sourceTree = "<group>"; };
 		4D3D20072F72000700000001 /* DesktopEmojiPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopEmojiPickerView.swift; sourceTree = "<group>"; };
 		4D3D20082F72000800000001 /* ComposerKeyCommandPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerKeyCommandPolicy.swift; sourceTree = "<group>"; };
-		6A61ACF41FEA483D9EF0924F /* KNSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KNSService.swift; sourceTree = "<group>"; };
 		A91062000000000000000002 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
 		A91062000000000000000010 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
 		AB0001A0000000000000001 /* AppTabBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTabBadge.swift; sourceTree = "<group>"; };
@@ -548,7 +552,6 @@
 		TRSTF2DAAE2617D5C8CCE81B /* kusdt-wallet.js.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = kusdt-wallet.js.txt; sourceTree = "<group>"; };
 		KPSTFEF2C55E85C025092A5C /* KaPostsDockCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsDockCopy.swift; sourceTree = "<group>"; };
 		KPSTF8B668E17862FAC77A96 /* KaPostsFeedDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsFeedDrawer.swift; sourceTree = "<group>"; };
-		KPSTF94162C0569CD3157988 /* KaPostsFeedPager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsFeedPager.swift; sourceTree = "<group>"; };
 		KPSTF7CED3C2EC37D16B1885 /* KaPostsSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsSearchView.swift; sourceTree = "<group>"; };
 		KPSTF3E1EDD9B8461789C47E /* KaPostsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsSettingsView.swift; sourceTree = "<group>"; };
 		KPSTF10358A30A1688EF87D5 /* KaPostsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaPostsView.swift; sourceTree = "<group>"; };
@@ -585,12 +588,10 @@
 		P4F5452B1CB580CE25FAF382 /* ChessTabIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTabIcon.swift; sourceTree = "<group>"; };
 		P4FC15FA48112C689CD5DB82 /* ChessBoardComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBoardComponents.swift; sourceTree = "<group>"; };
 		P4F81526E97BA185693387B9 /* ChessBotGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotGameView.swift; sourceTree = "<group>"; };
-		P4FC71435CD6881081013847 /* ChessBotLeaderboardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotLeaderboardViews.swift; sourceTree = "<group>"; };
 		P4F424E50DD3A9ABECA0ED77 /* ChessBotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBotsView.swift; sourceTree = "<group>"; };
 		P4FC918045982119F329742A /* ChessBracketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessBracketView.swift; sourceTree = "<group>"; };
 		P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessGameResultView.swift; sourceTree = "<group>"; };
 		P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessHomeView.swift; sourceTree = "<group>"; };
-		P4F025FC39829E27CC676C1A /* ChessLeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessLeaderboardView.swift; sourceTree = "<group>"; };
 		P4FF70345120972E649163DC /* ChessPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessPlayerView.swift; sourceTree = "<group>"; };
 		P4FE99E88F843D256855D454 /* ChessText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessText.swift; sourceTree = "<group>"; };
 		P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentGameView.swift; sourceTree = "<group>"; };
@@ -602,6 +603,15 @@
 		P5FB7D7D3BAB15B749134713 /* KaspaWebsitesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaspaWebsitesView.swift; sourceTree = "<group>"; };
 		P5TF31FE02495A3C860324BC /* TermsOfUseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TermsOfUseView.swift; sourceTree = "<group>"; };
 		P5GF75C63E0E8A4ABC2D9FFD /* KachatSetupGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatSetupGuideView.swift; sourceTree = "<group>"; };
+		SWPF799F718596E111DF9E36 /* SwapModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwapModels.swift; sourceTree = "<group>"; };
+		SWPF6E70BCFA013E2985B337 /* ChangeNowAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangeNowAPIClient.swift; sourceTree = "<group>"; };
+		SWPF7D656481ADC6CE7FDE26 /* SwapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwapService.swift; sourceTree = "<group>"; };
+		SWPF640915434456890E959D /* SwapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwapView.swift; sourceTree = "<group>"; };
+		SWPF02F40588D5EF1BF904D3 /* TrestlyTrade.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrestlyTrade.swift; sourceTree = "<group>"; };
+		SWPF69C1DF314D4C7C529F68 /* ArcadeEngines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcadeEngines.swift; sourceTree = "<group>"; };
+		SWPF33C72D4CF80939A90C29 /* ArcadeServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcadeServices.swift; sourceTree = "<group>"; };
+		SWPF7A02603BDE2024404229 /* ArcadeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArcadeViews.swift; sourceTree = "<group>"; };
+		SWPFACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KNSRevealRecovery.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -659,6 +669,7 @@
 		KUSDTGRUP000000000000001 /* Tokens */ = {
 			isa = PBXGroup;
 			children = (
+				SWPF02F40588D5EF1BF904D3 /* TrestlyTrade.swift */,
 				TRSTFE5E6C7543C38BAE7D55 /* TrestlyProvider.swift */,
 				TRSTF11678887B12CB3FE87D /* KusdtWalletRelays.swift */,
 				KUSDTFREF000000000000002 /* Kusdt.swift */,
@@ -672,6 +683,7 @@
 		KUSDTGRUP000000000000010 /* Tokens */ = {
 			isa = PBXGroup;
 			children = (
+				SWPF640915434456890E959D /* SwapView.swift */,
 				TRSTF39FAE3B81E73982BEF8 /* TokenGuideView.swift */,
 				TRSTFC7BC3004B39D3EBBE63 /* TrestlyApprovalSheet.swift */,
 				TRSTF033EB52A30BC16CD96E /* BuyStablecoinsSheet.swift */,
@@ -777,6 +789,7 @@
 		E80000122D4C000000000012 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				SWPF799F718596E111DF9E36 /* SwapModels.swift */,
 				P4F66D7687B8FA7BAC978FCB /* ChessTournamentModels.swift */,
 				P4F5ADF19222269B7F1A1A64 /* ChessBotModels.swift */,
 				PORTF2288B36FB9B53021E34 /* PortfolioModels.swift */,
@@ -788,6 +801,11 @@
 		E80000132D4C000000000013 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				SWPFACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift */,
+				SWPF33C72D4CF80939A90C29 /* ArcadeServices.swift */,
+				SWPF69C1DF314D4C7C529F68 /* ArcadeEngines.swift */,
+				SWPF7D656481ADC6CE7FDE26 /* SwapService.swift */,
+				SWPF6E70BCFA013E2985B337 /* ChangeNowAPIClient.swift */,
 				P4F9640F42366B92EA34BC3B /* ChessTournamentService.swift */,
 				P4F375224340C122F0666E99 /* ChessTournamentEngine.swift */,
 				P4F8AF20725D5FDE6E59615B /* ChessBotLinks.swift */,
@@ -831,7 +849,6 @@
 				3F4C10022F72000100000001 /* ChatListSnapshotStore.swift */,
 				MSGS00012F5C000100000001 /* MessageStore.swift */,
 				E81000382D4C00010000001D /* BIP39.swift */,
-				6A61ACF41FEA483D9EF0924F /* KNSService.swift */,
 				FD5E2F0B0677E7F8C8570C01 /* KaChatTransactionBuilder.swift */,
 				KFPOLICY000100010002 /* KaspaFeePolicy.swift */,
 				B2B2B2B20001000000000001 /* Blake2b.swift */,
@@ -1114,7 +1131,6 @@
 				KPSTF10358A30A1688EF87D5 /* KaPostsView.swift */,
 				KPSTF3E1EDD9B8461789C47E /* KaPostsSettingsView.swift */,
 				KPSTF7CED3C2EC37D16B1885 /* KaPostsSearchView.swift */,
-				KPSTF94162C0569CD3157988 /* KaPostsFeedPager.swift */,
 				KPSTF8B668E17862FAC77A96 /* KaPostsFeedDrawer.swift */,
 				KPSTFEF2C55E85C025092A5C /* KaPostsDockCopy.swift */,
 			);
@@ -1124,6 +1140,7 @@
 		P4GDC96C7C4760037C9260C8 /* Games */ = {
 			isa = PBXGroup;
 			children = (
+				SWPF7A02603BDE2024404229 /* ArcadeViews.swift */,
 				P4FC3A19FA729B599700A977 /* GamesView.swift */,
 			);
 			path = Games;
@@ -1138,12 +1155,10 @@
 				P4F35430589997B64FA832F0 /* ChessTournamentGameView.swift */,
 				P4FE99E88F843D256855D454 /* ChessText.swift */,
 				P4FF70345120972E649163DC /* ChessPlayerView.swift */,
-				P4F025FC39829E27CC676C1A /* ChessLeaderboardView.swift */,
 				P4F35B4B23EB741B2D3ABEF6 /* ChessHomeView.swift */,
 				P4F4BD3D5998C59FA3542763 /* ChessGameResultView.swift */,
 				P4FC918045982119F329742A /* ChessBracketView.swift */,
 				P4F424E50DD3A9ABECA0ED77 /* ChessBotsView.swift */,
-				P4FC71435CD6881081013847 /* ChessBotLeaderboardViews.swift */,
 				P4F81526E97BA185693387B9 /* ChessBotGameView.swift */,
 				P4FC15FA48112C689CD5DB82 /* ChessBoardComponents.swift */,
 			);
@@ -1400,6 +1415,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				SWPBACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift in Sources */,
+				SWPB7A02603BDE2024404229 /* ArcadeViews.swift in Sources */,
+				SWPB33C72D4CF80939A90C29 /* ArcadeServices.swift in Sources */,
+				SWPB69C1DF314D4C7C529F68 /* ArcadeEngines.swift in Sources */,
+				SWPB02F40588D5EF1BF904D3 /* TrestlyTrade.swift in Sources */,
+				SWPB640915434456890E959D /* SwapView.swift in Sources */,
+				SWPB7D656481ADC6CE7FDE26 /* SwapService.swift in Sources */,
+				SWPB6E70BCFA013E2985B337 /* ChangeNowAPIClient.swift in Sources */,
+				SWPB799F718596E111DF9E36 /* SwapModels.swift in Sources */,
 				P5GBEF99EC3EE12C1EC2C325 /* KachatSetupGuideView.swift in Sources */,
 				P5TB336207E299AF38A80DDA /* TermsOfUseView.swift in Sources */,
 				P5B0F6238B43DD8FC63C05F0 /* KaspaWebsitesView.swift in Sources */,
@@ -1411,12 +1435,10 @@
 				P4BFC7420076E07A48448F1A /* ChessTournamentGameView.swift in Sources */,
 				P4B0E896CEE591C99F3D3D6D /* ChessText.swift in Sources */,
 				P4B8E7554C0DDAA56836EAE9 /* ChessPlayerView.swift in Sources */,
-				P4BC31820131CAADEC9A2138 /* ChessLeaderboardView.swift in Sources */,
 				P4BFF44229E3E35DB10F720D /* ChessHomeView.swift in Sources */,
 				P4B5B3396572971973F1895E /* ChessGameResultView.swift in Sources */,
 				P4BEEF43227E1C366511F00D /* ChessBracketView.swift in Sources */,
 				P4B17576FB8264682E5D8DA0 /* ChessBotsView.swift in Sources */,
-				P4B6CCB6CD961CE007E490C0 /* ChessBotLeaderboardViews.swift in Sources */,
 				P4BC1DE9F8E82B59EE16D965 /* ChessBotGameView.swift in Sources */,
 				P4B5689D10AAE5A2800FE8CB /* ChessBoardComponents.swift in Sources */,
 				P4B06187C59E8F6FAC48DD20 /* ChessTabIcon.swift in Sources */,
@@ -1453,7 +1475,6 @@
 				KPSTB4273DB8E1AC3AB9B4CB /* KaPostsView.swift in Sources */,
 				KPSTB296BB91B40809636E13 /* KaPostsSettingsView.swift in Sources */,
 				KPSTB72BDAD0A332924CAADB /* KaPostsSearchView.swift in Sources */,
-				KPSTB6EC5AF0A6EE0794CAF5 /* KaPostsFeedPager.swift in Sources */,
 				KPSTB05129F86EA73DB3BC51 /* KaPostsFeedDrawer.swift in Sources */,
 				KPSTB62B6BA64F3F4C8866EC /* KaPostsDockCopy.swift in Sources */,
 				TRSTBF96D14850519233B14F /* TokenGuideView.swift in Sources */,
@@ -1586,7 +1607,6 @@
 				A91062000000000000000001 /* AppLog.swift in Sources */,
 				CFMT00010001000000000002 /* CurrencyFormat.swift in Sources */,
 				KFAS00010001000000000002 /* KaspaFiatAmountState.swift in Sources */,
-				19319293ACD84C2AB108D745 /* KNSService.swift in Sources */,
 				E83000012D4C000200000006 /* OpusBridge.m in Sources */,
 				F5A71C3C1061AA2FFE3F837F /* KaChatTransactionBuilder.swift in Sources */,
 				KFPOLICY000100010001 /* KaspaFeePolicy.swift in Sources */,

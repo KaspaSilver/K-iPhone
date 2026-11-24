@@ -30,3 +30,44 @@ struct ChessLiveClockText: View {
 // The small board, its piece glyphs and the waiting overlay are the 1:1 chat chess's
 // (`ChessBoardThumbnail` and `ChessPieceGlyphView` in MessageBubbleView.swift,
 // `WaitingOnOpponentOverlay` in ChessGameView.swift), shared with the arena's screens.
+
+// MARK: - Screen titles
+// (moved here from ChessLeaderboardView.swift, deleted as dead code: audit 2026-11-24 #41)
+
+extension View {
+    /// A chess screen's title, as KaPlay drew it: big, fixed above the content that scrolls, with
+    /// the balance alone in the center of the bar. Keep `navigationTitle` as well: the next
+    /// screen's Back reads it. A tab's first screen passes `showsBackupBanner`, so
+    /// `AccountBackupBanner` sits above its title.
+    func fixedScreenTitle(_ title: Text, showsBackupBanner: Bool = false) -> some View {
+        VStack(spacing: 0) {
+            if showsBackupBanner {
+                AccountBackupBanner()
+            }
+            title
+                .font(.largeTitle.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 6)
+            self
+        }
+    }
+}
+
+/// A game's title with the balance under it, for the center of a navigation bar: a board has no
+/// room for `fixedScreenTitle`. A principal toolbar item takes the place of `navigationTitle`, so
+/// a bar with only the balance there shows no title at all.
+struct ScreenTitleToolbarLabel: View {
+    let title: Text
+
+    var body: some View {
+        VStack(spacing: 0) {
+            title
+                .font(.headline)
+                .lineLimit(1)
+            BalanceToolbarLabel()
+        }
+    }
+}

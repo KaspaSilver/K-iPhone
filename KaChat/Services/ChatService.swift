@@ -52,6 +52,9 @@ final class ChatService: ObservableObject {
     /// Message Requests state per wallet (`ChatRequestState`), loaded on first use - see the
     /// Message Requests section of ChatService+Conversations.swift.
     var chatRequestCache: [String: ChatRequestState] = [:]
+    /// `messageRequestCount` for the inputs it was last worked out from: the chat list reads it on
+    /// every redraw, and working it out scans the messages of every unanswered chat.
+    var requestCountMemo: (key: Int, count: Int)?
     /// Bumped on every accept / reject / private / block change, so lists re-filter.
     @Published var chatRequestsRevision = 0
     /// Whether each indexer answers inbox lookups (`KasiaAPIClient.probeInboxSupport`).
@@ -199,15 +202,6 @@ final class ChatService: ObservableObject {
         let observedAt: Date
     }
 
-    struct KNSTransferChatHint {
-        let txId: String
-        let domainName: String
-        let domainId: String
-        let counterpartyAddress: String
-        let isOutgoing: Bool
-        let timestampMs: UInt64
-    }
-
     /// Computed connection status based on node subscription state
     var connectionStatus: RpcConnectionStatus {
         let nodePoolState = NodePoolService.shared.subscriptionState
@@ -278,7 +272,6 @@ final class ChatService: ObservableObject {
     var incomingResolutionWarningTxIds = Set<String>()
     var incomingResolutionAmountHints: [String: UInt64] = [:]
     var hiddenPaymentTxIdTimestamps: [String: UInt64] = [:]
-    var knsTransferHintsByTxId: [String: KNSTransferChatHint] = [:]
     let incomingResolutionMaxAdditionalRetries = 10
     let incomingResolutionBaseDelayNs: UInt64 = 2_000_000_000
     let incomingResolutionMaxDelayNs: UInt64 = 300_000_000_000
@@ -622,6 +615,8 @@ final class ChatService: ObservableObject {
     var conversationCountCancellable: AnyCancellable?
     /// Keeps the notification extension's Message Requests lists current.
     var chatRequestsShareCancellable: AnyCancellable?
+    /// Names landing for hidden requests' senders (audit 2026-11-24 #13).
+    var hiddenRequestAnnounceCancellable: AnyCancellable?
 
     private init() {
         NotificationCenter.default.addObserver(forName: .indexerAvailabilityChanged, object: nil, queue: .main) { [weak self] note in
@@ -707,12 +702,68 @@ final class ChatService: ObservableObject {
             .debounce(for: .seconds(1), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 self?.shareChatRequestsWithExtension()
+                self?.announceNamedHiddenRequests()
+            }
+        // A name landing can make a hidden request ring (Who Can Message You? = usernames).
+        hiddenRequestAnnounceCancellable = KachatNamesRegistry.shared.objectWillChange
+            .debounce(for: .seconds(2), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.announceNamedHiddenRequests()
             }
     }
 
+    /// With Who Can Message You? set to usernames, the notification extension silences a
+    /// request from someone it knows no name for and files them in the App Group
+    /// (`chat_hidden_request_addresses`, "wallet|address"), since it can't look names up. Once
+    /// the app knows their name, the request rings here, once, as the extension would have rung it
+    /// (audit 2026-11-24 #13).
+    func announceNamedHiddenRequests() {
+        guard WhoCanMessage.current == .usernames,
+              let wallet = WalletManager.shared.currentWallet?.publicAddress.lowercased(),
+              let defaults = UserDefaults(suiteName: SharedDataManager.appGroupIdentifier) else { return }
+        let hiddenKey = "chat_hidden_request_addresses"
+        var hidden = defaults.stringArray(forKey: hiddenKey) ?? []
+        let prefix = wallet + "|"
+        guard hidden.contains(where: { $0.hasPrefix(prefix) }) else { return }
+        let notifiedKey = "chat_request_notified_v2"
+        var notified = defaults.stringArray(forKey: notifiedKey) ?? []
+        let blocked = chatRequestState().blocked
+        var changed = false
+        for entry in hidden where entry.hasPrefix(prefix) {
+            let address = String(entry.dropFirst(prefix.count))
+            guard let conversation = conversations.first(where: { $0.contact.address.lowercased() == address }) else {
+                continue  // not loaded yet: asked again on the next change
+            }
+            // accepted, blocked or no longer a request: nothing to announce
+            guard isMessageRequest(conversation), !blocked.contains(address) else {
+                hidden.removeAll { $0 == entry }
+                changed = true
+                continue
+            }
+            guard let label = KachatNamesRegistry.shared.cachedIdentity(for: address)?.label else { continue }
+            hidden.removeAll { $0 == entry }
+            changed = true
+            guard !notified.contains(entry) else { continue }
+            notified.append(entry)
+            let content = UNMutableNotificationContent()
+            content.title = AppLocalization.string("New message request")
+            content.body = String(format: AppLocalization.string("%@ wants to chat with you."), KachatNameLabel.display(label))
+            content.threadIdentifier = "message_requests"
+            content.sound = .default
+            UNUserNotificationCenter.current().add(UNNotificationRequest(
+                identifier: "message-request-\(address)", content: content, trigger: nil
+            ))
+        }
+        guard changed else { return }
+        if notified.count > 500 { notified.removeFirst(notified.count - 500) }
+        defaults.set(notified, forKey: notifiedKey)
+        defaults.set(hidden, forKey: hiddenKey)
+    }
+
     func shareChatRequestsWithExtension() {
+        // every request, hidden ones too: the extension stays silent for all of them
         SharedDataManager.syncChatRequestsForExtension(
-            requests: messageRequests.map(\.contact.address),
+            requests: conversations.filter { isMessageRequest($0) }.map(\.contact.address),
             blocked: Array(chatRequestState().blocked)
         )
     }
@@ -859,7 +910,6 @@ final class ChatService: ObservableObject {
         incomingResolutionWarningTxIds = []
         incomingResolutionAmountHints = [:]
         hiddenPaymentTxIdTimestamps = [:]
-        knsTransferHintsByTxId = [:]
         // The last account's drafts go to its own key and leave memory; the next account's are
         // loaded the first time a composer asks.
         flushPendingDraftSave()

@@ -1005,7 +1005,11 @@ struct KasiaTransactionBuilder {
         return try signTransaction(unsignedTx, privateKey: senderPrivateKey, utxos: selectedUtxos)
     }
 
-    // MARK: - KNS Commit-Reveal
+    // MARK: - KNS reveal recovery
+
+    // KNS is gone from K (2026-11-23), but a KNS commit whose reveal failed still holds coins that
+    // only its saved redeem script can spend: `KNSRevealRecovery` finishes those reveals, which
+    // returns the coins (audit 2026-11-24 #4). Nothing here starts a new KNS commit.
 
     struct KNSCommitContext {
         let redeemScript: Data
@@ -1014,109 +1018,6 @@ struct KasiaTransactionBuilder {
         let commitAmountSompi: UInt64
         let revealAmountSompi: UInt64
         let commitOutputIndex: UInt32
-    }
-
-    /// Build commit transaction for a KNS `addProfile` inscription. `ownerAddress`'s pubkey
-    /// is embedded in the redeem script — that's what the KNS indexer treats as the
-    /// domain/profile's owner. `fundingAddress`/`fundingPrivateKey` only pay for the commit
-    /// output (UTXO inputs, change) and sign this transaction; they never touch ownership.
-    /// Matches Android's buildAndSubmitCommit(fundingAddress:fundingPrivateKey:ownerPrivateKey:)
-    /// split, letting a spending address fund domain/profile writes while the identity
-    /// address remains the resolved owner. `changeAddress` redirects the funding change
-    /// (default: back to `fundingAddress`) - used when the primary spending address funds a
-    /// transfer and its change must land on a fresh address.
-    static func buildKNSAddProfileCommitTx(
-        ownerAddress: String,
-        fundingAddress: String,
-        fundingPrivateKey: Data,
-        payloadJSON: Data,
-        utxos: [UTXO],
-        title: String = "kns",
-        commitAmountSompi: UInt64 = 200_000_000,
-        revealAmountSompi: UInt64 = 100_000_000,
-        changeAddress: String? = nil
-    ) throws -> (transaction: KaspaRpcTransaction, context: KNSCommitContext) {
-        guard commitAmountSompi > 0 else {
-            throw KasiaError.networkError("KNS commit amount must be positive")
-        }
-
-        guard let fundingScriptPubKey = KaspaAddress.scriptPublicKey(from: fundingAddress) else {
-            throw KasiaError.invalidAddress
-        }
-        let changeScriptPubKey: Data
-        if let changeAddress {
-            guard let script = KaspaAddress.scriptPublicKey(from: changeAddress) else {
-                throw KasiaError.invalidAddress
-            }
-            changeScriptPubKey = script
-        } else {
-            changeScriptPubKey = fundingScriptPubKey
-        }
-
-        let redeemScript = try buildKNSRedeemScript(
-            walletAddress: ownerAddress,
-            title: title,
-            payloadJSON: payloadJSON
-        )
-        let commitAddress = try makeKNSCommitAddress(
-            redeemScript: redeemScript,
-            walletAddress: ownerAddress
-        )
-        guard let commitScriptPubKey = KaspaAddress.scriptPublicKey(from: commitAddress) else {
-            throw KasiaError.invalidAddress
-        }
-
-        // Priced at the change's own script, as `buildPaymentTx` does: a fresh quantum slot's
-        // P2SH script is a byte longer than the funding address's P2PK.
-        let selection = try selectUtxosForPayment(
-            utxos: utxos,
-            amount: commitAmountSompi,
-            payload: Data(),
-            recipientScriptPubKey: commitScriptPubKey,
-            senderScriptPubKey: changeScriptPubKey
-        )
-
-        var outputs: [KaspaRpcTransactionOutput] = [
-            KaspaRpcTransactionOutput(
-                value: commitAmountSompi,
-                scriptPublicKey: KaspaScriptPublicKey(version: 0, script: commitScriptPubKey)
-            )
-        ]
-        if selection.keepsChange(withRecipientAmount: commitAmountSompi) {
-            outputs.append(
-                KaspaRpcTransactionOutput(
-                    value: selection.change,
-                    scriptPublicKey: KaspaScriptPublicKey(version: 0, script: changeScriptPubKey)
-                )
-            )
-        }
-
-        let unsignedTx = KaspaRpcTransaction(
-            version: 0,
-            inputs: selection.utxos.map { utxo in
-                KaspaRpcTransactionInput(
-                    previousOutpoint: utxo.outpoint,
-                    signatureScript: Data(),
-                    sequence: 0,
-                    sigOpCount: 1
-                )
-            },
-            outputs: outputs,
-            lockTime: 0,
-            subnetworkId: standardSubnetworkId,
-            gas: 0,
-            payload: Data()
-        )
-        let signedTx = try signTransaction(unsignedTx, privateKey: fundingPrivateKey, utxos: selection.utxos)
-        let context = KNSCommitContext(
-            redeemScript: redeemScript,
-            commitAddress: commitAddress,
-            commitScriptPubKey: commitScriptPubKey,
-            commitAmountSompi: commitAmountSompi,
-            revealAmountSompi: revealAmountSompi,
-            commitOutputIndex: 0
-        )
-        return (signedTx, context)
     }
 
     /// Build reveal transaction that spends the commit output and reveals KNS data. The
@@ -1235,6 +1136,51 @@ struct KasiaTransactionBuilder {
             utxoScriptPubKey: commitContext.commitScriptPubKey,
             redeemScript: commitContext.redeemScript,
             commitAmountSompi: commitContext.commitAmountSompi
+        )
+    }
+
+    private static func signKNSRevealTransaction(
+        _ transaction: KaspaRpcTransaction,
+        privateKey: Data,
+        utxoScriptPubKey: Data,
+        redeemScript: Data,
+        commitAmountSompi: UInt64
+    ) throws -> KaspaRpcTransaction {
+        let schnorrPrivKey = try P256K.Schnorr.PrivateKey(dataRepresentation: privateKey)
+
+        let sighash = try computeSighash(
+            transaction: transaction,
+            inputIndex: 0,
+            utxoScriptPubKey: utxoScriptPubKey,
+            utxoAmount: commitAmountSompi
+        )
+        var sighashBytes = [UInt8](sighash)
+        let signature = try schnorrPrivKey.signature(message: &sighashBytes, auxiliaryRand: nil)
+        for index in sighashBytes.indices {
+            sighashBytes[index] = 0
+        }
+
+        var sigScript = Data()
+        sigScript.append(0x41) // push 65 bytes (64-byte sig + sighash type)
+        sigScript.append(Data(signature.bytes))
+        sigScript.append(0x01) // SIGHASH_ALL
+        sigScript.append(try buildCanonicalPushData(redeemScript))
+
+        let signedInput = KaspaRpcTransactionInput(
+            previousOutpoint: transaction.inputs[0].previousOutpoint,
+            signatureScript: sigScript,
+            sequence: transaction.inputs[0].sequence,
+            sigOpCount: transaction.inputs[0].sigOpCount
+        )
+
+        return KaspaRpcTransaction(
+            version: transaction.version,
+            inputs: [signedInput],
+            outputs: transaction.outputs,
+            lockTime: transaction.lockTime,
+            subnetworkId: transaction.subnetworkId,
+            gas: transaction.gas,
+            payload: transaction.payload
         )
     }
 
@@ -1791,90 +1737,6 @@ struct KasiaTransactionBuilder {
             payload: payload
         )
         return KaspaFeePolicy.minimumStandardFee(computeMass: computeMass, estimatedTransactionBytes: estimatedBytes)
-    }
-
-    private static func buildKNSRedeemScript(
-        walletAddress: String,
-        title: String,
-        payloadJSON: Data
-    ) throws -> Data {
-        guard let pubKey = KaspaAddress.publicKey(from: walletAddress),
-              pubKey.count == 32 else {
-            throw KasiaError.invalidAddress
-        }
-        let titleData = Data(title.utf8)
-        guard !titleData.isEmpty else {
-            throw KasiaError.networkError("KNS inscription title is empty")
-        }
-        guard payloadJSON.count <= 520 else {
-            throw KasiaError.networkError("KNS inscription payload exceeds 520-byte script element limit")
-        }
-
-        var script = Data()
-        script.append(0x20) // push 32-byte x-only pubkey
-        script.append(pubKey)
-        script.append(0xAC) // OP_CHECKSIG
-        script.append(0x00) // OP_FALSE
-        script.append(0x63) // OP_IF
-        script.append(try buildCanonicalPushData(titleData))
-        script.append(0x00) // add_i64(0) -> OP_0
-        script.append(try buildCanonicalPushData(payloadJSON))
-        script.append(0x68) // OP_ENDIF
-
-        return script
-    }
-
-    private static func makeKNSCommitAddress(redeemScript: Data, walletAddress: String) throws -> String {
-        guard let source = KaspaAddress(address: walletAddress) else {
-            throw KasiaError.invalidAddress
-        }
-        let scriptHash = Blake2b.hash(redeemScript, digestLength: 32)
-        return KaspaAddress(hrp: source.hrp, type: .scriptHash, payload: scriptHash).address
-    }
-
-    private static func signKNSRevealTransaction(
-        _ transaction: KaspaRpcTransaction,
-        privateKey: Data,
-        utxoScriptPubKey: Data,
-        redeemScript: Data,
-        commitAmountSompi: UInt64
-    ) throws -> KaspaRpcTransaction {
-        let schnorrPrivKey = try P256K.Schnorr.PrivateKey(dataRepresentation: privateKey)
-
-        let sighash = try computeSighash(
-            transaction: transaction,
-            inputIndex: 0,
-            utxoScriptPubKey: utxoScriptPubKey,
-            utxoAmount: commitAmountSompi
-        )
-        var sighashBytes = [UInt8](sighash)
-        let signature = try schnorrPrivKey.signature(message: &sighashBytes, auxiliaryRand: nil)
-        for index in sighashBytes.indices {
-            sighashBytes[index] = 0
-        }
-
-        var sigScript = Data()
-        sigScript.append(0x41) // push 65 bytes (64-byte sig + sighash type)
-        sigScript.append(Data(signature.bytes))
-        sigScript.append(0x01) // SIGHASH_ALL
-        sigScript.append(try buildCanonicalPushData(redeemScript))
-
-        let signedInput = KaspaRpcTransactionInput(
-            previousOutpoint: transaction.inputs[0].previousOutpoint,
-            signatureScript: sigScript,
-            sequence: transaction.inputs[0].sequence,
-            sigOpCount: transaction.inputs[0].sigOpCount
-        )
-
-        return KaspaRpcTransaction(
-            version: transaction.version,
-            inputs: [signedInput],
-            outputs: transaction.outputs,
-            lockTime: transaction.lockTime,
-            subnetworkId: transaction.subnetworkId,
-            gas: transaction.gas,
-            payload: transaction.payload
-        )
     }
 
     private static func canonicalPushDataSize(_ dataLength: Int) -> Int {

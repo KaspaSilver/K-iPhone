@@ -5,9 +5,8 @@ import SwiftUI
 /// derivation chain of the wallet's source family (standard m/44'/111111'/0'/0/<index>, or the
 /// family chosen at import - legacy 972, OneKey; single-address families like Chainge have only
 /// index 0 and no further scanning) in batches of 50, checking every derived address
-/// in batch for KAS balance (one pooled `getUtxosByAddresses` call), KNS domains (the
-/// `KNSService.refreshIfNeeded` capped batch lookup) and .k / .kaspa names
-/// (`NameServicesClient.ownedNames(of:)`, a few at a time), then lists only the interesting slots:
+/// in batch for KAS balance (one pooled `getUtxosByAddresses` call) and .kachat names
+/// (`NameServicesClient.kachatNames(of:)`), then lists only the interesting slots:
 /// nonzero balance or at least one domain, plus always index 0. Tapping a row opens a detail
 /// sheet with the full address, balance and domain cards, and a "Set as Chatting Address" button
 /// that performs the clean identity switch (`WalletManager.setChattingAddress`) and pops back to
@@ -58,7 +57,7 @@ struct ChattingAddressPickerView: View {
                     Text("Choose Your Chatting Address")
                         .font(.title3.weight(.bold))
                         .multilineTextAlignment(.center)
-                    Text("If these words already hold your identity at a different address - a domain (.kachat, .kas, .k or .kaspa) or a funded chatting balance - pick it here. Only addresses with a balance or domains are shown.")
+                    Text("If these words already hold your identity at a different address - a .kachat name or a funded chatting balance - pick it here. Only addresses with a balance or names are shown.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -199,8 +198,8 @@ struct ChattingAddressPickerView: View {
     }
 }
 
-/// Detail sheet for one scanned identity slot: full address (tap to copy), balance, KNS domains
-/// rendered with the app's standard `KNSDomainCard` style, and the prominent
+/// Detail sheet for one scanned identity slot: full address (tap to copy), balance, .kachat names
+/// rendered with the app's standard `DomainNameCardView` style, and the prominent
 /// "Set as Chatting Address" action at the bottom. When the current identity already has synced
 /// conversations the button stays enabled but confirms first: the user's intent is a fresh
 /// start with this seed, and switching only parks the old address's history (it lives on-chain
@@ -268,34 +267,6 @@ struct ChattingAddressDetailView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    if !candidate.otherNames.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(".k and .kaspa Names (\(candidate.otherNames.count))")
-                                .font(.subheadline.weight(.semibold))
-                            ForEach(candidate.otherNames) { name in
-                                DomainNameCardView(
-                                    title: name.display,
-                                    badge: name.isProvisional ? AppLocalization.string("Settling") : nil
-                                )
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    if !candidate.domains.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(".kas Names (\(candidate.domains.count))")
-                                .font(.subheadline.weight(.semibold))
-                            ForEach(candidate.domains) { domain in
-                                KNSDomainCard(
-                                    domain: domain,
-                                    isPrimary: isPrimaryDomain(domain)
-                                )
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
                     if let errorMessage {
                         Text(errorMessage)
                             .font(.caption)
@@ -358,11 +329,6 @@ struct ChattingAddressDetailView: View {
 
     private var setButtonDisabled: Bool {
         isCurrent || isSwitching
-    }
-
-    private func isPrimaryDomain(_ domain: KNSDomain) -> Bool {
-        guard let primary = candidate.primaryDomain else { return false }
-        return domain.fullName.lowercased() == primary.lowercased()
     }
 
     private func setAsChattingAddress() async {

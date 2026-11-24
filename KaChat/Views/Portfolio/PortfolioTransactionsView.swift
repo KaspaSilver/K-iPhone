@@ -705,7 +705,7 @@ private struct AddPortfolioAddressSheet: View {
                     }
                 } else {
                     Section {
-                        TextField("kaspa:qr... or domain", text: $addressText)
+                        TextField("kaspa:qr... or username", text: $addressText)
                             .font(.system(.body, design: .monospaced))
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
@@ -714,15 +714,6 @@ private struct AddPortfolioAddressSheet: View {
                             AddressResolutionCard(address: resolvedAddress ?? (KaspaAddress.isValid(trimmedInput) ? trimmedInput : nil), domain: resolvedDomain)
 
                         validationStatus
-                        if !isResolvingKNS {
-                            OtherDomainsDropdown(resolutions: nameResolutions, selected: selectedTLD) { resolution in
-                                guard let address = resolution.address else { return }
-                                resolvedAddress = address
-                                resolvedDomain = resolution.display
-                                selectedTLD = resolution.tld
-                                knsNotFound = false
-                            }
-                        }
 
                         HStack {
                             Button {
@@ -741,7 +732,7 @@ private struct AddPortfolioAddressSheet: View {
                         }
                         .buttonStyle(.borderless)
                     } footer: {
-                        Text("Enter a Kaspa address or a domain like name.kachat (.kachat names are looked up first). Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import.")
+                        Text("Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import.")
                     }
                 }
             }
@@ -789,7 +780,7 @@ private struct AddPortfolioAddressSheet: View {
         } else if isResolvingKNS {
             HStack(spacing: 6) {
                 ProgressView().scaleEffect(0.8)
-                Text("Looking up domain...")
+                Text("Looking up username...")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

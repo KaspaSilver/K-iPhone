@@ -12,10 +12,23 @@ struct ChessBotGameView: View {
     }
 }
 
+/// A bot game on screen, for `ArcadeLinkRouter.isBusy`: cleared when the screen is gone
+/// (audit 2026-11-24 #11).
+private final class ChessBotBusyToken: ObservableObject {
+    let id = UUID().uuidString
+
+    deinit {
+        let id = id
+        Task { @MainActor in ArcadeLinkRouter.shared.botGame(id, running: false) }
+    }
+}
+
 /// The board against the bot, laid out like the online board: who you play and where the game
 /// stands, the board, then where the game's stamp on chain stands and the moves so far.
 private struct ChessBotMatchView: View {
     @StateObject private var game: ChessBotGame
+    /// Marks a bot game in progress for `ArcadeLinkRouter` while this screen lives.
+    @StateObject private var busy = ChessBotBusyToken()
     let onPlayAgain: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -27,8 +40,29 @@ private struct ChessBotMatchView: View {
     @State private var showEnd = false
     /// Done, Play again or Back with a win whose stamp failed: leaving loses the stamp, so it asks.
     @State private var pendingLeave: LeaveAction?
+    /// Share to KaPost: KaPost's composer over the board, with the post written (owner,
+    /// 2026-11-24: you stay in KaPlay).
+    @State private var shareText: ShareText?
+    /// Where Share to KaPost stands: posting, shared or not confirmed keep it off, so the win is
+    /// never posted twice (audit 2026-11-24 #8).
+    @State private var share: ShareState = .none
+    @State private var notice: String?
+    @State private var noticeStyle: ToastStyle = .success
 
     private enum LeaveAction { case playAgain, done }
+
+    private enum ShareState: Equatable {
+        case none, posting, shared
+        /// The post may have gone out: no second Share.
+        case unconfirmed
+        /// It definitely didn't go: Share is on again.
+        case failed(String)
+    }
+
+    private struct ShareText: Identifiable {
+        let text: String
+        var id: String { text }
+    }
 
     private var winStampFailed: Bool {
         guard case .won? = game.result, case .failed = game.stamp else { return false }
@@ -130,7 +164,35 @@ private struct ChessBotMatchView: View {
         .sheet(item: $pendingPromotion) { move in
             promotionSheet(move)
         }
-        .onAppear { game.start() }
+        .fullScreenCover(item: $shareText) { share in
+            KaPostQuickComposer(text: share.text, onPosting: {
+                self.share = .posting
+                showNotice(AppLocalization.string("Posting to KaPost…"), style: .success)
+            }, onResult: { result in
+                switch result {
+                case .success:
+                    self.share = .shared
+                    showNotice(AppLocalization.string("Posted to KaPost"), style: .success)
+                case .failure(let error) where error is SendOutcomeUnknownError:
+                    self.share = .unconfirmed
+                    showNotice(SendOutcomeUnknownError.message, style: .error)
+                case .failure(let error):
+                    let message = PublicChatService.friendlySendErrorMessage(for: error)
+                    self.share = .failed(message)
+                    showNotice(message, style: .error)
+                }
+            })
+        }
+        .toast(message: notice, style: noticeStyle)
+        // While the bot's board is up, an arcade challenge link waits instead of popping it
+        // (audit 2026-11-24 #11): through the game, and past its end too, so a win isn't
+        // swept away while its stamp goes out or its result is read. Done or Back lets it
+        // through. Not cleared in onDisappear, which a hidden Kaspa Hub section can fire with
+        // the game still on: the token's deinit clears it when the screen goes.
+        .onAppear {
+            game.start()
+            ArcadeLinkRouter.shared.botGame(busy.id, running: true)
+        }
         .onChange(of: game.result) { result in
             guard let result else { return }
             selectedSquare = nil
@@ -399,7 +461,13 @@ private struct ChessBotMatchView: View {
     private var shareButton: some View {
         let title: LocalizedStringKey = {
             switch game.stamp {
-            case .stamped: return "Share to KaPost"
+            case .stamped:
+                switch share {
+                case .posting: return "Posting to KaPost…"
+                case .shared: return "Shared to KaPost"
+                case .unconfirmed: return "Not confirmed"
+                case .none, .failed: return "Share to KaPost"
+                }
             case .failed: return "Retry the stamp"
             case .unconfirmed: return "Not confirmed"
             case .none, .sending: return "Stamping the result…"
@@ -409,7 +477,7 @@ private struct ChessBotMatchView: View {
             switch game.stamp {
             case .stamped:
                 Haptics.impact(.light)
-                ChessBotLinks.shareToKaPosts(bot: bot, moves: game.playerMoveCount, gameId: game.id)
+                shareText = ChessBotLinks.shareText(bot: bot, moves: game.playerMoveCount, gameId: game.id).map(ShareText.init)
             case .failed:
                 game.retry()
             case .none, .sending, .unconfirmed:
@@ -425,7 +493,22 @@ private struct ChessBotMatchView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
-        .disabled(game.stamp == .sending || game.stamp == .none || isUnconfirmed)
+        .disabled(game.stamp == .sending || game.stamp == .none || isUnconfirmed || !shareAvailable)
+    }
+
+    private var shareAvailable: Bool {
+        switch share {
+        case .none, .failed: return true
+        case .posting, .shared, .unconfirmed: return false
+        }
+    }
+
+    private func showNotice(_ text: String, style: ToastStyle) {
+        noticeStyle = style
+        notice = text
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if notice == text { notice = nil }
+        }
     }
 
     // MARK: - Resign

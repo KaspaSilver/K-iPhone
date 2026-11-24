@@ -11,13 +11,16 @@ final class TrestlyApproval: Identifiable {
     let seen: [String: Any]?
     /// The connected address's name.
     let from: String
+    /// Asked from K's own Swap screen, not by Trestly's site.
+    let native: Bool
     var answer: ((Bool) -> Void)?
 
-    init(method: String, prepared: [String: Any], seen: [String: Any]?, from: String) {
+    init(method: String, prepared: [String: Any], seen: [String: Any]?, from: String, native: Bool = false) {
         self.method = method
         self.prepared = prepared
         self.seen = seen
         self.from = from
+        self.native = native
     }
 
     /// Answers once; later calls do nothing.
@@ -74,7 +77,7 @@ struct TrestlyApprovalSheet: View {
                     HStack(spacing: 10) {
                         TokenIcon(token: .kusdt, size: 36)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Trestly asks K to")
+                            Text(request.native ? "Through Trestly's pool" : "Trestly asks K to")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             Text(title)
@@ -176,7 +179,7 @@ struct TrestlyApprovalSheet: View {
             if let before = TrestlyApproval.number(request.seen?["quote"]) {
                 line("You Saw", Text(verbatim: received(before)))
             }
-            line("Minimum the Site Set", Text(verbatim: received(request.number("minOut"))))
+            line(request.native ? "Minimum You Get" : "Minimum the Site Set", Text(verbatim: received(request.number("minOut"))))
             if isBuy {
                 line("Kept in Your Token", Text(verbatim: kas(request.number("tokenValue"))))
             }
@@ -198,7 +201,9 @@ struct TrestlyApprovalSheet: View {
                         : AppLocalization.string("No sell fits until the limit refills."))
         }
         if request.flag("belowMinimum") {
-            list.append(AppLocalization.string("The pool pays less than the site's minimum right now, so this would be refused."))
+            list.append(AppLocalization.string(request.native
+                ? "The pool pays less than your minimum right now, so this would be refused. Go back and get a new quote."
+                : "The pool pays less than the site's minimum right now, so this would be refused."))
         }
         if request.flag("offRatio") {
             list.append(AppLocalization.string("These amounts are too far off the pool's ratio: what's above it would go to the pool for nothing."))
@@ -213,7 +218,9 @@ struct TrestlyApprovalSheet: View {
     }
 
     private var note: String {
-        request.method == "kusdt_swap"
+        request.method == "kusdt_swap" && request.native
+            ? AppLocalization.string("Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below your minimum, 1% under the quote.")
+            : request.method == "kusdt_swap"
             ? AppLocalization.string("Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below the site's minimum.")
             : AppLocalization.string("Built and checked by Trestly's own code inside K. If the pool moves first and gives less, K asks you again; it never takes below 99% of this quote.")
     }

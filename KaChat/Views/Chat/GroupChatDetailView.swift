@@ -57,10 +57,11 @@ struct GroupChatDetailView: View {
     let group: GroupChat
     var onDeleted: (() -> Void)? = nil
     @EnvironmentObject var groupChatService: GroupChatService
-    @ObservedObject private var knsService = KNSService.shared
     @EnvironmentObject var walletManager: WalletManager
     @EnvironmentObject var contactsManager: ContactsManager
-    @EnvironmentObject var chatService: ChatService
+    /// Not observed: the group screen only keeps its draft there, and observing it redrew the
+    /// whole group thread on every 1:1 sync and sweep.
+    private var chatService: ChatService { ChatService.shared }
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     /// The composer's text, held by reference so a keystroke doesn't redraw the whole chat
     /// (see `ChatDetailView.messageText`): `draft` setter redraws, typing doesn't.
@@ -70,6 +71,9 @@ struct GroupChatDetailView: View {
     @State private var composerPaymentRequest: PaymentRequest?
     @State private var composerRevision = 0
     @State private var composerHeight: CGFloat = 0
+    /// The account the draft was loaded for, so leaving after an account switch doesn't file
+    /// this group's draft under the new account (audit 2026-11-24 #16).
+    @State private var draftOwnerAddress: String?
     private var draft: String {
         get { composerBox.text }
         nonmutating set {
@@ -512,11 +516,6 @@ struct GroupChatDetailView: View {
                                         RoundedRectangle(cornerRadius: 12)
                                             .fill(highlightedMessageID == message.id ? Color.accentColor.opacity(0.18) : Color.clear)
                                     )
-                                    .task(id: message.senderAddress) {
-                                        guard let address = message.senderAddress, address != myAddress,
-                                              knsService.profileCache[address] == nil else { return }
-                                        _ = await knsService.fetchProfile(for: address)
-                                    }
                                     .onAppear {
                                         // Reached the oldest rendered message - grow the window so
                                         // older history loads on scroll-up. `.defaultScrollAnchor(.bottom)`
@@ -735,14 +734,7 @@ struct GroupChatDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // The info button is gone: tapping the header opens Group Info, exactly as it does
-            // in a 1:1 chat, so the trailing slot is free for the connection dot to sit where
-            // 1:1 puts it. Hidden while selecting, where the bar is Cancel/Delete.
-            if !isSelectingMessages {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ConnectionStatusIndicator()
-                }
-            }
+            // No info button: tapping the header opens Group Info, exactly as it does in a 1:1 chat.
             // Entry point into select mode is a message's long-press "Select" menu item (see
             // `enterSelectMode(with:)`), not a toolbar button - this only ever shows Cancel/Delete
             // once already selecting.
@@ -807,7 +799,7 @@ struct GroupChatDetailView: View {
                     .map { ReactionsSheet.Entry(emoji: $0.emoji, reactorAddress: $0.reactorAddress) },
                 myAddress: myAddress ?? "",
                 displayName: { displayName(for: $0) },
-                avatarURL: { knsService.profileCache[$0]?.avatarURL }
+                avatarURL: { _ in nil }
             )
         }
         .sheet(isPresented: $showInfo) {
@@ -869,6 +861,7 @@ struct GroupChatDetailView: View {
         .task(id: timelineCacheKey) { rebuildTimelineIfNeeded() }
         .task {
             // What was typed here last time, exactly as 1:1 chats do.
+            draftOwnerAddress = walletManager.currentWallet?.publicAddress.lowercased()
             if draft.isEmpty {
                 let saved = chatService.draft(for: "group:\(group.id)")
                 if !saved.isEmpty { draft = saved }
@@ -876,17 +869,14 @@ struct GroupChatDetailView: View {
             groupChatService.loadMessages(for: group.id)
             groupChatService.enterGroup(group.id)
             groupChatService.markGroupAsRead(group.id)
-            if let myAddress, knsService.profileCache[myAddress] == nil {
-                _ = await knsService.fetchProfile(for: myAddress)
-            }
-            // Warm every member's explicit-primary-KNS status before the user starts typing, so
-            // the @mention autocomplete doesn't come up empty on a freshly-opened thread.
-            if KNSService.showsDomainNamesAsIdentity {
-                await knsService.refreshIfNeeded(for: group.members.map(\.address))
-            }
         }
         .onDisappear {
-            chatService.setDraft(draft, for: "group:\(group.id)")
+            // Only for the account it was typed in: after a switch it would land in the new
+            // account's drafts (audit 2026-11-24 #16).
+            if let draftOwnerAddress,
+               draftOwnerAddress == walletManager.currentWallet?.publicAddress.lowercased() {
+                chatService.setDraft(draft, for: "group:\(group.id)")
+            }
             groupChatService.exitGroup()
             // Leaving ends a recording, as in 1:1: the mic must not stay on behind another
             // screen, and the temp files go with it.
@@ -1404,24 +1394,10 @@ struct GroupChatDetailView: View {
         return true
     }
 
-    /// Members mentionable via the inline "@" autocomplete - only those with an explicit
-    /// primary KNS domain set (see `KNSAddressInfo.explicitPrimaryDomain`'s doc comment for why
-    /// this can't reuse the general fallback-inclusive `primaryDomain`/`displayName(for:)`),
-    /// excluding self, filtered by `query` (case-insensitive substring match against the
-    /// domain) when non-empty.
+    /// Members mentionable via the inline "@" autocomplete: those with an explicit primary .kas
+    /// name, which K no longer reads (2026-11-23), so none.
     private func mentionCandidates(for query: String) -> [(member: GroupMember, domain: String)] {
-        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return group.members.compactMap { member -> (member: GroupMember, domain: String)? in
-            guard member.address != myAddress,
-                  let domain = knsService.identityInfo(for: member.address)?.explicitPrimaryDomain,
-                  !domain.isEmpty else {
-                return nil
-            }
-            guard normalizedQuery.isEmpty || domain.lowercased().contains(normalizedQuery) else {
-                return nil
-            }
-            return (member, domain)
-        }
+        []
     }
 
     /// Safety cap on how many matches are considered at all, well above what anyone would
@@ -1548,13 +1524,18 @@ struct GroupChatDetailView: View {
             if !composerHasText {
                 plusMenu
             } else {
+                // the same send button as a 1:1 chat's (`ChatDetailView.sendButton`)
                 Button {
                     send()
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
-                        .font(.scaled(size: 30))
+                        .font(.title)
                         .foregroundColor(.accentColor)
+                        .frame(width: 44, height: 44)
+                        .background(glassBackground(cornerRadius: 14))
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Send"))
             }
         }
     }
@@ -2017,7 +1998,7 @@ struct GroupChatDetailView: View {
         // show something sensible. A member with no explicit primary returns "" here, which
         // GroupMentionCodec.encodeForSending already skips.
         return GroupMentionCodec.encodeForSending(text, members: group.members) { address in
-            knsService.identityInfo(for: address)?.explicitPrimaryDomain ?? ""
+            _ = address; return ""
         }
     }
 
@@ -2624,9 +2605,9 @@ struct GroupChatDetailView: View {
         let bubble = GroupMessageBubbleRow(
             message: voiceGroup?.displayMessage ?? message,
             group: group,
-            avatarURLString: message.senderAddress.flatMap { knsService.profileCache[$0]?.avatarURL },
+            avatarURLString: nil,
             senderDisplayName: message.senderAddress.map { $0 == myAddress ? "You" : displayName(for: $0) } ?? "Unknown",
-            myAvatarURLString: myAddress.flatMap { knsService.profileCache[$0]?.avatarURL },
+            myAvatarURLString: nil,
             replySenderDisplayName: MessageReplyCodec.parse(message.content).map { replyDisplayName(for: $0.replyToSender) },
             onCopy: showToast,
             onViewProfile: viewProfile,
@@ -2710,7 +2691,11 @@ struct GroupChatDetailView: View {
     /// nested inside string interpolation there was making the compiler unable to type-check the
     /// `.alert` expression in reasonable time (same fix as `ChatListView`'s bulk-delete alert).
     private var deleteMessagesAlertTitle: String {
-        "Delete \(selectedMessageIDs.count) Message\(selectedMessageIDs.count == 1 ? "" : "s")?"
+        // One key per form, not an English "s" glued on (audit 2026-11-24 #34).
+        let count = selectedMessageIDs.count
+        return count == 1
+            ? AppLocalization.string("Delete 1 Message?")
+            : String(format: AppLocalization.string("Delete %lld Messages?"), count)
     }
 
     /// Selection-mode tap catcher + indicator, split out of `groupMessageRow` (see its own
@@ -2839,7 +2824,6 @@ private struct GroupMessageBubbleRow: View {
     // No `groupChatService` here: nothing in the row reads it, and observing it redrew every
     // visible row on each of the service's updates.
     @EnvironmentObject var contactsManager: ContactsManager
-    @ObservedObject private var knsService = KNSService.shared
     /// Long-pressing a link surfaces this instead of the bubble's message sheet (the link
     /// recognizer fires first and the sheet stands down - see `LinkLongPress`); matches 1:1
     /// chat's own `linkMenuURL`.
@@ -2887,9 +2871,24 @@ private struct GroupMessageBubbleRow: View {
 
     /// The reply's own text, or the raw content when this isn't a reply - with any `@{address}`
     /// mentions swapped back to friendly `@DisplayName` form, see `GroupMentionCodec`.
+    /// Read several times per draw: the mention decoding is remembered per message (it scanned
+    /// the whole content each time, tens of KB for a photo or voice part).
+    private static let displayMemo: NSCache<NSString, NSString> = {
+        let cache = NSCache<NSString, NSString>()
+        cache.countLimit = 1_000
+        return cache
+    }()
+
     private var displayContent: String {
         let raw = replyQuote?.text ?? message.content
-        return GroupMentionCodec.decodeForDisplay(raw, members: group.members, resolveDisplayName: resolveDisplayName(for:))
+        // The text itself and the names revision are in the key: an edit keeps the id (and
+        // often the length), and renames or Show .kachat Endings change the decoded names
+        // (audit 2026-11-24 #10).
+        let key = "\(group.id)|\(message.id.uuidString)|\(groupMemoContentStamp(raw))|\(group.members.count)|\(KachatNamesRegistry.shared.identityRevision)|\(GroupDisplayNamesRevision.shared.value)" as NSString
+        if let cached = Self.displayMemo.object(forKey: key) { return cached as String }
+        let text = GroupMentionCodec.decodeForDisplay(raw, members: group.members, resolveDisplayName: resolveDisplayName(for:))
+        Self.displayMemo.setObject(text as NSString, forKey: key)
+        return text
     }
 
     /// A link back into KaChat (a shared profile or payment request) in this message.
@@ -2911,7 +2910,6 @@ private struct GroupMessageBubbleRow: View {
     /// Label to show for a mention: the person's KNS domain (what the user asked to see), else the
     /// friendly display name. Read from the synchronous KNS cache.
     private func mentionLabel(for address: String) -> String {
-        if let domain = knsService.identityInfo(for: address)?.explicitPrimaryDomain, !domain.isEmpty { return domain }
         return resolveDisplayName(for: address)
     }
 
@@ -3280,7 +3278,6 @@ struct GroupChatInfoView: View {
     @EnvironmentObject var groupChatService: GroupChatService
     @EnvironmentObject var contactsManager: ContactsManager
     @EnvironmentObject var walletManager: WalletManager
-    @ObservedObject private var knsService = KNSService.shared
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirmation = false
     @State private var profileContact: Contact?
@@ -3340,7 +3337,7 @@ struct GroupChatInfoView: View {
             do {
                 if let address { try await groupChatService.resendInvite(to: address, groupId: group.id) }
                 else { try await groupChatService.resendInvites(group.id) }
-                await MainActor.run { resendMessage = address == nil ? "Invites resent to all members." : "Invite resent." }
+                await MainActor.run { resendMessage = AppLocalization.string(address == nil ? "Invites resent to all members." : "Invite resent.") }
             } catch {
                 await MainActor.run { resendMessage = UserFacingError.message(for: error) }
             }
@@ -3363,21 +3360,31 @@ struct GroupChatInfoView: View {
     /// A short " Estimated network fee ≈ X KAS across N transactions." line for a confirm dialog.
     private func groupFeeSuffix(controlTx: Int, photoTx: Int = 0) -> String {
         let n = controlTx + photoTx
-        let plural = n == 1 ? "" : "s"
-        guard let kas = groupChatService.estimateGroupActionFeeKas(groupId: group.id, controlTx: controlTx, photoTx: photoTx) else {
-            return "\n\n(\(n) network transaction\(plural).)"
-        }
-        return "\n\nEstimated network fee ≈ \(kas) \(KaspaUnit.symbol) across \(n) transaction\(plural)."
+        let kas = groupChatService.estimateGroupActionFeeKas(groupId: group.id, controlTx: controlTx, photoTx: photoTx)
+        return Self.feeSuffix(transactions: n, kas: kas)
     }
 
     /// Fee suffix for setting a NEW photo (estimated from its own size, not the stored one).
     private func groupPhotoFeeSuffix(hexLength: Int) -> String {
         let n = otherMemberCount
-        let plural = n == 1 ? "" : "s"
-        guard n > 0, let kas = groupChatService.estimateGroupPhotoFeeKas(hexLength: hexLength, txCount: n) else {
-            return "\n\n(\(n) network transaction\(plural).)"
+        let kas = n > 0 ? groupChatService.estimateGroupPhotoFeeKas(hexLength: hexLength, txCount: n) : nil
+        return Self.feeSuffix(transactions: n, kas: kas)
+    }
+
+    /// The fee line under a group action's question, translated, one key per form (it was
+    /// English with a glued "s", inside otherwise translated dialogs; audit 2026-11-24 #33/#34).
+    static func feeSuffix(transactions n: Int, kas: String?) -> String {
+        let line: String
+        if let kas {
+            line = n == 1
+                ? String(format: AppLocalization.string("Estimated network fee ≈ %@ %@ across 1 transaction."), kas, KaspaUnit.symbol)
+                : String(format: AppLocalization.string("Estimated network fee ≈ %@ %@ across %lld transactions."), kas, KaspaUnit.symbol, n)
+        } else {
+            line = n == 1
+                ? AppLocalization.string("(1 network transaction.)")
+                : String(format: AppLocalization.string("(%lld network transactions.)"), n)
         }
-        return "\n\nEstimated network fee ≈ \(kas) \(KaspaUnit.symbol) across \(n) transaction\(plural)."
+        return "\n\n" + line
     }
 
     /// Same resolution 1:1 and the message list use (contact alias, then KNS domain, then
@@ -3546,7 +3553,7 @@ struct GroupChatInfoView: View {
         let memberLabel = displayName(for: member.address)
         return HStack(spacing: 12) {
             KNSAvatarView(
-                avatarURLString: knsService.profileCache[member.address]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: memberLabel,
                 size: 32,
                 contactAddress: member.address
@@ -3574,26 +3581,30 @@ struct GroupChatInfoView: View {
             // Admin-only per-member actions (visible buttons, each confirmed first),
             // matching Android/desktop. .borderless so each taps independently of the row.
             if group.isAdmin && member.address != myAddress {
+                // Named for VoiceOver and given a 44 pt target: icon only, they were ~20 pt
+                // and unnamed (audit 2026-11-24 #39).
                 Button { memberToResend = member } label: {
                     Image(systemName: "arrow.clockwise")
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .tint(.accentColor)
+                .accessibilityLabel(Text("Resend invite"))
                 Button { memberToRemove = member } label: {
                     Image(systemName: "trash")
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .tint(.red)
+                .accessibilityLabel(Text("Remove member"))
             }
         }
         .contentShape(Rectangle())
         .onTapGesture {
             profileContact = contactsManager.getContact(byAddress: member.address)
                 ?? contactsManager.getOrCreateContact(address: member.address)
-        }
-        .task {
-            guard knsService.profileCache[member.address] == nil else { return }
-            _ = await knsService.fetchProfile(for: member.address)
         }
     }
 
@@ -3635,7 +3646,8 @@ struct GroupChatInfoView: View {
             .alert("Resend Invites", isPresented: isResendMessagePresented) {
                 Button("OK", role: .cancel) { resendMessage = nil }
             } message: {
-                Text(resendMessage ?? "")
+                // Already translated where it's set; a String would show as is.
+                Text(verbatim: resendMessage ?? "")
             }
             .alert("Resend invite", isPresented: isResendMemberPresented) {
                 Button("Send") { if let m = memberToResend { resendInvites(to: m.address) }; memberToResend = nil }
@@ -3772,7 +3784,6 @@ private struct HiddenGroupMembersView: View {
     let group: GroupChat
     @EnvironmentObject var groupChatService: GroupChatService
     @EnvironmentObject var contactsManager: ContactsManager
-    @ObservedObject private var knsService = KNSService.shared
     @Environment(\.dismiss) private var dismiss
 
     private func displayName(for address: String) -> String {
@@ -3794,7 +3805,7 @@ private struct HiddenGroupMembersView: View {
                     ForEach(hidden, id: \.self) { address in
                         HStack(spacing: 12) {
                             KNSAvatarView(
-                                avatarURLString: knsService.profileCache[address]?.avatarURL,
+                                avatarURLString: nil,
                                 fallbackText: displayName(for: address),
                                 size: 32,
                                 contactAddress: address
@@ -3915,10 +3926,8 @@ private struct AddGroupMembersView: View {
         let controlTx = k * (2 * finalOthers + 1)
         let photoTx = hasPhoto ? k * finalOthers : 0
         let n = controlTx + photoTx
-        guard let kas = groupChatService.estimateGroupActionFeeKas(groupId: group.id, controlTx: controlTx, photoTx: photoTx) else {
-            return "\n\n(\(n) network transaction\(n == 1 ? "" : "s").)"
-        }
-        return "\n\nEstimated network fee ≈ \(kas) \(KaspaUnit.symbol) across \(n) transaction\(n == 1 ? "" : "s")."
+        let kas = groupChatService.estimateGroupActionFeeKas(groupId: group.id, controlTx: controlTx, photoTx: photoTx)
+        return GroupChatInfoView.feeSuffix(transactions: n, kas: kas)
     }
 
     /// Contacts not already in the group, filtered by the search box (name or address).
@@ -3947,7 +3956,12 @@ private struct AddGroupMembersView: View {
             await MainActor.run {
                 isAdding = false
                 if failures == 0 { dismiss() }
-                else { resultMessage = "\(failures) member(s) could not be added. Please try again." }
+                else {
+                    // Translated, one key per form (audit 2026-11-24 #33/#34).
+                    resultMessage = failures == 1
+                        ? AppLocalization.string("1 member could not be added. Please try again.")
+                        : String(format: AppLocalization.string("%lld members could not be added. Please try again."), failures)
+                }
             }
         }
     }
@@ -3955,14 +3969,14 @@ private struct AddGroupMembersView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Search contacts, or an address or domain", text: $searchText)
+                TextField("Search contacts, or an address or username", text: $searchText)
                     .autocapitalization(.none)
                     .autocorrectionDisabled()
                     .onChange(of: searchText) { _ in resolveTypedDomain() }
                 if isResolvingDomain {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("Looking up domain...").font(.caption).foregroundColor(.secondary)
+                        Text("Looking up username...").font(.caption).foregroundColor(.secondary)
                     }
                 } else if let resolvedDomainAddress, let resolvedDomainName {
                     VStack(alignment: .leading, spacing: 2) {
@@ -3979,9 +3993,6 @@ private struct AddGroupMembersView: View {
                     Label(domainNotFound, systemImage: "xmark.circle.fill")
                         .font(.caption)
                         .foregroundColor(.red)
-                }
-                if !isResolvingDomain {
-                    OtherDomainsDropdown(resolutions: nameResolutions, selected: selectedTLD, onSelect: selectResolution)
                 }
                 if let typedAddress {
                     Button {
@@ -4000,11 +4011,17 @@ private struct AddGroupMembersView: View {
             }
             Section {
                 if contactsManager.activeContacts.isEmpty {
-                    Text("You have no contacts yet. Paste an address or a domain above to invite someone.")
+                    Text("You have no contacts yet. Paste an address or a username above to invite someone.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else if candidates.isEmpty {
-                    Text(searchText.isEmpty ? "Everyone in your contacts is already in this group." : "No contacts match your search. Paste an address or a domain to invite someone new.")
+                    Group {
+                        if searchText.isEmpty {
+                            Text("Everyone in your contacts is already in this group.")
+                        } else {
+                            Text("No contacts match your search. Paste an address or a username to invite someone new.")
+                        }
+                    }
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else {

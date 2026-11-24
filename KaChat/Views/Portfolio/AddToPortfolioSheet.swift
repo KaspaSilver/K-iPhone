@@ -165,7 +165,7 @@ struct AddToPortfolioSheet: View {
             if alreadyInPortfolio {
                 Section {
                     Label(
-                        "This transaction is already in \(selected?.name ?? "this portfolio"). Adding it again will double-count it.",
+                        "This transaction is already in \(selected?.name ?? AppLocalization.string("this portfolio")). Adding it again will double-count it.",
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .font(.footnote)

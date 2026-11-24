@@ -469,11 +469,22 @@ struct AnimatedImageView: UIViewRepresentable {
 final class ImageAnimationPlayer {
     private var generation = 0
     private var playing: Data?
+    /// Where the playing bytes live: the same buffer handed in again (every redraw of the chat
+    /// while it scrolls) is known at once, without comparing the whole GIF byte by byte.
+    private var playingAddress: UnsafeRawPointer?
+
+    private func isPlaying(_ data: Data) -> Bool {
+        guard let playing, playing.count == data.count else { return false }
+        let address = data.withUnsafeBytes { UnsafeRawPointer($0.baseAddress) }
+        if let address, address == playingAddress { return true }
+        return playing == data
+    }
 
     func play(_ data: Data, in view: UIImageView) {
-        guard playing != data else { return }
+        guard !isPlaying(data) else { return }
         stop()
         playing = data
+        playingAddress = data.withUnsafeBytes { UnsafeRawPointer($0.baseAddress) }
         // Callers check this off the main thread already; checked again here because one frame
         // of an unchecked file can be gigabytes. `playing` is set first so it's checked once.
         guard GIFPrep.isSafeToAnimate(data) else { return }
@@ -490,5 +501,6 @@ final class ImageAnimationPlayer {
     func stop() {
         generation &+= 1
         playing = nil
+        playingAddress = nil
     }
 }

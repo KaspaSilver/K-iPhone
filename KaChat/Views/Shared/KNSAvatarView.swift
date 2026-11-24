@@ -1104,46 +1104,6 @@ private func sha256Hex(_ data: Data) -> String {
     return digest.map { String(format: "%02x", $0) }.joined()
 }
 
-enum KNSProfileImagePrefetcher {
-    static func preload(rawURLStrings: [String], maxConcurrent: Int = 6) async {
-        let uniqueDescriptors: [KNSProfileImageDescriptor] = {
-            var seen: Set<String> = []
-            var descriptors: [KNSProfileImageDescriptor] = []
-            for raw in rawURLStrings {
-                guard let descriptor = KNSProfileImageDescriptor.from(raw: raw) else { continue }
-                guard !seen.contains(descriptor.cacheIdentity) else { continue }
-                seen.insert(descriptor.cacheIdentity)
-                descriptors.append(descriptor)
-            }
-            return descriptors
-        }()
-        guard !uniqueDescriptors.isEmpty else { return }
-
-        // A sliding window of `maxConcurrent` in-flight loads: one finishes, the next starts.
-        // The previous version sliced into batches and then awaited each item in turn, so it
-        // was fully sequential and `maxConcurrent` did nothing. Prefetch feeds the chat list,
-        // so it warms the row-sized variant.
-        let concurrency = max(1, maxConcurrent)
-        let thumbnailSize = KNSProfileImageCache.rowThumbnailMaxPixelSize
-        await withTaskGroup(of: Void.self) { group in
-            var iterator = uniqueDescriptors.makeIterator()
-            var running = 0
-            while running < concurrency, let descriptor = iterator.next() {
-                group.addTask {
-                    _ = await KNSProfileImageCache.shared.image(for: descriptor, maxPixelSize: thumbnailSize)
-                }
-                running += 1
-            }
-            while await group.next() != nil {
-                guard let descriptor = iterator.next() else { continue }
-                group.addTask {
-                    _ = await KNSProfileImageCache.shared.image(for: descriptor, maxPixelSize: thumbnailSize)
-                }
-            }
-        }
-    }
-}
-
 private struct KNSAvatarShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]
 
@@ -1165,155 +1125,10 @@ enum KNSProfileLinkBuilder {
         return URL(string: "https://\(value)")
     }
 
-    static func xURL(from raw: String?) -> URL? {
-        handleURL(
-            from: raw,
-            canonicalHost: "x.com",
-            acceptedHosts: ["x.com", "www.x.com", "twitter.com", "www.twitter.com"]
-        )
-    }
-
-    static func telegramURL(from raw: String?) -> URL? {
-        handleURL(
-            from: raw,
-            canonicalHost: "t.me",
-            acceptedHosts: ["t.me", "www.t.me", "telegram.me", "www.telegram.me"]
-        )
-    }
-
-    static func githubURL(from raw: String?) -> URL? {
-        handleURL(
-            from: raw,
-            canonicalHost: "github.com",
-            acceptedHosts: ["github.com", "www.github.com"]
-        )
-    }
-
-    static func emailURL(from raw: String?) -> URL? {
-        guard var value = normalizedValue(raw) else { return nil }
-        if value.lowercased().hasPrefix("mailto:") {
-            value = String(value.dropFirst("mailto:".count))
-        }
-        guard !value.isEmpty else { return nil }
-        var components = URLComponents()
-        components.scheme = "mailto"
-        components.path = value
-        return components.url
-    }
-
-    /// Discord profile links only support numeric user IDs (snowflakes).
-    static func discordURL(from raw: String?) -> URL? {
-        let acceptedHosts = ["discord.com", "www.discord.com", "discordapp.com", "www.discordapp.com"]
-        guard var value = normalizedValue(raw) else { return nil }
-
-        if let directURL = URL(string: value), let scheme = directURL.scheme?.lowercased() {
-            if scheme == "http" || scheme == "https" {
-                guard let host = directURL.host?.lowercased() else { return nil }
-                guard acceptedHosts.contains(host) else { return nil }
-                let parts = directURL.pathComponents.filter { $0 != "/" }
-                guard parts.count >= 2, parts[0].lowercased() == "users" else { return nil }
-                value = parts[1]
-            } else {
-                return nil
-            }
-        } else {
-            value = stripURLDecoration(value)
-            if let extracted = stripKnownHostPrefix(value, hosts: acceptedHosts) {
-                value = extracted
-            }
-            if value.lowercased().hasPrefix("users/") {
-                value = String(value.dropFirst("users/".count))
-            }
-        }
-
-        value = trimmedHandle(value)
-        guard isDiscordUserID(value) else { return nil }
-        return URL(string: "https://discord.com/users/\(value)")
-    }
-
-    private static func handleURL(from raw: String?, canonicalHost: String, acceptedHosts: [String]) -> URL? {
-        guard var value = normalizedValue(raw) else { return nil }
-
-        if let directURL = URL(string: value), let scheme = directURL.scheme?.lowercased() {
-            if scheme == "http" || scheme == "https" {
-                if let host = directURL.host?.lowercased(), acceptedHosts.contains(host) {
-                    guard let firstPathComponent = directURL.pathComponents.first(where: { $0 != "/" }) else {
-                        return nil
-                    }
-                    value = firstPathComponent
-                } else {
-                    return directURL
-                }
-            } else {
-                // Not a web link - shown as text, never opened (see `websiteURL`).
-                return nil
-            }
-        } else {
-            value = stripURLDecoration(value)
-            if let extracted = stripKnownHostPrefix(value, hosts: acceptedHosts) {
-                value = extracted
-            }
-        }
-
-        value = trimmedHandle(value)
-        guard !value.isEmpty else { return nil }
-
-        guard let encoded = value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
-            return nil
-        }
-        return URL(string: "https://\(canonicalHost)/\(encoded)")
-    }
-
     private static func normalizedValue(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
-    }
-
-    private static func stripURLDecoration(_ value: String) -> String {
-        let lower = value.lowercased()
-        if lower.hasPrefix("https://") {
-            return String(value.dropFirst("https://".count))
-        }
-        if lower.hasPrefix("http://") {
-            return String(value.dropFirst("http://".count))
-        }
-        return value
-    }
-
-    private static func stripKnownHostPrefix(_ value: String, hosts: [String]) -> String? {
-        let lower = value.lowercased()
-        for host in hosts {
-            if lower == host {
-                return ""
-            }
-            if lower.hasPrefix("\(host)/") {
-                return String(value.dropFirst(host.count + 1))
-            }
-        }
-        return nil
-    }
-
-    private static func trimmedHandle(_ value: String) -> String {
-        var output = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        if output.hasPrefix("@") {
-            output.removeFirst()
-        }
-        if let slash = output.firstIndex(of: "/") {
-            output = String(output[..<slash])
-        }
-        if let query = output.firstIndex(of: "?") {
-            output = String(output[..<query])
-        }
-        if let hash = output.firstIndex(of: "#") {
-            output = String(output[..<hash])
-        }
-        return output.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private static func isDiscordUserID(_ value: String) -> Bool {
-        guard (15...22).contains(value.count) else { return false }
-        return value.unicodeScalars.allSatisfy { CharacterSet.decimalDigits.contains($0) }
     }
 }
 
@@ -1336,7 +1151,8 @@ final class DockAvatar: ObservableObject {
     /// The tab bar draws its icons at about 25 points.
     private static let side: CGFloat = 26
 
-    private var shownKey: String?
+    /// Names the picture in `image` (nil with no picture): the dock's composite is cached by it.
+    private(set) var shownKey: String?
     private var loadTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
@@ -1345,7 +1161,6 @@ final class DockAvatar: ObservableObject {
         // during a sync, and working it out again is cheap but not free.
         Publishers.MergeMany(
             WalletManager.shared.$currentWallet.map { _ in () }.eraseToAnyPublisher(),
-            KNSService.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
             KachatNamesRegistry.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
             KachatSocialImageResolver.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
             AddressBookManager.shared.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
@@ -1364,7 +1179,9 @@ final class DockAvatar: ObservableObject {
         }
         // your own photo for your address in Contacts wins, as on the Profile screen
         if let assigned = AddressBookManager.shared.photo(for: address) {
-            let key = "assigned:\(address):\(ObjectIdentifier(assigned).hashValue)"
+            // the photo's version, not its object address, which a new photo can reuse
+            // (audit 2026-11-24 #29)
+            let key = "assigned:\(address):\(AddressBookManager.shared.photoVersion)"
             guard key != shownKey else { return }
             show(Self.dockIcon(from: assigned), key: key)
             return
@@ -1374,7 +1191,7 @@ final class DockAvatar: ObservableObject {
             let link = KachatNamesRegistry.shared.cachedIdentity(for: address)?.profile?.avatar
             raw = KachatSocialImageResolver.shared.profile(for: link, address: address)?.avatar
         } else {
-            raw = KNSService.shared.profileCache[address]?.avatarURL
+            raw = nil
         }
         guard let descriptor = KNSProfileImageDescriptor.from(raw: raw) else {
             show(nil, key: nil)
@@ -1397,6 +1214,9 @@ final class DockAvatar: ObservableObject {
 
     private func show(_ newImage: UIImage?, key: String?) {
         if key == nil { loadTask?.cancel() }
+        // Only a real change publishes: with no avatar every identity batch, avatar or Address
+        // Book change set `nil` again and redrew the whole TabView (audit 2026-11-24 #25).
+        guard key != shownKey else { return }
         shownKey = key
         image = newImage
     }

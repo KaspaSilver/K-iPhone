@@ -235,10 +235,9 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
 
     // MARK: Trades (Trestly's own wallet logic, `KusdtCore.wallet`)
 
-    /// A swap, a deposit or a withdrawal: Trestly's code checks the pool and quotes (`prepare`), K
-    /// shows it (`TrestlyApprovalSheet`), and only on Approve hands it this address's key to build,
-    /// sign and send (`execute`). A pool that moved to a worse quote comes back as a requote, shown
-    /// again; their code never goes below the site's minimum.
+    /// A swap, a deposit or a withdrawal from the page: `TrestlyTrade.run` (Trestly's code
+    /// prepares, K asks in `TrestlyApprovalSheet`, then builds, signs and sends), one at a time, and
+    /// not again for a moment after a Decline.
     private func trade(_ method: String, params: Any?) async throws -> Any? {
         guard !closed else { throw ProviderError(code: Code.unauthorized, message: "K closed this page.") }
         guard !tradeInFlight, approval == nil else {
@@ -249,112 +248,22 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
         }
         tradeInFlight = true
         defer { tradeInFlight = false }
-        if let minutes = await Self.heldMinutes(for: target.address) {
-            throw ProviderError(code: Code.busy, message: "Your last trade from this address gave no answer and may still go through. Check the address's history. K takes trades from it again once that one shows on the network, or in about \(minutes) min.")
+        let done: TrestlyTrade.Done
+        do {
+            done = try await TrestlyTrade.run(method: method, params: params, target: target,
+                                              ask: { await self.ask($0) }, isClosed: { self.closed })
+        } catch let error as ProviderError where error.code == Code.rejected {
+            declinedAt = Date()
+            throw error
         }
-        guard let owner = Kusdt.schnorrOwner(of: target.address) else {
-            throw ProviderError(code: Code.failed, message: "K can't trade from this kind of address.")
+        if method == "kusdt_swap", let text = TrestlyTrade.recordSwap(done, target: target) {
+            showBanner(text)
         }
-        let paramsJSON: Any = params ?? NSNull()
-        var wallet: [String: Any] = [
-            "network": Self.networkName,
-            "address": target.address,
-            "ownerHex": Kusdt.hex(owner),
-            "apiUrl": AppSettings.load().trestlyAPIURL,
-        ]
-        var prepared = try await walletCall("prepare", ["method": method, "params": paramsJSON, "wallet": wallet])
-        var seen: [String: Any]? = nil
-
-        while true {
-            let approved = await ask(TrestlyApproval(method: method, prepared: prepared, seen: seen, from: target.label))
-            guard approved, !closed else {
-                declinedAt = Date()
-                throw ProviderError(code: Code.rejected, message: "You declined in K. Nothing was sent.")
-            }
-
-            // the address's coins as they were before the trade: if it gives no answer, these are
-            // held, and the hold ends early once one of them is spent (the trade landed)
-            let coinsBefore = (try? await NodePoolService.shared.getUtxosByAddresses([target.address]))?.map(\.id) ?? []
-
-            guard var secret = target.spendingIndex.map({ WalletManager.shared.spendingPrivateKey(at: $0) }) ?? WalletManager.shared.getPrivateKey() else {
-                throw ProviderError(code: Code.failed, message: "K couldn't unlock this address's key.")
-            }
-            wallet["secret"] = Kusdt.hex(secret)
-            var request: [String: Any] = ["method": method, "params": paramsJSON, "wallet": wallet,
-                                          "shownFeerate": prepared["feerate"] ?? NSNull(),
-                                          "acceptedFee": prepared["acceptedFee"] ?? NSNull()]
-            // the key leaves this function's hands whether execute answers, throws or times out
-            // (audit 2026-11-21, #7)
-            defer {
-                wallet["secret"] = nil
-                request["wallet"] = nil
-                secret.resetBytes(in: secret.startIndex..<secret.endIndex)
-            }
-            if method == "kusdt_removeLiquidity" {
-                request["quoted"] = ["kasOut": prepared["kasOut"] ?? NSNull(), "tokensOut": prepared["tokensOut"] ?? NSNull()] as [String: Any]
-            } else {
-                request["quoted"] = prepared["quote"] ?? NSNull()
-            }
-            let done: [String: Any]
-            do {
-                done = try await walletCall("execute", request)
-            } catch let error as ProviderError where error.maybeSent {
-                // it may have gone out: hold this address's coins and its trades (audit 2026-11-21, #1)
-                Self.hold(address: target.address, outpoints: coinsBefore)
-                if !coinsBefore.isEmpty { ChatService.shared.reserveOutpoints(coinsBefore) }
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 4_000_000_000)
-                    await TokenWallet.shared.refresh()
-                }
-                throw error
-            }
-            wallet["secret"] = nil
-
-            for step in (done["steps"] as? [String]) ?? [] { AddressActivityNotifier.shared.markOwnTransaction(step) }
-            // the coins it spent are held like a send's own (10 minutes), so a send from this
-            // address right after can't pick them (audit, 2026-11-20)
-            let spent = ((done["inputs"] as? [String]) ?? []).filter { $0.count > 65 && $0.count < 80 }
-            if !spent.isEmpty { ChatService.shared.reserveOutpoints(spent) }
-            if done["requote"] != nil {
-                // The pool moved and pays less than approved: nothing was sent. Trestly's code
-                // prepares it again from scratch, so the sheet shows the new quote with its own
-                // warnings, fee and minimum check, not the first one's (audit, 2026-11-20).
-                if method == "kusdt_removeLiquidity" {
-                    seen = ["kasOut": prepared["kasOut"] ?? "0", "tokensOut": prepared["tokensOut"] ?? "0"]
-                } else {
-                    seen = ["quote": prepared["quote"] ?? "0"]
-                }
-                prepared = try await walletCall("prepare", ["method": method, "params": paramsJSON, "wallet": wallet])
-                continue
-            }
-            guard let result = done["result"] as? [String: Any] else {
-                throw ProviderError(code: Code.failed, message: "Trestly's pool code gave no result.")
-            }
-            if let txid = result["txid"] as? String {
-                AddressActivityNotifier.shared.markOwnTransaction(txid)
-                if method == "kusdt_swap" { announceSwap(txid: txid, prepared: prepared, result: result, fee: done["fee"]) }
-            }
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                await TokenWallet.shared.refresh()
-            }
-            return result
-        }
+        return done.result
     }
 
-    /// A swap that went through: a banner over the page, a line in Notifications (the bell), and the
-    /// kUSDT side in that address's history. "Swapped" once the node shows it accepted; "Swap sent"
-    /// when it went out and wasn't seen accepted in time (it may still be).
-    private func announceSwap(txid: String, prepared: [String: Any], result: [String: Any], fee: Any?) {
-        guard let amountIn = TrestlyApproval.number(prepared["amountIn"]),
-              let amountOut = TrestlyApproval.number(result["amountOut"]) else { return }
-        let bought = prepared["side"] as? String == "buy"
-        let kas = KaspaUnit.amount(bought ? amountIn : amountOut)
-        let kusdt = TokenAmount.amount(bought ? amountOut : amountIn, token: .kusdt)
-        let confirmed = result["confirmed"] as? Bool != false
-        let text = String(format: AppLocalization.string(confirmed ? "Swapped %@ for %@" : "Swap sent: %@ for %@"),
-                          bought ? kas : kusdt, bought ? kusdt : kas)
-
+    /// "Swapped 10 KAS for 0.26 kUSDT" over the page for a few seconds.
+    private func showBanner(_ text: String) {
         Haptics.success()
         let token = UUID()
         bannerToken = token
@@ -363,98 +272,6 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             if self.bannerToken == token { self.banner = nil }
         }
-        GlobalNotificationCenter.shared.record(id: "trestly-swap-\(txid)", source: .token,
-                                               title: AppLocalization.string(confirmed ? "Swap Complete" : "Swap Sent"),
-                                               body: text, timestamp: Int64(Date().timeIntervalSince1970 * 1000),
-                                               targetId: WalletToken.kusdt.id)
-        TokenWallet.shared.noteSwap(token: .kusdt, spendingIndex: target.spendingIndex, txid: txid,
-                                    units: bought ? amountOut : amountIn, sold: !bought,
-                                    fee: TrestlyApproval.number(fee))
-    }
-
-    /// One call into Trestly's code; its refusal becomes the provider's error (their message, their code).
-    private func walletCall(_ function: String, _ request: [String: Any]) async throws -> [String: Any] {
-        let answer: [String: Any]
-        do {
-            answer = try await KusdtCore.shared.wallet(function, request: request)
-        } catch KusdtCore.CoreError.maybeSent(let why) {
-            throw ProviderError(code: Code.failed, message: Self.maybeSentMessage(why), maybeSent: true)
-        } catch {
-            throw ProviderError(code: Code.failed, message: error.localizedDescription)
-        }
-        if let message = answer["error"] as? String {
-            let code = (answer["code"] as? NSNumber)?.intValue ?? Code.failed
-            if answer["maybeSent"] as? Bool == true {
-                throw ProviderError(code: code, message: Self.maybeSentMessage(message), maybeSent: true)
-            }
-            throw ProviderError(code: code, message: message)
-        }
-        return answer
-    }
-
-    private static func maybeSentMessage(_ why: String) -> String {
-        why + " " + AppLocalization.string("The trade may have gone through.") + " "
-            + AppLocalization.string("Check the address's history before trying again.")
-    }
-
-    // MARK: Trades that may have gone out
-
-    /// A trade whose `execute` gave no answer may still land (audit 2026-11-21, #1): its address
-    /// takes no new trade until one of the coins it held before is spent (the trade shows on the
-    /// network) or `holdSeconds` pass. Kept on the phone, so a relaunch doesn't drop it.
-    private struct MaybeSentHold: Codable {
-        let until: Date
-        let outpoints: [String]
-    }
-
-    private static let holdsKey = "kachat_trestly_maybe_sent_holds"
-    private static let holdSeconds: TimeInterval = 600
-
-    private static var holds: [String: MaybeSentHold] {
-        get {
-            guard let data = UserDefaults.standard.data(forKey: holdsKey),
-                  let decoded = try? JSONDecoder().decode([String: MaybeSentHold].self, from: data) else { return [:] }
-            return decoded
-        }
-        set {
-            let now = Date()
-            let live = newValue.filter { $0.value.until > now }
-            if live.isEmpty {
-                UserDefaults.standard.removeObject(forKey: holdsKey)
-            } else if let data = try? JSONEncoder().encode(live) {
-                UserDefaults.standard.set(data, forKey: holdsKey)
-            }
-        }
-    }
-
-    private static func hold(address: String, outpoints: [String]) {
-        var all = holds
-        all[address] = MaybeSentHold(until: Date().addingTimeInterval(holdSeconds), outpoints: outpoints)
-        holds = all
-    }
-
-    /// Minutes left on this address's hold, or nil when it may trade: no hold, the hold ran out,
-    /// or a coin it had before is gone from the node (the earlier trade landed).
-    private static func heldMinutes(for address: String) async -> Int? {
-        guard let held = holds[address] else { return nil }
-        let left = held.until.timeIntervalSinceNow
-        guard left > 0 else {
-            var all = holds
-            all[address] = nil
-            holds = all
-            return nil
-        }
-        if !held.outpoints.isEmpty,
-           let now = try? await NodePoolService.shared.getUtxosByAddresses([address]) {
-            let present = Set(now.map(\.id))
-            if held.outpoints.contains(where: { !present.contains($0) }) {
-                var all = holds
-                all[address] = nil
-                holds = all
-                return nil
-            }
-        }
-        return max(1, Int((left / 60).rounded(.up)))
     }
 
     /// Shows the approval and waits for Approve or Decline (closing the sheet declines).

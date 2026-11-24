@@ -29,7 +29,6 @@ struct KaPostsSearchView: View {
     var onOpenProfile: (String, String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var knsService = KNSService.shared
     /// `.kachat` names (`KachatLive.identityName`) land on their own.
     @ObservedObject private var kachatRegistry = KachatNamesRegistry.shared
     @ObservedObject private var moderationStore = KaPostsModerationStore.shared
@@ -130,9 +129,8 @@ struct KaPostsSearchView: View {
 
     /// Names, pictures and the hidden list landing change what matches. Built once, so every
     /// body pass hands `onReceive` the same publisher.
-    private static let identityChanges: AnyPublisher<Void, Never> = Publishers.Merge3(
+    private static let identityChanges: AnyPublisher<Void, Never> = Publishers.Merge(
         KachatNamesRegistry.shared.objectWillChange.map { _ in () },
-        KNSService.shared.objectWillChange.map { _ in () },
         KaPostsModerationStore.shared.objectWillChange.map { _ in () }
     )
     .eraseToAnyPublisher()
@@ -156,12 +154,13 @@ struct KaPostsSearchView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("", selection: $scope) {
-                    ForEach(Scope.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
+                // The cycle button every other page switch uses; its titles are keys and it
+                // has a VoiceOver name (audit 2026-11-24 #37).
+                PageCycleBar(
+                    tabs: Scope.allCases.map { (tab: $0, title: $0.rawValue) },
+                    selection: $scope
+                )
+                .padding(.bottom, 4)
 
                 if trimmedQuery.isEmpty {
                     promptState
@@ -256,7 +255,7 @@ struct KaPostsSearchView: View {
                     } label: {
                         HStack(spacing: 10) {
                             KNSAvatarView(
-                                avatarURLString: knsService.profileCache[person.address]?.avatarURL,
+                                avatarURLString: nil,
                                 fallbackText: displayName(for: person.address),
                                 size: 36,
                                 contactAddress: person.address
@@ -264,7 +263,8 @@ struct KaPostsSearchView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(displayName(for: person.address))
                                     .font(.subheadline.weight(.semibold))
-                                Text(person.postCount == 1 ? "1 post found" : "\(person.postCount) posts found")
+                                // One Text per form, each its own key (audit 2026-11-24 #31).
+                                (person.postCount == 1 ? Text("1 post found") : Text("\(person.postCount) posts found"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -288,9 +288,9 @@ struct KaPostsSearchView: View {
             Spacer()
             Text("Nothing found yet")
                 .font(.headline)
-            Text(hasMore
-                 ? "Searched the most recent \(scanned.count) posts. Older ones have not been read yet."
-                 : "Searched every post available.")
+            (hasMore
+             ? Text("Searched the most recent \(scanned.count) posts. Older ones have not been read yet.")
+             : Text("Searched every post available."))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -323,7 +323,7 @@ struct KaPostsSearchView: View {
             } label: {
                 HStack(spacing: 8) {
                     if isLoading { ProgressView() }
-                    Text(isLoading ? "Reading older posts" : "Search older posts")
+                    (isLoading ? Text("Reading older posts") : Text("Search older posts"))
                         .font(.footnote.weight(.semibold))
                     Spacer(minLength: 0)
                     Text("\(scanned.count) read")
@@ -373,7 +373,6 @@ struct KaPostsSearchView: View {
             // shortened addresses. Bounded and debounced inside KNSService.
             let addresses = Array(Set(batch.items.map(\.posterAddress).filter { !$0.isEmpty }))
             if !addresses.isEmpty {
-                await knsService.refreshProfilesIfNeeded(for: addresses)
             }
         } catch {
             loadFailed = true
@@ -381,20 +380,12 @@ struct KaPostsSearchView: View {
     }
 
     private func displayName(for address: String) -> String {
-        guard !address.isEmpty else { return "Unknown" }
+        guard !address.isEmpty else { return AppLocalization.string("Unknown") }
         if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
             return KaPostsView.displayKasName(assigned)
         }
         // Who they are: their .kachat name (a .kas domain isn't identity since 5.2).
         if let name = KachatLive.identityName(address) { return name }
-        if !KachatNamesService.isEnabled, let domain = knsService.profileCache[address]?.domainName,
-           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return KaPostsView.displayKasName(domain)
-        }
-        if !KachatNamesService.isEnabled, let domain = knsService.identityInfo(for: address)?.primaryDomain,
-           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return KaPostsView.displayKasName(domain)
-        }
         return Contact.generateDefaultAlias(from: address)
     }
 }

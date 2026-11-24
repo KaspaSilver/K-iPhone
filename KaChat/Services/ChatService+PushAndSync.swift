@@ -1019,11 +1019,6 @@ extension ChatService {
         }
 
         if isSuppressedPaymentTxId(txId) {
-            _ = await addKNSTransferMessageFromHintIfNeeded(
-                txId: txId,
-                myAddress: wallet.publicAddress,
-                blockTimeMs: UInt64(max(0, timestamp))
-            )
             AppLog.log("[ChatService] Push payment %@ is already suppressed", String(txId.prefix(12)))
             return false
         }

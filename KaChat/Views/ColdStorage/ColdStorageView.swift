@@ -101,9 +101,6 @@ struct ColdStorageListView: View {
         }
         .pinnedTabHeader("Cold Storage")
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                ConnectionStatusIndicator()
-            }
             ToolbarItem(placement: .principal) {
                 BalanceToolbarLabel()
             }
@@ -385,6 +382,7 @@ struct ColdStorageDetailView: View {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @ObservedObject private var manager = ColdStorageManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.hubSectionHidden) private var hubHidden
 
     @State private var entries: [ColdStorageAddressEntry] = []
     @State private var isLoading = false
@@ -519,17 +517,22 @@ struct ColdStorageDetailView: View {
         .refreshable {
             await loadEntries()
         }
-        .task {
-            await loadEntries()
-        }
+        // Only while the section shows: kept hidden in Kaspa Hub, `.task` derived addresses and
+        // rescanned on every Hub tab selection. Showing again reloads, which also covers any
+        // activity skipped below while hidden (audit 2026-11-24 #23).
+        .onScreenPresence(appear: {
+            Task { await loadEntries() }
+        }, disappear: {})
         // Live own-address receive detected (AddressActivityNotifier) - refresh balances so
         // the screen reflects the funds without a manual pull.
         .onReceive(NotificationCenter.default.publisher(for: .ownAddressActivity)) { _ in
+            guard !hubHidden else { return }
             Task { await loadEntries() }
         }
         // Always-post variant: also fires for self-send change (withdrawal/compound change)
         // that the notification-gated event above suppresses.
         .onReceive(NotificationCenter.default.publisher(for: .ownAddressUtxoActivity)) { _ in
+            guard !hubHidden else { return }
             Task { await loadEntries() }
         }
         .sheet(item: $addressActionsTarget) { entry in
@@ -786,7 +789,7 @@ struct ColdStorageDetailView: View {
                     }
                     ActionSheetRow(
                         title: "Discover Addresses",
-                        subtitle: "Finds addresses holding a balance or a domain.",
+                        subtitle: "Finds addresses holding a balance or a username.",
                         systemImage: "magnifyingglass",
                         isDisabled: isDiscovering
                     ) {
@@ -965,19 +968,11 @@ struct ColdStorageDetailView: View {
             !(entries.first(where: { $0.address == address })?.everUsed ?? false)
         }
 
-        // Contains-domain tags, after the rows are already visible. refreshIfNeeded is the same
-        // batched KNS lookup: capped
-        // concurrency, per-address debounce and failure cooldown, shared in-flight requests -
-        // so re-opening this screen reads warm cache instead of re-firing a request burst.
+        // Contains-domain tags (.kachat names), after the rows are already visible.
         let addresses = baseEntries.map { $0.address }
-        await KNSService.shared.refreshIfNeeded(for: addresses)
         guard loadToken == token else { return }
-        var owners: Set<String> = []
-        for address in addresses where KNSService.shared.domainCache[address]?.allDomains.isEmpty == false {
-            owners.insert(address)
-        }
-        // .kachat names count too (testnet, where the registry is live).
-        owners.formUnion(await KachatNamesRegistry.shared.ownersOfNames(among: addresses))
+        // the addresses holding a .kachat name
+        let owners = await KachatNamesRegistry.shared.ownersOfNames(among: addresses)
         guard loadToken == token else { return }
         domainOwningAddresses = owners
     }
@@ -1034,10 +1029,10 @@ struct ColdStorageDetailView: View {
             // The count is addresses that hold a balance or a KNS domain - say so, rather than
             // "used", which is what the old high-water-mark number implied and was not.
             let summary = discovered == 0
-                ? AppLocalization.string("No addresses with a balance or domain found.")
+                ? AppLocalization.string("No addresses with a balance or username found.")
                 : discovered == 1
-                    ? AppLocalization.string("Found 1 address with a balance or domain.")
-                    : String(format: AppLocalization.string("Found %lld addresses with a balance or domain."),
+                    ? AppLocalization.string("Found 1 address with a balance or username.")
+                    : String(format: AppLocalization.string("Found %lld addresses with a balance or username."),
                              locale: AppLocalization.locale, discovered)
             discoverySummary = summary
             // Closed the sheet and carried on? Then the summary above has nowhere to render, so
@@ -1144,7 +1139,6 @@ private struct ColdSendFlowView: View {
     @State private var nameResolutions: [NameResolution] = []
     @State private var selectedTLD: NameServiceTLD?
     @State private var knsError: String?
-    private let knsService = KNSService.shared
 
     /// The actual address to use (resolved from a KNS domain, or the direct input) - same
     /// precedence as ContactsView's WithdrawKaspaView/AddContactView.
@@ -1764,8 +1758,7 @@ private struct ColdSendFlowView: View {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 300_000_000)
 
-            guard toAddress.trimmingCharacters(in: .whitespacesAndNewlines) == domain ||
-                  toAddress.trimmingCharacters(in: .whitespacesAndNewlines) + ".kas" == domain + ".kas" else {
+            guard toAddress.trimmingCharacters(in: .whitespacesAndNewlines) == domain else {
                 return
             }
 
@@ -2165,8 +2158,9 @@ struct ColdStorageAddressTransactionHistoryView: View {
     }
 
     /// Plain names - History, UTXOs, Domains - the way the user asked for them.
+    /// The .kachat page is called Usernames (owner, 2026-11-24), like the Wallet's card.
     private func tabLabel(_ tab: Tab) -> String {
-        tab.rawValue
+        tab == .kachatDomains ? "Usernames" : tab.rawValue
     }
 
     var body: some View {
@@ -2175,8 +2169,8 @@ struct ColdStorageAddressTransactionHistoryView: View {
             // the address's name, its balance large, and its worth in your currency.
             KaspaAddressBalanceCard(label: entry.displayLabel, sompi: entry.balanceSompi)
 
-            // The app's tab look (`UnderlineTabBar`), not a segmented control.
-            UnderlineTabBar(
+            // The app's page switch (`PageCycleBar`), not a segmented control.
+            PageCycleBar(
                 tabs: Tab.allCases.map { (tab: $0, title: tabLabel($0)) },
                 selection: $selectedTab
             )
@@ -2285,11 +2279,14 @@ struct ColdStorageAddressTransactionHistoryView: View {
                 utxoLabels = ColdStorageManager.shared.loadUtxoLabels(address: entry.address)
             }
         }
-        .task {
-            utxoLabels = ColdStorageManager.shared.loadUtxoLabels(address: entry.address)
-            await loadTransactions()
-            await loadUtxos()
-        }
+        // not on every Hub tab selection while Cold Storage is kept hidden (audit 2026-11-24 #23)
+        .onScreenPresence(appear: {
+            Task {
+                utxoLabels = ColdStorageManager.shared.loadUtxoLabels(address: entry.address)
+                await loadTransactions()
+                await loadUtxos()
+            }
+        }, disappear: {})
     }
 
     private var transactionsList: some View {

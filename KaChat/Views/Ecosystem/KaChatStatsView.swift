@@ -286,6 +286,7 @@ struct KaChatStatsView: View {
     @State private var kachatTransactions: KachatNamesRegistry.Totals?
     @State private var kachatFees: KachatNamesRegistry.Totals?
     @State private var kachatLoaded = false
+    @State private var kachatLoadedAt: Date?
 
     /// The kinds with a card of their own. .kachat's five are one card, .kachat Domains.
     private static let chatCategories = KaChatStatCategory.allCases.filter { !$0.isKachat }
@@ -295,7 +296,7 @@ struct KaChatStatsView: View {
             ScrollView {
                 VStack(spacing: 18) {
                     hero
-                    UnderlineTabBar(
+                    PageCycleBar(
                         tabs: [(tab: Page.transactions, title: "Transactions"), (tab: Page.fees, title: "Fees")],
                         selection: $page
                     )
@@ -310,16 +311,20 @@ struct KaChatStatsView: View {
             .background(Color(.systemGroupedBackground))
             .refreshable {
                 await model.refresh(force: true)
-                await loadKachat()
+                await loadKachat(force: true)
             }
-            .task {
-                await model.refresh(force: false)
-                await loadKachat()
-            }
+            // Each time the section shows, reopened from the Hub grid too; never while it is
+            // kept hidden, where `.task` re-read every total on each Hub tab selection
+            // (audit 2026-11-24 #23).
+            .onScreenPresence(appear: {
+                Task {
+                    await model.refresh(force: false)
+                    await loadKachat(force: false)
+                }
+            }, disappear: {})
             .navigationTitle("KaChat Stats")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) { ConnectionStatusIndicator() }
                 ToolbarItem(placement: .principal) { BalanceToolbarLabel() }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -336,7 +341,10 @@ struct KaChatStatsView: View {
 
     // MARK: - Numbers
 
-    private func loadKachat() async {
+    /// `force` false (the section showing again) skips totals read in the last minute, as
+    /// the indexer counts do: they can walk every registry event (audit 2026-11-24 #23).
+    private func loadKachat(force: Bool) async {
+        if !force, kachatLoaded, let at = kachatLoadedAt, Date().timeIntervalSince(at) < 60 { return }
         guard KachatLive.isEnabled else {
             kachatTransactions = nil
             kachatFees = nil
@@ -348,6 +356,7 @@ struct KaChatStatsView: View {
         if let totals = try? await registry.activityTotals() {
             kachatTransactions = totals.transactions
             kachatFees = totals.fees
+            kachatLoadedAt = Date()
         }
         kachatLoaded = true
     }
@@ -437,7 +446,7 @@ struct KaChatStatsView: View {
             }
         }
         if let kachat = kachatTotals {
-            statCard(icon: "at", color: .mint, title: ".kachat Domains", detail: "Transactions on the .kachat registry",
+            statCard(icon: "at", color: .mint, title: "Usernames", detail: "Transactions on the .kachat registry",
                      values: [kachat.last24h, kachat.last7d, kachat.total].map { Optional(Self.grouped($0)) })
         }
     }
@@ -445,7 +454,7 @@ struct KaChatStatsView: View {
     @ViewBuilder
     private var feesPage: some View {
         if let fees = kachatFees {
-            statCard(icon: "at", color: .mint, title: ".kachat Domains", detail: "Paid for registrations and renewals",
+            statCard(icon: "at", color: .mint, title: "Usernames", detail: "Paid for registrations and renewals",
                      values: [fees.last24h, fees.last7d, fees.total].map { Optional(Self.kas($0)) })
         } else if kachatLoaded {
             VStack(spacing: 6) {
@@ -461,7 +470,7 @@ struct KaChatStatsView: View {
             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
             .padding(.horizontal, 16)
         } else {
-            statCard(icon: "at", color: .mint, title: ".kachat Domains", detail: "Paid for registrations and renewals",
+            statCard(icon: "at", color: .mint, title: "Usernames", detail: "Paid for registrations and renewals",
                      values: [], redacted: true)
         }
     }

@@ -110,6 +110,8 @@ final class GroupChatService: ObservableObject {
     /// A pass starts a little before its cursor: the indexer's clock and a reorg both move.
     private static let livePollRewindMs: UInt64 = 10_000
     private static let livePollStartLookbackMs: UInt64 = 2 * 60 * 1000
+    /// Member lanes per `since` read: the indexer takes at most this many ids in one request.
+    private static let liveIdsPerRead = 256
 
     func startLivePolling() {
         guard livePollTask == nil, hasActiveWallet else { return }
@@ -164,42 +166,55 @@ final class GroupChatService: ObservableObject {
         }
         guard !blindedIds.isEmpty else { return }
 
-        var newest = self[keyPath: cursor]
+        let startCursor = self[keyPath: cursor]
         do {
-            // Messages, paged: a full page means more may be waiting past it.
-            var page = since
-            for _ in 0..<10 {
-                guard let response = try await KasiaAPIClient.shared.getGroupMessagesSince(blindedGroupIds: Array(blindedIds.prefix(256)), sinceBlockTime: page, limit: 200) else {
-                    indexerLiveDeliveryAvailable = false
-                    stopLivePolling()
-                    return
+            // Messages, in chunks of 256 member lanes (the indexer's cap per read) and paged
+            // within each chunk: a full page means more may be waiting past it. Every chunk is
+            // read each pass and the cursor moves only as far as the chunk that got least far,
+            // so lanes past the first 256 aren't skipped while the cursor advances
+            // (audit 2026-11-24 #14).
+            var reached: UInt64?
+            var chunkStart = 0
+            while chunkStart < blindedIds.count {
+                let chunk = Array(blindedIds[chunkStart..<min(chunkStart + Self.liveIdsPerRead, blindedIds.count)])
+                chunkStart += Self.liveIdsPerRead
+                var chunkNewest = startCursor
+                var page = since
+                for _ in 0..<10 {
+                    guard let response = try await KasiaAPIClient.shared.getGroupMessagesSince(blindedGroupIds: chunk, sinceBlockTime: page, limit: 200) else {
+                        indexerLiveDeliveryAvailable = false
+                        stopLivePolling()
+                        return
+                    }
+                    if !indexerLiveDeliveryAvailable {
+                        AppLog.log("%@", "[GroupChatService] Indexer serves group 'since' reads; live delivery moves off the block stream")
+                        indexerLiveDeliveryAvailable = true
+                    }
+                    for msg in response.messages {
+                        guard let payloadString = Self.reconstructPayloadString(prefix: Self.gcommPrefix, messagePayloadHex: msg.messagePayload),
+                              let parsed = GroupCipher.parseGroupMessagePayload(payloadString) else { continue }
+                        handleIncomingGroupMessage(parsed, txId: msg.txId, blockTime: Int64(msg.blockTime))
+                        chunkNewest = max(chunkNewest, msg.blockTime)
+                    }
+                    let latest = response.latestBlockTime ?? response.messages.map(\.blockTime).max() ?? page
+                    chunkNewest = max(chunkNewest, latest)
+                    guard response.messages.count >= 200, latest > page else { break }
+                    page = latest
                 }
-                if !indexerLiveDeliveryAvailable {
-                    AppLog.log("%@", "[GroupChatService] Indexer serves group 'since' reads; live delivery moves off the block stream")
-                    indexerLiveDeliveryAvailable = true
-                }
-                for msg in response.messages {
-                    guard let payloadString = Self.reconstructPayloadString(prefix: Self.gcommPrefix, messagePayloadHex: msg.messagePayload),
-                          let parsed = GroupCipher.parseGroupMessagePayload(payloadString) else { continue }
-                    handleIncomingGroupMessage(parsed, txId: msg.txId, blockTime: Int64(msg.blockTime))
-                    newest = max(newest, msg.blockTime)
-                }
-                let latest = response.latestBlockTime ?? response.messages.map(\.blockTime).max() ?? page
-                newest = max(newest, latest)
-                guard response.messages.count >= 200, latest > page else { break }
-                page = latest
+                reached = min(reached ?? chunkNewest, chunkNewest)
             }
+            // Control rows are read from the same `since` every pass and dedupe on ingest, so
+            // they don't move the cursor past a message chunk that is behind.
             if includeControl {
                 let senders = Array(Set(groups.map(\.adminAddress).filter { !$0.isEmpty }))
                 if let response = try await KasiaAPIClient.shared.getGroupControlSince(senders: senders, recipient: wallet.publicAddress, sinceBlockTime: since, limit: 200) {
                     for msg in response.controls {
                         guard let payloadString = Self.reconstructPayloadString(prefix: Self.gctlPrefix, messagePayloadHex: msg.messagePayload) else { continue }
                         handleIncomingControlMessage(payloadString, senderAddress: msg.sender, blockTime: msg.blockTime)
-                        newest = max(newest, msg.blockTime)
                     }
                 }
             }
-            self[keyPath: cursor] = newest
+            self[keyPath: cursor] = max(startCursor, reached ?? startCursor)
         } catch {
             // The next tick tries again; the cursor stays where it was.
             AppLog.log("[GroupChatService] Live indexer poll failed: %@", error.localizedDescription)
@@ -567,10 +582,6 @@ final class GroupChatService: ObservableObject {
         if MessageReplyCodec.parse(content)?.replyToSender == me { return true }
         let ownText = MessageReplyCodec.unwrappedText(content)
         if GroupMentionCodec.mentions(me, in: ownText) { return true }
-        if let domain = KNSService.shared.barePrimaryDomain(for: me) {
-            let lowered = ownText.lowercased()
-            return lowered.contains("@\(domain)") || lowered.contains("@\(domain).kas")
-        }
         return false
     }
 
@@ -1423,7 +1434,6 @@ final class GroupChatService: ObservableObject {
         if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName { return assigned }
         if let saved = AddressBookManager.shared.entry(for: address)?.customName { return saved }
         if let f = fallback, !f.isEmpty { return f }
-        if let kns = KNSService.shared.profileCache[address]?.domainName, !kns.isEmpty { return kns }
         return Contact.generateDefaultAlias(from: address)
     }
 

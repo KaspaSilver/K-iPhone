@@ -25,6 +25,9 @@ struct TokenManageView: View {
     @State private var afterActions: (() -> Void)?
     /// The "Bridged by Trestly" pill under the balance: the details, in a sheet.
     @State private var showAbout = false
+    /// Open Trestly, under the balance card (owner's call, 2026-11-23): the address it should use,
+    /// then Trestly's site inside K (`TrestlyConnectSheet`), for its pool and everything else there.
+    @State private var showTrestly = false
     @State private var showVisibility = false
     /// The ⋮ on an address row: its own actions (as Manage Addresses has for each address).
     @State private var rowActionsTarget: TokenHolding?
@@ -44,12 +47,49 @@ struct TokenManageView: View {
     @State private var discoveryFound = 0
     @State private var discoverySummary: String?
 
+    /// Trestly's site inside K, connected to the address picked first.
+    private var openTrestlyButton: some View {
+        Button {
+            Haptics.impact(.light)
+            showTrestly = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "safari")
+                    .font(.body.weight(.semibold))
+                    .foregroundColor(.accentColor)
+                Text("Open Trestly")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(sendKaspaGlass(cornerRadius: 18))
+            .contentShape(RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showTrestly) {
+            TrestlyConnectSheet(token: token)
+        }
+    }
+
     var body: some View {
         List {
             summary
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+
+            if token == .kusdt {
+                openTrestlyButton
+                    .padding(.bottom, 6)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
 
             let rows = tokens.listedHoldings(of: token)
             let hiddenCount = tokens.holdings(of: token).filter { !tokens.isListed($0, of: token) }.count

@@ -680,8 +680,7 @@ struct DeleteAccountSheet: View {
 
 // MARK: - Sent confirmation
 
-/// A completed Kaspa send, for `SentConfirmationSheet`. Identifiable on the txid so it can drive
-/// a `.sheet(item:)` directly.
+/// A completed Kaspa send. Identifiable on the txid so it can drive a `.sheet(item:)` directly.
 struct SentTransaction: Identifiable, Equatable {
     let txId: String
     /// Amount in sompi. nil omits the amount line - a consolidation has no meaningful "to whom"
@@ -691,126 +690,6 @@ struct SentTransaction: Identifiable, Equatable {
     var recipient: String?
 
     var id: String { txId }
-}
-
-/// The half sheet every successful Kaspa send ends on: a checkmark, what was sent, and the
-/// transaction id as a live link to whichever block explorer Settings names.
-///
-/// This used to be `WithdrawalSuccessCard`, a dimmed full-screen overlay, and only the two
-/// withdraw screens had it - a payment in a chat just closed the sheet and
-/// left you with nothing to check. A send is the one moment where the txid is worth handing over,
-/// so it is a link rather than text: tapping it opens the explorer.
-///
-/// The explorer URL is resolved here rather than passed in, so a call site only needs the txid.
-struct SentConfirmationSheet: View {
-    let transaction: SentTransaction
-    let onDone: () -> Void
-
-    private var explorerURL: URL? {
-        AppSettings.load().kaspaExplorer.txURL(for: transaction.txId)
-    }
-
-    /// Trailing zeros trimmed - "1.5 KAS", not "1.50000000 KAS".
-    private var amountText: String? {
-        guard let sompi = transaction.amountSompi else { return nil }
-        var text = String(format: "%.8f", Double(sompi) / 100_000_000.0)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return "\(text) \(KaspaUnit.symbol)"
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.scaled(size: 52))
-                .foregroundColor(.green)
-                .padding(.top, 28)
-
-            Text("Sent")
-                .font(.title3.weight(.bold))
-                .padding(.top, 12)
-
-            if let amountText {
-                Text(amountText)
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 2)
-            }
-
-            if let recipient = transaction.recipient, !recipient.isEmpty {
-                Text("to \(recipient)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .padding(.horizontal, 32)
-                    .padding(.top, 2)
-            }
-
-            // The txid, as the link. Middle truncation because both ends identify it and the
-            // middle does not - a leading-truncated hash is unrecognisable.
-            if let explorerURL {
-                Link(destination: explorerURL) {
-                    HStack(spacing: 6) {
-                        Text(transaction.txId)
-                            .font(.system(.footnote, design: .monospaced))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Image(systemName: "arrow.up.right.square")
-                            .font(.footnote)
-                    }
-                    .foregroundColor(.accentColor)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity)
-                    .background(glassBackground(cornerRadius: 14))
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-            } else {
-                // No explorer configured: the id is still worth showing, just not as a link.
-                Text(transaction.txId)
-                    .font(.system(.footnote, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-            }
-
-            Text("Tap the transaction to open it in the explorer.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-                .padding(.top, 8)
-
-            Spacer(minLength: 0)
-
-            Button(action: onDone) {
-                Text("Done")
-                    .font(.subheadline.weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .foregroundColor(.black)
-                    .background(Capsule().fill(Color.accentColor))
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-}
-
-/// The detent every `SentConfirmationSheet` uses, so the sheet is the same size wherever a send
-/// finishes. Taller when there is a recipient line to show.
-extension SentTransaction {
-    var sheetHeight: CGFloat {
-        let hasRecipient = !(recipient ?? "").isEmpty
-        return hasRecipient ? 420 : 390
-    }
 }
 
 // MARK: - Message long-press menu
@@ -1215,10 +1094,8 @@ struct PinnedListHeader: View {
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            AccountBackupBanner()
-            titleAndSearch
-        }
+        // no backup card here: it's on Profile only (owner's call, 2026-11-23)
+        titleAndSearch
     }
 
     private var titleAndSearch: some View {
@@ -1269,44 +1146,28 @@ struct PinnedListHeader: View {
     }
 }
 
-// MARK: - Underline tab bar
+// MARK: - Page cycle bar
 
-/// The app's tab bar for switching pages inside a screen: bold teal labels (dimmed when not
-/// selected), a teal bar under the selected one, a divider below.
-/// Used by Your Domains and Connection Settings.
-struct UnderlineTabBar<Tab: Hashable>: View {
+/// The app's switch between pages inside a screen (an address's History / UTXOs / Domains, a Cold
+/// Storage account, Stats): the cycle button (`CycleCapsuleButton`), leading, each tap fading to
+/// the next page. It replaced the underline tabs (owner, 2026-11-24), as KaPost's feeds, Chess's
+/// pages and the leaderboards have it.
+struct PageCycleBar<Tab: Hashable>: View {
     let tabs: [(tab: Tab, title: String)]
     @Binding var selection: Tab
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                ForEach(tabs.indices, id: \.self) { index in
-                    let item = tabs[index]
-                    let isSelected = selection == item.tab
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { selection = item.tab }
-                    } label: {
-                        VStack(spacing: 8) {
-                            Text(LocalizedStringKey(item.title))
-                                .font(.subheadline.weight(.bold))
-                                .foregroundColor(isSelected ? .accentColor : .accentColor.opacity(0.5))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 12)
-                            Rectangle()
-                                .fill(isSelected ? Color.accentColor : Color.clear)
-                                .frame(height: 2.5)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
-                }
-            }
-            Divider()
+        HStack {
+            CycleCapsuleButton(
+                options: tabs.map(\.tab),
+                selection: $selection,
+                title: { tab in tabs.first { $0.tab == tab }?.title ?? "" },
+                hint: "Switches to the next page"
+            )
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
     }
 }
 
@@ -1389,5 +1250,73 @@ struct RenameSheet: View {
         onSave(trimmed)
         Haptics.success()
         dismiss()
+    }
+}
+
+// MARK: - Cycle button
+
+/// One see-through capsule with an accent border that steps through a few choices: each tap fades
+/// to the next (and round again), and the dots say which one it is. KaPost's feeds (owner's call,
+/// 2026-11-23) and the leaderboards' This Month / All Time (2026-11-24) use it in place of tabs or
+/// a segmented picker.
+struct CycleCapsuleButton<Value: Hashable>: View {
+    let options: [Value]
+    @Binding var selection: Value
+    /// The localization key shown for a choice.
+    let title: (Value) -> String
+    let hint: LocalizedStringKey
+
+    var body: some View {
+        Button {
+            Haptics.selection()
+            guard !options.isEmpty else { return }
+            let next = options[((options.firstIndex(of: selection) ?? 0) + 1) % options.count]
+            withAnimation(.easeInOut(duration: 0.25)) { selection = next }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.subheadline.weight(.bold))
+                Text(LocalizedStringKey(title(selection)))
+                    .font(.subheadline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .id(selection)
+                    .transition(.opacity)
+                if options.count <= 6 {
+                    HStack(spacing: 3) {
+                        ForEach(options, id: \.self) { option in
+                            Circle()
+                                .fill(Color.accentColor.opacity(option == selection ? 1 : 0.3))
+                                .frame(width: 5, height: 5)
+                        }
+                    }
+                } else {
+                    // too many for dots: where it is, as "3/14"
+                    Text(verbatim: "\((options.firstIndex(of: selection) ?? 0) + 1)/\(options.count)")
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .opacity(0.7)
+                        .fixedSize()
+                }
+            }
+            .foregroundColor(.accentColor)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+            .overlay(Capsule().stroke(Color.accentColor, lineWidth: 1.5))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(LocalizedStringKey(title(selection))))
+        .accessibilityHint(Text(hint))
+    }
+}
+
+extension ChessLeaderboardPeriod {
+    /// The cycle button's label ("This month" / "All time", the chess boards' existing keys).
+    var cycleTitle: String {
+        switch self {
+        case .month: return "This month"
+        case .allTime: return "All time"
+        }
     }
 }

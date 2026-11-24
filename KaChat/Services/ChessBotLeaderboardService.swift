@@ -91,7 +91,6 @@ final class ChessBotLeaderboardService: ObservableObject {
                     )
                 }
                 self.boards[period] = levels
-                ChessTournamentService.shared.resolveNames(for: Set(levels.values.flatMap { $0.rows.map(\.address) }))
             }
         }
     }

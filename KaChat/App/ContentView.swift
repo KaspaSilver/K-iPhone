@@ -52,15 +52,23 @@ struct ContentView: View {
     }
 }
 
+/// What a cold launch shows while the account loads: the launch screen's K globe (Info.plist's
+/// `UILaunchScreen`: `KLogo` at its own 120 pt, centred on `LaunchBackground`), in the same
+/// place and size, so the launch screen hands over without a jump. The spinner sits under it.
 struct LoadingView: View {
     var body: some View {
-        VStack(spacing: 20) {
+        ZStack {
+            Color("LaunchBackground")
+            Image("KLogo")
+                .resizable()
+                .frame(width: 120, height: 120)
+                .accessibilityLabel(Text(verbatim: "K"))
             ProgressView()
-                .scaleEffect(1.5)
-            Text("Loading...")
-                .font(.headline)
-                .foregroundColor(.secondary)
+                .offset(y: 100)
+                .accessibilityLabel(Text("Loading..."))
         }
+        // The launch screen centres the globe on the whole screen, not the safe area.
+        .ignoresSafeArea()
     }
 }
 

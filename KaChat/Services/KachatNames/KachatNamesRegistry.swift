@@ -64,7 +64,12 @@ final class KachatNamesRegistry: ObservableObject {
     /// Not `@Published`: a re-check that finds the same identity only stamps it, and stamping
     /// must not redraw every avatar and name on screen. `objectWillChange` is sent by hand when
     /// an identity really changes.
-    private var identities: [String: CachedIdentity] = KachatNamesRegistry.loadIdentities()
+    private var identities: [String: CachedIdentity] = KachatNamesRegistry.loadIdentities() {
+        didSet { identityRevision &+= 1 }
+    }
+    /// Moves whenever an identity is filed, so a cached answer built from names (the chat list's
+    /// Message Requests count) knows to work itself out again.
+    private(set) var identityRevision = 0
     /// One disk write for a burst of identity changes (a screen full of avatars landing at once).
     private var identitiesPersistScheduled = false
     /// Addresses queued for, or in, a lookup started by `cachedIdentity`: each is asked once.
@@ -1254,18 +1259,22 @@ final class KachatNamesRegistry: ObservableObject {
     func cachedIdentity(for address: String) -> KachatNames.Identity? {
         guard KachatNamesService.profilesEnabled else { return nil }
         let key = address.lowercased()
-        guard NetworkType(address: key) != nil, NetworkType.isOnActiveNetwork(key) else { return nil }
+        // the prefix alone (the key is already lowercased): this runs for every avatar and name
+        // on screen, on every redraw while scrolling
+        let network: NetworkType? = key.hasPrefix("kaspa:") ? .mainnet : (key.hasPrefix("kaspatest:") ? .testnet : nil)
+        guard let network, network == AppSettings.activeNetwork else { return nil }
         let entry = identities[key]
+        let now = Date()
         // Five minutes old, or older than a minute once the registry changed: every refresh
         // bumps `revision`, and re-asking for every address on screen after each one cost a
         // request per avatar and redrew the whole list as each answer came back.
         let stale = entry.map {
-            let age = Date().timeIntervalSince($0.at)
+            let age = now.timeIntervalSince($0.at)
             return age > 300 || ($0.revision != revision && age > 60)
         } ?? true
         // a failed lookup (the registry still loading, a network blip) is asked again after a
         // minute, not five - until then the person shows as their address
-        let missedRecently = identityMisses[key].map { Date().timeIntervalSince($0) < 60 } ?? false
+        let missedRecently = identityMisses[key].map { now.timeIntervalSince($0) < 60 } ?? false
         if stale, !missedRecently, !identityLookups.contains(key) {
             identityLookups.insert(key)
             identityBatchQueue.append(key)
@@ -1685,6 +1694,18 @@ final class KachatSocialImageResolver: ObservableObject {
     /// account, people in your Contacts (Address Book) or chats, and anyone whose profile you
     /// opened. Anyone else (a KaPost author, a room member scrolled past) shows the initials avatar
     /// and contacts no one.
+    /// `SocialSource(link:for: .avatar)`, parsed once per link: every avatar on screen asks on
+    /// every redraw while scrolling, and the parse runs URLComponents and splits the path.
+    private var avatarSources: [String: KachatNames.SocialSource?] = [:]
+
+    private func avatarSource(_ link: String) -> KachatNames.SocialSource? {
+        if let cached = avatarSources[link] { return cached }
+        let source = KachatNames.SocialSource(link: link, for: .avatar)
+        if avatarSources.count > 1000 { avatarSources.removeAll() }
+        avatarSources[link] = source
+        return source
+    }
+
     func mayLookUp(address: String?) -> Bool {
         guard let address, !address.isEmpty else { return false }
         let key = address.lowercased()
@@ -1720,11 +1741,12 @@ final class KachatSocialImageResolver: ObservableObject {
     /// them when the lookup lands.
     func profile(for link: String?, address: String?) -> KachatNames.SocialProfile? {
         guard link != nil, mayLookUp(address: address) else { return nil }
-        guard let link, let source = KachatNames.SocialSource(link: link, for: .avatar) else { return nil }
+        guard let link, let source = avatarSource(link) else { return nil }
         let key = source.link
         let entry = entries[key]
-        let stale = entry.map { Date().timeIntervalSince($0.checkedAt) > Self.freshFor } ?? true
-        let unreachableRecently = unreachableAt[key].map { Date().timeIntervalSince($0) < Self.unreachableRetry } ?? false
+        let now = Date()
+        let stale = entry.map { now.timeIntervalSince($0.checkedAt) > Self.freshFor } ?? true
+        let unreachableRecently = unreachableAt[key].map { now.timeIntervalSince($0) < Self.unreachableRetry } ?? false
         if stale, !unreachableRecently, inFlight[key] == nil, !requested.contains(key) {
             requested.insert(key)
             Task {
@@ -1843,7 +1865,8 @@ final class KachatSocialImageResolver: ObservableObject {
         case .discord:
             guard let url = URL(string: "https://discord.com/api/v10/invites/\(source.handle)"),
                   let (data, status) = await fetch(url, agent: browserAgent) else { return nil }
-            if status == 404 { return KachatNames.SocialProfile() }
+            // no such invite (a username typed instead of an invite code, or one that expired)
+            if status == 404 { return KachatNames.SocialProfile(notFound: true) }
             guard status == 200 else { return nil }
             return KachatNames.SocialProfile(avatar: S.discordImage(fromInviteJSON: data, kind: .avatar),
                                              banner: S.discordImage(fromInviteJSON: data, kind: .banner),
@@ -2024,7 +2047,7 @@ final class KachatNamesNotifier {
 
         // Your names: renewal open, expired (grace), lapsed - once per paid period.
         for n in owned {
-            let display = "\(n.name).kachat"
+            let display = KachatNameLabel.display(n.name)
             var s = old?.names[n.name].flatMap { $0.expiresAt == n.expiresAt ? $0 : nil } ?? Snapshot.Name(expiresAt: n.expiresAt)
             switch n.status(graceMs: p.graceMs, nowMs: now) {
             case .active:
@@ -2057,7 +2080,7 @@ final class KachatNamesNotifier {
         for name in old.map({ Array($0.names.keys) }) ?? [] where new.names[name] == nil {
             let history = (try? await registry.history(name: name)) ?? []
             guard let last = history.first(where: { ["sale", "offer_accepted", "offer_accept", "transfer", "release", "reclaim"].contains($0.op) }) else { continue }
-            let display = "\(name).kachat"
+            let display = KachatNameLabel.display(name)
             switch last.op {
             case "sale":
                 post("sold-\(last.txId)", name, S("%@ sold", display),
@@ -2085,14 +2108,14 @@ final class KachatNamesNotifier {
         for o in offersOnMine {
             new.offersOnMine.insert(o.id)
             guard old?.offersOnMine.contains(o.id) != true, let name = o.name else { continue }
-            post("offer-\(o.id)", name, S("New offer on %@", "\(name).kachat"), S("%@ KAS offered for it.", KaspaUnit.plain(o.amount)))
+            post("offer-\(o.id)", name, S("New offer on %@", KachatNameLabel.display(name)), S("%@ KAS offered for it.", KaspaUnit.plain(o.amount)))
         }
 
         // Your offers: accepted, or back with you.
         for o in myOpenOffers { new.myOffers[o.id] = o.name ?? "" }
         for (id, name) in old?.myOffers ?? [:] where offersAreComplete && new.myOffers[id] == nil && !name.isEmpty {
             if selfClosedOffers.contains(id) { continue }
-            let display = "\(name).kachat"
+            let display = KachatNameLabel.display(name)
             if owned.contains(where: { $0.name == name }) {
                 post("myoffer-\(id)", name, AppLocalization.string("Offer accepted"), S("%@ is yours now.", display))
                 continue
@@ -2165,7 +2188,7 @@ enum KachatNameReminders {
             KaspaUnit.label(String(format: AppLocalization.string(key), locale: AppLocalization.locale, arguments: args))
         }
         for n in names {
-            let display = "\(n.name).kachat"
+            let display = KachatNameLabel.display(n.name)
             let base = "\(prefix)\(n.name)-\(n.expiresAt)-"
             let renewAt = p.renewOpens(expiresAt: n.expiresAt)
             if renewAt > now {

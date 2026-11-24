@@ -99,7 +99,14 @@ final class KasiaAPIClient: NSObject, URLSessionTaskDelegate {
     private let highNoDpiConfidenceThreshold = 70
     private let confidentModeFailureWindow: TimeInterval = 25
     private let confidentModeFailuresBeforeHTTP1 = 2
-    @MainActor private(set) var dpiSuspectedSnapshot: Bool = false
+    @MainActor private(set) var dpiSuspectedSnapshot: Bool = false {
+        // the dock's connection dot follows it (audit 2026-11-24 #29)
+        didSet {
+            if dpiSuspectedSnapshot != oldValue {
+                NotificationCenter.default.post(name: .kasiaDpiSuspectedChanged, object: nil)
+            }
+        }
+    }
 
     private override init() {
         super.init()
@@ -2003,4 +2010,9 @@ private actor IndexerRequestQueue {
 
 struct ErrorResponse: Codable {
     let error: String
+}
+
+extension Notification.Name {
+    /// `KasiaAPIClient.isDpiSuspected` changed.
+    static let kasiaDpiSuspectedChanged = Notification.Name("kasiaDpiSuspectedChanged")
 }

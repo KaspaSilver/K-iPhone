@@ -900,12 +900,13 @@ struct MessageBubbleView: View {
         case .move(let content):
             let promotionSuffix = content.promotion.map { " (\($0.uppercased()))" } ?? ""
             return "\(content.from) → \(content.to)\(promotionSuffix)"
+        // Shown as a String, so translated here (audit 2026-11-24 #40).
         case .resign(let content):
-            return content.reason == "timeout" ? "Lost on time" : "Resigned"
+            return AppLocalization.string(content.reason == "timeout" ? "Lost on time" : "Resigned")
         case .response(let content):
-            return content.accepted ? "Accepted the game" : "Declined the game"
+            return AppLocalization.string(content.accepted ? "Accepted the game" : "Declined the game")
         case .invite:
-            return "Chess invite"
+            return AppLocalization.string("Chess invite")
         }
     }
 
@@ -1125,7 +1126,7 @@ struct MessageBubbleView: View {
     private func handleCopy(_ value: String, toast: String) {
         UIPasteboard.general.string = value
         Haptics.success()
-        onCopy?(toast, .success)
+        onCopy?(AppLocalization.string(toast), .success)
     }
 
     private var mediaFile: MediaFile? {
@@ -1195,18 +1196,12 @@ struct KaChatInternalLinkCardView: View {
     private var title: String {
         switch match.link {
         case .profile(let address):
-            if let domain = KNSService.shared.identityInfo(for: address)?.primaryDomain {
-                return domain
-            }
             return ContactsManager.shared.displayName(for: address)
         case .paymentRequest(let request):
             return "\(request.amountText) \(KaspaUnit.symbol)"
         case .kaPost:
             // the poster, named the way a profile card names them
             if let author = kaPostPreview?.authorAddress {
-                if let domain = KNSService.shared.identityInfo(for: author)?.primaryDomain {
-                    return domain
-                }
                 return ContactsManager.shared.displayName(for: author)
             }
             return AppLocalization.string("A post on KaPost")
@@ -1219,7 +1214,8 @@ struct KaChatInternalLinkCardView: View {
         switch match.link {
         case .profile(let address):
             let isContact = ContactsManager.shared.contacts.contains { $0.address.lowercased() == address }
-            return isContact ? "Tap to open your chat." : "Tap to start a chat on K."
+            // Translated here: the card shows it as a String (audit 2026-11-24 #33).
+            return AppLocalization.string(isContact ? "Tap to open your chat." : "Tap to start a chat on K.")
         case .paymentRequest(let request):
             let action = request.isOwn ? AppLocalization.string("Your payment request. Tap to view.") : AppLocalization.string("Tap to pay.")
             var lines: [String] = []
@@ -1903,7 +1899,7 @@ struct LazyImageBubble: View {
     private func handleCopy(_ value: String, toast: String) {
         UIPasteboard.general.string = value
         Haptics.success()
-        onCopy?(toast, .success)
+        onCopy?(AppLocalization.string(toast), .success)
     }
 }
 

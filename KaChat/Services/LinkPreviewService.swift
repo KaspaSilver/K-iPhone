@@ -490,6 +490,8 @@ enum KaPostPreviewLoader {
     private nonisolated static let placeholderRequester = "02" + String(repeating: "0", count: 64)
     /// As much as the card can show, and what the link site puts in its preview.
     private nonisolated static let textLimit = 300
+    /// The most of a `get-post` answer read (audit 2026-11-24 #22): far past any real post.
+    private nonisolated static let maxResponseBytes = 1_000_000
 
     static func cached(_ txId: String) -> KaPostPreview? { cache[txId] }
 
@@ -528,7 +530,12 @@ enum KaPostPreviewLoader {
         guard let url = components.url else { return nil }
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        // Read no further than `maxResponseBytes`, like the other indexer reads: one post is a
+        // transaction's payload, so a bigger answer is broken or hostile (audit 2026-11-24 #22).
+        let reader = CappedResponseReader(limit: maxResponseBytes, onOverflow: .fail)
+        let cappedSession = URLSession(configuration: .default, delegate: reader, delegateQueue: nil)
+        defer { cappedSession.finishTasksAndInvalidate() }
+        guard let (data, response) = try? await reader.read(request, using: cappedSession),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let post = try? JSONDecoder().decode(Response.self, from: data).post,
               let bytes = Data(base64Encoded: post.postContent),

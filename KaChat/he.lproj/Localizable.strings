@@ -1,7 +1,5 @@
 "#" = "#";
 "%@ copied to clipboard." = "%@ הועתק ללוח.";
-"%@ transferred to %@." = "%@ הועבר ל-%@.";
-"%@ updated." = "%@ עודכן.";
 "1 year" = "שנה אחת";
 "12 words" = "12 מילים";
 "30 days" = "30 ימים";
@@ -21,7 +19,6 @@
 "Admin" = "מנהל";
 "All Nodes" = "כל הצמתים";
 "Anyone with your 12 or 24 words can access your account. Never share them with anyone." = "כל מי שיש לו את 12 או 24 המילים שלכם יכול לגשת לחשבון. לעולם אל תשתפו אותן.";
-"Asset ID" = "מזהה נכס";
 "Audio" = "שמע";
 "Auto Search for Nodes" = "חיפוש אוטומטי אחר צמתים";
 "Avatar" = "גִלגוּל";
@@ -67,10 +64,6 @@
 "Copy Private Key Hex" = "העתק מפתח פרטי (Hex)";
 "Copy 12 or 24 Words" = "העתקת 12 או 24 המילים";
 "Copy Transaction ID" = "העתק מזהה עסקה";
-"Could not encode selected image" = "לא ניתן היה לקודד את התמונה שנבחרה";
-"Could not initialize image encoder" = "לא ניתן היה לאתחל את מקודד התמונה";
-"Could not load selected image" = "לא ניתן היה לטעון את התמונה שנבחרה";
-"Could not process selected image" = "לא ניתן היה לעבד את התמונה שנבחרה";
 "Couldn't Rename Group" = "לא ניתן היה לשנות שם לקבוצה";
 "Country" = "מדינה";
 "Create New Account" = "צור חשבון חדש";
@@ -91,7 +84,6 @@
 "Domain" = "תְחוּם";
 "Domains" = "דומיינים";
 "Done" = "סיום";
-"Edit KNS Profile" = "ערוך פרופיל KNS";
 "Emoji picker" = "בורר אימוג׳י";
 "Encoding…" = "מקודד…";
 "Enter a new name for this saved account." = "הזן שם חדש לחשבון השמור הזה.";
@@ -124,13 +116,6 @@
 "Indexer URL" = "כתובת מאנדקס";
 "Info" = "מידע";
 "KAS" = "KAS";
-"KNS Domains" = "דומיינים KNS";
-"KNS Profile" = "פרופיל KNS";
-"KNS asset id is missing." = "KNS מזהה הנכס חסר.";
-"KNS domain id is missing." = "חסר מזהה דומיין KNS.";
-"KNS profile update failed." = "עדכון פרופיל KNS נכשל.";
-"KNS profile update failed: %@" = "עדכון פרופיל KNS נכשל: %@";
-"KNS profile updated." = "פרופיל KNS עודכן.";
 "KaChat" = "KaChat";
 "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K מאפשר לך לשלוח ולקבל הודעות ישירות ברשת Kaspa עצמה. נדרש Kaspa כדי לשלם עמלות בעת שליחת ההודעות שלך. העמלה שאתה משלם הולכת לכורים המאבטחים את הרשת.";
 "K needs to connect to a node. How would you like to connect?" = "K צריך להתחבר לצומת. איך תרצה להתחבר?";
@@ -153,7 +138,6 @@
 "Members" = "חברים";
 "Message" = "הוֹדָעָה";
 "Message retention" = "שמירת הודעות";
-"More Info" = "מידע נוסף";
 "More options" = "אפשרויות נוספות";
 "Most taxing on the device, not as reliable - depends on where you live" = "הכי מכביד על המכשיר, פחות אמין - תלוי היכן אתה גר";
 "Name" = "שם";
@@ -161,11 +145,9 @@
 "New message" = "הודעה חדשה";
 "Next" = "הבא";
 "No Conversations Yet" = "עדיין אין שיחות";
-"No KNS profile changes detected." = "לא זוהו שינויים בפרופיל KNS.";
 "No Sound" = "ללא צליל";
 "No Spending Addresses" = "אין כתובות הוצאה";
 "No active nodes" = "אין צמתים פעילים";
-"No domains yet." = "עדיין אין דומיינים.";
 "No emoji found" = "לא נמצא אימוג׳י.";
 "No hidden users in this group." = "אין משתמשים מוסתרים בקבוצה זו.";
 "No messages yet" = "אין הודעות עדיין";
@@ -175,12 +157,10 @@
 "No transactions yet." = "אין עדיין עסקאות.";
 "Node endpoint copied." = "נקודת קצה של צומת הועתקה.";
 "Not Now" = "לא עכשיו";
-"Not registered" = "לא רשום";
 "Notifications" = "התראות";
 "Notifications Disabled" = "התראות מושבתות";
 "OK" = "אישור";
 "Off" = "כבוי";
-"On-chain profile data available." = "נתוני פרופיל בשרשרת זמינים.";
 "Open Chat" = "פתח צ'אט";
 "Open Link" = "פתח קישור";
 "Open Settings" = "פתח הגדרות";
@@ -196,13 +176,9 @@
 "Point camera at a QR code" = "כוון את המצלמה לקוד QR";
 "Pool Health" = "בריאות המאגר";
 "Pool Status" = "מצב המאגר";
-"Preparing profile update..." = "מכין עדכון פרופיל...";
 "Primary" = "ראשי";
-"Primary domain set to %@." = "הדומיין הראשי מוגדר ל-%@.";
 "Private key hex copied. Clipboard will clear in 30s." = "המפתח הפרטי (hex) הועתק. הלוח יימחק תוך 30 שניות.";
 "Private key unavailable." = "המפתח הפרטי אינו זמין.";
-"Processing avatar..." = "מעבד את הדמות...";
-"Processing banner..." = "מעבד באנר...";
 "Profile" = "פרופיל";
 "Profiled" = "נבדק";
 "Promote pawn to:" = "קדם רגלי ל:";
@@ -219,15 +195,12 @@
 "Received %@ domain" = "הדומיין %@ התקבל";
 "Received domain transfer" = "העברת דומיין התקבלה";
 "Received payment" = "התקבל תשלום";
-"Recipient Address" = "כתובת הנמען";
 "Recommended" = "מומלץ";
 "Reconnect" = "התחבר מחדש";
 "Redirect URL" = "כתובת אתר להפניה מחדש";
 "Refresh Pool" = "רענן מאגר";
 "Remote push" = "דחיפה מרחוק";
 "Remove" = "הסר";
-"Remove Avatar" = "הסר את אווטאר";
-"Remove Banner" = "הסר באנר";
 "Rename" = "שנה שם";
 "Rename Account" = "שנה שם חשבון";
 "Rename Address" = "שנה שם כתובת";
@@ -236,8 +209,6 @@
 "Request to communicate" = "בקשה לתקשורת";
 "Resign" = "התפטר";
 "Retry Send" = "שלח שוב";
-"Retry failed: %@" = "ניסיון חוזר נכשל: %@";
-"Retrying %@..." = "מנסה שוב את %@...";
 "Save" = "שמור";
 "Save Audio" = "שמור שמע";
 "Saved Accounts" = "חשבונות שמורים";
@@ -252,7 +223,6 @@
 "Select a chat" = "בחר צ'אט";
 "Select the currency you'd like prices displayed in." = "בחר את המטבע שבו תרצה שהמחירים יוצגו.";
 "Select the language you'd like to use in K." = "בחר את השפה שבה תרצה להשתמש ב-K.";
-"Selected data is not a valid image" = "הנתונים שנבחרו אינם תמונה חוקית";
 "Send" = "שלח";
 "Send Handshake" = "שלח בקשת תקשורת";
 "Send KAS" = "שלח KAS";
@@ -264,7 +234,6 @@
 "Sent %@ KAS — %@" = "נשלח %@ KAS — %@";
 "Sent %@ domain" = "הדומיין %@ נשלח";
 "Sent domain transfer" = "העברת דומיין נשלחה";
-"Set primary failed: %@" = "ההגדרה הראשית נכשלה: %@";
 "Settings" = "הגדרות";
 "Show More" = "הצג עוד";
 "Show QR Code" = "הצג קוד QR";
@@ -284,14 +253,8 @@
 "This removes the group and its messages from this device. This cannot be undone, and other members won't be notified." = "זה מסיר את הקבוצה והודעותיה ממכשיר זה. לא ניתן לבטל זאת, וחברים אחרים לא יקבלו התראה.";
 "To receive notifications, please enable them in Settings." = "כדי לקבל התראות, אנא אפשר אותן בהגדרות.";
 "Total Balance" = "יתרה כוללת";
-"Transfer submitted for %@." = "העברה הוגשה עבור %@.";
 "Try Again" = "נסה שוב";
 "Unhide" = "בטל הסתרה";
-"Updated %d/%d. Failed: %@." = "עודכן %d/%d. נכשל: %@.";
-"Updated %d/%d. Failed: %@. %@" = "עודכן %d/%d. נכשל: %@. %@";
-"Updating %@ (%d/%d)..." = "מעדכן את %@ (%d/%d)...";
-"Uploading avatar..." = "מעלה דמות...";
-"Uploading banner..." = "מעלה באנר...";
 "Use Default" = "השתמש בברירת המחדל";
 "Verified" = "מאומת";
 "Version" = "גרסה";
@@ -301,7 +264,6 @@
 "View 12 or 24 Words" = "הצגת 12 או 24 המילים";
 "View in Explorer" = "צפה בסייר";
 "Voice message" = "הודעה קולית";
-"Wallet not available." = "הארנק אינו זמין.";
 "Website" = "אתר";
 "Welcome Guide" = "מדריך ברוכים הבאים";
 "Welcome to K" = "ברוכים הבאים ל-K";
@@ -318,23 +280,15 @@
 "Share" = "שיתוף";
 
 /* 5.2: name services, .kachat, Connection Settings, testnet */
-"Kaspa Address or Domain" = "כתובת Kaspa או דומיין";
 "Looking up domain..." = "מחפש דומיין...";
-"No %@ domain found" = "לא נמצא דומיין %@";
 "No domain" = "אין דומיין";
-"Other domains" = "דומיינים אחרים";
 "Couldn't check" = "לא ניתן לבדוק";
 "Edit KaChat Profile" = "עריכת פרופיל KaChat";
 "None yet" = "עדיין אין";
 ".kachat Name" = "שם .kachat";
-"Customize Profile" = "התאמת פרופיל";
-"No %@ names yet." = "עדיין אין שמות %@.";
-"Couldn't reach %@. Pull down to try again." = "לא ניתן להגיע אל %@. משכו למטה כדי לנסות שוב.";
-"Settling" = "בתהליך אישור";
 "Node" = "צומת";
 "Message Indexer" = "אינדקסר הודעות";
 "Coming soon" = "בקרוב";
-"Not available on this network" = "לא זמין ברשת זו";
 "Testnet" = "טסטנט";
 "Close K completely and open it again to finish switching to Testnet." = "סגרו את K לגמרי ופתחו מחדש כדי לסיים את המעבר לטסטנט.";
 "Close K completely and open it again to finish switching back to Mainnet." = "סגרו את K לגמרי ופתחו מחדש כדי לסיים את החזרה לרשת הראשית.";
@@ -378,7 +332,6 @@
 /* Receive / chatting address QR text */
 
 /* 5.2: name discovery across services */
-".k and .kaspa Names (%lld)" = "שמות .k ו-.kaspa (%lld)";
 
 /* 5.2: Message Requests, Private chats */
 "Message Requests" = "בקשות הודעה";
@@ -470,7 +423,6 @@
 "Message someone by their address or name." = "שלחו הודעה למישהו לפי כתובת או שם.";
 "Pinned to the front" = "הוצמד להתחלה";
 "Unpinned" = "ההצמדה בוטלה";
-"Coin Control" = "בקרת מטבעות";
 "Automatic" = "אוטומטי";
 "Consolidating This Address" = "מאחדים את הכתובת הזו";
 "Valid address" = "כתובת תקינה";
@@ -638,19 +590,9 @@
 /* .kachat registry v5 migration */
 
 /* .kachat first: domains in every address field, Other domains, expired-name banner */
-"kaspa:qr... or domain" = "kaspa:qr... או דומיין";
-"Enter a Kaspa address (kaspa:...) or a domain (e.g. alice.kachat). .kachat names are looked up first." = "הזן כתובת Kaspa (kaspa:...) או דומיין (למשל alice.kachat). שמות .kachat נבדקים קודם.";
-"Finds addresses holding a balance or a domain." = "מוצא כתובות שיש בהן יתרה או דומיין.";
 "Their profile, .kachat name and address." = "הפרופיל, שם ה-.kachat והכתובת.";
 "KaChat Names Indexer URL" = "כתובת מאנדקס השמות של KaChat";
-"Other Domains" = "דומיינים אחרים";
-"If these words already hold your identity at a different address - a domain (.kachat, .kas, .k or .kaspa) or a funded chatting balance - pick it here. Only addresses with a balance or domains are shown." = "אם המילים האלה כבר מחזיקות את הזהות שלכם בכתובת אחרת (דומיין ‎.kachat,‏ ‎.kas,‏ ‎.k או ‎.kaspa, או יתרת צ'אט), בחרו אותה כאן. מוצגות רק כתובות עם יתרה או דומיינים.";
 ".kachat Names (%lld)" = "שמות .kachat (%lld)";
-".kas Names (%lld)" = "שמות .kas (%lld)";
-"Enter a Kaspa address (kaspa:...) or a domain. .kachat names are looked up first." = "הזן כתובת Kaspa (kaspa:...) או דומיין. שמות .kachat נבדקים קודם.";
-"Search contacts, or an address or domain" = "חפש אנשי קשר, כתובת או דומיין";
-"You have no contacts yet. Paste an address or a domain above to invite someone." = "עדיין אין לך אנשי קשר. הדבק למעלה כתובת או דומיין כדי להזמין מישהו.";
-"No contacts match your search. Paste an address or a domain to invite someone new." = "אין אנשי קשר שתואמים לחיפוש. הדבק כתובת או דומיין כדי להזמין מישהו חדש.";
 
 /* Bare names resolve to .kachat only */
 ".kachat names aren't live on this network yet" = "שמות .kachat עדיין לא פעילים ברשת הזו";
@@ -659,7 +601,6 @@
 "Grace ends %@" = "תקופת החסד מסתיימת %@";
 "Expires %@" = "פג ב-%@";
 "Expired" = "פג תוקף";
-"No .kachat names yet" = "עדיין אין שמות .kachat";
 
 /* .kachat on mainnet */
 "The .kachat registry is being upgraded. Names open here again once the new registry is live." = "מרשם .kachat משודרג. השמות יחזרו לכאן ברגע שהמרשם החדש יהיה פעיל.";
@@ -772,9 +713,7 @@
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
 "Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "בכתובת הצ'אט שלך אין KAS כדי לעדכן את %@ על התשלום הזה, ולכן הוא יראה אותו כתשלום מכתובת לא מוכרת, בלי ההערה. K יעדכן אותו ברגע שיהיה KAS בכתובת הצ'אט שלך.";
 
-/* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
-/* Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) */
 
 /* KaPosts: tip counter / tippers list, and the bell for a person's new posts (%@ = name) */
 
@@ -797,8 +736,6 @@
 "Profile cleared" = "הפרופיל נוקה";
 
 /* KNS domain transfers and quantum-safe (script) addresses */
-"KNS can't move a domain out of a quantum-safe address: KNS identifies a domain's owner by a public key, and a quantum-safe address keeps its key hidden." = "KNS לא יכול להוציא דומיין מכתובת עמידה לקוונטים: KNS מזהה את בעל הדומיין לפי מפתח ציבורי, וכתובת עמידה לקוונטים שומרת את המפתח שלה מוסתר.";
-"A .kas domain can't be sent to a quantum-safe or other script address: KNS could never move it out again. Send it to a regular address instead." = "אי אפשר לשלוח דומיין ‎.kas לכתובת עמידה לקוונטים או לכתובת סקריפט אחרת: KNS לא יוכל להוציא אותו משם לעולם. שלחו אותו לכתובת רגילה במקום.";
 
 /* Quantum-safe send: the next change address could not be prepared */
 "Couldn't prepare the next address. Try again." = "לא ניתן היה להכין את הכתובת הבאה. נסו שוב.";
@@ -878,7 +815,6 @@
 "Removed from Contacts." = "הוסר מאנשי הקשר.";
 "Remove Contact Photos" = "הסר תמונות אנשי קשר";
 "Remove Contact Photos?" = "להסיר תמונות אנשי קשר?";
-"Pick people from your contacts, or add anyone by Kaspa address or domain." = "בחר אנשים מאנשי הקשר שלך, או הוסף כל אחד לפי כתובת Kaspa או דומיין.";
 "No members added yet. Add people from your contacts or by address below." = "עדיין אין חברים. הוסף אנשים מאנשי הקשר שלך או לפי כתובת למטה.";
 "Add contacts from a contacts export." = "הוסף אנשי קשר מקובץ ייצוא של אנשי קשר.";
 "Save your contacts, with their photos, to a file." = "שמור את אנשי הקשר שלך, עם התמונות שלהם, בקובץ.";
@@ -893,14 +829,12 @@
 "Delete %@ from your contacts?" = "למחוק את %@ מאנשי הקשר שלך?";
 "Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "שמור את כתובות ה-Kaspa שאתה משתמש בהן עם שם שתזהה. הן נשארות ב-K, לארנק הזה בלבד, ולעולם לא נכנסות לאפליקציית אנשי הקשר בטלפון.";
 "Saved in K for this wallet only. Never added to your phone's Contacts app." = "נשמר ב-K לארנק הזה בלבד. לעולם לא נוסף לאפליקציית אנשי הקשר בטלפון.";
-"Use for chatting and acquiring .kachat domains." = "לשימוש בצ'אט ולרכישת דומיינים של ‎.kachat.";
 "Think of it like your phone number on K." = "חשבו על זה כמו על מספר הטלפון שלכם ב-K.";
 "How People Reach You" = "איך מגיעים אליכם";
 "Share this address and people can message you. Only you can read what they send." = "שתפו את הכתובת הזו וכך יוכלו לשלוח לכם הודעות. רק אתם יכולים לקרוא את מה שנשלח.";
 "Paying for Messages" = "תשלום על הודעות";
 "Each message you send takes a tiny amount of Kaspa from this address. 1 Kaspa covers about 500 messages." = "כל הודעה שנשלחת גובה סכום קטן מאוד של Kaspa מהכתובת הזו. ‏1 Kaspa מספיק לכ-500 הודעות.";
 "What Others Can See" = "מה אחרים יכולים לראות";
-"Anyone can see this address and its balance on the Kaspa network, but they can't read your messages. Use it only for chatting and .kachat domains." = "כל אחד יכול לראות את הכתובת הזו ואת היתרה שלה ברשת Kaspa, אבל לא לקרוא את ההודעות שלכם. השתמשו בה רק לצ'אט ולדומיינים של ‎.kachat.";
 "Say anything to the bot to get started." = "כתבו משהו לבוט כדי להתחיל.";
 "Requested for payment" = "בקשת תשלום";
 "Delete Chat?" = "למחוק את הצ'אט?";
@@ -992,16 +926,13 @@
 "Scan Card" = "סריקת כרטיס";
 "Restore Account" = "שחזור חשבון";
 "Share this profile" = "שיתוף הפרופיל הזה";
-"No on-chain profile data yet." = "עדיין אין נתוני פרופיל בשרשרת.";
 "Edit name" = "עריכת שם";
-"Redirect" = "הפניה";
 "Aliases" = "כינויים";
 "Receiving alias" = "כינוי לקבלה";
 "Sending alias" = "כינוי לשליחה";
 "Default (%@)" = "ברירת מחדל (%@)";
 "Chess Stats" = "סטטיסטיקת שחמט";
 "%lld day%@ ago" = "לפני %lld יום%@";
-"PRIMARY" = "ראשי";
 "React" = "תגובה";
 "No emoji match that." = "אין אימוג׳י שמתאים לזה.";
 "%lld member%@" = "%lld חבר%@";
@@ -1073,7 +1004,6 @@
 "When a spending address receives Kaspa from someone else." = "כשכתובת הוצאה מקבלת Kaspa ממישהו אחר.";
 "Checking address #%lld" = "בודק כתובת #%lld";
 "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding." = "בודק את אלף הכתובות הראשונות גם אם יש ביניהן כתובות ריקות, ואז ממשיך כל עוד הוא ממשיך למצוא.";
-"No addresses with a balance or domain yet" = "עדיין אין כתובות עם יתרה או דומיין";
 "%lld found so far" = "%lld נמצאו עד כה";
 "Close and Keep Scanning" = "סגירה והמשך סריקה";
 "Contains domain" = "מכיל דומיין";
@@ -1100,16 +1030,8 @@
 "Setting up your account" = "מגדיר את החשבון שלכם";
 "Downloading everything this account has on chain. It only takes this long once." = "מוריד את כל מה שיש לחשבון הזה בשרשרת. זה לוקח זמן רק בפעם הראשונה.";
 "Continue anyway" = "המשך בכל זאת";
-"Your Domains" = "הדומיינים שלכם";
 "Preparing a fresh address" = "מכין כתובת חדשה";
 "Share Profile" = "שיתוף פרופיל";
-"Confirm Changes" = "אישור שינויים";
-"%lld change%@. Each is submitted as its own on-chain transaction from your chatting address:" = "%lld שינוי%@. כל אחד נשלח כעסקה נפרדת בשרשרת מכתובת הצ'אט שלכם:";
-"Primary Domain" = "דומיין ראשי";
-"Send Domain" = "שליחת דומיין";
-"If the network is busy, Fast or Priority pays a higher fee to help your transfer confirm sooner. Tap the fee amount to set a custom fee." = "אם הרשת עמוסה, מהיר או עדיפות משלמים עמלה גבוהה יותר כדי שההעברה שלכם תאושר מהר יותר. הקישו על סכום העמלה כדי לקבוע עמלה מותאמת אישית.";
-"Sending %@" = "שולח %@";
-"A domain transfer is two transactions, so this takes a moment. Keep the app open until it finishes." = "העברת דומיין כוללת שתי עסקאות, ולכן זה לוקח רגע. השאירו את האפליקציה פתוחה עד שזה יסתיים.";
 "Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs." = "מאחד את כל ה-UTXO בכתובת הזו לאחד, כדי להפחית את מספר הקלטים שיידרשו בשליחה עתידית.";
 "Public Key" = "מפתח ציבורי";
 "This address does not carry a public key." = "לכתובת הזו אין מפתח ציבורי.";
@@ -1276,7 +1198,6 @@
 "Enter the card's PIN, then tap the card to erase the backup on it." = "הזינו את ה-PIN של הכרטיס, ואז הצמידו את הכרטיס כדי למחוק את הגיבוי שבו.";
 "Create group" = "יצירת קבוצה";
 "Create" = "יצירה";
-"Create \"%@\" and invite %lld member%@?%@" = "ליצור את “%@” ולהזמין %lld חבר%@?%@";
 "Add\nPhoto" = "הוספת\nתמונה";
 "Add to Group" = "הוספה לקבוצה";
 "Remove from group" = "הסרה מהקבוצה";
@@ -1317,7 +1238,6 @@
 "Contact Backup" = "גיבוי אנשי קשר";
 "Contacts backed up." = "אנשי הקשר גובו.";
 "Only your contacts are backed up here, encrypted. Your messages and group chats come back with your seed phrase." = "כאן מגובים רק אנשי הקשר שלך, בהצפנה. ההודעות והצ׳אטים הקבוצתיים שלך חוזרים עם ביטוי השחזור שלך.";
-"Confirm sending this domain" = "אישור שליחת הדומיין הזה";
 "Not confirmed" = "לא אושר";
 "This may have gone through, but the network didn't confirm it. Check your balance before sending again." = "ייתכן שזה עבר, אבל הרשת לא אישרה זאת. כדאי לבדוק את היתרה לפני שליחה נוספת.";
 "Swipe up, then let go to send." = "החליקו למעלה ואז הרפו כדי לשלוח.";
@@ -1464,9 +1384,6 @@
 "Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "הגדירו קוד גישה ב-iPhone הזה (הגדרות > Face ID וקוד גישה) כדי למחוק חשבון או לראות מפתחות סודיים ב-K.";
 "Waiting on opponent" = "ממתין ליריב";
 "Not sent: you switched accounts before this went out." = "לא נשלח: החלפת חשבון לפני השליחה.";
-"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "הראשונה מבין שתי העסקאות הושלמה, אבל השנייה לא. K ישלים אותה בפתיחה הבאה.";
-"A domain transfer's fee can be at most 1 KAS." = "העמלה על העברת דומיין יכולה להיות לכל היותר 1 KAS.";
-"Confirm setting this primary name" = "אישור הגדרת השם הראשי הזה";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "ייתכן שהמפתחות של החשבון הזה עדיין בטלפון, אבל לא ניתן לקרוא אותם כרגע, ולכן שום דבר לא השתנה. נסו שוב בעוד רגע.";
 "Play It Again" = "שחק שוב";
 "This is the public half of this address. It cannot spend anything." = "זהו החלק הציבורי של הכתובת הזו. לא ניתן להוציא איתו דבר.";
@@ -1513,7 +1430,6 @@
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "סרקו במצלמת iPhone כדי לשלם ב-K, עם הכול כבר ממולא.";
 "Set as Name" = "הגדרה כשם";
 "Their Name" = "השם שלו";
-"Get a .kachat name" = "השיגו שם ‎.kachat";
 
 /* GIFs (2026-11-18) */
 "Send an animated GIF from your library." = "שלחו GIF מונפש מהספרייה שלכם.";
@@ -1591,8 +1507,6 @@
 "No addresses with %@ yet" = "עדיין אין כתובות עם %@";
 "Not confirmed: the network didn't answer. It may still go through. Try Again resends the same transaction, so it can't be paid twice." = "לא אושר: הרשת לא ענתה. ייתכן שזה עדיין יעבור. ‏נסו שוב שולח את אותה עסקה, כך שאי אפשר לשלם פעמיים.";
 "Not independently audited yet. Hold only what you can afford to lose." = "עדיין לא עבר ביקורת עצמאית. החזיקו רק סכום שאתם יכולים להרשות לעצמכם להפסיד.";
-"On %d of your addresses" = "ב-%d מהכתובות שלכם";
-"On your %@" = "ב%@ שלכם";
 "Only %@ on Kaspa, or KAS, can be sent here." = "אפשר לשלוח לכאן רק %@ ב-Kaspa, או KAS.";
 "Only Kaspa can be sent here." = "אפשר לשלוח לכאן רק Kaspa.";
 "Pending" = "ממתין";
@@ -1653,9 +1567,6 @@
 "Not set" = "לא הוגדר";
 
 /* Address Domains tab (2026-11-20) */
-"1 domain" = "דומיין אחד";
-"Couldn't load" = "לא ניתן לטעון";
-"No %@ names on this address." = "אין שמות %@ בכתובת הזו.";
 
 /* kUSDT-listed addresses stay in Manage Addresses (2026-11-20) */
 "Shown for kUSDT" = "מוצגת בגלל kUSDT";
@@ -1679,19 +1590,7 @@
 "This send changed while the screen was open. Nothing was sent: check it again and swipe." = "השליחה הזו השתנתה בזמן שהמסך היה פתוח. לא נשלח דבר: בדקו שוב והחליקו.";
 "Scanning your addresses for balances…" = "סורקים את הכתובות שלך לאיתור יתרות…";
 
-/* Kaspa Hub and Customize Dock (back 2026-11-20) */
 "Kaspa Hub" = "Kaspa Hub";
-"Your Dock" = "המעגן שלך";
-"Your dock is full. Remove one from it to add one of these." = "המעגן מלא. הסירו פריט ממנו כדי להוסיף אחד מאלה.";
-"In the order %@ shows them." = "בסדר שבו %@ מציג אותם.";
-"Always in your dock" = "תמיד במעגן שלך";
-"Move %@ to %@" = "העברת %@ אל %@";
-"Add %@ to your dock" = "הוספת %@ למעגן";
-"Customize Dock" = "התאמת הדוק";
-"%@ always stays in your dock." = "%@ תמיד נשאר בדוק שלך.";
-"Nothing here right now" = "אין כאן כלום כרגע";
-"What isn't in your dock shows here. Arrange them in Customize Dock." = "מה שלא בדוק שלך מופיע כאן. סדרו אותו בהתאמת הדוק.";
-"Pick what's in your dock. Everything else is in Kaspa Hub." = "בחרו מה יהיה בדוק. כל השאר ב-Kaspa Hub.";
 
 /* Portfolio, Cold Storage and .kachat names, from KaPay (2026-11-21) */
 "Add Transaction" = "הוסף עסקה";
@@ -1739,7 +1638,6 @@
 "Activity" = "פעילות";
 "List a Name for Sale" = "הצעת שם למכירה";
 "Listings appear here once .kachat names launch." = "מודעות יופיעו כאן כשייצאו שמות .kachat.";
-"Claim a Name" = "קבלת שם";
 "Recent activity" = "פעילות אחרונה";
 "Activity appears here once .kachat names launch." = "פעילות תופיע כאן כשייצאו שמות .kachat.";
 "How it works" = "איך זה עובד";
@@ -1773,7 +1671,6 @@
 "Offers open when .kachat names launch." = "ההצעות ייפתחו עם השקת שמות ‎.kachat.";
 "Pick a CSV file from your Nextcloud." = "בחרו קובץ CSV מה-Nextcloud שלכם.";
 "Save the CSV to the KaChat folder in your Nextcloud." = "שומר את קובץ ה-CSV בתיקיית KaChat ב-Nextcloud שלכם.";
-"No .kachat names on this address" = "אין שמות ‎.kachat בכתובת הזו";
 "Names this address claims or buys show here once .kachat names launch." = "שמות שהכתובת הזו מקבלת או קונה יופיעו כאן עם השקת שמות ‎.kachat.";
 "Move to Portfolio" = "העברה לתיק";
 "Create another portfolio first, then you can move transactions into it." = "צרו קודם תיק נוסף, ואז תוכלו להעביר אליו עסקאות.";
@@ -1888,8 +1785,6 @@
 "New period" = "תקופה חדשה";
 "Extending adds years to the current paid period, which holds at most 2 years. The price goes to the miners." = "הארכה מוסיפה שנים לתקופה המשולמת הנוכחית, שמחזיקה לכל היותר שנתיים. המחיר הולך לכורים.";
 "The names indexer didn't send this name's paid period. Pull to refresh and try again." = "האינדקסר של השמות לא שלח את התקופה המשולמת של השם הזה. משכו לרענון ונסו שוב.";
-"Opens the .kachat tab" = "פותח את הלשונית ‎.kachat";
-"Names this address owns show here." = "השמות שבבעלות הכתובת הזו מופיעים כאן.";
 "Build Unsigned Transaction" = "יצירת עסקה לא חתומה";
 "Copies the address" = "מעתיק את הכתובת";
 "Manage Name" = "ניהול השם";
@@ -1975,12 +1870,7 @@
 "Names are moving to the new registry. New names can be claimed from %@." = "השמות עוברים למרשם החדש. אפשר יהיה לתבוע שמות חדשים החל מ-%@.";
 "Every name from the old registry comes over with the same owner and expiry first." = "קודם כל, כל שם מהמרשם הישן עובר עם אותו בעלים ואותו מועד תפוגה.";
 "Moved to the new registry" = "הועבר למרשם החדש";
-"Enter a Kaspa address or a domain like name.kachat (.kachat names are looked up first). Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "הזן כתובת Kaspa או דומיין כמו name.kachat (שמות .kachat נבדקים קודם). כל עסקה שהתקבלה בכתובת הזו נרשמת כקנייה, וכל עסקה שנשלחה כמכירה, לפי מחיר ה-KAS ההיסטורי של אותו יום. הוספה חוזרת של אותה כתובת מייבאת רק עסקאות מאז הייבוא האחרון.";
-"An address or a domain - .kachat names are looked up first, and it's resolved to the address shown." = "כתובת או דומיין - שמות .kachat נבדקים קודם, והשם מומר לכתובת המוצגת.";
-"Enter an address or a domain." = "הזן כתובת או דומיין.";
 "That name's address can't own a .kachat name." = "הכתובת של השם הזה לא יכולה להחזיק שם .kachat.";
-"One of your .kachat domains expired" = "פג תוקפו של אחד מדומייני ה-.kachat שלך";
-"%lld of your .kachat domains expired" = "פג תוקפם של %lld מדומייני ה-.kachat שלך";
 "Renew %@ before its grace period ends on %@ to keep it." = "חדש את %@ לפני שתקופת החסד מסתיימת ב-%@ כדי לשמור עליו.";
 "Renew them before their grace periods end to keep them." = "חדש אותם לפני שתקופות החסד מסתיימות כדי לשמור עליהם.";
 "Not a Schnorr address on this network." = "זו לא כתובת Schnorr ברשת הזו.";
@@ -2043,7 +1933,6 @@
 "Transaction Details" = "פרטי עסקה";
 "Add Kaspa Address" = "הוספת כתובת Kaspa";
 "Edit Transaction" = "עריכת עסקה";
-"Looking up..." = "מחפשים...";
 "%d day" = "%d יום";
 "%d days" = "%d ימים";
 "Biometrics for 12 or 24 Words" = "ביומטריה עבור 12 או 24 המילים";
@@ -2054,7 +1943,6 @@
 "Unlock to change the private key biometric lock" = "בטלו את הנעילה כדי לשנות את הנעילה הביומטרית של המפתח הפרטי";
 "The registry can't be checked right now. Try again in a moment." = "אי אפשר לבדוק את המרשם כרגע. נסו שוב בעוד רגע.";
 "Name your own price. Your KAS waits on chain until the seller accepts, you withdraw the offer, or it expires." = "קבעו מחיר משלכם. ה-KAS שלכם ממתין בשרשרת עד שהמוכר יקבל, תמשכו את ההצעה או שתפוג.";
-"Couldn't load this address's names. Pull down to try again." = "לא ניתן היה לטעון את השמות של הכתובת הזו. משכו למטה כדי לנסות שוב.";
 "Holdings" = "החזקות";
 "Current Value" = "שווי נוכחי";
 "Total Invested" = "סך ההשקעה";
@@ -2073,7 +1961,6 @@
 "Next Block Reward" = "תגמול הבלוק הבא";
 "Next Block Reward Reduction" = "ההפחתה הבאה בתגמול הבלוק";
 "At %@ network hashrate and a %@ block reward. Before pool fees, power and luck, and both figures move." = "לפי קצב גיבוב רשת של %@ ותגמול בלוק של %@. לפני עמלות בריכה, חשמל ומזל, ושני הנתונים משתנים.";
-"Saving profile..." = "שומר פרופיל...";
 "Imported 1 transaction" = "יובאה עסקה אחת";
 "Imported %lld transactions" = "יובאו %lld עסקאות";
 ". Prices for %lld are still loading and will fill in automatically" = ". המחירים של %lld עדיין נטענים וימולאו אוטומטית";
@@ -2082,9 +1969,6 @@
 "Export failed. Couldn't write the CSV file" = "הייצוא נכשל. לא ניתן היה לכתוב את קובץ ה-CSV";
 "Imported 1 transaction into %@" = "יובאה עסקה אחת אל %@";
 "Imported %lld transactions into %@" = "יובאו %lld עסקאות אל %@";
-"No addresses with a balance or domain found." = "לא נמצאו כתובות עם יתרה או דומיין.";
-"Found 1 address with a balance or domain." = "נמצאה כתובת אחת עם יתרה או דומיין.";
-"Found %lld addresses with a balance or domain." = "נמצאו %lld כתובות עם יתרה או דומיין.";
 "Unlock to view this address's private key" = "יש לבטל את הנעילה כדי להציג את המפתח הפרטי של הכתובת הזו";
 "Unlock to view your 12 or 24 words" = "יש לבטל את הנעילה כדי להציג את 12 או 24 המילים";
 "Locked by a covenant" = "נעולה על ידי קובננט";
@@ -2303,7 +2187,6 @@
 "Tips From" = "טיפים מ";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "טיפ מה-Chatting Address נספר בפוסט, ואתה מופיע ברשימת נותני הטיפים.";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "טיפ מכתובת אחרת הוא פרטי: הכותב מקבל אותו ורואה אותו בצ'אט שלכם, אבל הוא לא נספר בפוסט ולא מזכיר את שמך.";
-"Tips from your Chatting Address count on the post, and you're listed as a tipper. From another address a tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you." = "טיפים מה-Chatting Address נספרים בפוסט, ואתה מופיע ברשימת נותני הטיפים. טיפ מכתובת אחרת הוא פרטי: הכותב מקבל אותו ורואה אותו בצ'אט שלכם, אבל הוא לא נספר בפוסט ולא מזכיר את שמך.";
 "Join #%@?" = "להצטרף אל #%@?";
 "A link wants to add this room to your Public Chats." = "קישור מבקש להוסיף את החדר הזה לצ'אטים הציבוריים שלכם.";
 "This name mixes letters from different alphabets, so it may be imitating another room." = "השם הזה משלב אותיות מאלפביתים שונים, ולכן ייתכן שהוא מתחזה לחדר אחר.";
@@ -2595,7 +2478,6 @@
 "What are you tipping in?" = "במה אתם נותנים טיפ?";
 "Not counted on the post" = "לא נספר בפוסט";
 "Tip asks whether to send Kaspa or kUSDT each time." = "טיפ שואל בכל פעם אם לשלוח Kaspa או kUSDT.";
-"Tip sends kUSDT to the poster's chatting address. kUSDT tips aren't counted on the post." = "טיפ שולח kUSDT לכתובת הצ'אט של מפרסם הפוסט. טיפים ב־kUSDT לא נספרים בפוסט.";
 "The account changed, so this wasn't sent." = "החשבון התחלף, לכן זה לא נשלח.";
 "KaPost isn't available on Testnet yet" = "KaPost עדיין לא זמין ברשת הבדיקה";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "אין אינדקסר KaPost לרשת הבדיקה. כבה את רשת הבדיקה בהגדרות > חיבור כדי לקרוא ולפרסם ברשת הראשית.";
@@ -2624,8 +2506,6 @@
 "Channel names must be 1-%d characters with no spaces or colons." = "שמות ערוצים חייבים להיות באורך 1-%d תווים, בלי רווחים או נקודתיים.";
 "channel-name" = "שם-ערוץ";
 
-"Set what Tip sends in Settings > KaPost > Tip In." = "בחרו מה טיפ שולח בהגדרות > KaPost > טיפ ב־.";
-"Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > KaPost." = "הטיפ לא נשלח: הטיפ הקטן ביותר שהרשת מקבלת הוא %@. שנו את טיפ ברירת המחדל בהגדרות > KaPost.";
 
 "See All Posts" = "לכל הפוסטים";
 "Opens KaPost, where everyone's posts are." = "פותח את KaPost, שם נמצאים הפוסטים של כולם.";
@@ -2669,7 +2549,6 @@
 "Advanced" = "מתקדם";
 "All time" = "כל הזמנים";
 "Beginner" = "מתחיל";
-"Best: %lld moves" = "הטוב ביותר: %lld מסעים";
 "Black" = "שחור";
 "Black to move" = "תור השחור";
 "Bots" = "בוטים";
@@ -2686,7 +2565,6 @@
 "Checkmate. %@ won." = "מט. %@ ניצח.";
 "Chess server unreachable, showing what we have. Your games keep going from the network. Public rooms can be joined again when it's back." = "שרת השחמט לא זמין, מוצג מה שיש לנו. המשחקים שלכם ממשיכים דרך הרשת. אפשר יהיה להצטרף שוב לחדרים ציבוריים כשהוא יחזור.";
 "Chess server unreachable. Moves are coming from the network, and the board may be a moment behind." = "שרת השחמט לא זמין. המסעים מגיעים מהרשת, והלוח עשוי לפגר ברגע.";
-"Chess server unreachable. Showing what this phone has, which can be less than the full board." = "שרת השחמט לא זמין. מוצג מה שיש בטלפון הזה, וזה עשוי להיות פחות מהטבלה המלאה.";
 "Chess server unreachable. Showing what this phone has." = "שרת השחמט לא זמין. מוצג מה שיש בטלפון הזה.";
 "Chess server unreachable. Watching the network for players, so someone who joined while the app was away may not show." = "שרת השחמט לא זמין. עוקבים אחרי הרשת כדי למצוא שחקנים, כך שמי שהצטרף כשהאפליקציה הייתה סגורה אולי לא יופיע.";
 "Choose your game" = "בחרו משחק";
@@ -2696,7 +2574,6 @@
 "Code" = "קוד";
 "Copy" = "העתקה";
 "Couldn't stamp the result on Kaspa" = "לא ניתן היה לרשום את התוצאה ב-Kaspa";
-"Counted from %@." = "נספר מאז %@.";
 "Create a private 1v1" = "יצירת 1v1 פרטי";
 "Create a private tournament" = "יצירת טורניר פרטי";
 "Creating…" = "יוצר…";
@@ -2718,15 +2595,12 @@
 "Draw by threefold repetition. %@ won on clock." = "תיקו בחזרה משולשת. %@ ניצח לפי השעון.";
 "Draw." = "תיקו.";
 "Draw. %@ won on clock." = "תיקו. %@ ניצח לפי השעון.";
-"Eight players, single elimination: quarterfinals, semifinals, final. Public rooms fill as players arrive; private ones by code." = "שמונה שחקנים, נוקאאוט: רבע גמר, חצי גמר, גמר. חדרים ציבוריים מתמלאים כשהשחקנים מגיעים; פרטיים עם קוד.";
 "Everyone who joined is released. This is one transaction." = "כל מי שהצטרף משוחרר. זו עסקה אחת.";
 "Final" = "גמר";
 "Finished 1v1 games" = "משחקי 1v1 שהסתיימו";
 "Finished tournaments" = "טורנירים שהסתיימו";
-"Five bots, level 1 to 5, from Kaspa Silver to Yonatan Sompolinsky. Beat one to unlock the next. The result goes on Kaspa." = "חמישה בוטים, רמה 1 עד 5, מ-Kaspa Silver ועד Yonatan Sompolinsky. נצחו אחד כדי לפתוח את הבא. התוצאה נרשמת ב-Kaspa.";
 "Five bots, level 1 to 5. Beat one to unlock the next. Each game's result is stamped on Kaspa when it ends." = "חמישה בוטים, רמה 1 עד 5. נצחו אחד כדי לפתוח את הבא. התוצאה של כל משחק נרשמת ב-Kaspa כשהוא מסתיים.";
 "Game" = "משחק";
-"Games won and lost - 1v1s and tournament games alike" = "משחקים שניצחתם והפסדתם - גם 1v1 וגם משחקי טורניר";
 "Go to your game" = "למשחק שלכם";
 "Here for the fun of it. Moves fast and sometimes leaves a piece hanging." = "משחק בשביל הכיף. זז מהר ולפעמים משאיר כלי לא מוגן.";
 "If you leave, you resign the game. %@ goes through and you are out of the tournament. It counts as a loss on the leaderboard. Resigning is one transaction." = "אם תצאו, תיכנעו במשחק. %@ עולה שלב ואתם מודחים מהטורניר. זה נספר כהפסד בטבלת המובילים. כניעה היא עסקה אחת.";
@@ -2747,7 +2621,6 @@
 "Knows how every piece moves and loves grabbing free material. Watch your loose pawns." = "יודע איך כל כלי זז ואוהב לאסוף כלים בחינם. שימו לב לרגלים הלא מוגנים שלכם.";
 "LIVE %@" = "חי %@";
 "Leaderboard" = "טבלת המובילים";
-"Leaderboard period" = "תקופת טבלת המובילים";
 "Leave" = "עזוב";
 "Leave anyway" = "לצאת בכל זאת";
 "Leave the game?" = "לצאת מהמשחק?";
@@ -2771,7 +2644,6 @@
 "Next: the game vs %@" = "הבא: המשחק נגד %@";
 "Next: the semifinal vs %@" = "הבא: חצי הגמר נגד %@";
 "No 1v1 games are being played right now. When one starts, it shows up here to watch." = "אין כרגע משחקי 1v1. כשאחד מתחיל, הוא מופיע כאן לצפייה.";
-"No bot has been played yet." = "עדיין לא שוחק אף משחק נגד בוט.";
 "No finished 1v1 games this month yet." = "עדיין אין משחקי 1v1 שהסתיימו החודש.";
 "No finished 1v1 games yet." = "עדיין אין משחקי 1v1 שהסתיימו.";
 "No finished tournaments this month yet." = "עדיין אין טורנירים שהסתיימו החודש.";
@@ -2779,7 +2651,6 @@
 "No one joined in time. You're out of the queue - join again whenever you like." = "אף אחד לא הצטרף בזמן. יצאתם מהתור - הצטרפו שוב מתי שתרצו.";
 "No open tournament with that code. Codes are eight characters; the tournament must exist and still have seats." = "אין טורניר פתוח עם הקוד הזה. קודים הם בני שמונה תווים; הטורניר צריך להתקיים ועדיין להכיל מקומות פנויים.";
 "No tournament is being played right now. When one starts, its games show up here to watch." = "אין כרגע טורניר פעיל. כשאחד מתחיל, המשחקים שלו מופיעים כאן לצפייה.";
-"Not beaten yet" = "עוד לא נוצח";
 "Novice" = "טירון";
 "On time" = "בזמן";
 "Online, five minutes a side and every move is a Kaspa transaction. Bot games stamp their result on Kaspa when they end." = "אונליין, חמש דקות לכל צד וכל מסע הוא עסקת Kaspa. משחקים נגד בוטים רושמים את התוצאה ב-Kaspa כשהם מסתיימים.";
@@ -2787,7 +2658,6 @@
 "Play a friend: create a 1v1, share its code. Private 1v1s count on the leaderboard too." = "שחקו נגד חבר: צרו 1v1 ושתפו את הקוד שלו. גם משחקי 1v1 פרטיים נספרים בטבלת המובילים.";
 "Play again" = "שחקו שוב";
 "Play as" = "לשחק בצבע";
-"Play the next person who joins, or a friend by code. One game, winner takes the leaderboard point." = "שחקו נגד האדם הבא שמצטרף, או נגד חבר עם קוד. משחק אחד, והמנצח לוקח את הנקודה בטבלה.";
 "Player" = "שחקן";
 "Private" = "פרטי";
 "Private 1v1" = "1v1 פרטי";
@@ -2800,8 +2670,6 @@
 "Public tournament #%lld" = "טורניר ציבורי #%lld";
 "Quarterfinals" = "רבע גמר";
 "Random" = "אקראי";
-"Ranked by the fewest moves to win." = "מדורג לפי מספר המסעים הקטן ביותר לניצחון.";
-"Resets on the 1st of every month (UTC)." = "מתאפס ב-1 בכל חודש (UTC).";
 "Resign and leave" = "להיכנע ולצאת";
 "Result stamped on Kaspa" = "התוצאה נרשמה ב-Kaspa";
 "Retry the stamp" = "ניסיון רישום חוזר";
@@ -2851,7 +2719,6 @@
 "Tournament full!" = "הטורניר מלא!";
 "Tournament leaderboard" = "טבלת המובילים בטורנירים";
 "Tournaments" = "טורנירים";
-"Tournaments won and lost" = "טורנירים שניצחתם והפסדתם";
 "Victory" = "ניצחון";
 "Waiting" = "ממתין";
 "Waiting for %lld more players. It starts by itself when the eighth joins." = "ממתינים ל-%lld שחקנים נוספים. הטורניר יתחיל מעצמו כשהשמיני יצטרף.";
@@ -2906,7 +2773,6 @@
 "finished" = "הסתיים";
 "vs" = "נגד";
 "Beat %@ to unlock" = "נצחו את %@ כדי לפתוח";
-"Fewest moves to beat %@" = "הכי מעט מסעים לניצחון על %@";
 "Level %lld" = "רמה %lld";
 "Level %lld · %@" = "רמה %lld · %@";
 "Level %lld of 5" = "רמה %lld מתוך 5";
@@ -2994,12 +2860,9 @@
 ".kachat Names Guide" = "מדריך שמות .kachat";
 "Claim a .kachat name, make it your name, and keep it." = "תבעו שם .kachat, הפכו אותו לשמכם ושמרו עליו.";
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "השם שלך נמצא ברשת Kaspa ומוחזק על ידי כתובת הצ׳אט שלך. כל עוד הוא שלך, אף אחד לא יכול לקחת או לשנות אותו.";
-"Search for the name you want in the .kachat tab, then claim it." = "חפשו את השם הרצוי בלשונית .kachat, ואז תפסו אותו.";
 "What kUSDT is, where it lives, and how sending and swapping work." = "מה זה kUSDT, איפה הוא נשמר ואיך עובדות שליחה והחלפה.";
 "It's the name people see you as across K and on your profile link. Without one, people see your address." = "זה השם שבו רואים אתכם בכל K ובקישור לפרופיל שלכם. בלעדיו רואים את הכתובת שלכם.";
 "People can find you by typing your name." = "אפשר למצוא אתכם בהקלדת השם שלכם.";
-"Your names are in Wallet > Your Domains > .kachat." = "השמות שלכם נמצאים בארנק > הדומיינים שלכם > .kachat.";
-"Claim your name in the .kachat tab whenever you're ready." = "תפסו את השם שלכם בלשונית .kachat מתי שתהיו מוכנים.";
 "I Agree" = "אני מסכים";
 "K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "ב-K אין סובלנות לתוכן פוגעני או למשתמשים מתעללים. אסור לפרסם דבר שאינו חוקי, תוכן מיני הכולל ילדים, דברי שנאה, איומים, הטרדה, תוכן שמעודד אלימות או פגיעה עצמית, או הונאות. חשבונות שעושים זאת עשויים להיות מוסרים ממה ש-K מציג, ללא הודעה מראש.";
 "K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K מסופק כמות שהוא, ללא אחריות, ובמידה שהחוק מתיר איננו אחראים להפסדים משימוש בו או ממה שמשתמשים אחרים מפרסמים. תנאים אלה הם בינך לבין מפתח K, ולא Apple.";
@@ -3014,7 +2877,6 @@
 "Your account and your funds" = "החשבון שלך והכספים שלך";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "החשבון שלך הוא 12 או 24 מילים השמורות במכשיר שלך. הן אף פעם לא אצלנו, ולכן איננו יכולים לשחזר מילים שאבדו או לבטל עסקה. פרסום עולה עמלת רשת ב-KAS, ואתה אחראי לכספים שאתה מחזיק ושולח.";
 "Your posts are public and permanent" = "הפוסטים שלך ציבוריים וקבועים";
-"Who's on top in 1v1 and tournaments, this month or all time, and against each bot." = "מי מוביל ב-1v1 ובטורנירים, החודש או בכל הזמנים, ומול כל בוט.";
 "The trade may have gone through." = "ייתכן שהעסקה עברה.";
 "Trestly's code reads this address's coins and sends the trade through public Kaspa nodes (kaspa.stream and its mirrors), not the node chosen in Settings. Those nodes see this address and your IP address." = "הקוד של Trestly קורא את המטבעות של הכתובת הזו ושולח את העסקה דרך צמתי Kaspa ציבוריים (kaspa.stream והמראות שלו), ולא דרך הצומת שנבחר בהגדרות. הצמתים האלה רואים את הכתובת הזו ואת כתובת ה-IP שלך.";
 "Original message not loaded" = "ההודעה המקורית לא נטענה";
@@ -3044,3 +2906,361 @@
 
 /* Cold Storage Paste kpub (2026-11-22) */
 "Not a valid kpub" = "זה לא kpub תקין";
+
+/* Pinned public chats (2026-11-23) */
+"Clears the unread badge on this public chat." = "מנקה את תג הלא נקראו של הצ'אט הציבורי הזה.";
+"No notifications from this public chat." = "אין התראות מהצ'אט הציבורי הזה.";
+"Notifications from this public chat resume." = "ההתראות מהצ'אט הציבורי הזה חוזרות.";
+"Removes this public chat from your chats." = "מסיר את הצ'אט הציבורי הזה מהצ'אטים שלך.";
+"If these words already hold your identity at a different address - a .kachat name or a funded chatting balance - pick it here. Only addresses with a balance or names are shown." = "אם המילים האלה כבר מחזיקות את הזהות שלך בכתובת אחרת - שם .kachat או יתרת צ'אט עם כסף - בחר/י אותה כאן. מוצגות רק כתובות עם יתרה או שמות.";
+
+/* Swap with ChangeNOW and Trestly (2026-11-23) */
+"Swap" = "החלפה";
+"Swap started" = "ההחלפה התחילה";
+"Couldn't read this swap's amounts" = "לא ניתן לקרוא את הסכומים של ההחלפה הזו";
+"Added to %@" = "נוסף אל %@";
+"This only removes it from your local history - it doesn't affect the actual exchange." = "זה רק מסיר אותה מההיסטוריה המקומית שלכם - זה לא משפיע על ההחלפה עצמה.";
+"Swap History" = "היסטוריית החלפות";
+"You Send" = "אתם שולחים";
+"Switch direction" = "החלפת כיוון";
+"You Get" = "אתם מקבלים";
+"Receive %@ at" = "קבלת %@ בכתובת";
+"Receiving KAS At" = "קבלת KAS בכתובת";
+"Powered by Trestly" = "מופעל על ידי Trestly";
+"Powered by ChangeNOW" = "מופעל על ידי ChangeNOW";
+"Rate" = "שער";
+"Go to Spending Addresses" = "מעבר לכתובות ההוצאה";
+"Send %@ to this address" = "שלחו %@ לכתובת הזו";
+"ChangeNOW Exchange ID" = "מזהה החלפה ב-ChangeNOW";
+"Exchange ID copied" = "מזהה ההחלפה הועתק";
+"Refresh Status" = "רענון מצב";
+"View on ChangeNOW" = "הצגה ב-ChangeNOW";
+"Change" = "שינוי";
+"No swaps yet." = "עדיין אין החלפות.";
+"Swap Details" = "פרטי ההחלפה";
+"A swap pays out to an address you have not used before, so the payout cannot be tied to your earlier activity. Generate one if none are free." = "החלפה משלמת לכתובת שלא השתמשתם בה קודם, כך שאי אפשר לקשר את התשלום לפעילות הקודמת שלכם. צרו כתובת אם אין כתובת פנויה.";
+"Every address here has been used. Generate a new one above." = "כל הכתובות כאן כבר היו בשימוש. צרו כתובת חדשה למעלה.";
+"Unused Addresses" = "כתובות שלא היו בשימוש";
+"Choose Address" = "בחירת כתובת";
+"Check its history before you send a swap to it." = "בדקו את ההיסטוריה שלה לפני ששולחים אליה החלפה.";
+"Use for This Swap" = "שימוש בהחלפה הזו";
+"ChangeNOW pays the swapped KAS out to this address." = "ChangeNOW משלמת את ה-KAS שהוחלפו לכתובת הזו.";
+"Choose Coin" = "בחירת מטבע";
+"Swap uses two services K doesn't run. Read and agree to both before you continue." = "ההחלפה משתמשת בשני שירותים ש-K לא מפעילה. קראו והסכימו לשניהם לפני שתמשיכו.";
+"Coins on other networks" = "מטבעות ברשתות אחרות";
+"Swaps between Kaspa and coins on other networks (Bitcoin, Ethereum, USDC, USDT and others) are made by ChangeNOW, a third-party exchange. K only asks ChangeNOW for a quote and a deposit address and shows the swap's status; ChangeNOW does the exchange and sends the coins. K isn't responsible for failed, delayed or lost swaps. If one doesn't go through, contact ChangeNOW's support." = "החלפות בין Kaspa למטבעות ברשתות אחרות (Bitcoin, Ethereum, USDC, USDT ועוד) מתבצעות על ידי ChangeNOW, בורסה של צד שלישי. K רק מבקשת מ-ChangeNOW הצעת מחיר וכתובת הפקדה ומציגה את מצב ההחלפה; ChangeNOW מבצעת את ההחלפה ושולחת את המטבעות. K אינה אחראית להחלפות שנכשלו, התעכבו או אבדו. אם החלפה לא עוברת, פנו לתמיכה של ChangeNOW.";
+"Read ChangeNOW's Terms of Use" = "קראו את תנאי השימוש של ChangeNOW";
+"I understand ChangeNOW is a third party, not K, and I agree to ChangeNOW's Terms of Use." = "אני מבין ש-ChangeNOW היא צד שלישי, לא K, ואני מסכים לתנאי השימוש של ChangeNOW.";
+"kUSDT on Kaspa" = "kUSDT ב-Kaspa";
+"Swaps between KAS and kUSDT go through Trestly's pool on Kaspa. Trestly is a third party: it issues kUSDT and runs the pool, not K. Trestly's own code prices each swap and builds its transaction; K shows it to you, signs it with your address's key only after you approve, and sends it. Prices move, and the pool can be paused or limit sells. K isn't responsible for the pool, the token or a swap's outcome." = "החלפות בין KAS ל-kUSDT עוברות דרך המאגר של Trestly ב-Kaspa. Trestly היא צד שלישי: היא מנפיקה את kUSDT ומפעילה את המאגר, לא K. הקוד של Trestly עצמה מתמחר כל החלפה ובונה את העסקה שלה; K מציגה לכם אותה, חותמת עליה במפתח של הכתובת שלכם רק אחרי שתאשרו, ושולחת אותה. המחירים זזים, והמאגר יכול להיות מושהה או להגביל מכירות. K אינה אחראית למאגר, לטוקן או לתוצאה של החלפה.";
+"Read Trestly's Terms of Service" = "קראו את תנאי השירות של Trestly";
+"I understand Trestly is a third party, not K, and I agree to Trestly's Terms of Service." = "אני מבין ש-Trestly היא צד שלישי, לא K, ואני מסכים לתנאי השירות של Trestly.";
+"Before You Swap" = "לפני ההחלפה";
+"The swap's KAS and kUSDT both stay on this address." = "ה-KAS וה-kUSDT של ההחלפה נשארים שניהם בכתובת הזו.";
+"Swap From" = "החלפה מכתובת";
+"The pool gives nothing for this amount." = "המאגר לא נותן כלום עבור הסכום הזה.";
+"Trestly's pool is paused right now, so swaps are stopped for the moment." = "המאגר של Trestly מושהה כרגע, ולכן ההחלפות עצורות בינתיים.";
+"The pool's circuit breaker limits sells right now. Try a smaller amount, or again later." = "מפסק הזרם של המאגר מגביל מכירות כרגע. נסו סכום קטן יותר, או שוב מאוחר יותר.";
+"Swap sent" = "ההחלפה נשלחה";
+"ChangeNOW swaps aren't available in this build." = "החלפות דרך ChangeNOW אינן זמינות בגרסה הזו.";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below your minimum, 1% under the quote." = "נבנה ונבדק בקוד של Trestly עצמו בתוך K. אם המאגר זז קודם, ההצעה מחושבת מחדש: ממשיכים רק בהצעה הזו או טובה ממנה, שואלים אתכם שוב אם זה פחות, ולעולם לא יורדים מתחת למינימום שלכם, 1% מתחת להצעה.";
+"Minimum You Get" = "המינימום שתקבלו";
+"Through Trestly's pool" = "דרך המאגר של Trestly";
+"The pool pays less than your minimum right now, so this would be refused. Go back and get a new quote." = "המאגר משלם כרגע פחות מהמינימום שלכם, ולכן זה יידחה. חזרו אחורה וקבלו הצעה חדשה.";
+"Swap From (kUSDT Lands Here)" = "החלפה מכתובת (ה-kUSDT יגיעו לכאן)";
+"Swap From (KAS Lands Here)" = "החלפה מכתובת (ה-KAS יגיעו לכאן)";
+"Search coins" = "חיפוש מטבעות";
+
+/* Tips in chats, Username (2026-11-23) */
+"Get a username" = "השיגו שם משתמש";
+"What Tip sends, on a post and in a chat." = "מה טיפ שולח, בפוסט ובצ'אט.";
+"Tip this contact, as set in Settings > Customization > Tipping." = "תנו טיפ לאיש הקשר הזה, לפי מה שנקבע בהגדרות > התאמה אישית > מתן טיפים.";
+"Tip sends kUSDT to their chatting address. kUSDT tips aren't counted on a post." = "טיפ שולח kUSDT לכתובת הצ'אט שלהם. טיפים ב־kUSDT לא נספרים בפוסט.";
+"Set what Tip sends in Settings > Customization > Tipping." = "בחרו מה טיפ שולח בהגדרות > התאמה אישית > מתן טיפים.";
+"Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > Customization > Tipping." = "הטיפ לא נשלח: הטיפ הקטן ביותר שהרשת מקבלת הוא %@. שנו את טיפ ברירת המחדל בהגדרות > התאמה אישית > מתן טיפים.";
+"Tips from your Chatting Address count on the post, and you're listed as a tipper. From another address a tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you. A tip in a chat comes from here too." = "טיפים מה-Chatting Address נספרים בפוסט, ואתה מופיע ברשימת נותני הטיפים. טיפ מכתובת אחרת הוא פרטי: הכותב מקבל אותו ורואה אותו בצ'אט שלכם, אבל הוא לא נספר בפוסט ולא מזכיר את שמך. גם טיפ בצ'אט נשלח מכאן.";
+
+/* KaPost feed button (2026-11-23) */
+"Switches to the next feed" = "עובר לפיד הבא";
+
+/* Discord invite not found (2026-11-23) */
+"There's no Discord invite called %@. Use a server's invite code, like discord.gg/abc123: Discord accounts can't be looked up by username." = "אין הזמנת Discord בשם %@. השתמשו בקוד הזמנה של שרת, כמו discord.gg/abc123: אי אפשר לחפש חשבונות Discord לפי שם משתמש.";
+
+/* Who Can Message You? (2026-11-23) */
+"Who Can Message You?" = "מי יכול לשלוח לכם הודעות?";
+"Anyone" = "כולם";
+"Only Users with a Username" = "רק משתמשים עם שם משתמש";
+"Who can start a chat with you. People you already chat with aren't affected." = "מי יכול להתחיל איתכם צ'אט. אנשים שאתם כבר מתכתבים איתם לא מושפעים.";
+"Anyone can send you a first message. It waits in Message Requests until you accept it." = "כל אחד יכול לשלוח לכם הודעה ראשונה. היא ממתינה בבקשות הודעה עד שתאשרו אותה.";
+"Only people with a username (a .kachat name) can reach your Message Requests. First messages from anyone else are hidden and don't notify you; choose Anyone to see them again. People you already chat with aren't affected." = "רק אנשים עם שם משתמש (שם ‎.kachat) יכולים להגיע לבקשות ההודעה שלכם. הודעות ראשונות מכל השאר מוסתרות ולא שולחות לכם התראות; בחרו \"כולם\" כדי לראות אותן שוב. אנשים שאתם כבר מתכתבים איתם לא מושפעים.";
+
+/* Usernames wording (2026-11-23) */
+"No usernames yet" = "עדיין אין שמות משתמש";
+"Claim a Username" = "קבלת שם משתמש";
+"Your Usernames" = "שמות המשתמש שלכם";
+"Usernames" = "שמות משתמש";
+
+/* KaPlay arcade (2026-11-23) */
+"Snake" = "סנייק";
+"Eat, grow, don't hit the walls or yourself. Scores go on Kaspa." = "אכלו, גדלו ואל תתנגשו בקירות או בעצמכם. הניקוד נרשם ב-Kaspa.";
+"Swipe to merge tiles and reach 2048. Scores go on Kaspa." = "החליקו כדי לאחד אריחים ולהגיע ל-2048. הניקוד נרשם ב-Kaspa.";
+"Your best: %@" = "השיא שלכם: %@";
+"Play" = "שחק";
+"Each finished game's score is stamped on Kaspa from your chatting address, for a small network fee." = "הניקוד של כל משחק שהסתיים נרשם ב-Kaspa מכתובת הצ'אט שלכם, תמורת עמלת רשת קטנה.";
+"%@ scored %@ in %@. Can you beat it?" = "%@ השיג %@ נקודות ב-%@. תצליחו לעקוף?";
+"Someone scored %@ in %@. Can you beat it?" = "מישהו השיג %@ נקודות ב-%@. תצליחו לעקוף?";
+"The leaderboard couldn't be loaded. Pull down to try again." = "לא ניתן היה לטעון את טבלת המובילים. משכו למטה כדי לנסות שוב.";
+"No scores yet. Be the first." = "עדיין אין ניקוד. היו הראשונים.";
+"Game Over" = "המשחק נגמר";
+"Play Again" = "שחק שוב";
+"Retry the Stamp" = "ניסיון רישום חוזר";
+"Stamping the score on Kaspa…" = "רושם את הניקוד ב-Kaspa…";
+"Score stamped on Kaspa" = "הניקוד נרשם ב-Kaspa";
+"No score to stamp." = "אין ניקוד לרישום.";
+"Score: %@" = "ניקוד: %@";
+"Swipe on the board or use the arrows to start." = "החליקו על הלוח או השתמשו בחצים כדי להתחיל.";
+"Score" = "ניקוד";
+"Best Tile" = "האריח הגבוה ביותר";
+"Swipe to move the tiles. Equal tiles merge." = "החליקו כדי להזיז את האריחים. אריחים זהים מתאחדים.";
+"This game was played on another account. Sign in to it to stamp the score." = "המשחק הזה שוחק בחשבון אחר. התחברו אליו כדי לרשום את הניקוד.";
+"The score was not sent." = "הניקוד לא נשלח.";
+"Challenge: play %@" = "אתגר: שחקו ב-%@";
+"Beat %@ in %@" = "עקוף %@ ב-%@";
+"I scored %@ in %@ on K. Think you can beat it?" = "השגתי %@ נקודות ב-%@ ב-K. חושבים שתצליחו לעקוף?";
+"Arcade Challenge" = "אתגר ארקייד";
+"Switches the leaderboard period" = "מחליף את תקופת טבלת המובילים";
+"Your record: %@ won, %@ lost" = "המאזן שלך: %@ ניצחונות, %@ הפסדים";
+"Play the next person who joins, or a friend by code." = "שחקו מול האדם הבא שמצטרף, או מול חבר עם קוד.";
+"Eight players, single elimination." = "שמונה שחקנים, הדחה אחת.";
+"Five bots, level 1 to 5. Beat one to unlock the next." = "חמישה בוטים, רמות 1 עד 5. נצחו אחד כדי לפתוח את הבא.";
+"Switches to the next leaderboard" = "עובר לטבלת המובילים הבאה";
+"Switches to the next page" = "עובר לעמוד הבא";
+"No usernames on this address" = "אין שמות משתמש בכתובת הזו";
+"Usernames this address owns show here." = "שמות המשתמש של הכתובת הזו מופיעים כאן.";
+"Couldn't load this address's usernames. Pull down to try again." = "לא ניתן לטעון את שמות המשתמש של הכתובת הזו. משכו למטה כדי לנסות שוב.";
+"Posting to KaPost…" = "מפרסם ב-KaPost…";
+"Posted to KaPost" = "פורסם ב-KaPost";
+"Shared to KaPost" = "שותף ב-KaPost";
+"ChangeNOW returned an unusable rate for this pair." = "ChangeNOW החזירה שער לא שמיש עבור הצמד הזה.";
+"The least you can get is about %@ %@." = "המינימום שאפשר לקבל הוא בערך %@ %@.";
+"This destination tag isn't valid. It's a whole number, with no letters or spaces." = "תג היעד הזה אינו תקין. זהו מספר שלם, ללא אותיות או רווחים.";
+"Enter an address to receive the %@." = "הזינו כתובת לקבלת %@.";
+"ChangeNOW didn't return a deposit address." = "ChangeNOW לא החזירה כתובת הפקדה.";
+"ChangeNOW's answer doesn't match this swap, so K didn't show its deposit address. Nothing was sent." = "התשובה של ChangeNOW לא תואמת את ההחלפה הזו, ולכן K לא הציגה את כתובת ההפקדה. דבר לא נשלח.";
+"This address doesn't belong to the account that's open now. Nothing was sent." = "הכתובת הזו לא שייכת לחשבון שפתוח עכשיו. דבר לא נשלח.";
+"Delete this swap?" = "למחוק את ההחלפה הזו?";
+"Deposit Address" = "כתובת הפקדה";
+"Status: %@" = "מצב: %@";
+"Get Deposit Address" = "קבלת כתובת הפקדה";
+"Swap failed" = "ההחלפה נכשלה";
+"Already holds this swap - adding it again double-counts it." = "ההחלפה הזו כבר כלולה - הוספה חוזרת תספור אותה פעמיים.";
+"The swap lands in this portfolio." = "ההחלפה תיכנס לתיק הזה.";
+"Buy %@ KAS at %@ - choose which portfolio to add it to." = "קנייה של %@ KAS ב-%@ - בחרו לאיזה תיק להוסיף אותה.";
+"Sell %@ KAS at %@ - choose which portfolio to add it to." = "מכירה של %@ KAS ב-%@ - בחרו לאיזה תיק להוסיף אותה.";
+"Destination tag (optional)" = "תג יעד (אופציונלי)";
+"Only if the receiving address needs one, as most exchanges do. Without it, the exchange can't credit your coins." = "רק אם כתובת הקבלה דורשת תג, כמו ברוב הבורסות. בלעדיו הבורסה לא תוכל לזכות את המטבעות שלכם.";
+"Amount to Send" = "סכום לשליחה";
+"Destination tag copied" = "תג היעד הועתק";
+"Payout Address" = "כתובת התשלום";
+"Destination Tag: %@" = "תג יעד: %@";
+"Destination Tag (Memo)" = "תג יעד (Memo)";
+"Required: send with this destination tag (memo), or the deposit can't be credited and may be lost." = "חובה: שלחו עם תג היעד (Memo) הזה, אחרת ההפקדה לא תזוכה ועלולה ללכת לאיבוד.";
+"Copy Destination Tag" = "העתקת תג היעד";
+"Confirming" = "מאשר";
+"Exchanging" = "בהחלפה";
+"Refunded" = "הוחזר";
+"Verifying" = "באימות";
+"Couldn't reach ChangeNOW - try again" = "לא ניתן להגיע ל-ChangeNOW - נסו שוב";
+"%lld W" = "%lld נ׳";
+"%lld L" = "%lld ה׳";
+"%lld D" = "%lld ת׳";
+"%lld W  %lld L" = "%lld נ׳  %lld ה׳";
+"W" = "נ׳";
+"L" = "ה׳";
+"%lld moves" = "%lld מסעים";
+"%@ is unlocked!" = "%@ נפתח!";
+"%@ moves first." = "%@ משחק ראשון.";
+"#%lld on the 1v1 board" = "מקום %lld בטבלת 1v1";
+"#%lld on the tournament board" = "מקום %lld בטבלת הטורנירים";
+"%@ vs %@" = "%@ נגד %@";
+"Code: %@" = "קוד: %@";
+"The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "הקוד בן שמונה התווים שהיוצר שיתף. ההצטרפות היא טרנזקציה אחת (עמלה: %@).";
+"They captured" = "היריב לכד";
+"You captured" = "אתם לכדתם";
+"Handshake" = "בקשת תקשורת";
+"Nothing from people you follow" = "אין כלום מאנשים שאתה עוקב אחריהם";
+"Nothing trending yet" = "עדיין אין כלום בטרנד";
+"Posts from accounts you follow will show up here." = "פוסטים מחשבונות שאתה עוקב אחריהם יופיעו כאן.";
+"Be the first - tap the pencil to write a post." = "היה הראשון - הקש על העיפרון כדי לכתוב פוסט.";
+"The most liked, reposted and talked-about posts will show up here." = "הפוסטים עם הכי הרבה לייקים, שיתופים ותגובות יופיעו כאן.";
+"Show more" = "הצג עוד";
+"No followers yet" = "עדיין אין עוקבים";
+"New Thread" = "שרשור חדש";
+"Post All (%lld)" = "פרסם הכול (%lld)";
+"Show %lld new posts" = "הצג %lld פוסטים חדשים";
+"View 1 reply" = "הצג תגובה אחת";
+"View %lld replies" = "הצג %lld תגובות";
+"Thread · %lld posts" = "שרשור · %lld פוסטים";
+"Conversation · %lld posts" = "שיחה · %lld פוסטים";
+"Comments (%lld)" = "תגובות (%lld)";
+"%@ in %llds" = "%1$@ בעוד %2$lld שנ׳";
+"· %lld posts" = "· %lld פוסטים";
+"Translated from %@" = "תורגם מ%@";
+"Schedule for %@" = "תזמן ל־%@";
+"Option %lld" = "אפשרות %lld";
+"Unknown" = "לא ידוע";
+"Liking" = "נותן לייק";
+"Disliking" = "נותן דיסלייק";
+"Follow" = "עקוב";
+"Posts" = "פוסטים";
+"Replies" = "תגובות";
+"Goes out %@" = "יוצא ב־%@";
+"Goes out %@ - from this phone, so open K around then" = "יוצא ב־%@ - מהטלפון הזה, אז פתח את K בסביבות השעה הזו";
+"Posted %@" = "פורסם ב־%@";
+"Failed to post at %@" = "הפרסום ב־%@ נכשל";
+"Cancelled" = "בוטל";
+"Change the text. Posts can be edited for two hours; after that they stay as they are. %@." = "שנה את הטקסט. אפשר לערוך פוסטים במשך שעתיים; אחר כך הם נשארים כפי שהם. %@.";
+"Mute %@" = "השתק את %@";
+"Block %@" = "חסום את %@";
+"%lldh %lldm left" = "נותרו %lld ש׳ %lld דק׳";
+"Add another post" = "הוסף פוסט נוסף";
+"Est. fee: %@ KAS" = "עמלה משוערת: %@ KAS";
+"Poll" = "סקר";
+"Reschedule" = "תזמן מחדש";
+"Posts and people" = "פוסטים ואנשים";
+"%lld posts found" = "נמצאו %lld פוסטים";
+"Searched the most recent %lld posts. Older ones have not been read yet." = "חיפשנו ב־%lld הפוסטים האחרונים. ישנים יותר עדיין לא נקראו.";
+"Search older posts" = "חפש בפוסטים ישנים יותר";
+"%lld read" = "%lld נקראו";
+"liked your post" = "אהב/ה את הפוסט שלך";
+"disliked your post" = "לא אהב/ה את הפוסט שלך";
+"replied to your post" = "הגיב/ה לפוסט שלך";
+"quoted your post" = "ציטט/ה את הפוסט שלך";
+"reposted your post" = "שיתף/ה מחדש את הפוסט שלך";
+"followed you" = "התחיל/ה לעקוב אחריך";
+"mentioned you in a post" = "הזכיר/ה אותך בפוסט";
+"tipped your post" = "נתן/ה טיפ לפוסט שלך";
+"interacted with your post" = "הגיב/ה לפוסט שלך";
+"Bold" = "מודגש";
+"Italic" = "נטוי";
+"Underline" = "קו תחתון";
+"Strikethrough" = "קו חוצה";
+"Bulleted list" = "רשימת תבליטים";
+"Numbered list" = "רשימה ממוספרת";
+"Small text" = "טקסט קטן";
+"You reacted to your message" = "הגבת להודעה שלך";
+"You reacted to their message" = "הגבת להודעה שלהם";
+"Reacted to your message" = "הגיבו להודעה שלך";
+"Reacted to their message" = "הגיבו להודעה שלהם";
+"You reacted to a message" = "הגבת להודעה";
+"Send Tip" = "שלח טיפ";
+"Stop Recording" = "עצור הקלטה";
+"Send Voice Message" = "שלח הודעה קולית";
+"Delete 1 Chat?" = "למחוק צ'אט אחד?";
+"Delete %lld Chats?" = "למחוק %lld צ'אטים?";
+"Delete 1 Message?" = "למחוק הודעה אחת?";
+"Delete %lld Messages?" = "למחוק %lld הודעות?";
+"Estimated network fee ≈ %@ %@ across 1 transaction." = "עמלת רשת משוערת ≈ %@ %@ בעסקה אחת.";
+"Estimated network fee ≈ %@ %@ across %lld transactions." = "עמלת רשת משוערת ≈ %@ %@ על פני %lld עסקאות.";
+"(1 network transaction.)" = "(עסקת רשת אחת.)";
+"(%lld network transactions.)" = "(%lld עסקאות רשת.)";
+"Couldn't load that photo. Please try another." = "לא ניתן לטעון את התמונה. נסה תמונה אחרת.";
+"Couldn't load that photo. Please try a PNG, JPEG, or HEIF image." = "לא ניתן לטעון את התמונה. נסה תמונת PNG,‏ JPEG או HEIF.";
+"Audio export is unavailable on this device." = "ייצוא שמע אינו זמין במכשיר זה.";
+"Audio export failed." = "ייצוא השמע נכשל.";
+"Invites resent to all members." = "ההזמנות נשלחו מחדש לכל החברים.";
+"Invite resent." = "ההזמנה נשלחה מחדש.";
+"1 member could not be added. Please try again." = "לא ניתן היה להוסיף חבר אחד. נסה שוב.";
+"%lld members could not be added. Please try again." = "לא ניתן היה להוסיף %lld חברים. נסה שוב.";
+"Message copied to clipboard." = "ההודעה הועתקה ללוח.";
+"Link copied to clipboard." = "הקישור הועתק ללוח.";
+"File name copied." = "שם הקובץ הועתק.";
+"Tap to start a chat on K." = "הקש כדי להתחיל צ'אט ב-K.";
+"Group deleted." = "הקבוצה נמחקה.";
+"%lld groups deleted." = "%lld קבוצות נמחקו.";
+"Chat deleted." = "הצ'אט נמחק.";
+"%lld chats deleted." = "%lld צ'אטים נמחקו.";
+"Alias copied to clipboard." = "הכינוי הועתק ללוח.";
+"Alias unavailable." = "הכינוי אינו זמין.";
+"Enter a group name." = "הזן שם לקבוצה.";
+"Add at least one member." = "הוסף לפחות חבר אחד.";
+"Turn On Notifications" = "הפעל התראות";
+"Load earlier messages" = "טען הודעות קודמות";
+"Recording stopped" = "ההקלטה נעצרה";
+"Be the first to post in #%@." = "היה הראשון לפרסם ב-#%@.";
+"Message #%@" = "הודעה ב-#%@";
+"Room info for #%@" = "מידע על החדר #%@";
+"No hidden users in #%@. Long-press a message to hide its sender." = "אין משתמשים מוסתרים ב-#%@. לחיצה ארוכה על הודעה מסתירה את השולח שלה.";
+"Hidden Users - #%@" = "משתמשים מוסתרים - #%@";
+"A curated room, always in your list. Anyone on K can post to it." = "חדר נבחר, תמיד ברשימה שלך. כל אחד ב-K יכול לפרסם בו.";
+"A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses. Leave it blank to follow %@." = "צ'אט ציבורי נמצא ב-blockDAG של Kaspa, כך שכל אינדקסר שעוקב אחרי אותה רשת מגיש את אותו החדר. כוון את זה לאן שתרצה (שלך או של מישהו אחר) בלי לשנות את האינדקסר של שאר החדרים. השאר ריק כדי לעקוב אחרי %@.";
+"Indexer updated for #%@." = "האינדקסר של #%@ עודכן.";
+"Could not reach it: %@" = "לא ניתן להתחבר: %@";
+"Lost on time" = "הפסיד בזמן";
+"Resigned" = "פרש";
+"Accepted the game" = "קיבל את המשחק";
+"Declined the game" = "דחה את המשחק";
+"Chess invite" = "הזמנה לשחמט";
+"Shared a KaChat profile" = "שיתף פרופיל KaChat";
+"Public chat room #%@" = "חדר צ'אט ציבורי #%@";
+"Chess game - %lld | %lld" = "משחק שחמט - %lld | %lld";
+"Chess game" = "משחק שחמט";
+"Sent a link" = "שלח קישור";
+"%lldW - %lldL" = "%lld נ' - %lld ה'";
+"The recipient won't see your messages until they message you or you ping them with a handshake. Handshakes cost 0.2 KAS and are returned to you if they accept. You lose privacy if you ping them." = "הנמען לא יראה את ההודעות שלך עד שישלח לך הודעה או שתשלח לו לחיצת יד. לחיצת יד עולה 0.2 KAS ומוחזרת אליך אם הוא מקבל. שליחת פינג פוגעת בפרטיות שלך.";
+"Audio encoding failed. Please record again." = "קידוד השמע נכשל. הקלט שוב.";
+"Failed to start recording: %@" = "התחלת ההקלטה נכשלה: %@";
+"Failed to play audio." = "הפעלת השמע נכשלה.";
+"Failed to play audio: %@" = "הפעלת השמע נכשלה: %@";
+"Failed to encode audio: %@" = "קידוד השמע נכשל: %@";
+"Audio is still being prepared. Please try again." = "השמע עדיין בהכנה. נסה שוב.";
+"Failed to prepare audio: %@" = "הכנת השמע נכשלה: %@";
+"Hide Window" = "הסתר חלון";
+"Hide" = "הסתר";
+"Taken · for sale at %@" = "תפוס · למכירה ב-%@";
+"About %lld s to go" = "עוד כ-%lld שניות";
+"From: %@" = "מ: %@";
+"Balance after: %@" = "יתרה אחרי: %@";
+"Balance change: %@" = "שינוי ביתרה: %@";
+"Paid from %@ to %@" = "שולם מ-%@ עד %@";
+"Grace period ends %@" = "תקופת החסד מסתיימת ב-%@";
+"Your spending address #%lld" = "כתובת ההוצאה שלכם מס' %lld";
+"Your KasSigner address (%@ #%lld)" = "כתובת ה-KasSigner שלכם (%@ מס' %lld)";
+"Opens the Usernames tab" = "פותח את הלשונית שמות משתמש";
+"One of your usernames expired" = "אחד משמות המשתמש שלכם פג תוקף";
+"%lld of your usernames expired" = "%lld משמות המשתמש שלכם פג תוקפם";
+"An address or a username - it's resolved to the address shown." = "כתובת או שם משתמש - הוא מתורגם לכתובת שמוצגת.";
+"Enter an address or a username." = "הזינו כתובת או שם משתמש.";
+"This address has more than %lld UTXOs. KasSigner can sign at most %lld inputs per transaction, so this merges the largest %lld into one. Run Compound again afterward to keep combining the rest." = "בכתובת הזו יש יותר מ-%lld UTXO. KasSigner יכול לחתום על %lld קלטים לכל היותר בעסקה, ולכן זה ממזג את %lld הגדולים לאחד. הריצו איחוד שוב אחר כך כדי להמשיך לאחד את השאר.";
+"This transaction is already in %@. Adding it again will double-count it." = "העסקה הזו כבר נמצאת ב-%@. הוספה נוספת תספור אותה פעמיים.";
+"this portfolio" = "תיק זה";
+"Delete '%@'" = "מחק את '%@'";
+"'%@' and its transactions will be deleted. This can't be undone." = "'%@' והעסקאות שלו יימחקו. אי אפשר לבטל את זה.";
+"Edit %@" = "עריכת %@";
+"Frame %lld / %lld" = "מסגרת %lld / %lld";
+"%lld / %lld frames" = "%lld / %lld מסגרות";
+"No mail app could open it. Paste the report into an email to %@." = "אף אפליקציית דואר לא הצליחה לפתוח אותו. הדביקו את הדיווח בהודעת אימייל אל %@.";
+"kaspa:qr... or username" = "kaspa:qr... או שם משתמש";
+"Looking up username..." = "מחפש שם משתמש...";
+"Kaspa Address or Username" = "כתובת Kaspa או שם משתמש";
+"Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat)." = "הזינו כתובת Kaspa ‏(kaspa:...) או שם משתמש (למשל alice.kachat).";
+"Pick people from your contacts, or add anyone by Kaspa address or username." = "בחרו אנשים מאנשי הקשר, או הוסיפו כל אחד לפי כתובת Kaspa או שם משתמש.";
+"Use Their Username" = "השתמשו בשם המשתמש שלו";
+"Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "הזינו כתובת Kaspa או שם משתמש כמו name.kachat. כל עסקה שהתקבלה בכתובת הזו הופכת לקנייה, וכל עסקה שנשלחה למכירה, לפי מחיר ה-KAS ההיסטורי באותו יום. הוספה חוזרת של אותה כתובת בהמשך מייבאת רק עסקאות שנמצאו מאז הייבוא האחרון.";
+"No addresses with a balance or username yet" = "עדיין אין כתובות עם יתרה או שם משתמש";
+"Finds addresses holding a balance or a username." = "מוצא כתובות עם יתרה או שם משתמש.";
+"No addresses with a balance or username found." = "לא נמצאו כתובות עם יתרה או שם משתמש.";
+"Found 1 address with a balance or username." = "נמצאה כתובת אחת עם יתרה או שם משתמש.";
+"Found %lld addresses with a balance or username." = "נמצאו %lld כתובות עם יתרה או שם משתמש.";
+"Contains username" = "מכיל שם משתמש";
+"Use for chatting and acquiring usernames." = "לשימוש בצ'אט ולהשגת שמות משתמש.";
+"Anyone can see this address and its balance on the Kaspa network, but they can't read your messages. Use it only for chatting and usernames." = "כל אחד יכול לראות את הכתובת הזו ואת היתרה שלה ברשת Kaspa, אבל אף אחד לא יכול לקרוא את ההודעות שלכם. השתמשו בה רק לצ'אט ולשמות משתמש.";
+"Search for the name you want in the Usernames tab, then claim it." = "חפשו את השם שאתם רוצים בלשונית שמות משתמש, ואז תבעו אותו.";
+"Your names are in Wallet > Your Usernames." = "השמות שלכם נמצאים בארנק > שמות המשתמש שלכם.";
+"Claim your name in the Usernames tab whenever you're ready." = "תבעו את השם שלכם בלשונית שמות משתמש מתי שתרצו.";
+"No username found" = "לא נמצא שם משתמש";
+"Search contacts, or an address or username" = "חפשו אנשי קשר, כתובת או שם משתמש";
+"You have no contacts yet. Paste an address or a username above to invite someone." = "עדיין אין לך אנשי קשר. הדביקו למעלה כתובת או שם משתמש כדי להזמין מישהו.";
+"No contacts match your search. Paste an address or a username to invite someone new." = "אין אנשי קשר שתואמים לחיפוש. הדביקו כתובת או שם משתמש כדי להזמין מישהו חדש.";
+"Create \"%@\" and invite 1 member?" = "ליצור את „%@“ ולהזמין חבר אחד?";
+"Create \"%@\" and invite %lld members?" = "ליצור את „%@“ ולהזמין %lld חברים?";

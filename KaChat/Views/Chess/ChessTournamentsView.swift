@@ -15,14 +15,13 @@ struct ChessTournamentsView: View {
     }
     enum Tab: CaseIterable { case play, activeGames, finished }
     /// Both screens: play, Active (watch-only), Finished. The leaderboards have a tab of their
-    /// own inside Chess (`ChessLeaderboardView`).
+    /// own on Chess's main screen (`ChessHomeView`).
     private var tabs: [Tab] { [.play, .activeGames, .finished] }
 
     /// Fixed for the screen's life: this is the 1v1 screen or the Tournaments screen.
     let mode: Mode
 
     @ObservedObject private var service = ChessTournamentService.shared
-    @ObservedObject private var knsService = KNSService.shared
     @EnvironmentObject private var walletManager: WalletManager
     @State private var tab: Tab = .play
     @State private var showCreate = false
@@ -46,16 +45,15 @@ struct ChessTournamentsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // The same underline tab bar the Chats screen uses (see chatsTopTabBar there),
-            // so a tab is a tab wherever it appears in the app.
-            VStack(spacing: 0) {
-                HStack(spacing: 0) {
-                    ForEach(tabs, id: \.self) { tabButton($0) }
-                }
-                Divider()
+            // One cycle button for the three pages (owner, 2026-11-24), as KaPost's feeds and
+            // the leaderboards have it: each tap fades to the next. No tabs, no sideways swipe.
+            HStack {
+                CycleCapsuleButton(options: tabs, selection: $tab, title: tabTitle,
+                                   hint: "Switches to the next page")
+                Spacer()
             }
-            .contentShape(Rectangle())
-            .gesture(tabSwipe())
+            .padding(.horizontal, 16)
+            .padding(.bottom, 10)
             List {
                 if service.arenaServerDown {
                     Section { ChessServerDownNote() }
@@ -70,7 +68,6 @@ struct ChessTournamentsView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .gesture(tabSwipe())
         }
         .fixedScreenTitle(Text(mode.title))
         .background(Color(.systemGroupedBackground))
@@ -199,47 +196,13 @@ struct ChessTournamentsView: View {
         }
     }
 
-    private func tabTitle(_ tab: Tab) -> LocalizedStringKey {
+    /// A page's name, as a localization key: the play page is the screen's own name.
+    private func tabTitle(_ tab: Tab) -> String {
         switch tab {
-        case .play: return mode.title
+        case .play: return mode.rawValue
         case .activeGames: return "Active"
         case .finished: return "Finished"
         }
-    }
-
-    private func tabButton(_ tab: Tab) -> some View {
-        let isSelected = self.tab == tab
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) { self.tab = tab }
-        } label: {
-            VStack(spacing: 8) {
-                Text(tabTitle(tab))
-                    .font(.subheadline.weight(.bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .foregroundColor(isSelected ? .accentColor : .accentColor.opacity(0.5))
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 12)
-                Rectangle()
-                    .fill(isSelected ? Color.accentColor : Color.clear)
-                    .frame(height: 2.5)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// Swipe between the two tabs, as on the Chats screen.
-    private func tabSwipe() -> some Gesture {
-        DragGesture(minimumDistance: 25, coordinateSpace: .global)
-            .onEnded { value in
-                let dx = value.translation.width, dy = value.translation.height
-                guard abs(dx) > 50, abs(dx) > abs(dy) * 1.5 else { return }
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    guard let index = tabs.firstIndex(of: tab) else { return }
-                    if dx < 0, index + 1 < tabs.count { tab = tabs[index + 1] }
-                    else if dx > 0, index > 0 { tab = tabs[index - 1] }
-                }
-            }
     }
 
     /// Wherever the player's room stands, the screen that goes with it: waiting for players ->
@@ -604,141 +567,5 @@ struct ChessTournamentsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-/// One kind's leaderboard, as rows inside the screen's list: 1v1 (wins and losses in 1v1
-/// games) or Tournaments (tournaments won, then the wins and losses inside them), for this
-/// UTC month or all time. The indexer's boards (ONLINE_CHESS.md §6) merged with what the
-/// phone has read; both count from `ChessTournamentEngine.leaderboardFreshFromMs`.
-struct ChessLeaderboardRows: View {
-    let mode: ChessTournamentsView.Mode
-    @ObservedObject private var service = ChessTournamentService.shared
-    @EnvironmentObject private var walletManager: WalletManager
-    /// The address whose row was tapped, for their card (`ChessPlayerView`), which
-    /// saves nothing for it.
-    @State private var profileAddress: String?
-    @State private var period: ChessLeaderboardPeriod = .month
-    /// The board sorted for this kind, worked out when the board or the period changes - not on
-    /// every re-render of the service. nil until the first sort.
-    @State private var sortedRows: [ChessLeaderboardRow]?
-
-    private var rows: [ChessLeaderboardRow] { sortedRows ?? [] }
-
-    private func sortRows() {
-        let board = service.board(for: period)
-        sortedRows = mode == .duel
-            ? ChessTournamentEngine.duelLeaderboard(board)
-            : ChessTournamentEngine.tournamentLeaderboard(board)
-    }
-
-    private var emptyText: LocalizedStringKey {
-        switch (mode, period) {
-        case (.duel, .month): return "No finished 1v1 games this month yet."
-        case (.duel, .allTime): return "No finished 1v1 games yet."
-        case (.tournament, .month): return "No finished tournaments this month yet."
-        case (.tournament, .allTime): return "No finished tournaments yet."
-        }
-    }
-
-    private var periodNote: String {
-        switch period {
-        case .month:
-            return AppLocalization.string("Resets on the 1st of every month (UTC).")
-        case .allTime:
-            let since = Date(timeIntervalSince1970: TimeInterval(ChessTournamentEngine.leaderboardFreshFromMs) / 1000)
-            let day = since.formatted(.dateTime.year().month(.wide).day().locale(AppLocalization.locale))
-            return ChessText.format("Counted from %@.", day)
-        }
-    }
-
-    var body: some View {
-        if service.arenaServerDown {
-            Section { ChessServerDownNote(text: "Chess server unreachable. Showing what this phone has, which can be less than the full board.") }
-        }
-        Section {
-            Picker("Leaderboard period", selection: $period) {
-                Text("This month").tag(ChessLeaderboardPeriod.month)
-                Text("All time").tag(ChessLeaderboardPeriod.allTime)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
-        } footer: {
-            Text(verbatim: periodNote)
-        }
-        .onAppear { service.refreshIndexerLeaderboards() }
-        .onChange(of: period) { _ in service.refreshIndexerLeaderboards() }
-        Section {
-            if sortedRows?.isEmpty == true {
-                Text(emptyText)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                Button {
-                    profileAddress = row.address
-                } label: {
-                HStack(spacing: 12) {
-                    Text(verbatim: "\(index + 1)")
-                        .font(.subheadline.monospacedDigit().weight(.semibold))
-                        .foregroundColor(.secondary)
-                        .frame(width: 28, alignment: .trailing)
-                    KNSAvatarView(
-                        avatarURLString: KNSService.shared.profileCache[row.address]?.avatarURL,
-                        fallbackText: ContactsManager.shared.displayName(for: row.address),
-                        size: 36,
-                        contactAddress: row.address
-                    )
-                    Text(ContactsManager.shared.displayName(for: row.address))
-                        .font(.subheadline.weight(row.address == walletManager.currentWallet?.publicAddress ? .bold : .semibold))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer(minLength: 8)
-                    // The numbers keep their full width; a long name gives way, not the score.
-                    if mode == .duel {
-                        HStack(spacing: 10) {
-                            Text("\(row.wins) W").foregroundColor(.green)
-                            Text("\(row.losses) L").foregroundColor(.red)
-                        }
-                        .font(.subheadline.monospacedDigit().weight(.semibold))
-                        .fixedSize()
-                        .layoutPriority(1)
-                    } else {
-                        HStack(spacing: 10) {
-                            HStack(spacing: 4) {
-                                // Orange, not yellow: yellow can't be read on a light row.
-                                Image(systemName: "trophy.fill").foregroundColor(.orange)
-                                Text(verbatim: "\(row.tournamentsWon)").foregroundColor(.orange)
-                            }
-                            Text("\(row.tournamentsLost) L").foregroundColor(.red)
-                        }
-                        .font(.subheadline.monospacedDigit().weight(.semibold))
-                        .fixedSize()
-                        .layoutPriority(1)
-                    }
-                }
-                .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(row.address == walletManager.currentWallet?.publicAddress ? Color.accentColor.opacity(0.12) : nil)
-            }
-        } header: {
-            Text(mode == .duel ? "Games won and lost - 1v1s and tournament games alike" : "Tournaments won and lost")
-        }
-        .onAppear { sortRows() }
-        .onChange(of: service.boardsRevision) { _ in sortRows() }
-        .onChange(of: period) { _ in sortRows() }
-        .sheet(isPresented: Binding(
-            get: { profileAddress != nil },
-            set: { if !$0 { profileAddress = nil } }
-        )) {
-            if let address = profileAddress {
-                NavigationStack {
-                    ChessPlayerView(address: address)
-                }
-            }
-        }
     }
 }

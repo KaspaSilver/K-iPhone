@@ -1,7 +1,5 @@
 "#" = "#";
 "%@ copied to clipboard." = "%@ panoya kopyalandı.";
-"%@ transferred to %@." = "%@, %@'ye transfer edildi.";
-"%@ updated." = "%@ güncellendi.";
 "1 year" = "1 yıl";
 "12 words" = "12 kelime";
 "30 days" = "30 gün";
@@ -21,7 +19,6 @@
 "Admin" = "Yonetici";
 "All Nodes" = "Tüm Düğümler";
 "Anyone with your 12 or 24 words can access your account. Never share them with anyone." = "12 veya 24 kelimene sahip olan herkes hesabına erişebilir. Bunları asla kimseyle paylaşma.";
-"Asset ID" = "Öğe Kimliği";
 "Audio" = "Ses";
 "Auto Search for Nodes" = "Node'lari Otomatik Ara";
 "Avatar" = "avatar";
@@ -67,10 +64,6 @@
 "Copy Private Key Hex" = "Özel Anahtar Hex Kopyala";
 "Copy 12 or 24 Words" = "12 veya 24 Kelimeyi Kopyala";
 "Copy Transaction ID" = "İşlem ID'sini Kopyala";
-"Could not encode selected image" = "Seçilen resim kodlanamadı";
-"Could not initialize image encoder" = "Görüntü kodlayıcı başlatılamadı";
-"Could not load selected image" = "Seçilen resim yüklenemedi";
-"Could not process selected image" = "Seçilen resim işlenemedi";
 "Couldn't Rename Group" = "Grup Yeniden Adlandirilamadi";
 "Country" = "Ulke";
 "Create New Account" = "Yeni Hesap Oluştur";
@@ -91,7 +84,6 @@
 "Domain" = "İhtisas";
 "Domains" = "Alan Adlari";
 "Done" = "Tamam";
-"Edit KNS Profile" = "KNS Profilini Düzenle";
 "Emoji picker" = "Emoji seçici";
 "Encoding…" = "Kodlanıyor…";
 "Enter a new name for this saved account." = "Bu kayitli hesap icin yeni bir isim girin.";
@@ -124,13 +116,6 @@
 "Indexer URL" = "Dizinleyici URL";
 "Info" = "Bilgi";
 "KAS" = "KAS";
-"KNS Domains" = "KNS Alan Adları";
-"KNS Profile" = "KNS Profili";
-"KNS asset id is missing." = "KNS öğe kimliği eksik.";
-"KNS domain id is missing." = "KNS alan adı kimliği eksik.";
-"KNS profile update failed." = "KNS profil güncellemesi başarısız oldu.";
-"KNS profile update failed: %@" = "KNS profil güncellemesi başarısız oldu: %@";
-"KNS profile updated." = "KNS profili güncellendi.";
 "KaChat" = "KaChat";
 "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K, mesajlarinizi dogrudan Kaspa agi uzerinden gondermenizi ve almanizi saglar. Mesajlarinizi gonderirken ucret odemek icin Kaspa gereklidir. Odediginiz ucret, agi guvence altina alan madencilere gider.";
 "K needs to connect to a node. How would you like to connect?" = "K'in bir duguma baglanmasi gerekiyor. Nasil baglanmak istersiniz?";
@@ -153,7 +138,6 @@
 "Members" = "Uyeler";
 "Message" = "Mesaj";
 "Message retention" = "Mesaj saklama";
-"More Info" = "Daha Fazla Bilgi";
 "More options" = "Daha Fazla Secenek";
 "Most taxing on the device, not as reliable - depends on where you live" = "Cihaz icin en yorucu olani, o kadar guvenilir degil - yasadiginiz yere bagli";
 "Name" = "Ad";
@@ -161,11 +145,9 @@
 "New message" = "Yeni mesaj";
 "Next" = "Ileri";
 "No Conversations Yet" = "Henüz konuşma yok";
-"No KNS profile changes detected." = "KNS profil değişikliği algılanmadı.";
 "No Sound" = "Ses Yok";
 "No Spending Addresses" = "Harcama Adresi Yok";
 "No active nodes" = "Aktif düğüm yok";
-"No domains yet." = "Henüz alan adı yok.";
 "No emoji found" = "Emoji bulunamadı.";
 "No hidden users in this group." = "Bu grupta gizli kullanici yok.";
 "No messages yet" = "Henüz mesaj yok";
@@ -175,12 +157,10 @@
 "No transactions yet." = "Henuz islem yok.";
 "Node endpoint copied." = "Düğüm uç noktası kopyalandı.";
 "Not Now" = "Simdi Degil";
-"Not registered" = "Kayıtlı değil";
 "Notifications" = "Bildirimler";
 "Notifications Disabled" = "Bildirimler Devre Dışı";
 "OK" = "Tamam";
 "Off" = "Kapalı";
-"On-chain profile data available." = "Zincir üstü profil verileri mevcut.";
 "Open Chat" = "Sohbeti Ac";
 "Open Link" = "Baglantiyi Ac";
 "Open Settings" = "Ayarları Aç";
@@ -196,13 +176,9 @@
 "Point camera at a QR code" = "Kamerayı bir QR koda doğrultun";
 "Pool Health" = "Havuz Sağlığı";
 "Pool Status" = "Havuz Durumu";
-"Preparing profile update..." = "Profil güncellemesi hazırlanıyor...";
 "Primary" = "Birincil";
-"Primary domain set to %@." = "Birincil alan adı %@ olarak ayarlandı.";
 "Private key hex copied. Clipboard will clear in 30s." = "Özel anahtar hex kopyalandı. Pano 30 saniye içinde temizlenecek.";
 "Private key unavailable." = "Özel anahtar kullanılamıyor.";
-"Processing avatar..." = "Avatar işleniyor...";
-"Processing banner..." = "Banner işleniyor...";
 "Profile" = "Profil";
 "Profiled" = "Profillenmiş";
 "Promote pawn to:" = "Piyonu su terfi ettir:";
@@ -219,15 +195,12 @@
 "Received %@ domain" = "%@ alan adı alındı";
 "Received domain transfer" = "Alan adı transferi alındı";
 "Received payment" = "Ödeme alındı";
-"Recipient Address" = "Alici Adresi";
 "Recommended" = "Onerilen";
 "Reconnect" = "Yeniden Bağlan";
 "Redirect URL" = "Yönlendirme URL'si";
 "Refresh Pool" = "Havuzu Yenile";
 "Remote push" = "Uzaktan itme";
 "Remove" = "Kaldir";
-"Remove Avatar" = "Avatarı Kaldır";
-"Remove Banner" = "Banner'ı Kaldır";
 "Rename" = "Yeniden Adlandir";
 "Rename Account" = "Hesabi Yeniden Adlandir";
 "Rename Address" = "Adresi Yeniden Adlandir";
@@ -236,8 +209,6 @@
 "Request to communicate" = "İletişim talebi";
 "Resign" = "Pes Et";
 "Retry Send" = "Tekrar Gönder";
-"Retry failed: %@" = "Yeniden deneme başarısız oldu: %@";
-"Retrying %@..." = "%@ yeniden deneniyor...";
 "Save" = "Kaydet";
 "Save Audio" = "Sesi Kaydet";
 "Saved Accounts" = "Kaydedilen Hesaplar";
@@ -252,7 +223,6 @@
 "Select a chat" = "Bir sohbet seçin";
 "Select the currency you'd like prices displayed in." = "Fiyatlarin hangi para biriminde gosterilmesini istediginizi secin.";
 "Select the language you'd like to use in K." = "K'te kullanmak istediginiz dili secin.";
-"Selected data is not a valid image" = "Seçilen veriler geçerli bir resim değil";
 "Send" = "Gonder";
 "Send Handshake" = "Iletisim Istegi Gonder";
 "Send KAS" = "KAS gönder";
@@ -264,7 +234,6 @@
 "Sent %@ KAS — %@" = "%@ KAS gönderildi — %@";
 "Sent %@ domain" = "%@ alan adı gönderildi";
 "Sent domain transfer" = "Alan adı transferi gönderildi";
-"Set primary failed: %@" = "Birincil ayarı başarısız oldu: %@";
 "Settings" = "Ayarlar";
 "Show More" = "Daha Fazla Goster";
 "Show QR Code" = "QR Kodu Goster";
@@ -286,14 +255,8 @@
 "To receive notifications, please enable them in Settings." = "Bildirim almak için lütfen Ayarlar'dan etkinleştirin.";
 "Total" = "Toplam";
 "Total Balance" = "Toplam Bakiye";
-"Transfer submitted for %@." = "%@ için transfer gönderildi.";
 "Try Again" = "Tekrar Dene";
 "Unhide" = "Gizlemeyi Kaldir";
-"Updated %d/%d. Failed: %@." = "%d/%d güncellendi. Başarısız: %@.";
-"Updated %d/%d. Failed: %@. %@" = "%d/%d güncellendi. Başarısız: %@. %@";
-"Updating %@ (%d/%d)..." = "%@ (%d/%d) güncelleniyor...";
-"Uploading avatar..." = "Avatar yükleniyor...";
-"Uploading banner..." = "Banner yükleniyor...";
 "Use Default" = "Varsayilani Kullan";
 "Verified" = "Doğrulanmış";
 "Version" = "Sürüm";
@@ -303,7 +266,6 @@
 "View 12 or 24 Words" = "12 veya 24 Kelimeyi Görüntüle";
 "View in Explorer" = "Kesif Motorunda Goruntule";
 "Voice message" = "Sesli mesaj";
-"Wallet not available." = "Cüzdan mevcut değil.";
 "Website" = "Web Sitesi";
 "Welcome Guide" = "Hos Geldiniz Rehberi";
 "Welcome to K" = "K'e Hos Geldiniz";
@@ -320,23 +282,15 @@
 "Share" = "Paylaş";
 
 /* 5.2: name services, .kachat, Connection Settings, testnet */
-"Kaspa Address or Domain" = "Kaspa adresi veya alan adı";
 "Looking up domain..." = "Alan adı aranıyor...";
-"No %@ domain found" = "%@ alan adı bulunamadı";
 "No domain" = "Alan adı yok";
-"Other domains" = "Diğer alan adları";
 "Couldn't check" = "Kontrol edilemedi";
 "Edit KaChat Profile" = "KaChat profilini düzenle";
 "None yet" = "Henüz yok";
 ".kachat Name" = ".kachat adı";
-"Customize Profile" = "Profili özelleştir";
-"No %@ names yet." = "Henüz %@ adı yok.";
-"Couldn't reach %@. Pull down to try again." = "%@ ile bağlantı kurulamadı. Tekrar denemek için aşağı çek.";
-"Settling" = "Onaylanıyor";
 "Node" = "Düğüm";
 "Message Indexer" = "Mesaj dizinleyici";
 "Coming soon" = "Yakında";
-"Not available on this network" = "Bu ağda kullanılamıyor";
 "Testnet" = "Testnet";
 "Close K completely and open it again to finish switching to Testnet." = "Testnet'e geçişi tamamlamak için K'i tamamen kapatıp yeniden aç.";
 "Close K completely and open it again to finish switching back to Mainnet." = "Mainnet'e dönüşü tamamlamak için K'i tamamen kapatıp yeniden aç.";
@@ -380,7 +334,6 @@
 /* Receive / chatting address QR text */
 
 /* 5.2: name discovery across services */
-".k and .kaspa Names (%lld)" = ".k ve .kaspa Adları (%lld)";
 
 /* 5.2: Message Requests, Private chats */
 "Message Requests" = "Mesaj İstekleri";
@@ -472,7 +425,6 @@
 "Message someone by their address or name." = "Birine adresi veya adıyla mesaj gönder.";
 "Pinned to the front" = "Başa sabitlendi";
 "Unpinned" = "Sabitleme kaldırıldı";
-"Coin Control" = "Coin kontrolü";
 "Automatic" = "Otomatik";
 "Consolidating This Address" = "Bu adres birleştiriliyor";
 "Valid address" = "Geçerli adres";
@@ -640,19 +592,9 @@
 /* .kachat registry v5 migration */
 
 /* .kachat first: domains in every address field, Other domains, expired-name banner */
-"kaspa:qr... or domain" = "kaspa:qr... veya alan adı";
-"Enter a Kaspa address (kaspa:...) or a domain (e.g. alice.kachat). .kachat names are looked up first." = "Bir Kaspa adresi (kaspa:...) veya alan adı girin (ör. alice.kachat). Önce .kachat adları aranır.";
-"Finds addresses holding a balance or a domain." = "Bakiyesi veya alan adı olan adresleri bulur.";
 "Their profile, .kachat name and address." = "Profili, .kachat adı ve adresi.";
 "KaChat Names Indexer URL" = "KaChat Ad Dizinleyici URL'si";
-"Other Domains" = "Diğer Alan Adları";
-"If these words already hold your identity at a different address - a domain (.kachat, .kas, .k or .kaspa) or a funded chatting balance - pick it here. Only addresses with a balance or domains are shown." = "Bu kelimeler kimliğini zaten başka bir adreste tutuyorsa (.kachat, .kas, .k veya .kaspa alan adı ya da sohbet bakiyesi), burada seç. Yalnızca bakiyesi veya alan adı olan adresler gösterilir.";
 ".kachat Names (%lld)" = ".kachat Adları (%lld)";
-".kas Names (%lld)" = ".kas Adları (%lld)";
-"Enter a Kaspa address (kaspa:...) or a domain. .kachat names are looked up first." = "Bir Kaspa adresi (kaspa:...) veya alan adı girin. Önce .kachat adları aranır.";
-"Search contacts, or an address or domain" = "Kişi, adres veya alan adı arayın";
-"You have no contacts yet. Paste an address or a domain above to invite someone." = "Henüz kişiniz yok. Birini davet etmek için yukarıya bir adres veya alan adı yapıştırın.";
-"No contacts match your search. Paste an address or a domain to invite someone new." = "Aramanızla eşleşen kişi yok. Yeni birini davet etmek için bir adres veya alan adı yapıştırın.";
 
 /* Bare names resolve to .kachat only */
 ".kachat names aren't live on this network yet" = ".kachat adları bu ağda henüz etkin değil";
@@ -661,7 +603,6 @@
 "Grace ends %@" = "Ek süre bitişi %@";
 "Expires %@" = "%@ tarihinde sona erer";
 "Expired" = "Süresi doldu";
-"No .kachat names yet" = "Henüz .kachat adın yok";
 
 /* .kachat on mainnet */
 "The .kachat registry is being upgraded. Names open here again once the new registry is live." = ".kachat kayıt defteri yükseltiliyor. Yeni kayıt defteri devreye girince isimler burada yeniden açılır.";
@@ -774,9 +715,7 @@
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
 "Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "Sohbet adresinizde %@ kişisine bu ödemeyi bildirecek KAS yok, bu yüzden ödemeyi bilinmeyen bir adresten, not olmadan gelmiş olarak görür. Sohbet adresinize KAS gelince K onlara bildirir.";
 
-/* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
-/* Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) */
 
 /* KaPosts: tip counter / tippers list, and the bell for a person's new posts (%@ = name) */
 
@@ -799,8 +738,6 @@
 "Profile cleared" = "Profil temizlendi";
 
 /* KNS domain transfers and quantum-safe (script) addresses */
-"KNS can't move a domain out of a quantum-safe address: KNS identifies a domain's owner by a public key, and a quantum-safe address keeps its key hidden." = "KNS, kuantum güvenli bir adresten alan adını çıkaramaz: KNS bir alan adının sahibini açık anahtarla tanır ve kuantum güvenli adres anahtarını gizli tutar.";
-"A .kas domain can't be sent to a quantum-safe or other script address: KNS could never move it out again. Send it to a regular address instead." = "Bir .kas alan adı kuantum güvenli veya başka bir betik adresine gönderilemez: KNS onu bir daha asla taşıyamaz. Bunun yerine normal bir adrese gönderin.";
 
 /* Quantum-safe send: the next change address could not be prepared */
 "Couldn't prepare the next address. Try again." = "Sonraki adres hazırlanamadı. Tekrar deneyin.";
@@ -880,7 +817,6 @@
 "Removed from Contacts." = "Kişilerden kaldırıldı.";
 "Remove Contact Photos" = "Kişi Fotoğraflarını Kaldır";
 "Remove Contact Photos?" = "Kişi fotoğrafları kaldırılsın mı?";
-"Pick people from your contacts, or add anyone by Kaspa address or domain." = "Kişilerinden birini seç ya da herkesi Kaspa adresi veya alan adıyla ekle.";
 "No members added yet. Add people from your contacts or by address below." = "Henüz üye yok. Kişilerinden ya da aşağıdan adresle kişi ekle.";
 "Add contacts from a contacts export." = "Bir kişiler dışa aktarımından kişi ekle.";
 "Save your contacts, with their photos, to a file." = "Kişilerini fotoğraflarıyla birlikte bir dosyaya kaydet.";
@@ -895,14 +831,12 @@
 "Delete %@ from your contacts?" = "%@ kişilerinden silinsin mi?";
 "Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "Kullandığın Kaspa adreslerini tanıyacağın bir adla kaydet. K'te, yalnızca bu cüzdan için kalırlar ve telefonunun Kişiler uygulamasına asla girmezler.";
 "Saved in K for this wallet only. Never added to your phone's Contacts app." = "Yalnızca bu cüzdan için K'te kaydedilir. Telefonunun Kişiler uygulamasına asla eklenmez.";
-"Use for chatting and acquiring .kachat domains." = "Sohbet etmek ve .kachat alan adları edinmek için kullanın.";
 "Think of it like your phone number on K." = "Bunu K'teki telefon numaran gibi düşün.";
 "How People Reach You" = "Sana nasıl ulaşılır";
 "Share this address and people can message you. Only you can read what they send." = "Bu adresi paylaş, sana mesaj gönderebilsinler. Gönderilenleri yalnızca sen okuyabilirsin.";
 "Paying for Messages" = "Mesajların ödemesi";
 "Each message you send takes a tiny amount of Kaspa from this address. 1 Kaspa covers about 500 messages." = "Gönderdiğin her mesaj bu adresten çok küçük bir miktar Kaspa alır. 1 Kaspa yaklaşık 500 mesaja yeter.";
 "What Others Can See" = "Başkaları neyi görebilir";
-"Anyone can see this address and its balance on the Kaspa network, but they can't read your messages. Use it only for chatting and .kachat domains." = "Bu adresi ve bakiyesini Kaspa ağında herkes görebilir ama mesajlarını okuyamaz. Yalnızca sohbet ve .kachat alan adları için kullan.";
 "Say anything to the bot to get started." = "Başlamak için bota herhangi bir şey yaz.";
 "Requested for payment" = "Ödeme istendi";
 "Delete Chat?" = "Sohbet Silinsin mi?";
@@ -994,16 +928,13 @@
 "Scan Card" = "Kartı Tara";
 "Restore Account" = "Hesabı Geri Yükle";
 "Share this profile" = "Bu profili paylaş";
-"No on-chain profile data yet." = "Henüz zincir üstü profil verisi yok.";
 "Edit name" = "Adı düzenle";
-"Redirect" = "Yönlendir";
 "Aliases" = "Takma Adlar";
 "Receiving alias" = "Alma takma adı";
 "Sending alias" = "Gönderme takma adı";
 "Default (%@)" = "Varsayılan (%@)";
 "Chess Stats" = "Satranç İstatistikleri";
 "%lld day%@ ago" = "%lld gün%@ önce";
-"PRIMARY" = "ANA";
 "React" = "Tepki ver";
 "No emoji match that." = "Eşleşen emoji yok.";
 "%lld member%@" = "%lld üye%@";
@@ -1075,7 +1006,6 @@
 "When a spending address receives Kaspa from someone else." = "Bir harcama adresi başkasından Kaspa aldığında.";
 "Checking address #%lld" = "Adres #%lld kontrol ediliyor";
 "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding." = "İlk bin adresi aradaki boşluklara bakmadan kontrol eder, sonra bulmaya devam ettiği sürece devam eder.";
-"No addresses with a balance or domain yet" = "Henüz bakiyesi veya alan adı olan adres yok";
 "%lld found so far" = "Şimdiye kadar %lld bulundu";
 "Close and Keep Scanning" = "Kapat ve Taramaya Devam Et";
 "Contains domain" = "Alan adı içerir";
@@ -1102,16 +1032,8 @@
 "Setting up your account" = "Hesabın kuruluyor";
 "Downloading everything this account has on chain. It only takes this long once." = "Bu hesabın zincirdeki her şeyi indiriliyor. Bu kadar uzun sürmesi yalnızca bir kez olur.";
 "Continue anyway" = "Yine de devam et";
-"Your Domains" = "Alan Adların";
 "Preparing a fresh address" = "Yeni bir adres hazırlanıyor";
 "Share Profile" = "Profili Paylaş";
-"Confirm Changes" = "Değişiklikleri Onayla";
-"%lld change%@. Each is submitted as its own on-chain transaction from your chatting address:" = "%lld değişiklik%@. Her biri sohbet adresinden ayrı bir zincir üstü işlem olarak gönderilir:";
-"Primary Domain" = "Ana Alan Adı";
-"Send Domain" = "Alan Adı Gönder";
-"If the network is busy, Fast or Priority pays a higher fee to help your transfer confirm sooner. Tap the fee amount to set a custom fee." = "Ağ yoğunsa, Hızlı veya Öncelikli, transferinin daha çabuk onaylanması için daha yüksek ücret öder. Özel ücret ayarlamak için ücret tutarına dokun.";
-"Sending %@" = "%@ gönderiliyor";
-"A domain transfer is two transactions, so this takes a moment. Keep the app open until it finishes." = "Alan adı transferi iki işlemden oluşur, bu yüzden biraz sürer. Bitene kadar uygulamayı açık tut.";
 "Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs." = "Bu adresteki tüm UTXO'ları tek bir UTXO'da birleştirir; böylece sonraki bir gönderimin ihtiyaç duyduğu girdi sayısı azalır.";
 "Public Key" = "Genel Anahtar";
 "This address does not carry a public key." = "Bu adreste genel anahtar yok.";
@@ -1278,7 +1200,6 @@
 "Enter the card's PIN, then tap the card to erase the backup on it." = "Karttaki yedeği silmek için kartın PIN'ini gir, sonra karta dokun.";
 "Create group" = "Grup oluştur";
 "Create" = "Oluştur";
-"Create \"%@\" and invite %lld member%@?%@" = "\"%@\" oluşturulsun ve %lld üye%@ davet edilsin mi?%@";
 "Add\nPhoto" = "Fotoğraf\nEkle";
 "Add to Group" = "Gruba Ekle";
 "Remove from group" = "Gruptan çıkar";
@@ -1319,7 +1240,6 @@
 "Contact Backup" = "Kişi Yedeği";
 "Contacts backed up." = "Kişiler yedeklendi.";
 "Only your contacts are backed up here, encrypted. Your messages and group chats come back with your seed phrase." = "Burada yalnızca kişileriniz şifreli olarak yedeklenir. Mesajlarınız ve grup sohbetleriniz başlangıç ifadenizle geri gelir.";
-"Confirm sending this domain" = "Bu alan adının gönderilmesini onayla";
 "Not confirmed" = "Onaylanmadı";
 "This may have gone through, but the network didn't confirm it. Check your balance before sending again." = "Bu işlem gerçekleşmiş olabilir ancak ağ onaylamadı. Yeniden göndermeden önce bakiyenizi kontrol edin.";
 "Swipe up, then let go to send." = "Yukarı kaydırın, ardından göndermek için bırakın.";
@@ -1464,9 +1384,6 @@
 "Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "K'te hesap silmek veya gizli anahtarları görmek için bu iPhone'da bir parola belirleyin (Ayarlar > Face ID ve Parola).";
 "Waiting on opponent" = "Rakip bekleniyor";
 "Not sent: you switched accounts before this went out." = "Gönderilmedi: bu gitmeden önce hesap değiştirdiniz.";
-"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "İki işlemden ilki gerçekleşti ama ikincisi gerçekleşmedi. K bir sonraki açılışta tamamlayacak.";
-"A domain transfer's fee can be at most 1 KAS." = "Alan adı aktarım ücreti en fazla 1 KAS olabilir.";
-"Confirm setting this primary name" = "Bu birincil adı ayarlamayı onayla";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "Bu hesabın anahtarları hâlâ bu telefonda olabilir ama şu anda okunamıyor, bu yüzden hiçbir şey değiştirilmedi. Birazdan tekrar deneyin.";
 "Play It Again" = "Tekrar Oyna";
 "This is the public half of this address. It cannot spend anything." = "Bu, bu adresin genel yarısıdır. Hiçbir şey harcayamaz.";
@@ -1513,7 +1430,6 @@
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "Her şey doldurulmuş olarak K'te ödemek için iPhone kamerasıyla tarayın.";
 "Set as Name" = "Ad olarak ayarla";
 "Their Name" = "Adı";
-"Get a .kachat name" = ".kachat adı al";
 
 /* GIFs (2026-11-18) */
 "Send an animated GIF from your library." = "Arşivinizden hareketli bir GIF gönderin.";
@@ -1591,8 +1507,6 @@
 "No addresses with %@ yet" = "Henüz %@ olan adres yok";
 "Not confirmed: the network didn't answer. It may still go through. Try Again resends the same transaction, so it can't be paid twice." = "Onaylanmadı: ağ yanıt vermedi. Yine de gerçekleşebilir. Tekrar Dene aynı işlemi gönderir, bu yüzden iki kez ödenemez.";
 "Not independently audited yet. Hold only what you can afford to lose." = "Henüz bağımsız olarak denetlenmedi. Yalnızca kaybetmeyi göze alabileceğin kadarını tut.";
-"On %d of your addresses" = "%d adresine";
-"On your %@" = "%@ adresine";
 "Only %@ on Kaspa, or KAS, can be sent here." = "Buraya yalnızca Kaspa üzerindeki %@ veya KAS gönderilebilir.";
 "Only Kaspa can be sent here." = "Buraya yalnızca Kaspa gönderilebilir.";
 "Pending" = "Beklemede";
@@ -1653,9 +1567,6 @@
 "Not set" = "Ayarlanmadı";
 
 /* Address Domains tab (2026-11-20) */
-"1 domain" = "1 alan adı";
-"Couldn't load" = "Yüklenemedi";
-"No %@ names on this address." = "Bu adreste %@ adı yok.";
 
 /* kUSDT-listed addresses stay in Manage Addresses (2026-11-20) */
 "Shown for kUSDT" = "kUSDT için gösteriliyor";
@@ -1679,19 +1590,7 @@
 "This send changed while the screen was open. Nothing was sent: check it again and swipe." = "Ekran açıkken bu gönderim değişti. Hiçbir şey gönderilmedi: tekrar kontrol edip kaydırın.";
 "Scanning your addresses for balances…" = "Adresleriniz bakiye için taranıyor…";
 
-/* Kaspa Hub and Customize Dock (back 2026-11-20) */
 "Kaspa Hub" = "Kaspa Hub";
-"Your Dock" = "Dock'unuz";
-"Your dock is full. Remove one from it to add one of these." = "Dock'unuz dolu. Bunlardan birini eklemek için dock'tan birini çıkarın.";
-"In the order %@ shows them." = "%@ içinde göründükleri sırayla.";
-"Always in your dock" = "Her zaman dock'unuzda";
-"Move %@ to %@" = "%@ öğesini %@ içine taşı";
-"Add %@ to your dock" = "%@ öğesini dock'a ekle";
-"Customize Dock" = "Dock'u Özelleştir";
-"%@ always stays in your dock." = "%@ her zaman dock'unuzda kalır.";
-"Nothing here right now" = "Burada şimdilik bir şey yok";
-"What isn't in your dock shows here. Arrange them in Customize Dock." = "Dock'unuzda olmayanlar burada görünür. Dock'u Özelleştir'den düzenleyin.";
-"Pick what's in your dock. Everything else is in Kaspa Hub." = "Dock'unuzda ne olacağını seçin. Gerisi Kaspa Hub'da.";
 
 /* Portfolio, Cold Storage and .kachat names, from KaPay (2026-11-21) */
 "Add Transaction" = "Islem Ekle";
@@ -1739,7 +1638,6 @@
 "Activity" = "Etkinlik";
 "List a Name for Sale" = "Bir adı satışa çıkar";
 "Listings appear here once .kachat names launch." = "İlanlar .kachat adları başladığında burada görünür.";
-"Claim a Name" = "Ad al";
 "Recent activity" = "Son etkinlik";
 "Activity appears here once .kachat names launch." = "Etkinlik .kachat adları başladığında burada görünür.";
 "How it works" = "Nasıl çalışır";
@@ -1773,7 +1671,6 @@
 "Offers open when .kachat names launch." = "Teklifler .kachat adları başlayınca açılacak.";
 "Pick a CSV file from your Nextcloud." = "Nextcloud'undan bir CSV dosyası seç.";
 "Save the CSV to the KaChat folder in your Nextcloud." = "CSV'yi Nextcloud'undaki KaChat klasörüne kaydeder.";
-"No .kachat names on this address" = "Bu adreste .kachat adı yok";
 "Names this address claims or buys show here once .kachat names launch." = "Bu adresin aldığı ya da satın aldığı adlar .kachat adları başladığında burada görünür.";
 "Move to Portfolio" = "Portföye Taşı";
 "Create another portfolio first, then you can move transactions into it." = "Önce başka bir portföy oluştur, sonra işlemleri oraya taşıyabilirsin.";
@@ -1888,8 +1785,6 @@
 "New period" = "Yeni dönem";
 "Extending adds years to the current paid period, which holds at most 2 years. The price goes to the miners." = "Uzatma, en fazla 2 yıl kapsayan mevcut ödenmiş döneme yıl ekler. Fiyat madencilere gider.";
 "The names indexer didn't send this name's paid period. Pull to refresh and try again." = "Ad dizinleyicisi bu adın ödenmiş dönemini göndermedi. Yenilemek için aşağı çekip tekrar deneyin.";
-"Opens the .kachat tab" = ".kachat sekmesini açar";
-"Names this address owns show here." = "Bu adresin sahip olduğu adlar burada görünür.";
 "Build Unsigned Transaction" = "İmzasız işlem oluştur";
 "Copies the address" = "Adresi kopyalar";
 "Manage Name" = "Adı yönet";
@@ -1975,12 +1870,7 @@
 "Names are moving to the new registry. New names can be claimed from %@." = "İsimler yeni kayıt defterine taşınıyor. Yeni isimler %@ tarihinden itibaren alınabilir.";
 "Every name from the old registry comes over with the same owner and expiry first." = "Önce eski kayıt defterindeki her isim aynı sahip ve aynı bitiş tarihiyle taşınır.";
 "Moved to the new registry" = "Yeni kayıt defterine taşındı";
-"Enter a Kaspa address or a domain like name.kachat (.kachat names are looked up first). Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "Bir Kaspa adresi veya name.kachat gibi bir alan adı girin (önce .kachat adları aranır). Bu adrese gelen her işlem alış, gönderilen her işlem satış sayılır ve o günün geçmiş KAS fiyatıyla değerlenir. Aynı adresi daha sonra yeniden eklerseniz yalnızca son içe aktarmadan beri bulunan işlemler içe aktarılır.";
-"An address or a domain - .kachat names are looked up first, and it's resolved to the address shown." = "Bir adres veya alan adı; önce .kachat adları aranır ve gösterilen adrese çözümlenir.";
-"Enter an address or a domain." = "Bir adres veya alan adı girin.";
 "That name's address can't own a .kachat name." = "Bu adın adresi bir .kachat adına sahip olamaz.";
-"One of your .kachat domains expired" = ".kachat alan adlarınızdan birinin süresi doldu";
-"%lld of your .kachat domains expired" = ".kachat alan adlarınızdan %lld tanesinin süresi doldu";
 "Renew %@ before its grace period ends on %@ to keep it." = "%@ adını korumak için ek süresi %@ tarihinde bitmeden yenileyin.";
 "Renew them before their grace periods end to keep them." = "Korumak için ek süreleri bitmeden yenileyin.";
 "Not a Schnorr address on this network." = "Bu ağda bir Schnorr adresi değil.";
@@ -2043,7 +1933,6 @@
 "Transaction Details" = "İşlem Ayrıntıları";
 "Add Kaspa Address" = "Kaspa Adresi Ekle";
 "Edit Transaction" = "İşlemi Düzenle";
-"Looking up..." = "Aranıyor...";
 "%d day" = "%d gün";
 "%d days" = "%d gün";
 "Biometrics for 12 or 24 Words" = "12 veya 24 Kelime için Biyometri";
@@ -2054,7 +1943,6 @@
 "Unlock to change the private key biometric lock" = "Özel anahtarın biyometrik kilidini değiştirmek için kilidi aç";
 "The registry can't be checked right now. Try again in a moment." = "Kayıt defteri şu anda kontrol edilemiyor. Birazdan tekrar dene.";
 "Name your own price. Your KAS waits on chain until the seller accepts, you withdraw the offer, or it expires." = "Kendi fiyatını belirle. KAS'ın, satıcı kabul edene, teklifi geri çekene veya süresi dolana kadar zincirde bekler.";
-"Couldn't load this address's names. Pull down to try again." = "Bu adresin adları yüklenemedi. Tekrar denemek için aşağı çek.";
 "Holdings" = "Varlıklar";
 "Current Value" = "Güncel Değer";
 "Total Invested" = "Toplam Yatırım";
@@ -2073,7 +1961,6 @@
 "Next Block Reward" = "Sonraki Blok Ödülü";
 "Next Block Reward Reduction" = "Sonraki Blok Ödülü Düşüşü";
 "At %@ network hashrate and a %@ block reward. Before pool fees, power and luck, and both figures move." = "%@ ağ hash oranı ve %@ blok ödülüyle. Havuz ücretleri, elektrik ve şans hariçtir; iki değer de değişir.";
-"Saving profile..." = "Profil kaydediliyor...";
 "Imported 1 transaction" = "1 işlem içe aktarıldı";
 "Imported %lld transactions" = "%lld işlem içe aktarıldı";
 ". Prices for %lld are still loading and will fill in automatically" = ". %lld işlemin fiyatları hâlâ yükleniyor ve otomatik olarak doldurulacak";
@@ -2082,9 +1969,6 @@
 "Export failed. Couldn't write the CSV file" = "Dışa aktarma başarısız. CSV dosyası yazılamadı";
 "Imported 1 transaction into %@" = "1 işlem içe aktarıldı: %@";
 "Imported %lld transactions into %@" = "%lld işlem içe aktarıldı: %@";
-"No addresses with a balance or domain found." = "Bakiyesi veya alan adı olan adres bulunamadı.";
-"Found 1 address with a balance or domain." = "Bakiyesi veya alan adı olan 1 adres bulundu.";
-"Found %lld addresses with a balance or domain." = "Bakiyesi veya alan adı olan %lld adres bulundu.";
 "Unlock to view this address's private key" = "Bu adresin özel anahtarını görmek için kilidi açın";
 "Unlock to view your 12 or 24 words" = "12 veya 24 kelimenizi görmek için kilidi açın";
 "Locked by a covenant" = "Bir covenant ile kilitli";
@@ -2303,7 +2187,6 @@
 "Tips From" = "Bahşiş Kaynağı";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "Chatting Address'inizden gönderilen bahşiş gönderide sayılır ve bahşiş verenler arasında görünürsünüz.";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "Başka bir adresten bahşiş gizlidir: yazar alır ve sohbetinizde görür, ama gönderide sayılmaz ve adınızı vermez.";
-"Tips from your Chatting Address count on the post, and you're listed as a tipper. From another address a tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you." = "Chatting Address'inizden bahşişler gönderide sayılır ve bahşiş verenler arasında görünürsünüz. Başka bir adresten bahşiş gizlidir: yazar alır ve sohbetinizde görür, ama gönderide sayılmaz ve adınızı vermez.";
 "Join #%@?" = "#%@ odasına katılınsın mı?";
 "A link wants to add this room to your Public Chats." = "Bir bağlantı bu odayı Herkese Açık Sohbetlerinize eklemek istiyor.";
 "This name mixes letters from different alphabets, so it may be imitating another room." = "Bu ad farklı alfabelerden harfleri karıştırıyor, bu yüzden başka bir odayı taklit ediyor olabilir.";
@@ -2595,7 +2478,6 @@
 "What are you tipping in?" = "Bahşişi neyle veriyorsunuz?";
 "Not counted on the post" = "Gönderide sayılmaz";
 "Tip asks whether to send Kaspa or kUSDT each time." = "Bahşiş her seferinde Kaspa mı kUSDT mi gönderileceğini sorar.";
-"Tip sends kUSDT to the poster's chatting address. kUSDT tips aren't counted on the post." = "Bahşiş, kUSDT'yi gönderi sahibinin sohbet adresine gönderir. kUSDT bahşişleri gönderide sayılmaz.";
 "The account changed, so this wasn't sent." = "Hesap değişti, bu yüzden bu gönderilmedi.";
 "KaPost isn't available on Testnet yet" = "KaPost henüz Testnet'te kullanılamıyor";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "Testnet için bir KaPost dizinleyicisi yok. Mainnet'te okumak ve paylaşmak için Ayarlar > Bağlantı bölümünden Testnet'i kapatın.";
@@ -2624,8 +2506,6 @@
 "Channel names must be 1-%d characters with no spaces or colons." = "Kanal adları boşluk veya iki nokta olmadan 1-%d karakter olmalı.";
 "channel-name" = "kanal-adi";
 
-"Set what Tip sends in Settings > KaPost > Tip In." = "Bahşişin ne göndereceğini Ayarlar > KaPost > Bahşiş birimi'nden seçin.";
-"Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > KaPost." = "Bahşiş gönderilmedi: ağın kabul ettiği en küçük bahşiş %@. Varsayılan bahşişinizi Ayarlar > KaPost'ta değiştirin.";
 
 "See All Posts" = "Tüm Gönderileri Gör";
 "Opens KaPost, where everyone's posts are." = "Herkesin gönderilerinin olduğu KaPost'u açar.";
@@ -2669,7 +2549,6 @@
 "Advanced" = "İleri";
 "All time" = "Tüm zamanlar";
 "Beginner" = "Başlangıç";
-"Best: %lld moves" = "En iyi: %lld hamle";
 "Black" = "Siyah";
 "Black to move" = "Sıra siyahta";
 "Bots" = "Botlar";
@@ -2686,7 +2565,6 @@
 "Checkmate. %@ won." = "Şah mat. %@ kazandı.";
 "Chess server unreachable, showing what we have. Your games keep going from the network. Public rooms can be joined again when it's back." = "Satranç sunucusuna ulaşılamıyor, elimizdekiler gösteriliyor. Oyunların ağ üzerinden devam ediyor. Sunucu geri geldiğinde herkese açık odalara yeniden katılabilirsin.";
 "Chess server unreachable. Moves are coming from the network, and the board may be a moment behind." = "Satranç sunucusuna ulaşılamıyor. Hamleler ağdan geliyor ve tahta biraz geriden gelebilir.";
-"Chess server unreachable. Showing what this phone has, which can be less than the full board." = "Satranç sunucusuna ulaşılamıyor. Bu telefondakiler gösteriliyor; tam tablodan eksik olabilir.";
 "Chess server unreachable. Showing what this phone has." = "Satranç sunucusuna ulaşılamıyor. Bu telefondakiler gösteriliyor.";
 "Chess server unreachable. Watching the network for players, so someone who joined while the app was away may not show." = "Satranç sunucusuna ulaşılamıyor. Oyuncular için ağ izleniyor, bu yüzden uygulama kapalıyken katılan biri görünmeyebilir.";
 "Choose your game" = "Oyununu seç";
@@ -2696,7 +2574,6 @@
 "Code" = "Kod";
 "Copy" = "Kopyala";
 "Couldn't stamp the result on Kaspa" = "Sonuç Kaspa'ya kaydedilemedi";
-"Counted from %@." = "%@ tarihinden beri sayılıyor.";
 "Create a private 1v1" = "Özel 1v1 oluştur";
 "Create a private tournament" = "Özel turnuva oluştur";
 "Creating…" = "Oluşturuluyor…";
@@ -2718,15 +2595,12 @@
 "Draw by threefold repetition. %@ won on clock." = "Üç kez tekrarla berabere. %@ süreyle kazandı.";
 "Draw." = "Berabere.";
 "Draw. %@ won on clock." = "Berabere. %@ süreyle kazandı.";
-"Eight players, single elimination: quarterfinals, semifinals, final. Public rooms fill as players arrive; private ones by code." = "Sekiz oyuncu, tek eleme: çeyrek finaller, yarı finaller, final. Herkese açık odalar oyuncular geldikçe dolar; özel odalar kodla.";
 "Everyone who joined is released. This is one transaction." = "Katılan herkes serbest bırakılır. Bu tek bir işlemdir.";
 "Final" = "Final";
 "Finished 1v1 games" = "Biten 1v1 oyunları";
 "Finished tournaments" = "Biten turnuvalar";
-"Five bots, level 1 to 5, from Kaspa Silver to Yonatan Sompolinsky. Beat one to unlock the next. The result goes on Kaspa." = "Kaspa Silver'dan Yonatan Sompolinsky'ye, seviye 1'den 5'e beş bot. Sonrakinin kilidini açmak için birini yen. Sonuç Kaspa'ya kaydedilir.";
 "Five bots, level 1 to 5. Beat one to unlock the next. Each game's result is stamped on Kaspa when it ends." = "Seviye 1'den 5'e beş bot. Sonrakinin kilidini açmak için birini yen. Her oyunun sonucu bittiğinde Kaspa'ya kaydedilir.";
 "Game" = "Oyun";
-"Games won and lost - 1v1s and tournament games alike" = "Kazanılan ve kaybedilen oyunlar - 1v1'ler ve turnuva oyunları birlikte";
 "Go to your game" = "Oyununa git";
 "Here for the fun of it. Moves fast and sometimes leaves a piece hanging." = "Eğlence için oynar. Hızlı hamle yapar ve bazen bir taşı korumasız bırakır.";
 "If you leave, you resign the game. %@ goes through and you are out of the tournament. It counts as a loss on the leaderboard. Resigning is one transaction." = "Ayrılırsan oyundan pes etmiş olursun. %@ tur atlar ve sen turnuvadan elenirsin. Bu, lider tablosunda yenilgi sayılır. Pes etmek tek bir işlemdir.";
@@ -2747,7 +2621,6 @@
 "Knows how every piece moves and loves grabbing free material. Watch your loose pawns." = "Her taşın nasıl hareket ettiğini bilir ve bedava materyal almaya bayılır. Korumasız piyonlarına dikkat et.";
 "LIVE %@" = "CANLI %@";
 "Leaderboard" = "Lider Tablosu";
-"Leaderboard period" = "Lider tablosu dönemi";
 "Leave" = "Ayril";
 "Leave anyway" = "Yine de ayrıl";
 "Leave the game?" = "Oyundan ayrılıyor musun?";
@@ -2771,7 +2644,6 @@
 "Next: the game vs %@" = "Sıradaki: %@ ile oyun";
 "Next: the semifinal vs %@" = "Sıradaki: %@ ile yarı final";
 "No 1v1 games are being played right now. When one starts, it shows up here to watch." = "Şu anda oynanan 1v1 oyunu yok. Biri başladığında izlemek için burada görünür.";
-"No bot has been played yet." = "Henüz hiçbir botla oynanmadı.";
 "No finished 1v1 games this month yet." = "Bu ay henüz biten 1v1 oyunu yok.";
 "No finished 1v1 games yet." = "Henüz biten 1v1 oyunu yok.";
 "No finished tournaments this month yet." = "Bu ay henüz biten turnuva yok.";
@@ -2779,7 +2651,6 @@
 "No one joined in time. You're out of the queue - join again whenever you like." = "Zamanında kimse katılmadı. Sıradan çıktın - istediğin zaman tekrar katıl.";
 "No open tournament with that code. Codes are eight characters; the tournament must exist and still have seats." = "Bu kodla açık bir turnuva yok. Kodlar sekiz karakterdir; turnuvanın var olması ve hâlâ boş yeri olması gerekir.";
 "No tournament is being played right now. When one starts, its games show up here to watch." = "Şu anda oynanan turnuva yok. Biri başladığında oyunları izlemek için burada görünür.";
-"Not beaten yet" = "Henüz yenilmedi";
 "Novice" = "Acemi";
 "On time" = "Süre";
 "Online, five minutes a side and every move is a Kaspa transaction. Bot games stamp their result on Kaspa when they end." = "Çevrimiçi, taraf başına beş dakika ve her hamle bir Kaspa işlemi. Bot oyunları bittiğinde sonuçlarını Kaspa'ya kaydeder.";
@@ -2787,7 +2658,6 @@
 "Play a friend: create a 1v1, share its code. Private 1v1s count on the leaderboard too." = "Bir arkadaşınla oyna: bir 1v1 oluştur, kodunu paylaş. Özel 1v1'ler de lider tablosunda sayılır.";
 "Play again" = "Tekrar oyna";
 "Play as" = "Taraf";
-"Play the next person who joins, or a friend by code. One game, winner takes the leaderboard point." = "Katılan bir sonraki kişiyle ya da kodla bir arkadaşınla oyna. Tek oyun; kazanan lider tablosu puanını alır.";
 "Player" = "Oyuncu";
 "Private" = "Özel";
 "Private 1v1" = "Özel 1v1";
@@ -2800,8 +2670,6 @@
 "Public tournament #%lld" = "Herkese açık turnuva #%lld";
 "Quarterfinals" = "Çeyrek finaller";
 "Random" = "Rastgele";
-"Ranked by the fewest moves to win." = "Kazanmak için gereken en az hamleye göre sıralanır.";
-"Resets on the 1st of every month (UTC)." = "Her ayın 1'inde sıfırlanır (UTC).";
 "Resign and leave" = "Pes et ve ayrıl";
 "Result stamped on Kaspa" = "Sonuç Kaspa'ya kaydedildi";
 "Retry the stamp" = "Kaydı tekrar dene";
@@ -2851,7 +2719,6 @@
 "Tournament full!" = "Turnuva doldu!";
 "Tournament leaderboard" = "Turnuva lider tablosu";
 "Tournaments" = "Turnuvalar";
-"Tournaments won and lost" = "Kazanılan ve kaybedilen turnuvalar";
 "Victory" = "Zafer";
 "Waiting" = "Bekliyor";
 "Waiting for %lld more players. It starts by itself when the eighth joins." = "%lld oyuncu daha bekleniyor. Sekizinci oyuncu katıldığında kendiliğinden başlar.";
@@ -2906,7 +2773,6 @@
 "finished" = "bitti";
 "vs" = "vs";
 "Beat %@ to unlock" = "Kilidi açmak için %@ rakibini yen";
-"Fewest moves to beat %@" = "%@ rakibini en az hamlede yenenler";
 "Level %lld" = "Seviye %lld";
 "Level %lld · %@" = "Seviye %lld · %@";
 "Level %lld of 5" = "Seviye %lld / 5";
@@ -2994,12 +2860,9 @@
 ".kachat Names Guide" = ".kachat Adları Rehberi";
 "Claim a .kachat name, make it your name, and keep it." = "Bir .kachat adı alın, adınız yapın ve koruyun.";
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "Adınız Kaspa ağında yaşar ve sohbet adresiniz tarafından tutulur. Sizin olduğu sürece kimse onu alamaz veya değiştiremez.";
-"Search for the name you want in the .kachat tab, then claim it." = "İstediğin adı .kachat sekmesinde ara, sonra al.";
 "What kUSDT is, where it lives, and how sending and swapping work." = "kUSDT nedir, nerede durur, gönderme ve takas nasıl çalışır.";
 "It's the name people see you as across K and on your profile link. Without one, people see your address." = "İnsanların seni K genelinde ve profil bağlantında gördüğü ad budur. Olmazsa adresini görürler.";
 "People can find you by typing your name." = "İnsanlar adını yazarak seni bulabilir.";
-"Your names are in Wallet > Your Domains > .kachat." = "Adların Cüzdan > Alan Adların > .kachat içinde.";
-"Claim your name in the .kachat tab whenever you're ready." = "Hazır olduğunda adını .kachat sekmesinden al.";
 "I Agree" = "Kabul Ediyorum";
 "K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "K, rahatsız edici içeriğe ve kötü niyetli kullanıcılara tolerans göstermez. Yasa dışı hiçbir şey, çocukları içeren cinsel içerik, nefret söylemi, tehdit, taciz, şiddeti ya da kendine zarar vermeyi teşvik eden içerik veya dolandırıcılık paylaşamazsın. Bunu yapan hesaplar, önceden haber verilmeden K'un gösterdiklerinden kaldırılabilir.";
 "K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K olduğu gibi, garanti verilmeden sunulur ve yasaların izin verdiği ölçüde, kullanımından ya da diğer kullanıcıların paylaştıklarından doğan kayıplardan sorumlu değiliz. Bu şartlar sen ile K'un geliştiricisi arasındadır, Apple ile değil.";
@@ -3014,7 +2877,6 @@
 "Your account and your funds" = "Hesabın ve paran";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "Hesabın, cihazında saklanan 12 veya 24 kelimedir. Onlara hiçbir zaman sahip olmayız; bu yüzden kaybolanları kurtaramaz ya da bir işlemi geri alamayız. Paylaşım yapmak KAS cinsinden bir ağ ücreti öder ve elindeki ve gönderdiğin fonlardan sen sorumlusun.";
 "Your posts are public and permanent" = "Gönderilerin herkese açık ve kalıcıdır";
-"Who's on top in 1v1 and tournaments, this month or all time, and against each bot." = "1v1 ve turnuvalarda bu ay ya da tüm zamanlarda, ve her bota karşı kim önde.";
 "The trade may have gone through." = "İşlem gerçekleşmiş olabilir.";
 "Trestly's code reads this address's coins and sends the trade through public Kaspa nodes (kaspa.stream and its mirrors), not the node chosen in Settings. Those nodes see this address and your IP address." = "Trestly'nin kodu bu adresin coinlerini okur ve işlemi Ayarlar'da seçilen düğüm yerine herkese açık Kaspa düğümleri (kaspa.stream ve aynaları) üzerinden gönderir. Bu düğümler bu adresi ve IP adresini görür.";
 "Original message not loaded" = "Orijinal mesaj yüklenmedi";
@@ -3044,3 +2906,361 @@
 
 /* Cold Storage Paste kpub (2026-11-22) */
 "Not a valid kpub" = "Geçerli bir kpub değil";
+
+/* Pinned public chats (2026-11-23) */
+"Clears the unread badge on this public chat." = "Bu herkese açık sohbetteki okunmadı rozetini kaldırır.";
+"No notifications from this public chat." = "Bu herkese açık sohbetten bildirim gelmez.";
+"Notifications from this public chat resume." = "Bu herkese açık sohbetten bildirimler yeniden gelir.";
+"Removes this public chat from your chats." = "Bu herkese açık sohbeti sohbetlerinden kaldırır.";
+"If these words already hold your identity at a different address - a .kachat name or a funded chatting balance - pick it here. Only addresses with a balance or names are shown." = "Bu kelimeler kimliğini zaten başka bir adreste tutuyorsa - bir .kachat adı ya da bakiyesi olan bir sohbet adresi - onu burada seç. Yalnızca bakiyesi veya adı olan adresler gösterilir.";
+
+/* Swap with ChangeNOW and Trestly (2026-11-23) */
+"Swap" = "Takas";
+"Swap started" = "Takas başladı";
+"Couldn't read this swap's amounts" = "Bu takasın tutarları okunamadı";
+"Added to %@" = "Eklendi: %@";
+"This only removes it from your local history - it doesn't affect the actual exchange." = "Bu yalnızca yerel geçmişinden kaldırır; asıl takası etkilemez.";
+"Swap History" = "Takas Geçmişi";
+"You Send" = "Gönderdiğin";
+"Switch direction" = "Yönü değiştir";
+"You Get" = "Aldığın";
+"Receive %@ at" = "%@ alınacak adres";
+"Receiving KAS At" = "KAS'ın Alınacağı Adres";
+"Powered by Trestly" = "Trestly altyapısıyla";
+"Powered by ChangeNOW" = "ChangeNOW altyapısıyla";
+"Rate" = "Kur";
+"Go to Spending Addresses" = "Harcama Adreslerine Git";
+"Send %@ to this address" = "Bu adrese %@ gönder";
+"ChangeNOW Exchange ID" = "ChangeNOW Takas Kimliği";
+"Exchange ID copied" = "Takas kimliği kopyalandı";
+"Refresh Status" = "Durumu Yenile";
+"View on ChangeNOW" = "ChangeNOW'da Görüntüle";
+"Change" = "Değiştir";
+"No swaps yet." = "Henüz takas yok.";
+"Swap Details" = "Takas Ayrıntıları";
+"A swap pays out to an address you have not used before, so the payout cannot be tied to your earlier activity. Generate one if none are free." = "Bir takas, daha önce kullanmadığın bir adrese ödeme yapar; böylece ödeme önceki etkinliğinle ilişkilendirilemez. Boş adres yoksa bir tane oluştur.";
+"Every address here has been used. Generate a new one above." = "Buradaki her adres kullanıldı. Yukarıdan yeni bir tane oluştur.";
+"Unused Addresses" = "Kullanılmamış Adresler";
+"Choose Address" = "Adres Seç";
+"Check its history before you send a swap to it." = "Ona takas göndermeden önce geçmişini kontrol et.";
+"Use for This Swap" = "Bu Takas İçin Kullan";
+"ChangeNOW pays the swapped KAS out to this address." = "ChangeNOW, takas edilen KAS'ı bu adrese öder.";
+"Choose Coin" = "Coin Seç";
+"Swap uses two services K doesn't run. Read and agree to both before you continue." = "Takas, K'nin işletmediği iki hizmeti kullanır. Devam etmeden önce ikisini de oku ve kabul et.";
+"Coins on other networks" = "Diğer ağlardaki coin'ler";
+"Swaps between Kaspa and coins on other networks (Bitcoin, Ethereum, USDC, USDT and others) are made by ChangeNOW, a third-party exchange. K only asks ChangeNOW for a quote and a deposit address and shows the swap's status; ChangeNOW does the exchange and sends the coins. K isn't responsible for failed, delayed or lost swaps. If one doesn't go through, contact ChangeNOW's support." = "Kaspa ile diğer ağlardaki coin'ler (Bitcoin, Ethereum, USDC, USDT ve diğerleri) arasındaki takasları üçüncü taraf bir borsa olan ChangeNOW yapar. K, ChangeNOW'dan yalnızca bir fiyat teklifi ve yatırma adresi ister ve takasın durumunu gösterir; takası ChangeNOW yapar ve coin'leri o gönderir. K başarısız, geciken veya kaybolan takaslardan sorumlu değildir. Bir takas gerçekleşmezse ChangeNOW desteğiyle iletişime geç.";
+"Read ChangeNOW's Terms of Use" = "ChangeNOW Kullanım Şartları'nı Oku";
+"I understand ChangeNOW is a third party, not K, and I agree to ChangeNOW's Terms of Use." = "ChangeNOW'un K değil, üçüncü bir taraf olduğunu anlıyorum ve ChangeNOW Kullanım Şartları'nı kabul ediyorum.";
+"kUSDT on Kaspa" = "Kaspa'da kUSDT";
+"Swaps between KAS and kUSDT go through Trestly's pool on Kaspa. Trestly is a third party: it issues kUSDT and runs the pool, not K. Trestly's own code prices each swap and builds its transaction; K shows it to you, signs it with your address's key only after you approve, and sends it. Prices move, and the pool can be paused or limit sells. K isn't responsible for the pool, the token or a swap's outcome." = "KAS ile kUSDT arasındaki takaslar Trestly'nin Kaspa'daki havuzundan geçer. Trestly üçüncü bir taraftır: kUSDT'yi çıkaran ve havuzu işleten K değil, Trestly'dir. Her takasın fiyatını Trestly'nin kendi kodu belirler ve işlemini oluşturur; K bunu sana gösterir, yalnızca sen onayladıktan sonra adresinin anahtarıyla imzalar ve gönderir. Fiyatlar değişir; havuz durdurulabilir veya satışları sınırlayabilir. K havuzdan, tokendan veya bir takasın sonucundan sorumlu değildir.";
+"Read Trestly's Terms of Service" = "Trestly Hizmet Şartları'nı Oku";
+"I understand Trestly is a third party, not K, and I agree to Trestly's Terms of Service." = "Trestly'nin K değil, üçüncü bir taraf olduğunu anlıyorum ve Trestly Hizmet Şartları'nı kabul ediyorum.";
+"Before You Swap" = "Takastan Önce";
+"The swap's KAS and kUSDT both stay on this address." = "Takasın KAS'ı ve kUSDT'si bu adreste kalır.";
+"Swap From" = "Takas Edilecek Adres";
+"The pool gives nothing for this amount." = "Havuz bu tutar için hiçbir şey vermiyor.";
+"Trestly's pool is paused right now, so swaps are stopped for the moment." = "Trestly'nin havuzu şu an durduruldu, bu yüzden takaslar şimdilik durdu.";
+"The pool's circuit breaker limits sells right now. Try a smaller amount, or again later." = "Havuzun devre kesicisi şu an satışları sınırlıyor. Daha küçük bir tutar dene ya da daha sonra tekrar dene.";
+"Swap sent" = "Takas gönderildi";
+"ChangeNOW swaps aren't available in this build." = "ChangeNOW takasları bu sürümde kullanılamıyor.";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below your minimum, 1% under the quote." = "K içinde Trestly'nin kendi koduyla oluşturuldu ve kontrol edildi. Havuz önce değişirse yeniden fiyat alınır: yalnızca bu teklifle ya da daha iyisiyle devam edilir, daha az olursa sana tekrar sorulur ve asla minimumunun, yani teklifin yüzde 1 altının, altına inilmez.";
+"Minimum You Get" = "Alacağın En Az Tutar";
+"Through Trestly's pool" = "Trestly'nin havuzu üzerinden";
+"The pool pays less than your minimum right now, so this would be refused. Go back and get a new quote." = "Havuz şu an minimumundan az ödüyor, bu yüzden reddedilir. Geri dön ve yeni bir teklif al.";
+"Swap From (kUSDT Lands Here)" = "Takas Edilecek Adres (kUSDT Buraya Gelir)";
+"Swap From (KAS Lands Here)" = "Takas Edilecek Adres (KAS Buraya Gelir)";
+"Search coins" = "Coin ara";
+
+/* Tips in chats, Username (2026-11-23) */
+"Get a username" = "Kullanıcı adı al";
+"What Tip sends, on a post and in a chat." = "Bahşişin gönderide ve sohbette ne gönderdiği.";
+"Tip this contact, as set in Settings > Customization > Tipping." = "Bu kişiye Ayarlar > Özelleştirme > Bahşiş verme'deki ayara göre bahşiş verin.";
+"Tip sends kUSDT to their chatting address. kUSDT tips aren't counted on a post." = "Bahşiş, kUSDT'yi alıcının sohbet adresine gönderir. kUSDT bahşişleri gönderide sayılmaz.";
+"Set what Tip sends in Settings > Customization > Tipping." = "Bahşişin ne göndereceğini Ayarlar > Özelleştirme > Bahşiş verme'den seçin.";
+"Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > Customization > Tipping." = "Bahşiş gönderilmedi: ağın kabul ettiği en küçük bahşiş %@. Varsayılan bahşişinizi Ayarlar > Özelleştirme > Bahşiş verme'de değiştirin.";
+"Tips from your Chatting Address count on the post, and you're listed as a tipper. From another address a tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you. A tip in a chat comes from here too." = "Chatting Address'inizden bahşişler gönderide sayılır ve bahşiş verenler arasında görünürsünüz. Başka bir adresten bahşiş gizlidir: yazar alır ve sohbetinizde görür, ama gönderide sayılmaz ve adınızı vermez. Sohbetteki bahşiş de buradan gönderilir.";
+
+/* KaPost feed button (2026-11-23) */
+"Switches to the next feed" = "Sonraki akışa geçer";
+
+/* Discord invite not found (2026-11-23) */
+"There's no Discord invite called %@. Use a server's invite code, like discord.gg/abc123: Discord accounts can't be looked up by username." = "%@ adında bir Discord daveti yok. Bir sunucunun davet kodunu kullan, örneğin discord.gg/abc123: Discord hesapları kullanıcı adıyla aranamaz.";
+
+/* Who Can Message You? (2026-11-23) */
+"Who Can Message You?" = "Sana Kim Mesaj Gönderebilir?";
+"Anyone" = "Herkes";
+"Only Users with a Username" = "Yalnızca Kullanıcı Adı Olanlar";
+"Who can start a chat with you. People you already chat with aren't affected." = "Seninle kimin sohbet başlatabileceği. Zaten sohbet ettiğin kişiler bundan etkilenmez.";
+"Anyone can send you a first message. It waits in Message Requests until you accept it." = "Herkes sana ilk mesaj gönderebilir. Mesaj, sen kabul edene kadar Mesaj İstekleri'nde bekler.";
+"Only people with a username (a .kachat name) can reach your Message Requests. First messages from anyone else are hidden and don't notify you; choose Anyone to see them again. People you already chat with aren't affected." = "Yalnızca kullanıcı adı (bir .kachat adı) olan kişiler Mesaj İstekleri'ne ulaşabilir. Diğer herkesten gelen ilk mesajlar gizlenir ve bildirim göndermez; bunları yeniden görmek için Herkes'i seç. Zaten sohbet ettiğin kişiler bundan etkilenmez.";
+
+/* Usernames wording (2026-11-23) */
+"No usernames yet" = "Henüz kullanıcı adı yok";
+"Claim a Username" = "Kullanıcı Adı Al";
+"Your Usernames" = "Kullanıcı Adların";
+"Usernames" = "Kullanıcı Adları";
+
+/* KaPlay arcade (2026-11-23) */
+"Snake" = "Yılan";
+"Eat, grow, don't hit the walls or yourself. Scores go on Kaspa." = "Ye, büyü; duvarlara ve kendine çarpma. Skorlar Kaspa'ya kaydedilir.";
+"Swipe to merge tiles and reach 2048. Scores go on Kaspa." = "Kareleri birleştirmek ve 2048'e ulaşmak için kaydır. Skorlar Kaspa'ya kaydedilir.";
+"Your best: %@" = "En iyi skorun: %@";
+"Play" = "Oyna";
+"Each finished game's score is stamped on Kaspa from your chatting address, for a small network fee." = "Biten her oyunun skoru, küçük bir ağ ücreti karşılığında sohbet adresinden Kaspa'ya kaydedilir.";
+"%@ scored %@ in %@. Can you beat it?" = "%1$@, %3$@ oyununda %2$@ puan aldı. Geçebilir misin?";
+"Someone scored %@ in %@. Can you beat it?" = "Biri %2$@ oyununda %1$@ puan aldı. Geçebilir misin?";
+"The leaderboard couldn't be loaded. Pull down to try again." = "Lider tablosu yüklenemedi. Tekrar denemek için aşağı çek.";
+"No scores yet. Be the first." = "Henüz skor yok. İlk sen ol.";
+"Game Over" = "Oyun Bitti";
+"Play Again" = "Tekrar Oyna";
+"Retry the Stamp" = "Kaydı tekrar dene";
+"Stamping the score on Kaspa…" = "Skor Kaspa'ya kaydediliyor…";
+"Score stamped on Kaspa" = "Skor Kaspa'ya kaydedildi";
+"No score to stamp." = "Kaydedilecek skor yok.";
+"Score: %@" = "Skor: %@";
+"Swipe on the board or use the arrows to start." = "Başlamak için tahtada kaydır veya okları kullan.";
+"Score" = "Skor";
+"Best Tile" = "En İyi Kare";
+"Swipe to move the tiles. Equal tiles merge." = "Kareleri hareket ettirmek için kaydır. Eşit kareler birleşir.";
+"This game was played on another account. Sign in to it to stamp the score." = "Bu oyun başka bir hesapla oynandı. Skoru kaydetmek için o hesaba giriş yap.";
+"The score was not sent." = "Skor gönderilmedi.";
+"Challenge: play %@" = "Meydan okuma: %@ oyununu oyna";
+"Beat %@ in %@" = "%2$@ oyununda %1$@ puanı geç";
+"I scored %@ in %@ on K. Think you can beat it?" = "K'te %2$@ oyununda %1$@ puan aldım. Geçebileceğini düşünüyor musun?";
+"Arcade Challenge" = "Arcade Meydan Okuması";
+"Switches the leaderboard period" = "Liderlik tablosunun dönemini değiştirir";
+"Your record: %@ won, %@ lost" = "Kaydın: %@ galibiyet, %@ mağlubiyet";
+"Play the next person who joins, or a friend by code." = "Katılan ilk kişiyle ya da kodla bir arkadaşınla oyna.";
+"Eight players, single elimination." = "Sekiz oyuncu, tek eleme.";
+"Five bots, level 1 to 5. Beat one to unlock the next." = "Beş bot, seviye 1'den 5'e. Sonrakinin kilidini açmak için birini yen.";
+"Switches to the next leaderboard" = "Sonraki liderlik tablosuna geçer";
+"Switches to the next page" = "Sonraki sayfaya geçer";
+"No usernames on this address" = "Bu adreste kullanıcı adı yok";
+"Usernames this address owns show here." = "Bu adresin kullanıcı adları burada görünür.";
+"Couldn't load this address's usernames. Pull down to try again." = "Bu adresin kullanıcı adları yüklenemedi. Tekrar denemek için aşağı çekin.";
+"Posting to KaPost…" = "KaPost'ta paylaşılıyor…";
+"Posted to KaPost" = "KaPost'ta paylaşıldı";
+"Shared to KaPost" = "KaPost'ta paylaşıldı";
+"ChangeNOW returned an unusable rate for this pair." = "ChangeNOW bu çift için kullanılamaz bir kur döndürdü.";
+"The least you can get is about %@ %@." = "Alabileceğiniz en az miktar yaklaşık %@ %@.";
+"This destination tag isn't valid. It's a whole number, with no letters or spaces." = "Bu hedef etiketi geçerli değil. Harf veya boşluk içermeyen bir tam sayıdır.";
+"Enter an address to receive the %@." = "%@ almak için bir adres girin.";
+"ChangeNOW didn't return a deposit address." = "ChangeNOW bir yatırma adresi döndürmedi.";
+"ChangeNOW's answer doesn't match this swap, so K didn't show its deposit address. Nothing was sent." = "ChangeNOW'un yanıtı bu takasla eşleşmiyor, bu yüzden K yatırma adresini göstermedi. Hiçbir şey gönderilmedi.";
+"This address doesn't belong to the account that's open now. Nothing was sent." = "Bu adres şu anda açık olan hesaba ait değil. Hiçbir şey gönderilmedi.";
+"Delete this swap?" = "Bu takas silinsin mi?";
+"Deposit Address" = "Yatırma Adresi";
+"Status: %@" = "Durum: %@";
+"Get Deposit Address" = "Yatırma Adresi Al";
+"Swap failed" = "Takas başarısız oldu";
+"Already holds this swap - adding it again double-counts it." = "Bu takas zaten var - tekrar eklemek onu iki kez sayar.";
+"The swap lands in this portfolio." = "Takas bu portföye eklenir.";
+"Buy %@ KAS at %@ - choose which portfolio to add it to." = "%1$@ KAS alımı, %2$@ fiyatla - hangi portföye ekleneceğini seçin.";
+"Sell %@ KAS at %@ - choose which portfolio to add it to." = "%1$@ KAS satışı, %2$@ fiyatla - hangi portföye ekleneceğini seçin.";
+"Destination tag (optional)" = "Hedef etiketi (isteğe bağlı)";
+"Only if the receiving address needs one, as most exchanges do. Without it, the exchange can't credit your coins." = "Yalnızca alıcı adres gerektiriyorsa; çoğu borsa gerektirir. Bu olmadan borsa coinlerinizi hesabınıza geçiremez.";
+"Amount to Send" = "Gönderilecek Tutar";
+"Destination tag copied" = "Hedef etiketi kopyalandı";
+"Payout Address" = "Ödeme Adresi";
+"Destination Tag: %@" = "Hedef Etiketi: %@";
+"Destination Tag (Memo)" = "Hedef Etiketi (Not)";
+"Required: send with this destination tag (memo), or the deposit can't be credited and may be lost." = "Zorunlu: bu hedef etiketiyle (not) gönderin, aksi halde yatırma hesaba geçirilemez ve kaybolabilir.";
+"Copy Destination Tag" = "Hedef Etiketini Kopyala";
+"Confirming" = "Onaylanıyor";
+"Exchanging" = "Takas ediliyor";
+"Refunded" = "İade edildi";
+"Verifying" = "Doğrulanıyor";
+"Couldn't reach ChangeNOW - try again" = "ChangeNOW'a ulaşılamadı - tekrar deneyin";
+"%lld W" = "%lld G";
+"%lld L" = "%lld M";
+"%lld D" = "%lld B";
+"%lld W  %lld L" = "%lld G  %lld M";
+"W" = "G";
+"L" = "M";
+"%lld moves" = "%lld hamle";
+"%@ is unlocked!" = "%@ açıldı!";
+"%@ moves first." = "İlk hamleyi %@ yapar.";
+"#%lld on the 1v1 board" = "1v1 sıralamasında %lld.";
+"#%lld on the tournament board" = "Turnuva sıralamasında %lld.";
+"%@ vs %@" = "%@ - %@";
+"Code: %@" = "Kod: %@";
+"The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "Oluşturanın paylaştığı sekiz karakterlik kod. Katılmak bir işlemdir (ücret: %@).";
+"They captured" = "Rakibin aldıkları";
+"You captured" = "Senin aldıkların";
+"Handshake" = "İletişim isteği";
+"Nothing from people you follow" = "Takip ettiklerinden bir şey yok";
+"Nothing trending yet" = "Henüz gündemde bir şey yok";
+"Posts from accounts you follow will show up here." = "Takip ettiğin hesapların gönderileri burada görünecek.";
+"Be the first - tap the pencil to write a post." = "İlk sen ol - gönderi yazmak için kaleme dokun.";
+"The most liked, reposted and talked-about posts will show up here." = "En çok beğenilen, yeniden paylaşılan ve konuşulan gönderiler burada görünecek.";
+"Show more" = "Daha fazla göster";
+"No followers yet" = "Henüz takipçi yok";
+"New Thread" = "Yeni Zincir";
+"Post All (%lld)" = "Tümünü Paylaş (%lld)";
+"Show %lld new posts" = "%lld yeni gönderiyi göster";
+"View 1 reply" = "1 yanıtı gör";
+"View %lld replies" = "%lld yanıtı gör";
+"Thread · %lld posts" = "Zincir · %lld gönderi";
+"Conversation · %lld posts" = "Sohbet · %lld gönderi";
+"Comments (%lld)" = "Yorumlar (%lld)";
+"%@ in %llds" = "%1$@ %2$lld sn içinde";
+"· %lld posts" = "· %lld gönderi";
+"Translated from %@" = "Şu dilden çevrildi: %@";
+"Schedule for %@" = "%@ için planla";
+"Option %lld" = "Seçenek %lld";
+"Unknown" = "Bilinmiyor";
+"Liking" = "Beğeniliyor";
+"Disliking" = "Beğenilmiyor";
+"Follow" = "Takip Et";
+"Posts" = "Gönderiler";
+"Replies" = "Yanıtlar";
+"Goes out %@" = "Gönderim: %@";
+"Goes out %@ - from this phone, so open K around then" = "Gönderim: %@ - bu telefondan, o saatlerde K'yi aç";
+"Posted %@" = "Paylaşıldı: %@";
+"Failed to post at %@" = "%@ tarihinde paylaşılamadı";
+"Cancelled" = "İptal edildi";
+"Change the text. Posts can be edited for two hours; after that they stay as they are. %@." = "Metni değiştir. Gönderiler iki saat boyunca düzenlenebilir; sonrasında olduğu gibi kalır. %@.";
+"Mute %@" = "%@ adlı kişiyi sessize al";
+"Block %@" = "%@ adlı kişiyi engelle";
+"%lldh %lldm left" = "%lld sa %lld dk kaldı";
+"Add another post" = "Başka bir gönderi ekle";
+"Est. fee: %@ KAS" = "Tahmini ücret: %@ KAS";
+"Poll" = "Anket";
+"Reschedule" = "Yeniden planla";
+"Posts and people" = "Gönderiler ve kişiler";
+"%lld posts found" = "%lld gönderi bulundu";
+"Searched the most recent %lld posts. Older ones have not been read yet." = "En son %lld gönderide arandı. Daha eskileri henüz okunmadı.";
+"Search older posts" = "Daha eski gönderilerde ara";
+"%lld read" = "%lld okundu";
+"liked your post" = "gönderini beğendi";
+"disliked your post" = "gönderini beğenmedi";
+"replied to your post" = "gönderine yanıt verdi";
+"quoted your post" = "gönderini alıntıladı";
+"reposted your post" = "gönderini yeniden paylaştı";
+"followed you" = "seni takip etti";
+"mentioned you in a post" = "bir gönderide senden bahsetti";
+"tipped your post" = "gönderine bahşiş verdi";
+"interacted with your post" = "gönderinle etkileşime geçti";
+"Bold" = "Kalın";
+"Italic" = "İtalik";
+"Underline" = "Altı çizili";
+"Strikethrough" = "Üstü çizili";
+"Bulleted list" = "Madde işaretli liste";
+"Numbered list" = "Numaralı liste";
+"Small text" = "Küçük metin";
+"You reacted to your message" = "Kendi mesajına tepki verdin";
+"You reacted to their message" = "Onun mesajına tepki verdin";
+"Reacted to your message" = "Mesajına tepki verdi";
+"Reacted to their message" = "Kendi mesajına tepki verdi";
+"You reacted to a message" = "Bir mesaja tepki verdin";
+"Send Tip" = "Bahşiş Gönder";
+"Stop Recording" = "Kaydı Durdur";
+"Send Voice Message" = "Sesli Mesaj Gönder";
+"Delete 1 Chat?" = "1 sohbet silinsin mi?";
+"Delete %lld Chats?" = "%lld sohbet silinsin mi?";
+"Delete 1 Message?" = "1 mesaj silinsin mi?";
+"Delete %lld Messages?" = "%lld mesaj silinsin mi?";
+"Estimated network fee ≈ %@ %@ across 1 transaction." = "Tahmini ağ ücreti ≈ %@ %@ (1 işlem).";
+"Estimated network fee ≈ %@ %@ across %lld transactions." = "Tahmini ağ ücreti ≈ %@ %@ (%lld işlem).";
+"(1 network transaction.)" = "(1 ağ işlemi.)";
+"(%lld network transactions.)" = "(%lld ağ işlemi.)";
+"Couldn't load that photo. Please try another." = "Bu fotoğraf yüklenemedi. Lütfen başka birini dene.";
+"Couldn't load that photo. Please try a PNG, JPEG, or HEIF image." = "Bu fotoğraf yüklenemedi. Lütfen PNG, JPEG veya HEIF bir görsel dene.";
+"Audio export is unavailable on this device." = "Bu cihazda ses dışa aktarma kullanılamıyor.";
+"Audio export failed." = "Ses dışa aktarılamadı.";
+"Invites resent to all members." = "Davetler tüm üyelere yeniden gönderildi.";
+"Invite resent." = "Davet yeniden gönderildi.";
+"1 member could not be added. Please try again." = "1 üye eklenemedi. Lütfen tekrar dene.";
+"%lld members could not be added. Please try again." = "%lld üye eklenemedi. Lütfen tekrar dene.";
+"Message copied to clipboard." = "Mesaj panoya kopyalandı.";
+"Link copied to clipboard." = "Bağlantı panoya kopyalandı.";
+"File name copied." = "Dosya adı kopyalandı.";
+"Tap to start a chat on K." = "K'de sohbet başlatmak için dokun.";
+"Group deleted." = "Grup silindi.";
+"%lld groups deleted." = "%lld grup silindi.";
+"Chat deleted." = "Sohbet silindi.";
+"%lld chats deleted." = "%lld sohbet silindi.";
+"Alias copied to clipboard." = "Takma ad panoya kopyalandı.";
+"Alias unavailable." = "Takma ad kullanılamıyor.";
+"Enter a group name." = "Bir grup adı gir.";
+"Add at least one member." = "En az bir üye ekle.";
+"Turn On Notifications" = "Bildirimleri Aç";
+"Load earlier messages" = "Önceki mesajları yükle";
+"Recording stopped" = "Kayıt durduruldu";
+"Be the first to post in #%@." = "#%@ kanalında ilk paylaşan sen ol.";
+"Message #%@" = "#%@ kanalına mesaj";
+"Room info for #%@" = "#%@ oda bilgisi";
+"No hidden users in #%@. Long-press a message to hide its sender." = "#%@ kanalında gizlenmiş kullanıcı yok. Göndereni gizlemek için bir mesaja uzun bas.";
+"Hidden Users - #%@" = "Gizlenen Kullanıcılar - #%@";
+"A curated room, always in your list. Anyone on K can post to it." = "Seçilmiş bir oda, her zaman listende. K'deki herkes buraya yazabilir.";
+"A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses. Leave it blank to follow %@." = "Herkese açık bir sohbet Kaspa blockDAG'inde yaşar; aynı ağı izleyen her dizinleyici aynı odayı sunar. Bunu istediğin yere yönlendir (kendininkine ya da başkasınınkine), diğer odaların dizinleyicisini değiştirmeden. %@ izlemek için boş bırak.";
+"Indexer updated for #%@." = "#%@ için dizinleyici güncellendi.";
+"Could not reach it: %@" = "Ulaşılamadı: %@";
+"Lost on time" = "Süre bitti, kaybetti";
+"Resigned" = "Terk etti";
+"Accepted the game" = "Oyunu kabul etti";
+"Declined the game" = "Oyunu reddetti";
+"Chess invite" = "Satranç daveti";
+"Shared a KaChat profile" = "Bir KaChat profili paylaştı";
+"Public chat room #%@" = "Herkese açık sohbet odası #%@";
+"Chess game - %lld | %lld" = "Satranç oyunu - %lld | %lld";
+"Chess game" = "Satranç oyunu";
+"Sent a link" = "Bir bağlantı gönderdi";
+"%lldW - %lldL" = "%lld G - %lld M";
+"The recipient won't see your messages until they message you or you ping them with a handshake. Handshakes cost 0.2 KAS and are returned to you if they accept. You lose privacy if you ping them." = "Alıcı sana mesaj yazana ya da sen ona bir el sıkışma gönderene kadar mesajlarını görmez. El sıkışma 0.2 KAS tutar ve kabul ederse sana geri döner. Ping gönderirsen gizliliğin azalır.";
+"Audio encoding failed. Please record again." = "Ses kodlanamadı. Lütfen tekrar kaydet.";
+"Failed to start recording: %@" = "Kayıt başlatılamadı: %@";
+"Failed to play audio." = "Ses oynatılamadı.";
+"Failed to play audio: %@" = "Ses oynatılamadı: %@";
+"Failed to encode audio: %@" = "Ses kodlanamadı: %@";
+"Audio is still being prepared. Please try again." = "Ses hâlâ hazırlanıyor. Lütfen tekrar dene.";
+"Failed to prepare audio: %@" = "Ses hazırlanamadı: %@";
+"Hide Window" = "Pencereyi Gizle";
+"Hide" = "Gizle";
+"Taken · for sale at %@" = "Alınmış · %@ karşılığında satılık";
+"About %lld s to go" = "Yaklaşık %lld sn kaldı";
+"From: %@" = "Kaynak: %@";
+"Balance after: %@" = "Sonraki bakiye: %@";
+"Balance change: %@" = "Bakiye değişimi: %@";
+"Paid from %@ to %@" = "%@ ile %@ arası ödendi";
+"Grace period ends %@" = "Ek süre %@ tarihinde bitiyor";
+"Your spending address #%lld" = "Harcama adresin #%lld";
+"Your KasSigner address (%@ #%lld)" = "KasSigner adresin (%@ #%lld)";
+"Opens the Usernames tab" = "Kullanıcı Adları sekmesini açar";
+"One of your usernames expired" = "Kullanıcı adlarından birinin süresi doldu";
+"%lld of your usernames expired" = "%lld kullanıcı adının süresi doldu";
+"An address or a username - it's resolved to the address shown." = "Bir adres veya kullanıcı adı; gösterilen adrese çözümlenir.";
+"Enter an address or a username." = "Bir adres veya kullanıcı adı gir.";
+"This address has more than %lld UTXOs. KasSigner can sign at most %lld inputs per transaction, so this merges the largest %lld into one. Run Compound again afterward to keep combining the rest." = "Bu adreste %lld'den fazla UTXO var. KasSigner işlem başına en fazla %lld girdi imzalayabilir, bu yüzden en büyük %lld tanesi birleştirilir. Kalanları birleştirmeye devam etmek için ardından Birleştir'i tekrar çalıştır.";
+"This transaction is already in %@. Adding it again will double-count it." = "Bu işlem zaten %@ içinde. Tekrar eklemek onu iki kez sayar.";
+"this portfolio" = "bu portföy";
+"Delete '%@'" = "“%@” sil";
+"'%@' and its transactions will be deleted. This can't be undone." = "“%@” ve işlemleri silinecek. Bu geri alınamaz.";
+"Edit %@" = "%@ düzenle";
+"Frame %lld / %lld" = "Kare %lld / %lld";
+"%lld / %lld frames" = "%lld / %lld kare";
+"No mail app could open it. Paste the report into an email to %@." = "Hiçbir e-posta uygulaması açamadı. Bildirimi %@ adresine bir e-postaya yapıştır.";
+"kaspa:qr... or username" = "kaspa:qr... veya kullanıcı adı";
+"Looking up username..." = "Kullanıcı adı aranıyor...";
+"Kaspa Address or Username" = "Kaspa Adresi veya Kullanıcı Adı";
+"Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat)." = "Bir Kaspa adresi (kaspa:...) veya kullanıcı adı gir (ör. alice.kachat).";
+"Pick people from your contacts, or add anyone by Kaspa address or username." = "Kişilerinden birilerini seç ya da herkesi Kaspa adresi veya kullanıcı adıyla ekle.";
+"Use Their Username" = "Kullanıcı adını kullan";
+"Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "Bir Kaspa adresi veya name.kachat gibi bir kullanıcı adı gir. Bu adrese gelen her işlem alım, gönderilen her işlem satım olur ve o günün geçmiş KAS fiyatıyla fiyatlanır. Aynı adresi daha sonra tekrar eklemek yalnızca son içe aktarmadan bu yana bulunan işlemleri içe aktarır.";
+"No addresses with a balance or username yet" = "Henüz bakiyesi veya kullanıcı adı olan adres yok";
+"Finds addresses holding a balance or a username." = "Bakiyesi veya kullanıcı adı olan adresleri bulur.";
+"No addresses with a balance or username found." = "Bakiyesi veya kullanıcı adı olan adres bulunamadı.";
+"Found 1 address with a balance or username." = "Bakiyesi veya kullanıcı adı olan 1 adres bulundu.";
+"Found %lld addresses with a balance or username." = "Bakiyesi veya kullanıcı adı olan %lld adres bulundu.";
+"Contains username" = "Kullanıcı adı içerir";
+"Use for chatting and acquiring usernames." = "Sohbet etmek ve kullanıcı adı almak için kullan.";
+"Anyone can see this address and its balance on the Kaspa network, but they can't read your messages. Use it only for chatting and usernames." = "Bu adresi ve bakiyesini Kaspa ağında herkes görebilir ama mesajlarını kimse okuyamaz. Yalnızca sohbet ve kullanıcı adları için kullan.";
+"Search for the name you want in the Usernames tab, then claim it." = "İstediğin adı Kullanıcı Adları sekmesinde ara, sonra al.";
+"Your names are in Wallet > Your Usernames." = "Adların Cüzdan > Kullanıcı Adların bölümünde.";
+"Claim your name in the Usernames tab whenever you're ready." = "Hazır olduğunda adını Kullanıcı Adları sekmesinden al.";
+"No username found" = "Kullanıcı adı bulunamadı";
+"Search contacts, or an address or username" = "Kişileri, bir adresi veya kullanıcı adını ara";
+"You have no contacts yet. Paste an address or a username above to invite someone." = "Henüz kişin yok. Birini davet etmek için yukarıya bir adres veya kullanıcı adı yapıştır.";
+"No contacts match your search. Paste an address or a username to invite someone new." = "Aramanla eşleşen kişi yok. Yeni birini davet etmek için bir adres veya kullanıcı adı yapıştır.";
+"Create \"%@\" and invite 1 member?" = "“%@” oluşturulsun ve 1 üye davet edilsin mi?";
+"Create \"%@\" and invite %lld members?" = "“%@” oluşturulsun ve %lld üye davet edilsin mi?";

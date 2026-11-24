@@ -84,7 +84,7 @@ struct KachatSetupGuideView: View {
                 }
                 .padding(12)
                 .background(fieldBackground)
-                Text("Search for the name you want in the .kachat tab, then claim it.")
+                Text("Search for the name you want in the Usernames tab, then claim it.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -122,7 +122,7 @@ struct KachatSetupGuideView: View {
         case .keepIt:
             stepHeader(
                 title: "Keep it",
-                subtitle: "Your names are in Wallet > Your Domains > .kachat."
+                subtitle: "Your names are in Wallet > Your Usernames."
             ) {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.system(size: 46, weight: .regular))
@@ -137,7 +137,7 @@ struct KachatSetupGuideView: View {
         case .finished:
             stepHeader(
                 title: "You're all set",
-                subtitle: "Claim your name in the .kachat tab whenever you're ready."
+                subtitle: "Claim your name in the Usernames tab whenever you're ready."
             ) {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 52, weight: .regular))

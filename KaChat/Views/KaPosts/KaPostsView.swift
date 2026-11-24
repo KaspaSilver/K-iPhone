@@ -542,7 +542,6 @@ struct KaPostsView: View {
     // (whose balance changes often) is read without observing it.
     private var draftStore: KaPostsDraftStore { .shared }
     private var scheduledStore: KaPostsScheduledStore { .shared }
-    @ObservedObject private var knsService = KNSService.shared
     @ObservedObject private var followStore = KaPostsFollowStore.shared
     @ObservedObject private var bookmarkStore = KaPostsBookmarkStore.shared
     @ObservedObject private var moderationStore = KaPostsModerationStore.shared
@@ -718,16 +717,19 @@ struct KaPostsView: View {
             if rootMode == .myProfile {
                 myProfileSheet
             } else {
-                AccountBackupBanner()
                 feedTabBar
-                // Following, Feed and Popular side by side: swipe left and right between them,
-                // or tap the tab bar. Each touch locks to one direction, so a vertical scroll
-                // never turns into a feed change, and the underline in the tab bar shows which
-                // feed you landed on.
-                KaPostsFeedPager(pageCount: FeedTab.allCases.count, selection: selectedFeedIndex) {
+                // Following, Feed and Popular stacked, the one picked by the feed button beside the
+                // title shown, fading in (owner's call, 2026-11-23: no sideways slide or swipe). The
+                // others stay alive underneath, so each keeps its place and its loaded posts.
+                ZStack {
                     ForEach(FeedTab.allCases, id: \.self) { tab in
+                        let shown = selectedFeed == tab
                         feedContent(for: tab)
                             .safeAreaInset(edge: .top, spacing: 0) { indexerDownNotice }
+                            .opacity(shown ? 1 : 0)
+                            .allowsHitTesting(shown)
+                            .accessibilityHidden(!shown)
+                            .zIndex(shown ? 1 : 0)
                     }
                 }
             }
@@ -991,7 +993,7 @@ struct KaPostsView: View {
         })
     }
 
-    // MARK: - Feed tabs (mirrors ChatListView.chatsTopTabBar)
+    // MARK: - Feed header (the title and the feed button)
 
 
     private var feedTabBar: some View {
@@ -1004,15 +1006,13 @@ struct KaPostsView: View {
                 feedMenuButton
                 Text("KaPost")
                     .font(.largeTitle.weight(.bold))
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
+                // one button for the three feeds (owner's call, 2026-11-23: it replaced the
+                // Following / Feed / Popular tabs): each tap slides to the next
+                feedCycleButton
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 6)
-            HStack(spacing: 0) {
-                ForEach(FeedTab.allCases, id: \.title) { tab in
-                    feedTabButton(tab)
-                }
-            }
+            .padding(.bottom, 10)
             Divider()
         }
     }
@@ -1035,34 +1035,11 @@ struct KaPostsView: View {
         .accessibilityLabel("Menu")
     }
 
-    /// `selectedFeed` as the pager's page number.
-    private var selectedFeedIndex: Binding<Int> {
-        Binding(
-            get: { FeedTab.allCases.firstIndex(of: selectedFeed) ?? 0 },
-            set: { selectedFeed = FeedTab.allCases[$0] }
-        )
-    }
-
-    private func feedTabButton(_ tab: FeedTab) -> some View {
-        let isSelected = selectedFeed == tab
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedFeed = tab
-            }
-        } label: {
-            VStack(spacing: 8) {
-                Text(LocalizedStringKey(tab.title))
-                    .font(.subheadline.weight(.bold))
-                    .foregroundColor(isSelected ? .accentColor : .accentColor.opacity(0.5))
-                    .frame(maxWidth: .infinity)
-                Rectangle()
-                    .fill(isSelected ? Color.accentColor : Color.clear)
-                    .frame(height: 2)
-            }
-            .padding(.top, 10)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+    /// The feed you're on, as a button: each tap fades to the next (Following, Feed, Popular, and
+    /// round again), see-through with the accent as its border (owner's call, 2026-11-23).
+    private var feedCycleButton: some View {
+        CycleCapsuleButton(options: FeedTab.allCases, selection: $selectedFeed, title: { $0.title },
+                           hint: "Switches to the next feed")
     }
 
     // MARK: - Feed content
@@ -1176,7 +1153,7 @@ struct KaPostsView: View {
                             post: post,
                             displayName: identity.name,
                             posterHasKachatName: identity.hasKachatName,
-                            avatarURLString: knsService.profileCache[post.posterAddress]?.avatarURL,
+                            avatarURLString: nil,
                             isFollowing: followStore.isFollowing(post.posterAddress),
                             commentCount: commentCount(of: post),
                             truncatesLongText: true,
@@ -1202,11 +1179,6 @@ struct KaPostsView: View {
                             onPollVote: { votePoll(post, option: $0) }
                         )
                         .equatable()
-                        .task(id: post.posterAddress) {
-                            guard knsService.profileCache[post.posterAddress] == nil,
-                                  !post.posterAddress.isEmpty else { return }
-                            _ = await knsService.fetchProfile(for: post.posterAddress)
-                        }
                         // Thread-root probe: once per commented post, so the "View thread"
                         // affordance below can appear for other people's threads too.
                         // Only in the feed being read: the pages beside it are drawn too.
@@ -1308,9 +1280,10 @@ struct KaPostsView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.up")
                         .font(.caption.weight(.bold))
-                    Text(pendingNewPosts.count == 1
-                         ? "Show 1 new post"
-                         : "Show \(pendingNewPosts.count) new posts")
+                    // One Text per form, each its own key (audit 2026-11-24 #31).
+                    (pendingNewPosts.count == 1
+                     ? Text("Show 1 new post")
+                     : Text("Show \(pendingNewPosts.count) new posts"))
                         .font(.subheadline.weight(.semibold))
                 }
                 .foregroundColor(.white)
@@ -1733,7 +1706,9 @@ struct KaPostsView: View {
         }
     }
 
-    private func emptyStateTitle(for tab: FeedTab) -> String {
+    // Keys, not Strings: `Text(String)` skips the lookup, so these showed in English in every
+    // language (audit 2026-11-24 #31).
+    private func emptyStateTitle(for tab: FeedTab) -> LocalizedStringKey {
         switch tab {
         case .following: return "Nothing from people you follow"
         case .feed: return "No posts yet"
@@ -1741,7 +1716,7 @@ struct KaPostsView: View {
         }
     }
 
-    private func emptyStateBody(for tab: FeedTab) -> String {
+    private func emptyStateBody(for tab: FeedTab) -> LocalizedStringKey {
         switch tab {
         case .following: return "Posts from accounts you follow will show up here."
         case .feed: return "Be the first - tap the pencil to write a post."
@@ -1904,7 +1879,6 @@ struct KaPostsView: View {
     private func resolveIdentities(for newPosts: [DraftPost]) {
         let addresses = Array(Set(newPosts.map(\.posterAddress).filter { !$0.isEmpty }))
         guard !addresses.isEmpty else { return }
-        Task { await knsService.refreshProfilesIfNeeded(for: addresses) }
     }
 
     /// K wire post -> UI model. Content arrives base64-decoded with the KaChat marker stripped;
@@ -2235,23 +2209,17 @@ struct KaPostsView: View {
     }
 
     /// Poster name resolution, in priority order: the alias YOU set for a saved contact wins,
-    /// else the poster's KNS primary domain, else a shortened Kaspa address.
+    /// else the poster's .kachat name, else a shortened Kaspa address.
     /// `kachatName`: the poster's `.kachat` name when the caller already looked it up
     /// (`posterIdentity`); left out, it is looked up here.
     private func posterDisplayName(_ address: String, kachatName: String?? = nil) -> String {
-        guard !address.isEmpty else { return "Unknown" }
-        // A domain shows with its .kas from every source - the KNS lookup and an alias that was
-        // auto-set to the KNS primary ("name.kas") alike.
+        guard !address.isEmpty else { return AppLocalization.string("Unknown") }
         if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
             return Self.displayKasName(assigned)
         }
         // Who they are: their .kachat name (a .kas domain isn't identity since 5.2).
         let kachat: String? = kachatName ?? KachatLive.identityName(address)
         if let name = kachat { return name }
-        if !KachatNamesService.isEnabled, let domain = knsService.profileCache[address]?.domainName,
-           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return Self.displayKasName(domain)
-        }
         return Contact.generateDefaultAlias(from: address)
     }
 
@@ -2262,25 +2230,9 @@ struct KaPostsView: View {
         return (posterDisplayName(address, kachatName: .some(kachatName)), kachatName != nil)
     }
 
-    /// A name as it is SHOWN: a KNS domain keeps its ".kas" everywhere in the app (the suffix
-    /// used to be dropped inside KaPosts; it is part of the name). Aliases pass through as
-    /// the user wrote them.
+    /// A name as it is SHOWN: as the user wrote it, trimmed.
     static func displayKasName(_ name: String) -> String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    /// A domain as a LOOKUP KEY: lowercased, ".kas" off. Typing and matching never need the
-    /// suffix - it is the only one there is - so mention queries, candidate maps and KNS
-    /// resolution all work on this form.
-    static func bareKasName(_ domain: String) -> String {
-        let trimmed = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return trimmed.hasSuffix(".kas") ? String(trimmed.dropLast(4)) : trimmed
-    }
-
-    /// A domain as shown and typed into a post: always with ".kas".
-    static func fullKasName(_ domain: String) -> String {
-        let bare = bareKasName(domain)
-        return bare.isEmpty ? "" : bare + ".kas"
     }
 
     // MARK: - Local-only engagement toggles (pure UI state, no wiring)
@@ -2448,22 +2400,6 @@ struct KaPostsView: View {
 
     /// Inserts the optimistic post immediately, then holds the on-chain submit behind the 5s
     /// Undo toast - Undo pulls the card before anything touches the network.
-    // @mention candidates: your 1:1 contacts that have a KNS domain AND a derivable pubkey. Only
-    // these are mentionable (matches desktop getMentionCandidates).
-    private func mentionCandidates() -> [(domain: String, pubkey: String)] {
-        var out: [(domain: String, pubkey: String)] = []
-        var seen = Set<String>()
-        for contact in ContactsManager.shared.activeContacts {
-            guard let raw = KNSService.shared.identityInfo(for: contact.address)?.primaryDomain else { continue }
-            let bare = KaPostsView.bareKasName(raw)
-            guard !bare.isEmpty, !seen.contains(bare),
-                  let pubkey = KaPostsAPIClient.kapostPubkey(fromAddress: contact.address) else { continue }
-            seen.insert(bare)
-            out.append((bare, pubkey))
-        }
-        return out
-    }
-
     /// Resolve the @domain tokens in a post to the pubkeys the indexer needs in mentioned_pubkeys.
     /// Tapped @mention: resolve the KNS domain to its owner and open that user's profile.
     /// Works for ANY KNS domain, contact or not. No key is handed over: the address gives only
@@ -2502,8 +2438,7 @@ struct KaPostsView: View {
     /// the address fields' .kachat-only one:
     /// - with the post's signed mentions (`signed`), the answer whose owner the author signed -
     ///   who the token meant when it was written, whoever holds the name today;
-    /// - otherwise the ending typed ("@bob.kas" is the .kas name), else .kachat, else .kas - the
-    ///   meaning every post from before .kachat was written with.
+    /// - otherwise its .kachat owner (the only name service K reads since 2026-11-23).
     static func mentionAddress(_ token: String, signed: [String] = []) async -> String? {
         let results = await NameServicesClient.shared.resolveEverywhere(token)
         if !signed.isEmpty {
@@ -2518,10 +2453,7 @@ struct KaPostsView: View {
                 return match.address
             }
         }
-        if let primary = NameServicesClient.primary(of: results, typed: token) { return primary.address }
-        // a bare token with no .kachat answer: the .kas name it meant before .kachat existed
-        guard NameServiceTLD.splitTypedName(token).tld == nil else { return nil }
-        return results.first { $0.tld == .kas && $0.address != nil }?.address
+        return NameServicesClient.primary(of: results, typed: token)?.address
     }
 
     /// The @mention tokens in `text`, each with the ending it was typed with (".kas" kept).
@@ -2544,7 +2476,7 @@ struct KaPostsView: View {
     /// Resolves every @domain in `text` to a compressed pubkey for mentioned_pubkeys. Chatted
     /// contacts resolve from the local KNS cache; ANYONE else with a KNS domain resolves live
     /// through resolveDomain (owner address -> pubkey). Unresolvable tokens stay plain text.
-    private func mentionedPubkeys(in text: String) async -> [String] {
+    @MainActor static func mentionedPubkeys(in text: String) async -> [String] {
         guard MentionsFeature.enabled else { return [] }
         // Scanned on the RENDERED text, not the source. The @ token has to start a word, so
         // "**@alice.kas**" hides the mention behind the bold markers: the reader would see a
@@ -2552,18 +2484,10 @@ struct KaPostsView: View {
         // signed mentions array went out empty and @alice was never notified.
         let tokens = Self.mentionTokens(in: KaPostsMarkdown.render(text).text)
         guard !tokens.isEmpty else { return [] }
-        // contacts' .kas names resolve from the local cache - only for a token typed as .kas
-        var byKasName: [String: String] = [:]
-        for candidate in mentionCandidates() { byKasName[candidate.domain] = candidate.pubkey }
         var found = Set<String>()
         var out: [String] = []
         for token in tokens {
-            if token.hasSuffix(".kas"), let pubkey = byKasName[String(token.dropLast(4))] {
-                let real = await Self.mentionPubkey(guessed: pubkey)
-                if found.insert(KaPostsChainPosts.xOnly(real)).inserted { out.append(real) }
-                continue
-            }
-            // everyone else on every service, .kachat first
+            // the token's .kachat owner
             if let address = await Self.mentionAddress(token),
                let pubkey = KaPostsAPIClient.kapostPubkey(fromAddress: address) {
                 let real = await Self.mentionPubkey(guessed: pubkey)
@@ -2656,7 +2580,7 @@ struct KaPostsView: View {
                 if let rootText = threadRemainders[localId]?.rootText {
                     let rootTxId = try await submitWithUtxoRetry(owner: owner) {
                         try await KaPostsAPIClient.shared.submitPost(
-                            text: rootText, mentionedPubkeys: await mentionedPubkeys(in: rootText),
+                            text: rootText, mentionedPubkeys: await Self.mentionedPubkeys(in: rootText),
                             expectedOwner: owner
                         )
                     }
@@ -2674,7 +2598,7 @@ struct KaPostsView: View {
                         AppLog.log("[KaPosts] Thread stopped: the account changed mid-chain")
                         return
                     }
-                    let segmentMentions = await mentionedPubkeys(in: segment)
+                    let segmentMentions = await Self.mentionedPubkeys(in: segment)
                     let txId = try await submitWithUtxoRetry(owner: owner) {
                         try await KaPostsAPIClient.shared.submitReply(
                             text: segment, postId: parentTxId, parentAuthorPubkey: myPubkey,
@@ -2988,7 +2912,7 @@ struct KaPostsView: View {
             Task {
                 do {
                     let txId = try await KaPostsAPIClient.shared.submitPost(
-                        text: text, mentionedPubkeys: await mentionedPubkeys(in: text), expectedOwner: myAddress
+                        text: text, mentionedPubkeys: await Self.mentionedPubkeys(in: text), expectedOwner: myAddress
                     )
                     heldPosts.release(localId)
                     mutatePost(id: localId) {
@@ -3051,7 +2975,7 @@ struct KaPostsView: View {
                     // @mentions work in replies exactly as in posts: resolved client-side.
                     let txId = try await KaPostsAPIClient.shared.submitReply(
                         text: trimmed, postId: parentRemoteId, parentAuthorPubkey: parentAuthor,
-                        mentionedPubkeys: await mentionedPubkeys(in: trimmed), expectedOwner: myAddress
+                        mentionedPubkeys: await Self.mentionedPubkeys(in: trimmed), expectedOwner: myAddress
                     )
                     heldPosts.release(localReplyId)
                     mutatePost(id: localReplyId) {
@@ -3160,7 +3084,7 @@ struct KaPostsView: View {
             Task {
                 do {
                     _ = try await KaPostsAPIClient.shared.submitEdit(
-                        text: trimmed, postId: remoteId, mentionedPubkeys: await mentionedPubkeys(in: trimmed),
+                        text: trimmed, postId: remoteId, mentionedPubkeys: await Self.mentionedPubkeys(in: trimmed),
                         expectedOwner: post.posterAddress
                     )
                     mutatePost(id: post.id) {
@@ -3590,7 +3514,7 @@ struct KaPostsView: View {
         KaPostComposerView(
             quotedPost: isReplyDraft ? nil : source,
             quotedDisplayName: source.map { posterDisplayName($0.posterAddress) } ?? "",
-            quotedAvatarURL: source.flatMap { knsService.profileCache[$0.posterAddress]?.avatarURL },
+            quotedAvatarURL: nil,
             replyTarget: isReplyDraft ? source : nil,
             onPost: { text in
                 if let source, isReplyDraft {
@@ -3632,7 +3556,7 @@ struct KaPostsView: View {
     private func replyComposerSheet(for target: DraftPost) -> some View {
         KaPostComposerView(
             quotedDisplayName: posterDisplayName(target.posterAddress),
-            quotedAvatarURL: knsService.profileCache[target.posterAddress]?.avatarURL,
+            quotedAvatarURL: nil,
             replyTarget: target,
             onPost: { text in scheduleReply(to: target, text: text) },
             initialText: restoredComposerText ?? ""
@@ -3644,7 +3568,7 @@ struct KaPostsView: View {
         KaPostComposerView(
             quotedPost: target,
             quotedDisplayName: posterDisplayName(target.posterAddress),
-            quotedAvatarURL: knsService.profileCache[target.posterAddress]?.avatarURL,
+            quotedAvatarURL: nil,
             onPost: { text in scheduleQuote(target: target, text: text) },
             initialText: restoredComposerText ?? ""
         )
@@ -3818,7 +3742,7 @@ struct KaPostsView: View {
                     mutatePost(id: post.id) { $0.poll?.closesAt = closesAt }
                     txId = try await KaPostsAPIClient.shared.submitPoll(
                         question: post.text, options: poll.options, closesAt: closesAt,
-                        mentionedPubkeys: await mentionedPubkeys(in: post.text), expectedOwner: owner
+                        mentionedPubkeys: await Self.mentionedPubkeys(in: post.text), expectedOwner: owner
                     )
                 } else if let parent = findParent(ofCommentId: post.id) {
                     guard let parentRemoteId = parent.remoteId else {
@@ -3826,18 +3750,18 @@ struct KaPostsView: View {
                     }
                     txId = try await KaPostsAPIClient.shared.submitReply(
                         text: post.text, postId: parentRemoteId, parentAuthorPubkey: parent.posterPubkey,
-                        mentionedPubkeys: await mentionedPubkeys(in: post.text), expectedOwner: owner
+                        mentionedPubkeys: await Self.mentionedPubkeys(in: post.text), expectedOwner: owner
                     )
                 } else if let parentRemoteId = post.parentRemoteId {
                     // A comment whose parent has left memory is still a comment.
                     txId = try await KaPostsAPIClient.shared.submitReply(
                         text: post.text, postId: parentRemoteId, parentAuthorPubkey: post.parentPosterPubkey,
-                        mentionedPubkeys: await mentionedPubkeys(in: post.text), expectedOwner: owner
+                        mentionedPubkeys: await Self.mentionedPubkeys(in: post.text), expectedOwner: owner
                     )
                 } else if sessionReplyIds.contains(post.id) {
                     throw KaPostsAPIClient.KaPostsAPIError.badResponse
                 } else {
-                    txId = try await KaPostsAPIClient.shared.submitPost(text: post.text, mentionedPubkeys: await mentionedPubkeys(in: post.text), expectedOwner: owner)
+                    txId = try await KaPostsAPIClient.shared.submitPost(text: post.text, mentionedPubkeys: await Self.mentionedPubkeys(in: post.text), expectedOwner: owner)
                 }
                 heldPosts.release(post.id)
                 mutatePost(id: post.id) {
@@ -4215,7 +4139,7 @@ struct KaPostsView: View {
             post: item,
             displayName: identity.name,
             posterHasKachatName: identity.hasKachatName,
-            avatarURLString: knsService.profileCache[item.posterAddress]?.avatarURL,
+            avatarURLString: nil,
             isFollowing: followStore.isFollowing(item.posterAddress),
             commentCount: commentCount(of: item),
             truncatesLongText: truncates,
@@ -4321,7 +4245,7 @@ struct KaPostsView: View {
                     }
                 }
             } else {
-                threadToggleButton(replyCount == 1 ? "View \(replyCount) reply" : "View \(replyCount) replies") {
+                threadToggleButton(replyCount == 1 ? "View 1 reply" : "View \(replyCount) replies") {
                     expandReplies(for: comment)
                 }
             }
@@ -4610,7 +4534,6 @@ struct KaPostsView: View {
 
     private var myProfileSheet: some View {
         let myAddress = WalletManager.shared.currentWallet?.publicAddress ?? ""
-        let myInfo = knsService.profileCache[myAddress]
         // Indexer-fetched history first, then local session posts that haven't been indexed
         // yet (unstamped or too fresh), newest first.
         let remoteIds = Set(myProfileRemotePosts.compactMap(\.remoteId))
@@ -4663,13 +4586,6 @@ struct KaPostsView: View {
                     // gradient only when there is no banner.
                     if let banner = KachatLive.profileBanner(myAddress) {
                         KNSBannerImageView(bannerURLString: banner, height: 140, cornerRadius: 0, fitsWidth: true)
-                    } else if !KachatNamesService.isEnabled, KNSProfileLinkBuilder.websiteURL(from: myInfo?.profile?.bannerUrl) != nil {
-                        KNSBannerImageView(
-                            bannerURLString: myInfo?.profile?.bannerUrl,
-                            height: 140,
-                            cornerRadius: 0,
-                            fitsWidth: true
-                        )
                     } else {
                         bannerFallback
                             .frame(height: 140)
@@ -4680,7 +4596,7 @@ struct KaPostsView: View {
                     // (owner's call, 2026-11-21: Profile is a dock tab, KaPosts sits in Kaspa Hub).
                     HStack(alignment: .bottom) {
                         KNSAvatarView(
-                            avatarURLString: myInfo?.avatarURL,
+                            avatarURLString: nil,
                             fallbackText: posterDisplayName(myAddress),
                             size: 76,
                             contactAddress: myAddress
@@ -4733,7 +4649,7 @@ struct KaPostsView: View {
                         }
                         // Same as another user's profile, which has always shown this - your own
                         // was the one place your bio did not appear.
-                        if let bio = KachatLive.profileBio(myAddress) ?? (KachatNamesService.isEnabled ? nil : myInfo?.profile?.bio),
+                        if let bio = KachatLive.profileBio(myAddress),
                            !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             ExpandableBioText(bio: bio)
                                 .padding(.top, 2)
@@ -4769,8 +4685,6 @@ struct KaPostsView: View {
                 },
                 cell: { post in myProfileCell(post) }
             )
-            // slide left or right to change between Posts and Replies (owner's call, 2026-11-21)
-            .modifier(ProfileTabSwipe(selection: $myProfileFeedTab))
             // Banner starts BELOW the bar rather than ignoring the top safe area: it
             // used to run under the notch and under the dot/balance/Done row,
             // leaving the profile's own chrome sitting on top of an image.
@@ -4842,10 +4756,6 @@ struct KaPostsView: View {
             .fullScreenCover(item: $profileReplyComposerTarget, onDismiss: { clearRestoredComposerDraft() }) { target in
                 replyComposerSheet(for: target)
             }
-            .task(id: myAddress) {
-                guard knsService.profileCache[myAddress] == nil, !myAddress.isEmpty else { return }
-                _ = await knsService.fetchProfile(for: myAddress)
-            }
             .task {
                 guard let pubkey = try? KaPostsAPIClient.shared.requesterPubkey() else { return }
                 let owner = WalletManager.shared.currentWallet?.publicAddress ?? ""
@@ -4902,7 +4812,6 @@ struct KaPostsView: View {
     /// myProfileSheet; engagement runs through the same handlers (mutatePost covers this feed).
     private func posterProfileSheet(for target: PosterProfileTarget) -> some View {
         let address = target.address
-        let info = knsService.profileCache[address]
         return NavigationStack {
             // One scroll for the whole page - see myProfileSheet's note.
             profileFeedPage(
@@ -4938,55 +4847,23 @@ struct KaPostsView: View {
                     // gradient only when there is no banner.
                     if let banner = KachatLive.profileBanner(address) {
                         KNSBannerImageView(bannerURLString: banner, height: 140, cornerRadius: 0, fitsWidth: true)
-                    } else if !KachatNamesService.isEnabled, KNSProfileLinkBuilder.websiteURL(from: info?.profile?.bannerUrl) != nil {
-                        KNSBannerImageView(
-                            bannerURLString: info?.profile?.bannerUrl,
-                            height: 140,
-                            cornerRadius: 0,
-                            fitsWidth: true
-                        )
                     } else {
                         bannerFallback
                             .frame(height: 140)
                             .clipped()
                     }
 
-                    // The avatar with the actions beside it, above the name, so a long name never
-                    // squeezes Follow and Chat.
+                    // The avatar on its own; Follow and Chat sit under the follow counts (owner's
+                    // call, 2026-11-23), so a long name never squeezes them.
                     HStack(alignment: .bottom, spacing: 8) {
                         KNSAvatarView(
-                            avatarURLString: info?.avatarURL,
+                            avatarURLString: nil,
                             fallbackText: posterDisplayName(address),
                             size: 76,
                             contactAddress: address
                         )
                         .overlay(Circle().stroke(Color(uiColor: .systemBackground), lineWidth: 3))
-                        Spacer(minLength: 8)
-                        if address != WalletManager.shared.currentWallet?.publicAddress {
-                            Button {
-                                Haptics.impact(.light)
-                                // a handed pubkey, or one the indexer showed data for - never a guess
-                                toggleFollowSubmitting(address: address, pubkey: target.pubkey ?? posterProfileResolvedPubkey)
-                            } label: {
-                                Text(followStore.isFollowing(address) ? "Following" : "Follow")
-                                    .font(.caption.weight(.bold))
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            .tint(followStore.isFollowing(address) ? Color.secondary.opacity(0.35) : Color.accentColor)
-                            .fixedSize()
-                        }
-                        Button {
-                            Haptics.impact(.light)
-                            openInKaChat(address)
-                        } label: {
-                            Label("Chat", systemImage: "bubble.left.and.bubble.right")
-                                .font(.caption.weight(.bold))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .tint(.accentColor)
-                        .fixedSize()
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, -38)
@@ -5023,7 +4900,39 @@ struct KaPostsView: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        if let bio = KachatLive.profileBio(address) ?? (KachatNamesService.isEnabled ? nil : info?.profile?.bio),
+                        // a size up from small (owner, 2026-11-24)
+                        HStack(spacing: 10) {
+                            if address != WalletManager.shared.currentWallet?.publicAddress {
+                                Button {
+                                    Haptics.impact(.light)
+                                    // a handed pubkey, or one the indexer showed data for - never a guess
+                                    toggleFollowSubmitting(address: address, pubkey: target.pubkey ?? posterProfileResolvedPubkey)
+                                } label: {
+                                    Text(followStore.isFollowing(address) ? "Following" : "Follow")
+                                        .font(.subheadline.weight(.bold))
+                                        .padding(.horizontal, 6)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.regular)
+                                .tint(followStore.isFollowing(address) ? Color.secondary.opacity(0.35) : Color.accentColor)
+                                .fixedSize()
+                            }
+                            Button {
+                                Haptics.impact(.light)
+                                openInKaChat(address)
+                            } label: {
+                                Label("Chat", systemImage: "bubble.left.and.bubble.right")
+                                    .font(.subheadline.weight(.bold))
+                                    .padding(.horizontal, 6)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.regular)
+                            .tint(.accentColor)
+                            .fixedSize()
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.top, 4)
+                        if let bio = KachatLive.profileBio(address),
                            !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             ExpandableBioText(bio: bio)
                                 .padding(.top, 2)
@@ -5040,7 +4949,6 @@ struct KaPostsView: View {
                 },
                 cell: { post in posterProfileCell(post) }
             )
-            .modifier(ProfileTabSwipe(selection: $posterProfileFeedTab))
             // Banner starts BELOW the bar rather than ignoring the top safe area: it
             // used to run under the notch and under the dot/balance/Done row,
             // leaving the profile's own chrome sitting on top of an image.
@@ -5103,9 +5011,6 @@ struct KaPostsView: View {
                     posterProfileResolvedPubkey = resolvedPubkey
                 }
                 posterProfilePubkey = resolvedPubkey
-                if knsService.profileCache[address] == nil {
-                    _ = await knsService.fetchProfile(for: address)
-                }
                 guard let pubkey = resolvedPubkey else { return }
                 isLoadingPosterProfile = true
                 async let detailsFetch = try? KaPostsAPIClient.shared.fetchUserDetails(pubkey: pubkey)
@@ -5282,7 +5187,7 @@ struct KaPostsView: View {
     /// The default tip is under what the network takes (`instantTipMinimumSompi`), say from an
     /// older build that saved any amount.
     private func instantTipTooSmall() {
-        instantTipFailed(String(format: AppLocalization.string("Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > KaPost."),
+        instantTipFailed(String(format: AppLocalization.string("Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > Customization > Tipping."),
                                 KaPostsSettingsView.instantTipMinimumText))
     }
 
@@ -5293,33 +5198,16 @@ struct KaPostsView: View {
         mutatePost(id: Self.stableId(forTxId: postId)) { $0.tips += 1 }
     }
 
-    /// Underline tab bar for profile feeds (Posts | Replies), matching the app's other tab
-    /// bars; a tap animates the pager across, and the pager's swipe moves the underline.
+    /// Posts / Replies on a profile: the app's cycle button, fading to the other page exactly as
+    /// KaPost's feed button does (owner, 2026-11-24). No sideways swipe.
     private func profileFeedTabBar(selection: Binding<ProfileFeedTab>) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                ForEach(ProfileFeedTab.allCases, id: \.self) { tab in
-                    Button {
-                        Haptics.impact(.light)
-                        // no animation here: ProfileTabSwipe slides the posts across
-                        selection.wrappedValue = tab
-                    } label: {
-                        VStack(spacing: 8) {
-                            Text(tab.rawValue)
-                                .font(.subheadline.weight(.bold))
-                                .foregroundColor(selection.wrappedValue == tab ? .accentColor : .accentColor.opacity(0.5))
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 10)
-                            Rectangle()
-                                .fill(selection.wrappedValue == tab ? Color.accentColor : Color.clear)
-                                .frame(height: 2.5)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            Divider()
+        HStack {
+            CycleCapsuleButton(options: ProfileFeedTab.allCases, selection: selection,
+                               title: { $0.rawValue }, hint: "Switches to the next page")
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
 
     /// One page of a profile pager (Posts or Replies): its own ScrollView + LazyVStack with the
@@ -5343,15 +5231,10 @@ struct KaPostsView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 header()
-                // Everything under the header slides sideways during a Posts/Replies swipe
-                // (`ProfileTabSwipe`): each row moves itself (`ProfileSlides`), so a drag frame
-                // redraws those small wrappers, never this whole view; the header stays put.
-                // Applied row by row, not around the group, so the LazyVStack stays lazy.
                 if items.isEmpty, isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 40)
-                        .modifier(ProfileSlides())
                 } else if items.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: emptyIcon)
@@ -5367,22 +5250,18 @@ struct KaPostsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
-                    .modifier(ProfileSlides())
                 } else {
                     let triggerId = kaPostsPrefetchTriggerId(items)
                     ForEach(items) { post in
                         cell(post)
-                            .modifier(ProfileSlides())
                             .onAppear {
                                 guard post.id == triggerId else { return }
                                 onLoadMore()
                             }
                         Divider()
                             .padding(.leading, 68)
-                            .modifier(ProfileSlides())
                     }
                     KaPostsLoadMoreFooter(state: pageState, onLoadMore: onRetryLoadMore)
-                        .modifier(ProfileSlides())
                 }
             }
         }
@@ -5393,7 +5272,7 @@ struct KaPostsView: View {
     /// never has to observe KNSService itself (see KaPostCellView's observation notes).
     private func quotedAvatarURL(_ post: DraftPost) -> String? {
         guard let quoted = post.quoted, !quoted.posterAddress.isEmpty else { return nil }
-        return knsService.profileCache[quoted.posterAddress]?.avatarURL
+        return nil
     }
 
     /// Cell wiring shared by both of MY profile's pager pages.
@@ -5403,7 +5282,7 @@ struct KaPostsView: View {
             post: post,
             displayName: identity.name,
             posterHasKachatName: identity.hasKachatName,
-            avatarURLString: knsService.profileCache[post.posterAddress]?.avatarURL,
+            avatarURLString: nil,
             isFollowing: followStore.isFollowing(post.posterAddress),
             commentCount: commentCount(of: post),
             quotedDisplayName: post.quoted.map { posterDisplayName($0.posterAddress) },
@@ -5442,7 +5321,7 @@ struct KaPostsView: View {
             post: post,
             displayName: identity.name,
             posterHasKachatName: identity.hasKachatName,
-            avatarURLString: knsService.profileCache[post.posterAddress]?.avatarURL,
+            avatarURLString: nil,
             isFollowing: followStore.isFollowing(post.posterAddress),
             commentCount: commentCount(of: post),
             quotedDisplayName: post.quoted.map { posterDisplayName($0.posterAddress) },
@@ -5515,7 +5394,7 @@ struct KaPostsView: View {
                         ForEach(addresses, id: \.self) { address in
                             HStack(spacing: 12) {
                                 KNSAvatarView(
-                                    avatarURLString: knsService.profileCache[address]?.avatarURL,
+                                    avatarURLString: nil,
                                     fallbackText: posterDisplayName(address),
                                     size: 40,
                                     contactAddress: address
@@ -5608,7 +5487,7 @@ struct KaPostsView: View {
                 do {
                     let txId = try await KaPostsAPIClient.shared.submitPoll(
                         question: question, options: options, closesAt: closesAt,
-                        mentionedPubkeys: await mentionedPubkeys(in: question), expectedOwner: myAddress
+                        mentionedPubkeys: await Self.mentionedPubkeys(in: question), expectedOwner: myAddress
                     )
                     heldPosts.release(localId)
                     mutatePost(id: localId) {
@@ -5630,7 +5509,7 @@ struct KaPostsView: View {
     private func scheduleDelayedPost(text: String, at date: Date) {
         Task {
             do {
-                let built = try await KaPostsAPIClient.shared.buildScheduledPost(text: text, mentionedPubkeys: await mentionedPubkeys(in: text))
+                let built = try await KaPostsAPIClient.shared.buildScheduledPost(text: text, mentionedPubkeys: await Self.mentionedPubkeys(in: text))
                 let entry = await scheduledStore.add(built, text: text, notBefore: date)
                 let when = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .short)
                 // No explorer link: the transaction is not on chain until its time comes.
@@ -5739,16 +5618,23 @@ struct KaPostsView: View {
         }
     }
 
+    /// Shown with `Text(String)`, so each line is looked up here (audit 2026-11-24 #31).
     private func scheduledLine(_ entry: KaPostScheduledEntry) -> String {
         let when = DateFormatter.localizedString(from: entry.notBefore, dateStyle: .medium, timeStyle: .short)
+        func localized(_ key: String, _ value: String) -> String {
+            String(format: AppLocalization.string(key), locale: AppLocalization.locale, value)
+        }
         switch entry.status {
         case .scheduled:
             // Past its time and not out yet: on its way as soon as the network answers.
-            if entry.notBefore <= Date() { return "Sending as soon as the network answers" }
-            return entry.onServer ? "Goes out \(when)" : "Goes out \(when) - from this phone, so open K around then"
-        case .submitted: return "Posted \(entry.submittedAt.map { DateFormatter.localizedString(from: $0, dateStyle: .medium, timeStyle: .short) } ?? when)"
-        case .failed: return "Failed to post at \(when)"
-        case .cancelled: return "Cancelled"
+            if entry.notBefore <= Date() { return AppLocalization.string("Sending as soon as the network answers") }
+            return entry.onServer
+                ? localized("Goes out %@", when)
+                : localized("Goes out %@ - from this phone, so open K around then", when)
+        case .submitted:
+            return localized("Posted %@", entry.submittedAt.map { DateFormatter.localizedString(from: $0, dateStyle: .medium, timeStyle: .short) } ?? when)
+        case .failed: return localized("Failed to post at %@", when)
+        case .cancelled: return AppLocalization.string("Cancelled")
         }
     }
 
@@ -5844,7 +5730,7 @@ struct KaPostsView: View {
                                     post: post,
                                     displayName: identity.name,
                                     posterHasKachatName: identity.hasKachatName,
-                                    avatarURLString: knsService.profileCache[post.posterAddress]?.avatarURL,
+                                    avatarURLString: nil,
                                     isFollowing: followStore.isFollowing(post.posterAddress),
                                     commentCount: commentCount(of: post),
                                     quotedDisplayName: post.quoted.map { posterDisplayName($0.posterAddress) },
@@ -5942,9 +5828,9 @@ struct KaPostsView: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "text.append")
                                         .font(.caption.weight(.semibold))
-                                    Text(isSelfThread
-                                         ? "Thread · \(chain.count + 1) posts"
-                                         : "Conversation · \(chain.count + 1) posts")
+                                    (isSelfThread
+                                     ? Text("Thread · \(chain.count + 1) posts")
+                                     : Text("Conversation · \(chain.count + 1) posts"))
                                         .font(.subheadline.weight(.bold))
                                     Spacer()
                                 }
@@ -5968,7 +5854,7 @@ struct KaPostsView: View {
 
                             let comments = commentsExcludingThread(of: post)
                             HStack {
-                                Text(comments.isEmpty ? "Comments" : "Comments (\(comments.count))")
+                                (comments.isEmpty ? Text("Comments") : Text("Comments (\(comments.count))"))
                                     .font(.subheadline.weight(.bold))
                                     .foregroundColor(.secondary)
                                 Spacer()
@@ -6054,7 +5940,8 @@ struct KaPostsView: View {
                             text: $replyText,
                             selection: $replySelection,
                             isFocused: $isReplyFocused,
-                            placeholder: "Post your reply",
+                            // A UILabel's text: looked up here (audit 2026-11-24 #31).
+                            placeholder: AppLocalization.string("Post your reply"),
                             // Roughly four lines: past that the field scrolls instead of pushing
                             // the post you are answering off the screen.
                             maxHeight: 92
@@ -6082,8 +5969,12 @@ struct KaPostsView: View {
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.scaled(size: 28))
                                 .foregroundColor(replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : .accentColor)
+                                // A 44 pt target around the 28 pt arrow (audit 2026-11-24 #39).
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Send"))
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -6371,6 +6262,9 @@ private struct KaPostCellView: View {
         /// A KaPlay bot challenge link: drawn as a card (`KaPostBotChallengeCard`) under the
         /// text, and left out of the text itself.
         let challengeLink: KaPlayBotChallenge.Match?
+        /// An arcade score challenge (`kachatarcade://`): drawn as a card (`KaPostArcadeChallengeCard`)
+        /// under the text, and left out of the text itself.
+        let arcadeLink: ArcadeChallenge.Match?
         /// A link to KaChat's own site: drawn as a preview card under the text, and left out of
         /// the text itself. Only for a poster with a `.kachat` name: anyone else's links never
         /// preview.
@@ -6402,6 +6296,7 @@ private struct KaPostCellView: View {
             paymentLink = (request, match.matchedText)
         }
         let challengeLink = KaPlayBotChallenge.match(in: displayed)
+        let arcadeLink = ArcadeChallenge.match(in: displayed)
         let siteLink = posterHasKachatName ? KaChatSiteLink.match(in: displayed) : nil
         var webLink: KaPostLinkPreviewPolicy.Match?
         if posterHasKachatName, siteLink == nil,
@@ -6414,9 +6309,10 @@ private struct KaPostCellView: View {
         }
         // The text as drawn: the post without the links drawn as cards.
         var text = displayed
-        if paymentLink != nil || challengeLink != nil || siteLink != nil || webLink != nil {
+        if paymentLink != nil || challengeLink != nil || arcadeLink != nil || siteLink != nil || webLink != nil {
             if let paymentLink { text = text.replacingOccurrences(of: paymentLink.matchedText, with: "") }
             if let challengeLink { text = text.replacingOccurrences(of: challengeLink.matchedText, with: "") }
+            if let arcadeLink { text = text.replacingOccurrences(of: arcadeLink.matchedText, with: "") }
             // Only this one: the same text can also be the start of a longer link to another page.
             if let siteLink, let range = text.range(of: siteLink.matchedText) { text.removeSubrange(range) }
             // the previewed link: its card stands in for it
@@ -6435,7 +6331,7 @@ private struct KaPostCellView: View {
             }
             layout = cut + "\u{2026}"
         }
-        return TextParts(paymentLink: paymentLink, challengeLink: challengeLink, siteLink: siteLink,
+        return TextParts(paymentLink: paymentLink, challengeLink: challengeLink, arcadeLink: arcadeLink, siteLink: siteLink,
                          webLink: webLink, isLong: isLong, isFolded: isFolded, layoutText: layout)
     }
 
@@ -6476,14 +6372,18 @@ private struct KaPostCellView: View {
     private var editWindowText: String {
         guard let left = post.editTimeRemaining else { return "" }
         let minutes = Int(left / 60)
-        return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m left" : "\(max(minutes, 1))m left"
+        // In the in-app language (audit 2026-11-24 #31).
+        return minutes >= 60
+            ? String(format: AppLocalization.string("%lldh %lldm left"), locale: AppLocalization.locale, minutes / 60, minutes % 60)
+            : String(format: AppLocalization.string("%lldm left"), locale: AppLocalization.locale, max(minutes, 1))
     }
 
     /// The three-dots half sheet. Same shape as Address Actions and the other half-sheet menus,
     /// so a menu is a menu wherever it appears.
     private var overflowSheet: some View {
         VStack(spacing: 0) {
-            Text(isOwnPost ? "Your post" : displayName)
+            // Two Texts: a ternary with a String side made "Your post" a String, never looked up.
+            (isOwnPost ? Text("Your post") : Text(displayName))
                 .font(.headline)
                 .lineLimit(1)
                 .padding(.top, 20)
@@ -6493,7 +6393,9 @@ private struct KaPostCellView: View {
                 if showsEditRow {
                     ActionSheetRow(
                         title: "Edit",
-                        subtitle: "Change the text. Posts can be edited for two hours; after that they stay as they are. \(editWindowText).",
+                        // ActionSheetRow looks its strings up whole, so a filled-in one is
+                        // formatted here (audit 2026-11-24 #31).
+                        subtitle: String(format: AppLocalization.string("Change the text. Posts can be edited for two hours; after that they stay as they are. %@."), locale: AppLocalization.locale, editWindowText),
                         systemImage: "pencil"
                     ) {
                         showOverflowSheet = false
@@ -6533,7 +6435,7 @@ private struct KaPostCellView: View {
                         reportPost()
                     }
                     ActionSheetRow(
-                        title: "Mute \(displayName)",
+                        title: String(format: AppLocalization.string("Mute %@"), locale: AppLocalization.locale, displayName),
                         subtitle: "Hides their posts everywhere. They can still interact with you.",
                         systemImage: "speaker.slash"
                     ) {
@@ -6541,7 +6443,7 @@ private struct KaPostCellView: View {
                         onMute()
                     }
                     ActionSheetRow(
-                        title: "Block \(displayName)",
+                        title: String(format: AppLocalization.string("Block %@"), locale: AppLocalization.locale, displayName),
                         subtitle: "Hides their posts and room messages, and stops them interacting with you.",
                         systemImage: "hand.raised",
                         tint: .red
@@ -6559,7 +6461,6 @@ private struct KaPostCellView: View {
         .padding(.bottom, 20)
     }
 
-    @EnvironmentObject var settingsViewModel: SettingsViewModel
     @Environment(\.openURL) private var openURL
     /// The three-dots half sheet (Post Activity / Mute / Block). A sheet, like every other menu
     /// in the app, so each option can say what it does; the old popover menu had room for a
@@ -6756,7 +6657,7 @@ private struct KaPostCellView: View {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) { isExpandedInline.toggle() }
                     } label: {
-                        Text(isExpandedInline ? "Show less" : "Show more")
+                        (isExpandedInline ? Text("Show less") : Text("Show more"))
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.accentColor)
                     }
@@ -6770,6 +6671,12 @@ private struct KaPostCellView: View {
                 // A KaPlay bot challenge: a card with a Challenge button, not the link's text.
                 if let link = parts.challengeLink {
                     KaPostBotChallengeCard(challenge: link.challenge)
+                        .padding(.top, 4)
+                }
+                // An arcade score to beat: a card with a Play button, not the link's text.
+                if let link = parts.arcadeLink {
+                    // The post's signer, so the card names `by` only when it's them (audit 2026-11-24 #21).
+                    KaPostArcadeChallengeCard(challenge: link.challenge, author: post.posterAddress)
                         .padding(.top, 4)
                 }
                 // A link to KaChat's site: its preview, or the link itself if that can't load.
@@ -6808,12 +6715,12 @@ private struct KaPostCellView: View {
                 }
 
                 // The default gaps, else tighter ones: big counts beside Tip used to make the
-                // row wider than the screen and push the whole post sideways.
-                ViewThatFits(in: .horizontal) {
-                    actionRow(spacing: 18)
-                    actionRow(spacing: 12)
-                    actionRow(spacing: 8)
-                }
+                // row wider than the screen and push the whole post sideways. Built once and
+                // laid out by `KaPostActionRowLayout`, which measures the items and picks the
+                // gap (audit 2026-11-24 #24), not ViewThatFits: that built and measured the row
+                // three times per post (nine countdown subscriptions, three share links and
+                // sheets), on every post scrolling in.
+                actionRow
                 .padding(.top, 2)
 
                 // When the post was made - the full date and time, in its own row under the
@@ -6847,10 +6754,10 @@ private struct KaPostCellView: View {
     }
 
     /// The action row: comment, like, dislike, repost, bookmark, share, Tip and its count, then
-    /// the delivery state.
-    @ViewBuilder
-    private func actionRow(spacing: CGFloat) -> some View {
-        HStack(spacing: spacing) {
+    /// the delivery state at the right edge. Its gap is `KaPostActionRowLayout`'s: measured, so
+    /// Dynamic Type, long counts and Retry all count (audit 2026-11-24 #24, #30).
+    private var actionRow: some View {
+        KaPostActionRowLayout {
             if let onComment {
                 engagementButton(
                     icon: "bubble.left",
@@ -6981,55 +6888,58 @@ private struct KaPostCellView: View {
                     KaPostTippersView(postId: route.id)
                 }
             }
-            Spacer()
             // Bottom-right: on-chain delivery state, mirroring chat bubbles - green check
             // once the K transaction is on the network, spinner while submitting, red
-            // Retry when it didn't go through.
-            switch post.deliveryStatus {
-            case .sent:
-                // An edit's transaction landing restarts the minute (see `sentAt`).
-                let sentReference = post.sentAt ?? post.timestamp
-                if post.remoteId != nil, !sentCheckExpired,
-                   Date().timeIntervalSince(sentReference) < 60 {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                        .task(id: sentReference) {
-                            let remaining = 60 - Date().timeIntervalSince(sentReference)
-                            if remaining > 0 {
-                                try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
-                            }
-                            withAnimation(.easeOut(duration: 0.3)) { sentCheckExpired = true }
-                        }
-                }
-            case .pending:
-                ProgressView()
-                    .controlSize(.mini)
-                    .tint(.secondary)
-            case .unconfirmed:
-                HStack(spacing: 4) {
-                    Image(systemName: "questionmark.circle.fill")
-                        .font(.caption)
-                    Text("Not confirmed")
-                        .font(.caption.weight(.bold))
-                }
-                .foregroundColor(.orange)
-                .accessibilityHint(Text("It may have gone through. Check before posting it again."))
-            case .failed:
-                Button {
-                    Haptics.impact(.light)
-                    onRetry?()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.circle.fill")
+            // Retry when it didn't go through. The layout puts it at the right edge (it was
+            // a Spacer in the HStack).
+            Group {
+                switch post.deliveryStatus {
+                case .sent:
+                    // An edit's transaction landing restarts the minute (see `sentAt`).
+                    let sentReference = post.sentAt ?? post.timestamp
+                    if post.remoteId != nil, !sentCheckExpired,
+                       Date().timeIntervalSince(sentReference) < 60 {
+                        Image(systemName: "checkmark.circle.fill")
                             .font(.caption)
-                        Text("Retry")
+                            .foregroundColor(.green)
+                            .task(id: sentReference) {
+                                let remaining = 60 - Date().timeIntervalSince(sentReference)
+                                if remaining > 0 {
+                                    try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+                                }
+                                withAnimation(.easeOut(duration: 0.3)) { sentCheckExpired = true }
+                            }
+                    }
+                case .pending:
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(.secondary)
+                case .unconfirmed:
+                    HStack(spacing: 4) {
+                        Image(systemName: "questionmark.circle.fill")
+                            .font(.caption)
+                        Text("Not confirmed")
                             .font(.caption.weight(.bold))
                     }
-                    .foregroundColor(.red)
+                    .foregroundColor(.orange)
+                    .accessibilityHint(Text("It may have gone through. Check before posting it again."))
+                case .failed:
+                    Button {
+                        Haptics.impact(.light)
+                        onRetry?()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.caption)
+                            Text("Retry")
+                                .font(.caption.weight(.bold))
+                        }
+                        .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .layoutValue(key: KaPostActionRowTrailing.self, value: true)
         }
     }
 
@@ -7062,7 +6972,9 @@ private struct KaPostCellView: View {
                         .lineLimit(1)
                 }
             }
-            .fixedSize()
+            // Never wraps; may truncate when even the row's tightest gap can't fit it
+            // (`KaPostActionRowLayout`, audit 2026-11-24 #24).
+            .fixedSize(horizontal: false, vertical: true)
             .foregroundColor(post.likedByMe ? .red : .secondary)
         }
         .buttonStyle(.plain)
@@ -7288,16 +7200,12 @@ private struct KaPostCellView: View {
     /// them (plain singleton reads create no subscription).
     private func resolvedQuotedName(_ address: String) -> String {
         if let quotedDisplayName { return quotedDisplayName }
-        guard !address.isEmpty else { return "Unknown" }
+        guard !address.isEmpty else { return AppLocalization.string("Unknown") }
         if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
             return KaPostsView.displayKasName(assigned)
         }
         // Who they are: their .kachat name (a .kas domain isn't identity since 5.2).
         if let name = KachatLive.identityName(address) { return name }
-        if !KachatNamesService.isEnabled, let domain = KNSService.shared.profileCache[address]?.domainName,
-           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return KaPostsView.displayKasName(domain)
-        }
         return Contact.generateDefaultAlias(from: address)
     }
 
@@ -7328,11 +7236,6 @@ private struct KaPostCellView: View {
                 .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
         )
         .padding(.top, 2)
-        .task(id: quoted.posterAddress) {
-            guard !quoted.posterAddress.isEmpty,
-                  KNSService.shared.profileCache[quoted.posterAddress] == nil else { return }
-            _ = await KNSService.shared.fetchProfile(for: quoted.posterAddress)
-        }
     }
 
     /// Takes the icon's place while the action is held: it hasn't gone to the network yet, so
@@ -7477,7 +7380,8 @@ private struct KaPostCellView: View {
                         .lineLimit(1)
                 }
             }
-            .fixedSize()
+            // As the heart's (audit 2026-11-24 #24).
+            .fixedSize(horizontal: false, vertical: true)
             .foregroundColor(tint)
         }
         .buttonStyle(.plain)
@@ -7502,6 +7406,91 @@ private struct KaPostCellView: View {
 /// (`KaPostsActionScheduler`), `idle` otherwise. Its own view so that only it observes the
 /// scheduler: a cell observing it was redrawn, past `.equatable()`, whenever any post's
 /// countdown started or ended.
+/// Marks the action row's items that sit at its right edge (the delivery state).
+private struct KaPostActionRowTrailing: LayoutValueKey {
+    static let defaultValue = false
+}
+
+/// A post's action row (audit 2026-11-24 #24): one pass over items built once. Each item is
+/// measured at its natural size and the row takes an 18 pt gap, else 12, else 8, whichever fits
+/// the width it's offered; Dynamic Type, long counts and Retry are all in the measurement. If
+/// even 8 doesn't fit, it keeps 8 and the last items give up width (their counts truncate), so
+/// the row never grows wider than the post and pushes it sideways. Items marked
+/// `KaPostActionRowTrailing` sit at the right edge, the rest from the left.
+private struct KaPostActionRowLayout: Layout {
+    private static let gaps: [CGFloat] = [18, 12, 8]
+
+    private struct Plan {
+        var gap: CGFloat
+        var widths: [CGFloat]
+        var heights: [CGFloat]
+    }
+
+    private func makePlan(width: CGFloat?, subviews: Subviews) -> Plan {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        var widths = sizes.map(\.width)
+        var heights = sizes.map(\.height)
+        let gapCount = CGFloat(max(widths.filter { $0 > 0 }.count - 1, 0))
+        let natural = widths.reduce(0, +)
+        guard let width, width.isFinite else {
+            return Plan(gap: Self.gaps[0], widths: widths, heights: heights)
+        }
+        if let gap = Self.gaps.first(where: { natural + $0 * gapCount <= width }) {
+            return Plan(gap: gap, widths: widths, heights: heights)
+        }
+        // Nothing fits: the tightest gap, and the last items (left-hand ones from the end, the
+        // delivery state only after them) shrink toward their smallest width.
+        let gap = Self.gaps[Self.gaps.count - 1]
+        var overflow = natural + gap * gapCount - width
+        let leading = subviews.indices.filter { !subviews[$0][KaPostActionRowTrailing.self] }
+        let trailing = subviews.indices.filter { subviews[$0][KaPostActionRowTrailing.self] }
+        for index in Array(leading.reversed()) + Array(trailing.reversed()) where overflow > 0 && widths[index] > 0 {
+            let smallest = subviews[index].sizeThatFits(ProposedViewSize(width: 0, height: nil)).width
+            let give = min(max(widths[index] - smallest, 0), overflow)
+            guard give > 0 else { continue }
+            widths[index] -= give
+            overflow -= give
+            heights[index] = subviews[index].sizeThatFits(ProposedViewSize(width: widths[index], height: nil)).height
+        }
+        return Plan(gap: gap, widths: widths, heights: heights)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let plan = makePlan(width: proposal.width, subviews: subviews)
+        let height = plan.heights.max() ?? 0
+        // Fills the width it's offered, as the HStack with its Spacer did.
+        if let width = proposal.width, width.isFinite {
+            return CGSize(width: width, height: height)
+        }
+        let gapCount = CGFloat(max(plan.widths.filter { $0 > 0 }.count - 1, 0))
+        return CGSize(width: plan.widths.reduce(0, +) + plan.gap * gapCount, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let plan = makePlan(width: bounds.width, subviews: subviews)
+        var x = bounds.minX
+        for index in subviews.indices where !subviews[index][KaPostActionRowTrailing.self] {
+            let width = plan.widths[index]
+            subviews[index].place(
+                at: CGPoint(x: x, y: bounds.midY),
+                anchor: .leading,
+                proposal: ProposedViewSize(width: width, height: nil)
+            )
+            if width > 0 { x += width + plan.gap }
+        }
+        var trailingX = bounds.maxX
+        for index in subviews.indices.reversed() where subviews[index][KaPostActionRowTrailing.self] {
+            let width = plan.widths[index]
+            subviews[index].place(
+                at: CGPoint(x: trailingX, y: bounds.midY),
+                anchor: .trailing,
+                proposal: ProposedViewSize(width: width, height: nil)
+            )
+            if width > 0 { trailingX -= width + plan.gap }
+        }
+    }
+}
+
 private struct KaPostCountdownSwitch<Idle: View, Countdown: View>: View {
     let key: String
     let idle: () -> Idle
@@ -7749,12 +7738,15 @@ final class KaPostsActionHolds {
 /// tipping in?" first, as the Wallet's Send asks what you are sending. A kUSDT tip is a plain
 /// kUSDT send and isn't counted on the post: Trestly's builder sets the transaction's payload,
 /// so it can't carry KaPost's tip record (KAPOSTS_INDEXER.md 5.11).
-private struct KaPostTipFlow: View {
+struct KaPostTipFlow: View {
     let address: String
     let displayName: String
     var tip: KaPostTip? = nil
     var initialError: String? = nil
     var onTipped: (() -> Void)? = nil
+    /// A chat's Tip: kUSDT goes through the chat's own Send Dollars (its bubble and notice) rather
+    /// than a plain send, so picking it closes this and calls this instead.
+    var onPickKusdt: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var walletManager = WalletManager.shared
@@ -7762,12 +7754,13 @@ private struct KaPostTipFlow: View {
     @State private var choice: KaPostsTipAsset?
 
     init(address: String, displayName: String, tip: KaPostTip?, initialError: String?,
-         asset: KaPostsTipAsset?, onTipped: (() -> Void)?) {
+         asset: KaPostsTipAsset?, onTipped: (() -> Void)?, onPickKusdt: (() -> Void)? = nil) {
         self.address = address
         self.displayName = displayName
         self.tip = tip
         self.initialError = initialError
         self.onTipped = onTipped
+        self.onPickKusdt = onPickKusdt
         _choice = State(initialValue: asset)
     }
 
@@ -7809,10 +7802,10 @@ private struct KaPostTipFlow: View {
                     option(
                         icon: AnyView(TokenIcon(token: .kusdt, size: 44)),
                         title: Text(verbatim: WalletToken.kusdt.symbol),
-                        subtitle: AppLocalization.string("Not counted on the post"),
+                        subtitle: tip == nil ? WalletToken.kusdt.symbol : AppLocalization.string("Not counted on the post"),
                         amount: tokens.balance(of: .kusdt).map { TokenAmount.amount($0, token: .kusdt) }
                     ) { pick(.kusdt) }
-                    Text("Set what Tip sends in Settings > KaPost > Tip In.")
+                    Text("Set what Tip sends in Settings > Customization > Tipping.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .padding(.top, 4)
@@ -7843,6 +7836,11 @@ private struct KaPostTipFlow: View {
 
     private func pick(_ next: KaPostsTipAsset) {
         Haptics.impact(.light)
+        if next == .kusdt, let onPickKusdt {
+            dismiss()
+            onPickKusdt()
+            return
+        }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { choice = next }
     }
 
@@ -7887,7 +7885,7 @@ private struct KaPostTipFlow: View {
 /// Payment Privacy rules as an in-chat payment (privacy on + pool data -> a fresh private pool
 /// address; otherwise the poster's public chatting address), and the payment bubble still lands
 /// in the 1:1 conversation with them.
-private struct KaPostTipSheet: View {
+struct KaPostTipSheet: View {
     let address: String
     let displayName: String
     /// The post being tipped: then it is a tip that names the post, paid from the chatting
@@ -8135,12 +8133,15 @@ private struct KaPostTipSheet: View {
                             choosingFrom = true
                         }
                     }
+                    // only a tip on a post is counted anywhere
+                    if tip != nil {
                     Text(choosingFrom
                          ? "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper."
                          : "From your Chatting Address the tip counts on the post, and you're listed as a tipper.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    }
                     if choosingFrom {
                         Text("Pick which of your addresses the Kaspa leaves from.")
                             .font(.footnote)
@@ -8567,7 +8568,6 @@ private struct KaPostMentionSuggestionBar: View {
     /// without this the caret keeps its old offset and lands mid-sentence; the completion always
     /// happens at the end, so that is where the caret belongs.
     var selection: Binding<ClosedRange<Int>>? = nil
-    @ObservedObject private var knsService = KNSService.shared
     @State private var resolvedAnyDomain: String? = nil
 
     /// Compiled once: `range(of:options: .regularExpression)` builds a fresh expression per
@@ -8591,17 +8591,7 @@ private struct KaPostMentionSuggestionBar: View {
     /// old body read it four times, including once per row inside the ForEach.
     private var suggestions: [String] {
         guard let query = mentionQuery else { return [] }
-        var seen = Set<String>()
         var out: [String] = []
-        for contact in ContactsManager.shared.activeContacts {
-            guard let raw = knsService.identityInfo(for: contact.address)?.primaryDomain else { continue }
-            let bare = KaPostsView.bareKasName(raw)
-            guard !bare.isEmpty, !seen.contains(bare),
-                  query.isEmpty || bare.hasPrefix(query) else { continue }
-            seen.insert(bare)
-            out.append(KaPostsView.fullKasName(bare))
-        }
-        out.sort()
         // contacts' .kachat names come first
         var kachat: [String] = []
         for contact in ContactsManager.shared.activeContacts {
@@ -8666,18 +8656,15 @@ private struct KaPostMentionSuggestionBar: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Warm the contact KNS cache so @ has a populated list immediately.
-        .task { await ContactsManager.shared.fetchKNSDomainsForAllContacts() }
         // Anyone-with-a-KNS-domain mentions: debounce-resolve the typed @query live.
         .task(id: mentionQuery ?? "") {
             resolvedAnyDomain = nil
             guard let query = mentionQuery, query.count >= 2 else { return }
             try? await Task.sleep(nanoseconds: 400_000_000)
             guard !Task.isCancelled else { return }
-            // anyone with a name: .kachat first, else the .kas name (the mention rule, IOS-069)
+            // anyone with a .kachat name
             let results = await NameServicesClient.shared.resolveEverywhere(query)
-            guard let resolution = NameServicesClient.primary(of: results, typed: query)
-                    ?? results.first(where: { $0.tld == .kas && $0.address != nil }) else { return }
+            guard let resolution = NameServicesClient.primary(of: results, typed: query) else { return }
             guard !Task.isCancelled, mentionQuery == query else { return }
             resolvedAnyDomain = resolution.fullName
         }
@@ -8716,6 +8703,13 @@ private struct KaPostComposerView: View {
     // observes the service itself, so a landing profile re-renders the bar and nothing else.
     @State private var text = ""
     @State private var threadSegments: [String] = []
+    /// A KaPlay challenge link (a bot's or an arcade score's) the post carries. It is taken out of
+    /// the text and shown as the card the feed will draw, so the composer previews the post
+    /// rather than showing the raw link (owner, 2026-11-24); it goes back on the end when posted.
+    @State private var attachedChallenge: String?
+    /// The text the link previews are worked out from: the editor's, a moment after typing stops,
+    /// so a link half typed doesn't fetch a preview for every letter.
+    @State private var previewSource = ""
     /// A live KNS resolution of the CURRENT @query - lets you mention anyone with a KNS
     /// domain, not just chatted contacts (those come from the local cache).
     @State private var resolvedAnyDomain: String?
@@ -8787,6 +8781,12 @@ private struct KaPostComposerView: View {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// What is posted from the editor: its text, with the attached challenge link on the end.
+    private var postBody: String {
+        guard let link = attachedChallenge else { return trimmed }
+        return trimmed.isEmpty ? link : "\(trimmed)\n\n\(link)"
+    }
+
     /// Anything the user has written that would be lost by closing.
     private var hasUnsavedContent: Bool {
         !allSegments.isEmpty
@@ -8795,7 +8795,7 @@ private struct KaPostComposerView: View {
     private func saveDraft() {
         draftStore.save(
             id: editingDraftId,
-            text: text,
+            text: attachedChallenge == nil ? text : postBody,
             threadSegments: threadSegments,
             quotedRemoteId: quotedPost?.remoteId ?? keptQuotedRemoteId,
             replyRemoteId: replyTarget?.remoteId ?? keptReplyRemoteId
@@ -8810,13 +8810,30 @@ private struct KaPostComposerView: View {
 
     /// Everything that would be posted right now: stacked segments plus the in-progress text.
     private var allSegments: [String] {
-        trimmed.isEmpty ? threadSegments : threadSegments + [trimmed]
+        postBody.isEmpty ? threadSegments : threadSegments + [postBody]
     }
 
     private var canPost: Bool {
         if sourceNotice != nil { return false }
         if pollEnabled { return !trimmed.isEmpty && pollIsValid }
         return !allSegments.isEmpty
+    }
+
+    /// The composer's title. One `Text` per case, each its own key (audit 2026-11-24 #31).
+    private var composerTitle: Text {
+        if editingPost { return Text("Edit Post") }
+        if replyTarget != nil { return Text("Reply to Post") }
+        if quotedPost != nil { return Text("Quote Post") }
+        return threadSegments.isEmpty ? Text("New Post") : Text("New Thread")
+    }
+
+    /// The post button's label, as `composerTitle` (audit 2026-11-24 #31).
+    private var postButtonTitle: Text {
+        if editingPost { return Text("Save") }
+        if replyTarget != nil { return Text("Reply") }
+        if pollEnabled { return Text("Post Poll") }
+        if scheduledAt != nil { return Text("Schedule") }
+        return allSegments.count > 1 ? Text("Post All (\(allSegments.count))") : Text("Post")
     }
 
     var body: some View {
@@ -8826,10 +8843,6 @@ private struct KaPostComposerView: View {
             // and the composer covers the feed that would otherwise be showing both.
             ZStack {
                 BalanceToolbarLabel()
-                HStack {
-                    Spacer()
-                    ConnectionStatusIndicator()
-                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
@@ -8853,26 +8866,14 @@ private struct KaPostComposerView: View {
                         .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.08)))
                 }
                 .buttonStyle(.plain)
-                Text(editingPost
-                     ? "Edit Post"
-                     : (replyTarget != nil
-                        ? "Reply to Post"
-                        : (quotedPost == nil
-                           ? (threadSegments.isEmpty ? "New Post" : "New Thread")
-                           : "Quote Post")))
+                composerTitle
                     .font(.title3.weight(.bold))
                 Spacer()
                 characterMeter
                 Button {
                     postAll()
                 } label: {
-                    Text(editingPost
-                         ? "Save"
-                         : (replyTarget != nil
-                            ? "Reply"
-                            : (pollEnabled ? "Post Poll"
-                               : (scheduledAt != nil ? "Schedule"
-                                  : (allSegments.count > 1 ? "Post All (\(allSegments.count))" : "Post")))))
+                    postButtonTitle
                         .font(.subheadline.weight(.bold))
                         .foregroundColor(canPost ? Color.black : Color.secondary)
                         .padding(.horizontal, 16)
@@ -8918,6 +8919,7 @@ private struct KaPostComposerView: View {
                         threadSegmentsList
                         composerEditor
                             .id(Self.composerEditorAnchor)
+                        attachedChallengeCard
                         threadAppendButton
                         extrasRow
                         pollEditor
@@ -8967,6 +8969,16 @@ private struct KaPostComposerView: View {
             if text.isEmpty, threadSegments.isEmpty {
                 text = initialText
                 threadSegments = initialThreadSegments
+                if !editingPost {
+                    if let match = ArcadeChallenge.match(in: text) {
+                        attachedChallenge = match.matchedText
+                        text = text.replacingOccurrences(of: match.matchedText, with: "")
+                    } else if let match = KaPlayBotChallenge.match(in: text) {
+                        attachedChallenge = match.matchedText
+                        text = text.replacingOccurrences(of: match.matchedText, with: "")
+                    }
+                    if attachedChallenge != nil { text = text.trimmingCharacters(in: .whitespacesAndNewlines) }
+                }
                 if !initialPollOptions.isEmpty {
                     pollEnabled = true
                     pollOptions = initialPollOptions.count >= 2 ? Array(initialPollOptions.prefix(4))
@@ -8975,11 +8987,6 @@ private struct KaPostComposerView: View {
             }
             isFocused = true
         }
-        // Warm the KNS domain cache for every 1:1 contact so typing @ has a populated list -
-        // without this the mention list stayed empty until something else happened to fetch.
-        .task {
-            await ContactsManager.shared.fetchKNSDomainsForAllContacts()
-        }
         // Anyone-with-a-KNS-domain mentions: debounce-resolve the typed @query live; a hit
         // appends its row to the list even when they're not a contact.
         .task(id: mentionQuery ?? "") {
@@ -8987,12 +8994,21 @@ private struct KaPostComposerView: View {
             guard let query = mentionQuery, query.count >= 2 else { return }
             try? await Task.sleep(nanoseconds: 400_000_000)
             guard !Task.isCancelled else { return }
-            // anyone with a name: .kachat first, else the .kas name (the mention rule, IOS-069)
+            // anyone with a .kachat name
             let results = await NameServicesClient.shared.resolveEverywhere(query)
-            guard let resolution = NameServicesClient.primary(of: results, typed: query)
-                    ?? results.first(where: { $0.tld == .kas && $0.address != nil }) else { return }
+            guard let resolution = NameServicesClient.primary(of: results, typed: query) else { return }
             guard !Task.isCancelled, mentionQuery == query else { return }
             resolvedAnyDomain = resolution.fullName
+        }
+        .task(id: text) {
+            if previewSource.isEmpty, !text.isEmpty {
+                previewSource = text
+                return
+            }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            previewSource = text
+            attachPastedChallenge()
         }
         .onChange(of: text) { newValue in
             // Hard cap at the limit, X-style (in bytes: see `postLength`).
@@ -9095,11 +9111,12 @@ private struct KaPostComposerView: View {
             text: $text,
             selection: $selection,
             isFocused: $isFocused,
-            placeholder: replyTarget != nil
+            // A UILabel's text: looked up here (audit 2026-11-24 #31).
+            placeholder: AppLocalization.string(replyTarget != nil
                 ? "Post your reply"
                 : (quotedPost == nil
                    ? (threadSegments.isEmpty ? "What's happening on Kaspa?" : "Add another post")
-                   : "Add a comment")
+                   : "Add a comment"))
         )
         .padding(12)
         .frame(minHeight: 120, alignment: .topLeading)
@@ -9149,8 +9166,8 @@ private struct KaPostComposerView: View {
     private var feeEstimateRow: some View {
         HStack {
             Spacer()
-            if settingsViewModel.settings.showFeeEstimate, !trimmed.isEmpty,
-               let fee = KaPostsAPIClient.estimatePostFee(text: trimmed) {
+            if settingsViewModel.settings.showFeeEstimate, !postBody.isEmpty,
+               let fee = KaPostsAPIClient.estimatePostFee(text: postBody) {
                 KaspaUnit.text("Est. fee: %@ KAS", String(format: "%.8f", Double(fee) / 100_000_000.0))
                     .font(.caption)
                     .monospacedDigit()
@@ -9169,13 +9186,13 @@ private struct KaPostComposerView: View {
             // seconds fast would push a "7 days" poll past it and the poll would be dropped. The
             // longest poll closes 5 minutes early.
             let maxLength: TimeInterval = 7 * 86_400 - 300
-            onPostPoll(trimmed, validPollOptions, Date().addingTimeInterval(min(TimeInterval(pollDurationHours) * 3600, maxLength)))
+            onPostPoll(postBody, validPollOptions, Date().addingTimeInterval(min(TimeInterval(pollDurationHours) * 3600, maxLength)))
             dismiss()
             return
         }
         if let scheduledAt, let onSchedulePost {
-            guard !trimmed.isEmpty else { return }
-            onSchedulePost(trimmed, scheduledAt)
+            guard !postBody.isEmpty else { return }
+            onSchedulePost(postBody, scheduledAt)
             dismiss()
             return
         }
@@ -9187,6 +9204,114 @@ private struct KaPostComposerView: View {
             onPost(segments[0])
         }
         dismiss()
+    }
+
+    /// A challenge link pasted into the text becomes the post's card, as one Share to KaPost
+    /// writes does (one challenge a post: the feed draws only the first).
+    private func attachPastedChallenge() {
+        guard !editingPost, attachedChallenge == nil else { return }
+        if let match = ArcadeChallenge.match(in: text) {
+            attachedChallenge = match.matchedText
+            text = text.replacingOccurrences(of: match.matchedText, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if let match = KaPlayBotChallenge.match(in: text) {
+            attachedChallenge = match.matchedText
+            text = text.replacingOccurrences(of: match.matchedText, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+
+    /// The links in the text the feed draws as cards, worked out as the feed does
+    /// (`KaPostCellView.textParts`): a payment request always, a link to KaChat's site or another
+    /// site only when you have a .kachat name (owner, 2026-11-24: the composer shows the post as
+    /// it will look).
+    private var inlinePreviews: (payment: KaChatInternalLink.Match?, payRequest: PaymentRequest?, site: KaChatSiteLink.Match?, web: KaPostLinkPreviewPolicy.Match?) {
+        let source = previewSource
+        guard !source.isEmpty else { return (nil, nil, nil, nil) }
+        var payment: KaChatInternalLink.Match?
+        var request: PaymentRequest?
+        if let match = KaChatInternalLink.match(in: source), case .paymentRequest(let r) = match.link {
+            payment = match
+            request = r
+        }
+        let me = WalletManager.shared.currentWallet?.publicAddress ?? ""
+        let hasName = !me.isEmpty && KachatLive.identityName(me) != nil
+        let site = hasName ? KaChatSiteLink.match(in: source) : nil
+        var web: KaPostLinkPreviewPolicy.Match?
+        if hasName, site == nil, let link = KaPostLinkPreviewPolicy.firstLink(in: source),
+           KaChatInternalLink.parse(link.url) == nil, KaPostLinkPreviewPolicy.allows(link.url) {
+            web = link
+            KaPostLinkPreviewPolicy.markForPreview(link.url)
+        }
+        return (payment, request, site, web)
+    }
+
+    /// A preview card with an x that takes its link out of the post.
+    private func removablePreview<Card: View>(_ card: Card, remove: @escaping () -> Void) -> some View {
+        ZStack(alignment: .topTrailing) {
+            // a preview: its buttons do nothing here
+            card.allowsHitTesting(false)
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { remove() }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(Color.white, Color.black.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .padding(8)
+            .accessibilityLabel("Remove")
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+    }
+
+    private func removeFromText(_ matched: String) {
+        guard let range = text.range(of: matched) else { return }
+        text.removeSubrange(range)
+        text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        previewSource = text
+    }
+
+    /// Every card the post will show, under the editor: the attached challenge, then the links
+    /// in the text.
+    @ViewBuilder
+    private var attachedChallengeCard: some View {
+        let previews = inlinePreviews
+        if let match = previews.payment, let request = previews.payRequest {
+            removablePreview(KaPostPaymentRequestCard(request: request)) { removeFromText(match.matchedText) }
+        }
+        if let site = previews.site {
+            removablePreview(LinkPreviewCardView(url: site.url, txId: "", fallbackText: site.matchedText)) { removeFromText(site.matchedText) }
+        }
+        if let web = previews.web {
+            removablePreview(LinkPreviewCardView(url: web.url, txId: "", fallbackText: web.matchedText)) { removeFromText(web.matchedText) }
+        }
+        if let link = attachedChallenge {
+            ZStack(alignment: .topTrailing) {
+                Group {
+                    if let match = ArcadeChallenge.match(in: link) {
+                        KaPostArcadeChallengeCard(challenge: match.challenge)
+                    } else if let match = KaPlayBotChallenge.match(in: link) {
+                        KaPostBotChallengeCard(challenge: match.challenge)
+                    }
+                }
+                // a preview: its Play button does nothing here
+                .allowsHitTesting(false)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { attachedChallenge = nil }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(Color.white, Color.black.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+                .padding(8)
+                .accessibilityLabel("Remove")
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+        }
     }
 
     private var characterMeter: some View {
@@ -9204,7 +9329,7 @@ private struct KaPostComposerView: View {
                         if pollEnabled { scheduledAt = nil }
                     }
                 } label: {
-                    Label(pollEnabled ? "Remove poll" : "Poll", systemImage: "chart.bar")
+                    Label(pollEnabled ? LocalizedStringKey("Remove poll") : LocalizedStringKey("Poll"), systemImage: "chart.bar")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(pollEnabled ? .white : .accentColor)
                         .padding(.horizontal, 12)
@@ -9216,7 +9341,7 @@ private struct KaPostComposerView: View {
                     pickerDate = scheduledAt ?? Date().addingTimeInterval(3600)
                     showSchedulePicker = true
                 } label: {
-                    Label(scheduledAt == nil ? "Schedule" : "Reschedule", systemImage: "clock")
+                    Label(scheduledAt == nil ? LocalizedStringKey("Schedule") : LocalizedStringKey("Reschedule"), systemImage: "clock")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(scheduledAt == nil ? .accentColor : .white)
                         .padding(.horizontal, 12)
@@ -9277,7 +9402,7 @@ private struct KaPostComposerView: View {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(pollOptions.indices, id: \.self) { index in
                     HStack(spacing: 8) {
-                        TextField("Option \(index + 1)", text: Binding(
+                        TextField(String(format: AppLocalization.string("Option %lld"), locale: AppLocalization.locale, index + 1), text: Binding(
                             get: { index < pollOptions.count ? pollOptions[index] : "" },
                             set: { newValue in
                                 guard index < pollOptions.count else { return }
@@ -9419,22 +9544,10 @@ private struct KaPostComposerMentionBar: View {
     let resolvedAnyDomain: String?
     let onSelect: (String) -> Void
 
-    @ObservedObject private var knsService = KNSService.shared
 
     private var mentionSuggestions: [String] {
         guard let query else { return [] }
-        var seen = Set<String>()
         var out: [String] = []
-        for contact in ContactsManager.shared.activeContacts {
-            // Read through the OBSERVED service so rows appear live as lookups land.
-            guard let raw = knsService.identityInfo(for: contact.address)?.primaryDomain else { continue }
-            let bare = KaPostsView.bareKasName(raw)
-            guard !bare.isEmpty, !seen.contains(bare),
-                  query.isEmpty || bare.hasPrefix(query) else { continue }
-            seen.insert(bare)
-            out.append(KaPostsView.fullKasName(bare))
-        }
-        out.sort()
         // Live-resolved non-contact domain matching the current query rides along at the end.
         // contacts' .kachat names come first
         var kachat: [String] = []
@@ -10047,7 +10160,6 @@ struct KaPostEngagementView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var settingsViewModel: SettingsViewModel
-    @ObservedObject private var knsService = KNSService.shared
 
     enum EngagementTab: String, CaseIterable {
         case likes = "Likes"
@@ -10264,7 +10376,7 @@ struct KaPostEngagementView: View {
         let address = KaPostsAPIClient.kaspaAddress(fromPubkey: tip.userPublicKey) ?? ""
         return HStack(spacing: 12) {
             KNSAvatarView(
-                avatarURLString: knsService.profileCache[address]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: displayName(for: address),
                 size: 38,
                 contactAddress: address
@@ -10303,7 +10415,7 @@ struct KaPostEngagementView: View {
         let address = KaPostsAPIClient.kaspaAddress(fromPubkey: entry.actorPubkey) ?? ""
         return HStack(spacing: 12) {
             KNSAvatarView(
-                avatarURLString: knsService.profileCache[address]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: displayName(for: address),
                 size: 38,
                 contactAddress: address
@@ -10329,10 +10441,6 @@ struct KaPostEngagementView: View {
             }
             .buttonStyle(.plain)
         }
-        .task(id: address) {
-            guard !address.isEmpty, knsService.profileCache[address] == nil else { return }
-            _ = await knsService.fetchProfile(for: address)
-        }
     }
 
     private var emptyState: some View {
@@ -10354,16 +10462,12 @@ struct KaPostEngagementView: View {
     }
 
     private func displayName(for address: String) -> String {
-        guard !address.isEmpty else { return "Unknown" }
+        guard !address.isEmpty else { return AppLocalization.string("Unknown") }
         if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
             return KaPostsView.displayKasName(assigned)
         }
         // Who they are: their .kachat name (a .kas domain isn't identity since 5.2).
         if let name = KachatLive.identityName(address) { return name }
-        if !KachatNamesService.isEnabled, let domain = knsService.profileCache[address]?.domainName,
-           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return KaPostsView.displayKasName(domain)
-        }
         return Contact.generateDefaultAlias(from: address)
     }
 
@@ -10435,7 +10539,6 @@ struct KaPostEngagementView: View {
             // Batched KNS resolution for the appended actors.
             let addresses = Array(Set(batch.items.compactMap { KaPostsAPIClient.kaspaAddress(fromPubkey: $0.actorPubkey) }))
             if !addresses.isEmpty {
-                Task { await knsService.refreshProfilesIfNeeded(for: addresses) }
             }
         } catch {
             guard page.epoch == epoch else { return }
@@ -10525,7 +10628,6 @@ struct KaPostsFollowListView: View {
     /// Own list when no target pubkey is supplied; only then do we merge local-only follows.
     private var isOwnList: Bool { targetPubkey == nil }
 
-    @ObservedObject private var knsService = KNSService.shared
     @ObservedObject private var followStore = KaPostsFollowStore.shared
 
     struct Entry: Identifiable {
@@ -10584,7 +10686,7 @@ struct KaPostsFollowListView: View {
     private func entryRow(_ entry: Entry) -> some View {
         HStack(spacing: 12) {
             KNSAvatarView(
-                avatarURLString: knsService.profileCache[entry.address]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: displayName(for: entry.address),
                 size: 38,
                 contactAddress: entry.address
@@ -10617,10 +10719,6 @@ struct KaPostsFollowListView: View {
                 .tint(isFollowing ? Color.secondary.opacity(0.35) : Color.accentColor)
             }
         }
-        .task(id: entry.address) {
-            guard !entry.address.isEmpty, knsService.profileCache[entry.address] == nil else { return }
-            _ = await knsService.fetchProfile(for: entry.address)
-        }
     }
 
     private var emptyState: some View {
@@ -10629,7 +10727,7 @@ struct KaPostsFollowListView: View {
             Image(systemName: kind == .following ? "person.badge.plus" : "person.2")
                 .font(.scaled(size: 40))
                 .foregroundColor(.secondary)
-            Text(kind == .following ? "Not following anyone yet" : "No followers yet")
+            (kind == .following ? Text("Not following anyone yet") : Text("No followers yet"))
                 .font(.headline)
             Text(kind == .following
                  ? "Accounts you follow will show up here."
@@ -10644,16 +10742,12 @@ struct KaPostsFollowListView: View {
     }
 
     private func displayName(for address: String) -> String {
-        guard !address.isEmpty else { return "Unknown" }
+        guard !address.isEmpty else { return AppLocalization.string("Unknown") }
         if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
             return KaPostsView.displayKasName(assigned)
         }
         // Who they are: their .kachat name (a .kas domain isn't identity since 5.2).
         if let name = KachatLive.identityName(address) { return name }
-        if !KachatNamesService.isEnabled, let domain = knsService.profileCache[address]?.domainName,
-           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return KaPostsView.displayKasName(domain)
-        }
         return Contact.generateDefaultAlias(from: address)
     }
 
@@ -10714,7 +10808,6 @@ struct KaPostsFollowListView: View {
             isLoading = false
             let addresses = Array(Set(batch.items.map(\.address).filter { !$0.isEmpty }))
             if !addresses.isEmpty {
-                Task { await knsService.refreshProfilesIfNeeded(for: addresses) }
             }
         } catch {
             guard page.epoch == epoch else { return }
@@ -10753,7 +10846,6 @@ struct KaPostsNotificationsView: View {
     /// `.kachat` names, banners and bios (`KachatLive.identityName` and friends) land on their own.
     @ObservedObject private var kachatRegistry = KachatNamesRegistry.shared
     @ObservedObject private var kachatSocialImages = KachatSocialImageResolver.shared
-    @ObservedObject private var knsService = KNSService.shared
     @ObservedObject private var moderationStore = KaPostsModerationStore.shared
     /// When the list was last loaded on appearing (see the `.task` below).
     @State private var lastLoadedAt: Date?
@@ -10788,17 +10880,18 @@ struct KaPostsNotificationsView: View {
                 }
             }
 
+            /// In the in-app language (audit 2026-11-24 #31): the row draws it after the name.
             var actionText: String {
                 switch self {
-                case .like: return "liked your post"
-                case .dislike: return "disliked your post"
-                case .reply: return "replied to your post"
-                case .quote: return "quoted your post"
-                case .repost: return "reposted your post"
-                case .follow: return "followed you"
-                case .mention: return "mentioned you in a post"
-                case .tip: return "tipped your post"
-                case .other: return "interacted with your post"
+                case .like: return AppLocalization.string("liked your post")
+                case .dislike: return AppLocalization.string("disliked your post")
+                case .reply: return AppLocalization.string("replied to your post")
+                case .quote: return AppLocalization.string("quoted your post")
+                case .repost: return AppLocalization.string("reposted your post")
+                case .follow: return AppLocalization.string("followed you")
+                case .mention: return AppLocalization.string("mentioned you in a post")
+                case .tip: return AppLocalization.string("tipped your post")
+                case .other: return AppLocalization.string("interacted with your post")
                 }
             }
         }
@@ -11009,7 +11102,7 @@ struct KaPostsNotificationsView: View {
     private func itemRow(_ item: Item) -> some View {
         HStack(alignment: .top, spacing: 12) {
             KNSAvatarView(
-                avatarURLString: knsService.profileCache[item.actorAddress]?.avatarURL,
+                avatarURLString: nil,
                 fallbackText: displayName(for: item.actorAddress),
                 size: 38,
                 contactAddress: item.actorAddress
@@ -11034,7 +11127,7 @@ struct KaPostsNotificationsView: View {
             }
             VStack(alignment: .leading, spacing: 3) {
                 (Text(displayName(for: item.actorAddress)).fontWeight(.bold)
-                    + Text(" \(item.actionText)"))
+                    + Text(verbatim: " \(item.actionText)"))
                     .font(.subheadline)
                     .lineLimit(2)
                 if let snippet = item.snippet, !snippet.isEmpty {
@@ -11058,11 +11151,6 @@ struct KaPostsNotificationsView: View {
             Haptics.impact(.light)
             open(item)
         }
-        .task(id: item.actorAddress) {
-            guard !item.actorAddress.isEmpty,
-                  knsService.profileCache[item.actorAddress] == nil else { return }
-            _ = await knsService.fetchProfile(for: item.actorAddress)
-        }
     }
 
     private var emptyState: some View {
@@ -11081,16 +11169,12 @@ struct KaPostsNotificationsView: View {
     }
 
     private func displayName(for address: String) -> String {
-        guard !address.isEmpty else { return "Unknown" }
+        guard !address.isEmpty else { return AppLocalization.string("Unknown") }
         if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
             return KaPostsView.displayKasName(assigned)
         }
         // Who they are: their .kachat name (a .kas domain isn't identity since 5.2).
         if let name = KachatLive.identityName(address) { return name }
-        if !KachatNamesService.isEnabled, let domain = knsService.profileCache[address]?.domainName,
-           !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return KaPostsView.displayKasName(domain)
-        }
         return Contact.generateDefaultAlias(from: address)
     }
 
@@ -11204,7 +11288,6 @@ struct KaPostsNotificationsView: View {
             // cache misses; this also refreshes stale entries).
             let addresses = Array(Set(batch.items.map(\.actorAddress).filter { !$0.isEmpty }))
             if !addresses.isEmpty {
-                Task { await knsService.refreshProfilesIfNeeded(for: addresses) }
             }
         } catch {
             guard page.epoch == epoch else { return }
@@ -11237,9 +11320,6 @@ struct KaPostsPageView: View {
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         BalanceToolbarLabel()
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        ConnectionStatusIndicator()
                     }
                 }
         }
@@ -11445,10 +11525,6 @@ private struct KaPostsStatusChrome: ViewModifier {
                     }
                     .accessibilityLabel("Back")
                 }
-            }
-            // the connection dot top left, as on every other KaChat screen (owner's call, 2026-11-21)
-            ToolbarItem(placement: .navigationBarLeading) {
-                ConnectionStatusIndicator()
             }
             ToolbarItem(placement: .principal) {
                 BalanceToolbarLabel()
@@ -11888,140 +11964,38 @@ private struct KaPostZeroBalanceGate: ViewModifier {
     }
 }
 
-/// Where a profile's posts sit sideways during a Posts/Replies swipe. Held by `ProfileTabSwipe`
-/// (not observed there) and handed down the environment, so the only view that redraws as it
-/// changes is `ProfileSlideOffset`, around each row under the header. It used to be `@State` on KaPostsView,
-/// which re-ran that whole 12,000-line body, re-sorting the posts and rebuilding the header,
-/// on every frame of a drag (audit 2026-11-21 #27).
-final class ProfileSlideModel: ObservableObject {
-    @Published var offset: CGFloat = 0
-}
+// MARK: - KaPost's composer over another screen
 
-private struct ProfileSlideModelKey: EnvironmentKey {
-    static let defaultValue: ProfileSlideModel? = nil
-}
-
-extension EnvironmentValues {
-    var profileSlideModel: ProfileSlideModel? {
-        get { self[ProfileSlideModelKey.self] }
-        set { self[ProfileSlideModelKey.self] = newValue }
-    }
-}
-
-/// Moves one row under a profile's header by `ProfileSlideModel.offset`. Without a
-/// `ProfileTabSwipe` above it, the row just sits still.
-struct ProfileSlides: ViewModifier {
-    @Environment(\.profileSlideModel) private var model
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if let model {
-            ProfileSlideOffset(model: model, content: content)
-        } else {
-            content
-        }
-    }
-}
-
-/// The only views that observe the slide: each body is just its row's offset.
-private struct ProfileSlideOffset<Content: View>: View {
-    @ObservedObject var model: ProfileSlideModel
-    let content: Content
+/// KaPost's new-post composer over another screen (owner, 2026-11-24): KaPlay's Share to KaPost
+/// slides it up over the game instead of leaving for KaPost. Post sends the post at once (there is
+/// no feed here for the five-second undo); the X closes it and leaves you where you were.
+struct KaPostQuickComposer: View {
+    let text: String
+    /// Post was tapped: the post is on its way.
+    var onPosting: () -> Void = {}
+    /// The post's txid, or why it didn't go.
+    let onResult: (Result<String, Error>) -> Void
 
     var body: some View {
-        content.offset(x: model.offset)
+        KaPostComposerView(
+            onPost: { text in
+                onPosting()
+                Task { @MainActor in
+                    let owner = WalletManager.shared.currentWallet?.publicAddress ?? ""
+                    do {
+                        let txId = try await KaPostsAPIClient.shared.submitPost(
+                            text: text,
+                            mentionedPubkeys: await KaPostsView.mentionedPubkeys(in: text),
+                            expectedOwner: owner
+                        )
+                        onResult(.success(txId))
+                    } catch {
+                        AppLog.log("[KaPosts] Quick post failed: %@", error.localizedDescription)
+                        onResult(.failure(error))
+                    }
+                }
+            },
+            initialText: text
+        )
     }
 }
-
-/// A profile's Posts and Replies, changed by sliding a finger left or right anywhere on the page
-/// (owner's call, 2026-11-21). The page is one scroll (the header travels up with the posts), so
-/// the posts under the header move with the finger (`ProfileSlideModel`, drawn row by row by
-/// `ProfileSlides`) instead of a pager: let go far enough (or flick) and they slide off
-/// while the other tab's slide in from the other side; otherwise they settle back. An
-/// up-and-down scroll never moves them sideways. A tap on the tab bar slides the new tab in the
-/// same way (owner, 2026-11-21: "it's like loading the post in every time I swipe"). The drag
-/// lives here and in the model; the page only learns the tab once it changes.
-struct ProfileTabSwipe: ViewModifier {
-    @Binding var selection: KaPostsView.ProfileFeedTab
-
-    /// A reference kept in `@State` and deliberately NOT observed here: its changes redraw
-    /// `ProfileSlideOffset` alone.
-    @State private var model = ProfileSlideModel()
-    @State private var width: CGFloat = 390
-    /// nil until the drag picks a direction; true once it is clearly sideways
-    @State private var horizontal: Bool?
-    /// The tab on screen, so a tap-driven change knows which side to slide in from and a
-    /// swipe's own change is not slid twice.
-    @State private var shown: KaPostsView.ProfileFeedTab?
-
-    private let tabs = KaPostsView.ProfileFeedTab.allCases
-
-    func body(content: Content) -> some View {
-        content
-            .environment(\.profileSlideModel, model)
-            .background(GeometryReader { geo in
-                Color.clear
-                    .onAppear { width = max(geo.size.width, 1) }
-                    .onChange(of: geo.size.width) { width = max($0, 1) }
-            })
-            .onAppear { shown = selection }
-            .onChange(of: selection) { new in
-                guard new != shown else { return }
-                let from = shown.flatMap { tabs.firstIndex(of: $0) } ?? 0
-                let to = tabs.firstIndex(of: new) ?? 0
-                shown = new
-                slideIn(fromTrailing: to > from)
-            }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 12)
-                    .onChanged { value in
-                        let dx = value.translation.width, dy = value.translation.height
-                        if horizontal == nil {
-                            guard abs(dx) > 10 || abs(dy) > 10 else { return }
-                            horizontal = abs(dx) > abs(dy) * 1.2
-                        }
-                        guard horizontal == true else { return }
-                        // no tab that way: the posts give a little and stop
-                        model.offset = neighbor(dx < 0 ? 1 : -1) == nil ? dx / 4 : dx
-                    }
-                    .onEnded { value in
-                        defer { horizontal = nil }
-                        guard horizontal == true else { return }
-                        let dx = value.translation.width
-                        let flung = value.predictedEndTranslation.width
-                        let step = dx < 0 ? 1 : -1
-                        guard let next = neighbor(step),
-                              abs(dx) > width * 0.25 || abs(flung) > width * 0.6 else {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { model.offset = 0 }
-                            return
-                        }
-                        Haptics.impact(.light)
-                        // slide this tab off toward the finger's side, then the next one in
-                        withAnimation(.easeIn(duration: 0.14)) { model.offset = step > 0 ? -width : width }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
-                            shown = next
-                            var swap = Transaction()
-                            swap.disablesAnimations = true
-                            withTransaction(swap) { selection = next }
-                            slideIn(fromTrailing: step > 0)
-                        }
-                    }
-            )
-    }
-
-    private func neighbor(_ step: Int) -> KaPostsView.ProfileFeedTab? {
-        guard let index = tabs.firstIndex(of: selection), tabs.indices.contains(index + step) else { return nil }
-        return tabs[index + step]
-    }
-
-    /// Puts the new tab's posts just off one side, then slides them to rest.
-    private func slideIn(fromTrailing: Bool) {
-        var place = Transaction()
-        place.disablesAnimations = true
-        withTransaction(place) { model.offset = fromTrailing ? width : -width }
-        DispatchQueue.main.async {
-            withAnimation(.easeOut(duration: 0.22)) { model.offset = 0 }
-        }
-    }
-}
-

@@ -1,5 +1,58 @@
 import SwiftUI
 import UIKit
+import Combine
+
+/// Moves whenever a name a group row or bubble shows could read differently: a contact renamed
+/// (the contacts list), an Address Book name, or Settings' Show .kachat Endings. The group memos
+/// (`GroupChatRow.previewText`, `GroupMessageBubbleRow.displayContent`) put it in their keys
+/// beside `identityRevision`, so a rename shows at once instead of when the row's text changes
+/// (audit 2026-11-24 #10).
+@MainActor
+final class GroupDisplayNamesRevision {
+    static let shared = GroupDisplayNamesRevision()
+
+    private(set) var value = 0
+    private var showsEnding = KachatNameLabel.showsEnding
+    private var cancellables: Set<AnyCancellable> = []
+
+    private init() {
+        ContactsManager.shared.$contacts
+            .dropFirst()
+            .sink { [weak self] _ in self?.value &+= 1 }
+            .store(in: &cancellables)
+        AddressBookManager.shared.$entries
+            .dropFirst()
+            .sink { [weak self] _ in self?.value &+= 1 }
+            .store(in: &cancellables)
+        // Any UserDefaults write posts this; only a flip of Show .kachat Endings counts.
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                let now = KachatNameLabel.showsEnding
+                guard now != self.showsEnding else { return }
+                self.showsEnding = now
+                self.value &+= 1
+            }
+            .store(in: &cancellables)
+    }
+}
+
+/// A memo key's stamp of the text itself: an edit keeps the message id, and often its length
+/// ("teh" -> "the"), so the id and byte count alone kept the old text (audit 2026-11-24 #10).
+/// Text up to 16 KB (every editable message) is hashed whole. Past that it's a photo or voice
+/// part, which can't be edited, and hashing tens of KB on every draw is what the memo is for
+/// avoiding, so its ends stand in for it.
+func groupMemoContentStamp(_ text: String) -> String {
+    let count = text.utf8.count
+    guard count > 16_384 else { return "\(count):\(text.hashValue)" }
+    let utf8 = text.utf8
+    var hasher = Hasher()
+    hasher.combine(count)
+    for byte in utf8.prefix(256) { hasher.combine(byte) }
+    for byte in utf8.suffix(256) { hasher.combine(byte) }
+    return "\(count):\(hasher.finalize())"
+}
 
 /// `.navigationDestination(item:)` (iOS 17+), for the same race-free pop as
 /// `ChatDetailNavigationDestination` in ChatListView.swift; iOS 16 falls back to `isPresented:`.
@@ -44,6 +97,24 @@ struct GroupChatRow: View {
         groupChatService.groupMessages[group.id]?.last
     }
 
+    /// The last message's preview line, worked out once per message: for a photo or voice part
+    /// the content is a JSON envelope of tens of KB that `previewText` used to decode on every
+    /// draw of the row while the list scrolled. Names that land later move `identityRevision`.
+    private static let previewMemo: NSCache<NSString, NSString> = {
+        let cache = NSCache<NSString, NSString>()
+        cache.countLimit = 500
+        return cache
+    }()
+
+    private func previewText(for message: GroupMessage) -> String {
+        let key = "\(group.id)|\(message.id.uuidString)|\(groupMemoContentStamp(message.content))|\(group.members.count)|\(KachatNamesRegistry.shared.identityRevision)|\(GroupDisplayNamesRevision.shared.value)" as NSString
+        if let cached = Self.previewMemo.object(forKey: key) { return cached as String }
+        let text = GroupMentionCodec.decodeForDisplay(LinkSafePreview.apply(to: MessageReplyCodec.previewText(for: message.content)),
+                                                      members: group.members, resolveDisplayName: resolveDisplayName(for:))
+        Self.previewMemo.setObject(text as NSString, forKey: key)
+        return text
+    }
+
     /// Group mirror of ConversationRow.reactionPreviewText: a reaction newer than the last
     /// message becomes the row's preview ("Alice reacted to a message") - reactions never
     /// become messages (they render as a corner pill), so without this the row would keep
@@ -74,11 +145,12 @@ struct GroupChatRow: View {
             let lastMs = max(Int64(lastMessage.blockTime), Int64(lastMessage.timestamp.timeIntervalSince1970 * 1000))
             if lastMs + 1000 >= Int64(newest.snapshot.blockTime) { return nil }
         }
+        // Shown as Text(String), which skips the lookup: localized here (audit 2026-11-24 #33).
         if newest.snapshot.reactorAddress == walletManager.currentWallet?.publicAddress {
-            return newest.targetIsMine ? "You reacted to your message" : "You reacted to a message"
+            return AppLocalization.string(newest.targetIsMine ? "You reacted to your message" : "You reacted to a message")
         }
         let name = resolveDisplayName(for: newest.snapshot.reactorAddress)
-        return newest.targetIsMine ? "\(name) reacted to your message" : "\(name) reacted to a message"
+        return String(format: AppLocalization.string(newest.targetIsMine ? "%@ reacted to your message" : "%@ reacted to a message"), name)
     }
 
     /// Same resolution as `GroupChatDetailView.displayName(for:)`.
@@ -121,7 +193,7 @@ struct GroupChatRow: View {
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     } else if let lastMessage {
-                        Text(GroupMentionCodec.decodeForDisplay(LinkSafePreview.apply(to: MessageReplyCodec.previewText(for: lastMessage.content)), members: group.members, resolveDisplayName: resolveDisplayName(for:)))
+                        Text(previewText(for: lastMessage))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -190,7 +262,8 @@ struct GroupAvatar: View {
     /// through `ImageDownsampler` at `maxPixelSize`, never at full size: a few KB can declare a
     /// gigabyte of pixels. Shared with the group's title chip and info header.
     static func decodedGroupPhoto(groupId: String, hex: String, maxPixelSize: Int) -> UIImage? {
-        let cacheKey = "\(groupId)|\(maxPixelSize)|\(hex.count)|\(hex.suffix(256).hashValue)" as NSString
+        // utf8.count, not count: a character count walks the whole photo's hex on every draw
+        let cacheKey = "\(groupId)|\(maxPixelSize)|\(hex.utf8.count)|\(hex.suffix(256).hashValue)" as NSString
         if let cached = groupPhotoCache.object(forKey: cacheKey) {
             return cached
         }

@@ -16,7 +16,6 @@ struct PublicChatChannelView: View {
     private var chatService: ChatService { ChatService.shared }
     @EnvironmentObject var walletManager: WalletManager
     @EnvironmentObject var settingsViewModel: SettingsViewModel
-    @ObservedObject private var knsService = KNSService.shared
     // A sender's `.kachat` name landing turns on their link previews
     // (`PublicChatMessageRow.senderHasKachatName`) through `contactsManager`: the registry sends
     // ContactsManager's objectWillChange whenever an identity changes. Observing the registry
@@ -196,15 +195,6 @@ struct PublicChatChannelView: View {
                 await publicChatService.pruneNowAndRefresh(forChannel: channelName)
             }
         }
-        .task(id: myAddress) {
-            // Your own avatar always resolves regardless of the auto-avatar-search toggle (that
-            // toggle only gates *other* senders, for privacy) - fetched once at the room level
-            // rather than per-row, since a per-row `.task` can get cancelled/restarted as its
-            // bubble scrolls in and out of the lazy message list's visible viewport.
-            guard let myAddress,
-                  knsService.profileCache[myAddress] == nil else { return }
-            _ = await knsService.fetchProfile(for: myAddress)
-        }
         .onChange(of: recorder.state) { state in
             switch state {
             case .failed(let message):
@@ -237,7 +227,7 @@ struct PublicChatChannelView: View {
                     .map { ReactionsSheet.Entry(emoji: $0.emoji, reactorAddress: $0.reactorAddress) },
                 myAddress: myAddress ?? "",
                 displayName: { displayName(for: $0) },
-                avatarURL: { knsService.profileCache[$0]?.avatarURL }
+                avatarURL: { _ in nil }
             )
         }
         .alert("Adjust Network Fee", isPresented: $showFeeEditor) {
@@ -317,8 +307,6 @@ struct PublicChatChannelView: View {
                     Image(systemName: roomNotifyEnabled ? "bell.fill" : "bell.slash")
                 }
                 .accessibilityLabel(roomNotifyEnabled ? "Notifications on" : "Notifications off")
-                // Far right, like every KaPosts screen: the leading side belongs to Back.
-                ConnectionStatusIndicator()
             }
         }
         .sheet(isPresented: $showNotifySheet) {
@@ -773,7 +761,7 @@ struct PublicChatChannelView: View {
         PublicChatMessageRow(
             message: shownMessage,
             isOwnMessage: message.senderAddress == myAddress,
-            avatarURLString: knsService.profileCache[message.senderAddress]?.avatarURL,
+            avatarURLString: nil,
             displayName: displayName(for: message.senderAddress),
             senderHasKachatName: KachatLive.identityName(message.senderAddress) != nil,
             replyQuote: messageReplyQuote,
@@ -845,13 +833,6 @@ struct PublicChatChannelView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(highlightedMessageID == message.id ? Color.accentColor.opacity(0.18) : Color.clear)
         )
-        .task(id: message.senderAddress) {
-            // Own address is always fetched by the room-level `.task`
-            // above; this opts *other* senders in.
-            guard message.senderAddress != myAddress,
-                  knsService.profileCache[message.senderAddress] == nil else { return }
-            _ = await knsService.fetchProfile(for: message.senderAddress)
-        }
     }
 
     private var emptyState: some View {
@@ -895,7 +876,7 @@ struct PublicChatChannelView: View {
                                 if abs(height - composerHeight) > 0.5 { composerHeight = height }
                             },
                             onSubmit: { send() },
-                            placeholder: "Message #\(channelName)",
+                            placeholder: String(format: AppLocalization.string("Message #%@"), channelName),
                             insertionRequest: emojiInsertionRequest,
                             onInsertionHandled: { requestID in
                                 if emojiInsertionRequest?.id == requestID {
@@ -971,8 +952,8 @@ struct PublicChatChannelView: View {
                     Image(systemName: "mic.fill")
                         .font(.title3)
                         .foregroundColor(.accentColor)
-                        .frame(width: 36, height: 36)
-                        .background(glassBackground(cornerRadius: 12))
+                        .frame(width: 44, height: 44)
+                        .background(glassBackground(cornerRadius: 14))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("Record voice message"))
@@ -980,11 +961,12 @@ struct PublicChatChannelView: View {
                 Button {
                     send()
                 } label: {
+                    // the same send button as a 1:1 chat's (`ChatDetailView.sendButton`)
                     Image(systemName: "arrow.up.circle.fill")
-                        .font(.title3)
+                        .font(.title)
                         .foregroundColor(isSending ? .secondary : .accentColor)
-                        .frame(width: 36, height: 36)
-                        .background(glassBackground(cornerRadius: 12))
+                        .frame(width: 44, height: 44)
+                        .background(glassBackground(cornerRadius: 14))
                 }
                 .buttonStyle(.plain)
                 .disabled(isSending)
@@ -1128,10 +1110,10 @@ struct PublicChatChannelView: View {
                 stopAndSendRecording()
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
-                    .font(.title3)
+                    .font(.title)
                     .foregroundColor(recorder.state == .encoding ? .secondary : .accentColor)
-                    .frame(width: 36, height: 36)
-                    .background(glassBackground(cornerRadius: 12))
+                    .frame(width: 44, height: 44)
+                    .background(glassBackground(cornerRadius: 14))
             }
             .buttonStyle(.plain)
             .disabled(recorder.state == .encoding)
@@ -1387,7 +1369,8 @@ struct PublicChatChannelView: View {
                     reportMessage(target.message)
                 }
                 ActionSheetRow(
-                    title: "Block \(displayName(for: address))",
+                    // A built String isn't a key: formatted from one (audit 2026-11-24 #38).
+                    title: String(format: AppLocalization.string("Block %@"), displayName(for: address)),
                     subtitle: "Hides their posts and room messages, and stops them interacting with you.",
                     systemImage: "hand.raised",
                     tint: .red

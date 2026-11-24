@@ -958,6 +958,9 @@ final class PortfolioViewModel: ObservableObject {
         return Set(transactions.filter { $0.sourceTxId == sourceTxId }.map(\.portfolioId))
     }
 
+    /// The key a ChangeNOW swap is recorded under.
+    static func swapSourceTxId(_ swapId: String) -> String { "changenow:\(swapId)" }
+
     /// `sourceAddress`/`sourceTxId` are set when the row came from a real on-chain transaction
     /// (see `AddToPortfolioSheet`), so a later add of the same transaction can be recognised
     /// instead of silently double-counting it.

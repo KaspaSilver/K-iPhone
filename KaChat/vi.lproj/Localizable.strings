@@ -1,7 +1,5 @@
 "#" = "#";
 "%@ copied to clipboard." = "%@ đã sao chép vào bảng nhớ tạm.";
-"%@ transferred to %@." = "%@ đã chuyển sang %@.";
-"%@ updated." = "%@ đã cập nhật.";
 "1 year" = "1 năm";
 "12 words" = "12 từ";
 "30 days" = "30 ngày";
@@ -21,7 +19,6 @@
 "Admin" = "Quản trị viên";
 "All Nodes" = "Tất cả nút";
 "Anyone with your 12 or 24 words can access your account. Never share them with anyone." = "Bất kỳ ai có 12 hoặc 24 từ của bạn đều có thể truy cập tài khoản. Đừng bao giờ chia sẻ chúng với ai.";
-"Asset ID" = "ID nội dung";
 "Audio" = "Âm thanh";
 "Auto Search for Nodes" = "Tu dong tim kiem node";
 "Avatar" = "Hình đại diện";
@@ -67,10 +64,6 @@
 "Copy Private Key Hex" = "Sao chép khóa riêng (hex)";
 "Copy 12 or 24 Words" = "Sao chép 12 hoặc 24 từ";
 "Copy Transaction ID" = "Sao chép ID giao dịch";
-"Could not encode selected image" = "Không thể mã hóa hình ảnh đã chọn";
-"Could not initialize image encoder" = "Không thể khởi chạy bộ mã hóa hình ảnh";
-"Could not load selected image" = "Không thể tải hình ảnh đã chọn";
-"Could not process selected image" = "Không thể xử lý hình ảnh đã chọn";
 "Couldn't Rename Group" = "Không thể đổi tên nhóm";
 "Country" = "Quốc gia";
 "Create New Account" = "Tạo tài khoản mới";
@@ -91,7 +84,6 @@
 "Domain" = "Lãnh địa";
 "Domains" = "Tên miền";
 "Done" = "Xong";
-"Edit KNS Profile" = "Chỉnh sửa hồ sơ KNS";
 "Emoji picker" = "Bộ chọn emoji";
 "Encoding…" = "Đang mã hóa…";
 "Enter a new name for this saved account." = "Nhập tên mới cho tài khoản đã lưu này.";
@@ -124,13 +116,6 @@
 "Indexer URL" = "URL bộ lập chỉ mục";
 "Info" = "Thông tin";
 "KAS" = "KAS";
-"KNS Domains" = "Tên miền KNS";
-"KNS Profile" = "KNS Hồ sơ";
-"KNS asset id is missing." = "KNS id nội dung bị thiếu.";
-"KNS domain id is missing." = "KNS id tên miền bị thiếu.";
-"KNS profile update failed." = "KNS cập nhật hồ sơ không thành công.";
-"KNS profile update failed: %@" = "KNS cập nhật hồ sơ không thành công: %@";
-"KNS profile updated." = "KNS đã cập nhật hồ sơ.";
 "KaChat" = "KaChat";
 "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network." = "K cho phep ban gui va nhan tin nhan truc tiep tren mang luoi Kaspa. Can co Kaspa de tra phi khi gui tin nhan cua ban. Phi ban tra se den tay cac thợ dao bao mat mang luoi.";
 "K needs to connect to a node. How would you like to connect?" = "K cần kết nối với một nút. Bạn muốn kết nối như thế nào?";
@@ -153,7 +138,6 @@
 "Members" = "Thành viên";
 "Message" = "Tin nhắn";
 "Message retention" = "Lưu giữ tin nhắn";
-"More Info" = "Thêm thông tin";
 "More options" = "Thêm tùy chọn";
 "Most taxing on the device, not as reliable - depends on where you live" = "Ton hao thiet bi nhieu nhat, khong dang tin cay bang - tuy thuoc vao noi ban song";
 "Name" = "Tên";
@@ -161,11 +145,9 @@
 "New message" = "Tin nhắn mới";
 "Next" = "Tiếp theo";
 "No Conversations Yet" = "Chưa có cuộc trò chuyện nào";
-"No KNS profile changes detected." = "Không phát hiện thấy thay đổi hồ sơ KNS nào.";
 "No Sound" = "Không có âm thanh";
 "No Spending Addresses" = "Không có địa chỉ chi tiêu";
 "No active nodes" = "Không có nút đang hoạt động";
-"No domains yet." = "Chưa có tên miền nào.";
 "No emoji found" = "Không tìm thấy emoji.";
 "No hidden users in this group." = "Không có người dùng ẩn trong nhóm này.";
 "No messages yet" = "Chưa có tin nhắn";
@@ -175,12 +157,10 @@
 "No transactions yet." = "Chưa có giao dịch nào.";
 "Node endpoint copied." = "Đã sao chép điểm cuối nút.";
 "Not Now" = "Không phải bây giờ";
-"Not registered" = "Chưa đăng ký";
 "Notifications" = "Thông báo";
 "Notifications Disabled" = "Thông báo đã tắt";
 "OK" = "OK";
 "Off" = "Tắt";
-"On-chain profile data available." = "Dữ liệu hồ sơ trên chuỗi có sẵn.";
 "Open Chat" = "Mở trò chuyện";
 "Open Link" = "Mở liên kết";
 "Open Settings" = "Mở Cài đặt";
@@ -196,13 +176,9 @@
 "Point camera at a QR code" = "Hướng camera vào mã QR";
 "Pool Health" = "Sức khỏe nhóm";
 "Pool Status" = "Trạng thái nhóm";
-"Preparing profile update..." = "Đang chuẩn bị cập nhật hồ sơ...";
 "Primary" = "Chính";
-"Primary domain set to %@." = "Tên miền chính được đặt thành %@.";
 "Private key hex copied. Clipboard will clear in 30s." = "Đã sao chép khóa riêng hex. Bộ nhớ tạm sẽ xóa sau 30 giây.";
 "Private key unavailable." = "Khóa riêng không khả dụng.";
-"Processing avatar..." = "Đang xử lý hình đại diện...";
-"Processing banner..." = "Đang xử lý biểu ngữ...";
 "Profile" = "Hồ sơ";
 "Profiled" = "Đã kiểm tra";
 "Promote pawn to:" = "Phong cấp tốt thành:";
@@ -219,15 +195,12 @@
 "Received %@ domain" = "Đã nhận tên miền %@";
 "Received domain transfer" = "Đã nhận chuyển tên miền";
 "Received payment" = "Đã nhận thanh toán";
-"Recipient Address" = "Địa chỉ người nhận";
 "Recommended" = "Duoc de xuat";
 "Reconnect" = "Kết nối lại";
 "Redirect URL" = "URL chuyển hướng";
 "Refresh Pool" = "Làm mới nhóm";
 "Remote push" = "Đẩy từ xa";
 "Remove" = "Xóa";
-"Remove Avatar" = "Xóa hình đại diện";
-"Remove Banner" = "Xóa biểu ngữ";
 "Rename" = "Đổi tên";
 "Rename Account" = "Đổi tên tài khoản";
 "Rename Address" = "Đổi tên địa chỉ";
@@ -236,8 +209,6 @@
 "Request to communicate" = "Yêu cầu liên lạc";
 "Resign" = "Đầu hàng";
 "Retry Send" = "Gửi lại";
-"Retry failed: %@" = "Thử lại không thành công: %@";
-"Retrying %@..." = "Đang thử lại %@...";
 "Save" = "Lưu";
 "Save Audio" = "Lưu âm thanh";
 "Saved Accounts" = "Tài khoản đã lưu";
@@ -252,7 +223,6 @@
 "Select a chat" = "Chọn một cuộc trò chuyện";
 "Select the currency you'd like prices displayed in." = "Chon loai tien te ban muon hien thi gia.";
 "Select the language you'd like to use in K." = "Chon ngon ngu ban muon su dung trong K.";
-"Selected data is not a valid image" = "Dữ liệu đã chọn không phải là hình ảnh hợp lệ";
 "Send" = "Gửi";
 "Send Handshake" = "Gửi yêu cầu liên lạc";
 "Send KAS" = "Gửi KAS";
@@ -264,7 +234,6 @@
 "Sent %@ KAS — %@" = "Đã gửi %@ KAS — %@";
 "Sent %@ domain" = "Đã gửi tên miền %@";
 "Sent domain transfer" = "Đã gửi chuyển tên miền";
-"Set primary failed: %@" = "Đặt chính không thành công: %@";
 "Settings" = "Cài đặt";
 "Show More" = "Hiện thêm";
 "Show QR Code" = "Hiện mã QR";
@@ -286,14 +255,8 @@
 "To receive notifications, please enable them in Settings." = "Để nhận thông báo, vui lòng bật trong Cài đặt.";
 "Total" = "Tổng";
 "Total Balance" = "Tổng số dư";
-"Transfer submitted for %@." = "Đã gửi chuyển khoản với giá %@.";
 "Try Again" = "Thử lại";
 "Unhide" = "Bỏ ẩn";
-"Updated %d/%d. Failed: %@." = "Đã cập nhật %d/%d. Thất bại: %@.";
-"Updated %d/%d. Failed: %@. %@" = "Đã cập nhật %d/%d. Thất bại: %@. %@";
-"Updating %@ (%d/%d)..." = "Đang cập nhật %@ (%d/%d)...";
-"Uploading avatar..." = "Đang tải hình đại diện lên...";
-"Uploading banner..." = "Đang tải biểu ngữ lên...";
 "Use Default" = "Dùng mặc định";
 "Verified" = "Đã xác minh";
 "Version" = "Phiên bản";
@@ -303,7 +266,6 @@
 "View 12 or 24 Words" = "Xem 12 hoặc 24 từ";
 "View in Explorer" = "Xem trong trình khám phá";
 "Voice message" = "Tin nhắn thoại";
-"Wallet not available." = "Ví không có sẵn.";
 "Website" = "Trang web";
 "Welcome Guide" = "Hướng dẫn chào mừng";
 "Welcome to K" = "Chao mung ban den voi K";
@@ -320,23 +282,15 @@
 "Share" = "Chia sẻ";
 
 /* 5.2: name services, .kachat, Connection Settings, testnet */
-"Kaspa Address or Domain" = "Địa chỉ Kaspa hoặc tên miền";
 "Looking up domain..." = "Đang tìm tên miền...";
-"No %@ domain found" = "Không tìm thấy tên miền %@";
 "No domain" = "Không có tên miền";
-"Other domains" = "Tên miền khác";
 "Couldn't check" = "Không thể kiểm tra";
 "Edit KaChat Profile" = "Sửa hồ sơ KaChat";
 "None yet" = "Chưa có";
 ".kachat Name" = "Tên .kachat";
-"Customize Profile" = "Tùy chỉnh hồ sơ";
-"No %@ names yet." = "Chưa có tên %@.";
-"Couldn't reach %@. Pull down to try again." = "Không thể kết nối %@. Kéo xuống để thử lại.";
-"Settling" = "Đang xác nhận";
 "Node" = "Node";
 "Message Indexer" = "Trình lập chỉ mục tin nhắn";
 "Coming soon" = "Sắp ra mắt";
-"Not available on this network" = "Không khả dụng trên mạng này";
 "Testnet" = "Testnet";
 "Close K completely and open it again to finish switching to Testnet." = "Đóng hẳn K rồi mở lại để hoàn tất chuyển sang Testnet.";
 "Close K completely and open it again to finish switching back to Mainnet." = "Đóng hẳn K rồi mở lại để hoàn tất quay về Mainnet.";
@@ -380,7 +334,6 @@
 /* Receive / chatting address QR text */
 
 /* 5.2: name discovery across services */
-".k and .kaspa Names (%lld)" = "Tên .k và .kaspa (%lld)";
 
 /* 5.2: Message Requests, Private chats */
 "Message Requests" = "Yêu cầu nhắn tin";
@@ -472,7 +425,6 @@
 "Message someone by their address or name." = "Nhắn tin cho ai đó bằng địa chỉ hoặc tên.";
 "Pinned to the front" = "Đã ghim lên đầu";
 "Unpinned" = "Đã bỏ ghim";
-"Coin Control" = "Kiểm soát coin";
 "Automatic" = "Tự động";
 "Consolidating This Address" = "Đang gộp địa chỉ này";
 "Valid address" = "Địa chỉ hợp lệ";
@@ -640,19 +592,9 @@
 /* .kachat registry v5 migration */
 
 /* .kachat first: domains in every address field, Other domains, expired-name banner */
-"kaspa:qr... or domain" = "kaspa:qr... hoặc tên miền";
-"Enter a Kaspa address (kaspa:...) or a domain (e.g. alice.kachat). .kachat names are looked up first." = "Nhập địa chỉ Kaspa (kaspa:...) hoặc tên miền (vd. alice.kachat). Tên .kachat được tra trước.";
-"Finds addresses holding a balance or a domain." = "Tìm các địa chỉ có số dư hoặc tên miền.";
 "Their profile, .kachat name and address." = "Hồ sơ, tên .kachat và địa chỉ của họ.";
 "KaChat Names Indexer URL" = "URL trình lập chỉ mục tên KaChat";
-"Other Domains" = "Tên miền khác";
-"If these words already hold your identity at a different address - a domain (.kachat, .kas, .k or .kaspa) or a funded chatting balance - pick it here. Only addresses with a balance or domains are shown." = "Nếu các từ này đã giữ danh tính của bạn ở một địa chỉ khác (tên miền .kachat, .kas, .k hoặc .kaspa, hoặc số dư trò chuyện), hãy chọn ở đây. Chỉ hiện các địa chỉ có số dư hoặc tên miền.";
 ".kachat Names (%lld)" = "Tên .kachat (%lld)";
-".kas Names (%lld)" = "Tên .kas (%lld)";
-"Enter a Kaspa address (kaspa:...) or a domain. .kachat names are looked up first." = "Nhập địa chỉ Kaspa (kaspa:...) hoặc tên miền. Tên .kachat được tra trước.";
-"Search contacts, or an address or domain" = "Tìm liên hệ, địa chỉ hoặc tên miền";
-"You have no contacts yet. Paste an address or a domain above to invite someone." = "Bạn chưa có liên hệ nào. Dán địa chỉ hoặc tên miền ở trên để mời ai đó.";
-"No contacts match your search. Paste an address or a domain to invite someone new." = "Không có liên hệ phù hợp. Dán địa chỉ hoặc tên miền để mời người mới.";
 
 /* Bare names resolve to .kachat only */
 ".kachat names aren't live on this network yet" = "Tên .kachat chưa hoạt động trên mạng này";
@@ -661,7 +603,6 @@
 "Grace ends %@" = "Hết ân hạn %@";
 "Expires %@" = "Hết hạn %@";
 "Expired" = "Đã hết hạn";
-"No .kachat names yet" = "Chưa có tên .kachat";
 
 /* .kachat on mainnet */
 "The .kachat registry is being upgraded. Names open here again once the new registry is live." = "Sổ đăng ký .kachat đang được nâng cấp. Tên sẽ mở lại ở đây khi sổ đăng ký mới hoạt động.";
@@ -774,9 +715,7 @@
 /* Chat payment From a spending address while the chatting address is empty (%@ = contact name) */
 "Your chatting address has no KAS to tell %@ about this payment, so they see it as a payment from an unknown address, without the memo. K tells them once your chatting address has some KAS." = "Địa chỉ trò chuyện của bạn không có KAS để báo cho %@ về khoản thanh toán này, nên họ sẽ thấy đây là khoản thanh toán từ một địa chỉ lạ, không có ghi chú. K sẽ báo cho họ khi địa chỉ trò chuyện của bạn có KAS.";
 
-/* Customize Dock (Brave-style list): the two dock picks above the card, Kaspa Hub below (%@ = Kaspa Hub) */
 
-/* Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) */
 
 /* KaPosts: tip counter / tippers list, and the bell for a person's new posts (%@ = name) */
 
@@ -799,8 +738,6 @@
 "Profile cleared" = "Đã xóa hồ sơ";
 
 /* KNS domain transfers and quantum-safe (script) addresses */
-"KNS can't move a domain out of a quantum-safe address: KNS identifies a domain's owner by a public key, and a quantum-safe address keeps its key hidden." = "KNS không thể chuyển tên miền ra khỏi địa chỉ an toàn lượng tử: KNS nhận diện chủ tên miền bằng khóa công khai, còn địa chỉ an toàn lượng tử giữ kín khóa của nó.";
-"A .kas domain can't be sent to a quantum-safe or other script address: KNS could never move it out again. Send it to a regular address instead." = "Không thể gửi tên miền .kas đến địa chỉ an toàn lượng tử hoặc địa chỉ script khác: KNS sẽ không bao giờ chuyển nó ra được nữa. Hãy gửi đến một địa chỉ thông thường.";
 
 /* Quantum-safe send: the next change address could not be prepared */
 "Couldn't prepare the next address. Try again." = "Không thể chuẩn bị địa chỉ tiếp theo. Hãy thử lại.";
@@ -880,7 +817,6 @@
 "Removed from Contacts." = "Đã xóa khỏi Danh bạ.";
 "Remove Contact Photos" = "Xóa ảnh danh bạ";
 "Remove Contact Photos?" = "Xóa ảnh danh bạ?";
-"Pick people from your contacts, or add anyone by Kaspa address or domain." = "Chọn người từ danh bạ, hoặc thêm bất kỳ ai bằng địa chỉ Kaspa hay tên miền.";
 "No members added yet. Add people from your contacts or by address below." = "Chưa có thành viên. Thêm người từ danh bạ hoặc bằng địa chỉ bên dưới.";
 "Add contacts from a contacts export." = "Thêm liên hệ từ một tệp xuất danh bạ.";
 "Save your contacts, with their photos, to a file." = "Lưu danh bạ của bạn, kèm ảnh, vào một tệp.";
@@ -895,14 +831,12 @@
 "Delete %@ from your contacts?" = "Xóa %@ khỏi danh bạ?";
 "Save the Kaspa addresses you use with a name you'll recognize. They stay in K, for this wallet only, and never go into your phone's Contacts app." = "Lưu các địa chỉ Kaspa bạn dùng với tên dễ nhận ra. Chúng ở lại trong K, chỉ cho ví này, và không bao giờ vào ứng dụng Danh bạ của điện thoại.";
 "Saved in K for this wallet only. Never added to your phone's Contacts app." = "Lưu trong K chỉ cho ví này. Không bao giờ thêm vào ứng dụng Danh bạ của điện thoại.";
-"Use for chatting and acquiring .kachat domains." = "Dùng để trò chuyện và nhận tên miền .kachat.";
 "Think of it like your phone number on K." = "Hãy xem nó như số điện thoại của bạn trên K.";
 "How People Reach You" = "Cách mọi người liên hệ với bạn";
 "Share this address and people can message you. Only you can read what they send." = "Chia sẻ địa chỉ này để mọi người có thể nhắn tin cho bạn. Chỉ bạn mới đọc được nội dung họ gửi.";
 "Paying for Messages" = "Trả phí tin nhắn";
 "Each message you send takes a tiny amount of Kaspa from this address. 1 Kaspa covers about 500 messages." = "Mỗi tin nhắn bạn gửi dùng một lượng Kaspa rất nhỏ từ địa chỉ này. 1 Kaspa đủ cho khoảng 500 tin nhắn.";
 "What Others Can See" = "Người khác có thể thấy gì";
-"Anyone can see this address and its balance on the Kaspa network, but they can't read your messages. Use it only for chatting and .kachat domains." = "Ai cũng có thể thấy địa chỉ này và số dư của nó trên mạng Kaspa, nhưng không thể đọc tin nhắn của bạn. Chỉ dùng nó để trò chuyện và cho tên miền .kachat.";
 "Say anything to the bot to get started." = "Hãy nói bất cứ điều gì với bot để bắt đầu.";
 "Requested for payment" = "Đã yêu cầu thanh toán";
 "Delete Chat?" = "Xóa cuộc trò chuyện?";
@@ -994,16 +928,13 @@
 "Scan Card" = "Quét thẻ";
 "Restore Account" = "Khôi phục tài khoản";
 "Share this profile" = "Chia sẻ hồ sơ này";
-"No on-chain profile data yet." = "Chưa có dữ liệu hồ sơ on-chain.";
 "Edit name" = "Sửa tên";
-"Redirect" = "Chuyển hướng";
 "Aliases" = "Bí danh";
 "Receiving alias" = "Bí danh nhận";
 "Sending alias" = "Bí danh gửi";
 "Default (%@)" = "Mặc định (%@)";
 "Chess Stats" = "Thống kê cờ vua";
 "%lld day%@ ago" = "%lld ngày%@ trước";
-"PRIMARY" = "CHÍNH";
 "React" = "Thả cảm xúc";
 "No emoji match that." = "Không có emoji nào khớp.";
 "%lld member%@" = "%lld thành viên%@";
@@ -1075,7 +1006,6 @@
 "When a spending address receives Kaspa from someone else." = "Khi một địa chỉ chi tiêu nhận Kaspa từ người khác.";
 "Checking address #%lld" = "Đang kiểm tra địa chỉ #%lld";
 "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding." = "Kiểm tra một nghìn địa chỉ đầu tiên dù có khoảng trống, rồi tiếp tục chừng nào còn tìm thấy.";
-"No addresses with a balance or domain yet" = "Chưa có địa chỉ nào có số dư hoặc tên miền";
 "%lld found so far" = "Đã tìm thấy %lld cho đến nay";
 "Close and Keep Scanning" = "Đóng và tiếp tục quét";
 "Contains domain" = "Chứa tên miền";
@@ -1102,16 +1032,8 @@
 "Setting up your account" = "Đang thiết lập tài khoản của bạn";
 "Downloading everything this account has on chain. It only takes this long once." = "Đang tải xuống mọi thứ tài khoản này có trên chuỗi. Chỉ mất thời gian lâu như vậy một lần.";
 "Continue anyway" = "Vẫn tiếp tục";
-"Your Domains" = "Tên miền của bạn";
 "Preparing a fresh address" = "Đang chuẩn bị địa chỉ mới";
 "Share Profile" = "Chia sẻ hồ sơ";
-"Confirm Changes" = "Xác nhận thay đổi";
-"%lld change%@. Each is submitted as its own on-chain transaction from your chatting address:" = "%lld thay đổi%@. Mỗi thay đổi được gửi thành một giao dịch on-chain riêng từ địa chỉ trò chuyện của bạn:";
-"Primary Domain" = "Tên miền chính";
-"Send Domain" = "Gửi tên miền";
-"If the network is busy, Fast or Priority pays a higher fee to help your transfer confirm sooner. Tap the fee amount to set a custom fee." = "Nếu mạng bận, Nhanh hoặc Ưu tiên trả phí cao hơn để giao dịch của bạn được xác nhận sớm hơn. Chạm vào số phí để đặt phí tùy chỉnh.";
-"Sending %@" = "Đang gửi %@";
-"A domain transfer is two transactions, so this takes a moment. Keep the app open until it finishes." = "Chuyển tên miền gồm hai giao dịch nên sẽ mất một lúc. Hãy giữ ứng dụng mở cho đến khi hoàn tất.";
 "Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs." = "Gộp tất cả UTXO tại địa chỉ này thành một, để giảm số đầu vào mà lần gửi sau cần.";
 "Public Key" = "Khóa công khai";
 "This address does not carry a public key." = "Địa chỉ này không có khóa công khai.";
@@ -1278,7 +1200,6 @@
 "Enter the card's PIN, then tap the card to erase the backup on it." = "Nhập PIN của thẻ, rồi chạm thẻ để xóa bản sao lưu trên đó.";
 "Create group" = "Tạo nhóm";
 "Create" = "Tạo";
-"Create \"%@\" and invite %lld member%@?%@" = "Tạo \"%@\" và mời %lld thành viên%@?%@";
 "Add\nPhoto" = "Thêm\nẢnh";
 "Add to Group" = "Thêm vào nhóm";
 "Remove from group" = "Xóa khỏi nhóm";
@@ -1319,7 +1240,6 @@
 "Contact Backup" = "Sao lưu danh bạ";
 "Contacts backed up." = "Đã sao lưu danh bạ.";
 "Only your contacts are backed up here, encrypted. Your messages and group chats come back with your seed phrase." = "Tại đây chỉ sao lưu danh bạ của bạn, được mã hóa. Tin nhắn và cuộc trò chuyện nhóm của bạn sẽ trở lại nhờ cụm từ khôi phục.";
-"Confirm sending this domain" = "Xác nhận gửi tên miền này";
 "Not confirmed" = "Chưa xác nhận";
 "This may have gone through, but the network didn't confirm it. Check your balance before sending again." = "Giao dịch có thể đã được gửi, nhưng mạng chưa xác nhận. Hãy kiểm tra số dư trước khi gửi lại.";
 "Swipe up, then let go to send." = "Vuốt lên rồi thả để gửi.";
@@ -1464,9 +1384,6 @@
 "Set a passcode on this iPhone (Settings > Face ID & Passcode) to delete an account or view secret keys in K." = "Hãy đặt mật mã trên iPhone này (Cài đặt > Face ID & Mật mã) để xóa tài khoản hoặc xem khóa bí mật trong K.";
 "Waiting on opponent" = "Đang chờ đối thủ";
 "Not sent: you switched accounts before this went out." = "Chưa gửi: bạn đã đổi tài khoản trước khi gửi.";
-"The first of two transactions went through, but the second didn't. K will finish it the next time it opens." = "Giao dịch đầu tiên trong hai giao dịch đã thành công, nhưng giao dịch thứ hai thì chưa. K sẽ hoàn tất ở lần mở tiếp theo.";
-"A domain transfer's fee can be at most 1 KAS." = "Phí chuyển tên miền tối đa là 1 KAS.";
-"Confirm setting this primary name" = "Xác nhận đặt tên chính này";
 "This account's keys may still be on this phone, but they can't be read right now, so nothing was changed. Try again in a moment." = "Khóa của tài khoản này có thể vẫn còn trên điện thoại này, nhưng hiện không đọc được nên chưa có gì thay đổi. Hãy thử lại sau giây lát.";
 "Play It Again" = "Chơi lại";
 "This is the public half of this address. It cannot spend anything." = "Đây là phần công khai của địa chỉ này. Nó không thể chi tiêu gì.";
@@ -1513,7 +1430,6 @@
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "Quét bằng camera iPhone để thanh toán trong K, mọi thứ đã được điền sẵn.";
 "Set as Name" = "Đặt làm tên";
 "Their Name" = "Tên của họ";
-"Get a .kachat name" = "Nhận tên .kachat";
 
 /* GIFs (2026-11-18) */
 "Send an animated GIF from your library." = "Gửi một GIF động từ thư viện của bạn.";
@@ -1591,8 +1507,6 @@
 "No addresses with %@ yet" = "Chưa có địa chỉ nào có %@";
 "Not confirmed: the network didn't answer. It may still go through. Try Again resends the same transaction, so it can't be paid twice." = "Chưa xác nhận: mạng không trả lời. Giao dịch vẫn có thể thành công. Thử lại sẽ gửi đúng giao dịch đó, nên không thể trả hai lần.";
 "Not independently audited yet. Hold only what you can afford to lose." = "Chưa được kiểm toán độc lập. Chỉ giữ số tiền bạn chấp nhận mất.";
-"On %d of your addresses" = "Vào %d địa chỉ của bạn";
-"On your %@" = "Vào %@ của bạn";
 "Only %@ on Kaspa, or KAS, can be sent here." = "Chỉ có thể gửi %@ trên Kaspa, hoặc KAS, đến đây.";
 "Only Kaspa can be sent here." = "Chỉ có thể gửi Kaspa đến đây.";
 "Pending" = "Đang chờ";
@@ -1653,9 +1567,6 @@
 "Not set" = "Chưa đặt";
 
 /* Address Domains tab (2026-11-20) */
-"1 domain" = "1 tên miền";
-"Couldn't load" = "Không thể tải";
-"No %@ names on this address." = "Địa chỉ này không có tên %@.";
 
 /* kUSDT-listed addresses stay in Manage Addresses (2026-11-20) */
 "Shown for kUSDT" = "Hiển thị vì kUSDT";
@@ -1679,19 +1590,7 @@
 "This send changed while the screen was open. Nothing was sent: check it again and swipe." = "Giao dịch gửi này đã thay đổi khi màn hình đang mở. Chưa gửi gì cả: hãy kiểm tra lại và vuốt.";
 "Scanning your addresses for balances…" = "Đang quét số dư trên các địa chỉ của bạn…";
 
-/* Kaspa Hub and Customize Dock (back 2026-11-20) */
 "Kaspa Hub" = "Kaspa Hub";
-"Your Dock" = "Dock của bạn";
-"Your dock is full. Remove one from it to add one of these." = "Dock của bạn đã đầy. Hãy bỏ một mục ra để thêm một trong những mục này.";
-"In the order %@ shows them." = "Theo thứ tự %@ hiển thị.";
-"Always in your dock" = "Luôn có trong dock";
-"Move %@ to %@" = "Chuyển %@ vào %@";
-"Add %@ to your dock" = "Thêm %@ vào dock";
-"Customize Dock" = "Tùy chỉnh Dock";
-"%@ always stays in your dock." = "%@ luôn nằm trong dock của bạn.";
-"Nothing here right now" = "Hiện chưa có gì ở đây";
-"What isn't in your dock shows here. Arrange them in Customize Dock." = "Những gì không có trong dock sẽ hiện ở đây. Sắp xếp trong Tùy chỉnh Dock.";
-"Pick what's in your dock. Everything else is in Kaspa Hub." = "Chọn những gì có trong dock. Mọi thứ khác nằm trong Kaspa Hub.";
 
 /* Portfolio, Cold Storage and .kachat names, from KaPay (2026-11-21) */
 "Add Transaction" = "Thêm giao dịch";
@@ -1739,7 +1638,6 @@
 "Activity" = "Hoạt động";
 "List a Name for Sale" = "Rao bán tên";
 "Listings appear here once .kachat names launch." = "Tin rao sẽ xuất hiện ở đây khi tên .kachat ra mắt.";
-"Claim a Name" = "Nhận một tên";
 "Recent activity" = "Hoạt động gần đây";
 "Activity appears here once .kachat names launch." = "Hoạt động sẽ xuất hiện ở đây khi tên .kachat ra mắt.";
 "How it works" = "Cách hoạt động";
@@ -1773,7 +1671,6 @@
 "Offers open when .kachat names launch." = "Đề nghị sẽ mở khi tên .kachat ra mắt.";
 "Pick a CSV file from your Nextcloud." = "Chọn một tệp CSV từ Nextcloud của bạn.";
 "Save the CSV to the KaChat folder in your Nextcloud." = "Lưu tệp CSV vào thư mục KaChat trên Nextcloud của bạn.";
-"No .kachat names on this address" = "Không có tên .kachat trên địa chỉ này";
 "Names this address claims or buys show here once .kachat names launch." = "Các tên mà địa chỉ này nhận hoặc mua sẽ hiện ở đây khi tên .kachat ra mắt.";
 "Move to Portfolio" = "Chuyển sang danh mục";
 "Create another portfolio first, then you can move transactions into it." = "Hãy tạo thêm một danh mục trước, rồi bạn có thể chuyển giao dịch vào đó.";
@@ -1888,8 +1785,6 @@
 "New period" = "Kỳ mới";
 "Extending adds years to the current paid period, which holds at most 2 years. The price goes to the miners." = "Kéo dài thêm năm vào kỳ đã trả hiện tại, mỗi kỳ tối đa 2 năm. Giá trả cho thợ đào.";
 "The names indexer didn't send this name's paid period. Pull to refresh and try again." = "Bộ chỉ mục tên không gửi kỳ đã trả của tên này. Kéo xuống để làm mới rồi thử lại.";
-"Opens the .kachat tab" = "Mở thẻ .kachat";
-"Names this address owns show here." = "Các tên mà địa chỉ này sở hữu hiển thị ở đây.";
 "Build Unsigned Transaction" = "Tạo giao dịch chưa ký";
 "Copies the address" = "Sao chép địa chỉ";
 "Manage Name" = "Quản lý tên";
@@ -1975,12 +1870,7 @@
 "Names are moving to the new registry. New names can be claimed from %@." = "Các tên đang được chuyển sang sổ đăng ký mới. Bạn có thể nhận tên mới từ %@.";
 "Every name from the old registry comes over with the same owner and expiry first." = "Trước tiên, mọi tên từ sổ đăng ký cũ được chuyển sang với cùng chủ sở hữu và hạn dùng.";
 "Moved to the new registry" = "Đã chuyển sang sổ đăng ký mới";
-"Enter a Kaspa address or a domain like name.kachat (.kachat names are looked up first). Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "Nhập địa chỉ Kaspa hoặc tên miền như name.kachat (tên .kachat được tra trước). Mỗi giao dịch nhận vào địa chỉ này là một lần mua, mỗi giao dịch gửi đi là một lần bán, theo giá KAS lịch sử của ngày đó. Thêm lại cùng địa chỉ sau này chỉ nhập các giao dịch kể từ lần nhập trước.";
-"An address or a domain - .kachat names are looked up first, and it's resolved to the address shown." = "Địa chỉ hoặc tên miền - tên .kachat được tra trước và được chuyển thành địa chỉ hiển thị.";
-"Enter an address or a domain." = "Nhập địa chỉ hoặc tên miền.";
 "That name's address can't own a .kachat name." = "Địa chỉ của tên đó không thể sở hữu tên .kachat.";
-"One of your .kachat domains expired" = "Một tên miền .kachat của bạn đã hết hạn";
-"%lld of your .kachat domains expired" = "%lld tên miền .kachat của bạn đã hết hạn";
 "Renew %@ before its grace period ends on %@ to keep it." = "Gia hạn %@ trước khi thời gian ân hạn kết thúc vào %@ để giữ nó.";
 "Renew them before their grace periods end to keep them." = "Gia hạn chúng trước khi thời gian ân hạn kết thúc để giữ chúng.";
 "Not a Schnorr address on this network." = "Không phải địa chỉ Schnorr trên mạng này.";
@@ -2043,7 +1933,6 @@
 "Transaction Details" = "Chi tiết giao dịch";
 "Add Kaspa Address" = "Thêm địa chỉ Kaspa";
 "Edit Transaction" = "Sửa giao dịch";
-"Looking up..." = "Đang tìm...";
 "%d day" = "%d ngày";
 "%d days" = "%d ngày";
 "Biometrics for 12 or 24 Words" = "Sinh trắc học cho 12 hoặc 24 từ";
@@ -2054,7 +1943,6 @@
 "Unlock to change the private key biometric lock" = "Mở khóa để thay đổi khóa sinh trắc học của khóa riêng";
 "The registry can't be checked right now. Try again in a moment." = "Hiện không thể kiểm tra sổ đăng ký. Hãy thử lại sau giây lát.";
 "Name your own price. Your KAS waits on chain until the seller accepts, you withdraw the offer, or it expires." = "Tự đặt giá của bạn. KAS của bạn chờ trên chuỗi cho đến khi người bán chấp nhận, bạn rút đề nghị hoặc đề nghị hết hạn.";
-"Couldn't load this address's names. Pull down to try again." = "Không thể tải các tên của địa chỉ này. Kéo xuống để thử lại.";
 "Holdings" = "Số lượng nắm giữ";
 "Current Value" = "Giá trị hiện tại";
 "Total Invested" = "Tổng đầu tư";
@@ -2073,7 +1961,6 @@
 "Next Block Reward" = "Phần thưởng khối tiếp theo";
 "Next Block Reward Reduction" = "Lần giảm phần thưởng khối tiếp theo";
 "At %@ network hashrate and a %@ block reward. Before pool fees, power and luck, and both figures move." = "Với hashrate mạng %@ và phần thưởng khối %@. Chưa tính phí pool, điện và may mắn, và cả hai con số đều thay đổi.";
-"Saving profile..." = "Đang lưu hồ sơ...";
 "Imported 1 transaction" = "Đã nhập 1 giao dịch";
 "Imported %lld transactions" = "Đã nhập %lld giao dịch";
 ". Prices for %lld are still loading and will fill in automatically" = ". Giá cho %lld giao dịch vẫn đang tải và sẽ tự động được điền";
@@ -2082,9 +1969,6 @@
 "Export failed. Couldn't write the CSV file" = "Xuất thất bại. Không thể ghi tệp CSV";
 "Imported 1 transaction into %@" = "Đã nhập 1 giao dịch vào %@";
 "Imported %lld transactions into %@" = "Đã nhập %lld giao dịch vào %@";
-"No addresses with a balance or domain found." = "Không tìm thấy địa chỉ nào có số dư hoặc tên miền.";
-"Found 1 address with a balance or domain." = "Đã tìm thấy 1 địa chỉ có số dư hoặc tên miền.";
-"Found %lld addresses with a balance or domain." = "Đã tìm thấy %lld địa chỉ có số dư hoặc tên miền.";
 "Unlock to view this address's private key" = "Mở khóa để xem khóa riêng tư của địa chỉ này";
 "Unlock to view your 12 or 24 words" = "Mở khóa để xem 12 hoặc 24 từ của bạn";
 "Locked by a covenant" = "Bị khóa bởi covenant";
@@ -2303,7 +2187,6 @@
 "Tips From" = "Tiền tip từ";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "Từ Chatting Address, tiền tip được tính trên bài đăng và bạn có tên trong danh sách người tip.";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "Từ địa chỉ khác, tiền tip là riêng tư: tác giả nhận và thấy trong cuộc trò chuyện, nhưng không tính trên bài đăng và không nêu tên bạn.";
-"Tips from your Chatting Address count on the post, and you're listed as a tipper. From another address a tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you." = "Tiền tip từ Chatting Address được tính trên bài đăng và bạn có tên trong danh sách người tip. Từ địa chỉ khác, tiền tip là riêng tư: tác giả nhận và thấy trong cuộc trò chuyện, nhưng không tính trên bài đăng và không nêu tên bạn.";
 "Join #%@?" = "Tham gia #%@?";
 "A link wants to add this room to your Public Chats." = "Một liên kết muốn thêm phòng này vào Trò chuyện công khai của bạn.";
 "This name mixes letters from different alphabets, so it may be imitating another room." = "Tên này trộn lẫn chữ cái từ nhiều bảng chữ cái khác nhau nên có thể đang giả mạo một phòng khác.";
@@ -2595,7 +2478,6 @@
 "What are you tipping in?" = "Bạn tip bằng gì?";
 "Not counted on the post" = "Không được tính trên bài đăng";
 "Tip asks whether to send Kaspa or kUSDT each time." = "Tip hỏi mỗi lần nên gửi Kaspa hay kUSDT.";
-"Tip sends kUSDT to the poster's chatting address. kUSDT tips aren't counted on the post." = "Tip gửi kUSDT đến địa chỉ trò chuyện của người đăng. Tiền tip bằng kUSDT không được tính trên bài đăng.";
 "The account changed, so this wasn't sent." = "Tài khoản đã đổi, nên mục này chưa được gửi.";
 "KaPost isn't available on Testnet yet" = "KaPost chưa khả dụng trên Testnet";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "Chưa có trình lập chỉ mục KaPost cho testnet. Tắt Testnet trong Cài đặt > Kết nối để đọc và đăng trên mainnet.";
@@ -2624,8 +2506,6 @@
 "Channel names must be 1-%d characters with no spaces or colons." = "Tên kênh phải từ 1-%d ký tự, không có khoảng trắng hay dấu hai chấm.";
 "channel-name" = "ten-kenh";
 
-"Set what Tip sends in Settings > KaPost > Tip In." = "Chọn thứ mà Tip gửi trong Cài đặt > KaPost > Tip bằng.";
-"Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > KaPost." = "Không gửi được tiền tip: mạng chỉ nhận tiền tip từ %@ trở lên. Hãy đổi tiền tip mặc định trong Cài đặt > KaPost.";
 
 "See All Posts" = "Xem tất cả bài đăng";
 "Opens KaPost, where everyone's posts are." = "Mở KaPost, nơi có bài đăng của mọi người.";
@@ -2669,7 +2549,6 @@
 "Advanced" = "Nâng cao";
 "All time" = "Mọi thời đại";
 "Beginner" = "Mới bắt đầu";
-"Best: %lld moves" = "Tốt nhất: %lld nước";
 "Black" = "Đen";
 "Black to move" = "Đen đi";
 "Bots" = "Bot";
@@ -2686,7 +2565,6 @@
 "Checkmate. %@ won." = "Chiếu hết. %@ thắng.";
 "Chess server unreachable, showing what we have. Your games keep going from the network. Public rooms can be joined again when it's back." = "Không kết nối được máy chủ cờ vua, đang hiển thị dữ liệu hiện có. Các ván của bạn vẫn tiếp tục qua mạng. Có thể tham gia lại phòng công khai khi máy chủ hoạt động trở lại.";
 "Chess server unreachable. Moves are coming from the network, and the board may be a moment behind." = "Không kết nối được máy chủ cờ vua. Các nước đi đang lấy từ mạng nên bàn cờ có thể chậm một chút.";
-"Chess server unreachable. Showing what this phone has, which can be less than the full board." = "Không kết nối được máy chủ cờ vua. Đang hiển thị dữ liệu có trên điện thoại này, có thể không đầy đủ bằng bảng chính.";
 "Chess server unreachable. Showing what this phone has." = "Không kết nối được máy chủ cờ vua. Đang hiển thị dữ liệu có trên điện thoại này.";
 "Chess server unreachable. Watching the network for players, so someone who joined while the app was away may not show." = "Không kết nối được máy chủ cờ vua. Đang theo dõi người chơi trên mạng, nên người tham gia trong lúc ứng dụng không mở có thể không hiện.";
 "Choose your game" = "Chọn trò chơi";
@@ -2696,7 +2574,6 @@
 "Code" = "Mã";
 "Copy" = "Sao chép";
 "Couldn't stamp the result on Kaspa" = "Không ghi được kết quả lên Kaspa";
-"Counted from %@." = "Tính từ %@.";
 "Create a private 1v1" = "Tạo 1v1 riêng tư";
 "Create a private tournament" = "Tạo giải đấu riêng tư";
 "Creating…" = "Đang tạo…";
@@ -2718,15 +2595,12 @@
 "Draw by threefold repetition. %@ won on clock." = "Hòa do lặp lại ba lần. %@ thắng theo đồng hồ.";
 "Draw." = "Hòa.";
 "Draw. %@ won on clock." = "Hòa. %@ thắng theo đồng hồ.";
-"Eight players, single elimination: quarterfinals, semifinals, final. Public rooms fill as players arrive; private ones by code." = "Tám người chơi, loại trực tiếp: tứ kết, bán kết, chung kết. Phòng công khai đầy dần khi người chơi đến; phòng riêng tư qua mã.";
 "Everyone who joined is released. This is one transaction." = "Mọi người đã tham gia sẽ được giải phóng. Đây là một giao dịch.";
 "Final" = "Chung kết";
 "Finished 1v1 games" = "Ván 1v1 đã kết thúc";
 "Finished tournaments" = "Giải đấu đã kết thúc";
-"Five bots, level 1 to 5, from Kaspa Silver to Yonatan Sompolinsky. Beat one to unlock the next. The result goes on Kaspa." = "Năm bot, cấp 1 đến 5, từ Kaspa Silver đến Yonatan Sompolinsky. Thắng một bot để mở khóa bot tiếp theo. Kết quả được ghi lên Kaspa.";
 "Five bots, level 1 to 5. Beat one to unlock the next. Each game's result is stamped on Kaspa when it ends." = "Năm bot, cấp 1 đến 5. Thắng một bot để mở khóa bot tiếp theo. Kết quả mỗi ván được ghi lên Kaspa khi kết thúc.";
 "Game" = "Ván đấu";
-"Games won and lost - 1v1s and tournament games alike" = "Số ván thắng và thua - gồm cả ván 1v1 lẫn ván trong giải đấu";
 "Go to your game" = "Đến ván của bạn";
 "Here for the fun of it. Moves fast and sometimes leaves a piece hanging." = "Chơi cho vui. Đi nhanh và đôi khi để quân bị treo.";
 "If you leave, you resign the game. %@ goes through and you are out of the tournament. It counts as a loss on the leaderboard. Resigning is one transaction." = "Nếu rời đi, bạn sẽ đầu hàng ván này. %@ đi tiếp và bạn bị loại khỏi giải đấu. Ván này được tính là thua trên bảng xếp hạng. Đầu hàng là một giao dịch.";
@@ -2747,7 +2621,6 @@
 "Knows how every piece moves and loves grabbing free material. Watch your loose pawns." = "Biết cách đi của mọi quân và thích ăn quân miễn phí. Coi chừng những con tốt không được bảo vệ.";
 "LIVE %@" = "TRỰC TIẾP %@";
 "Leaderboard" = "Bảng xếp hạng";
-"Leaderboard period" = "Khoảng thời gian bảng xếp hạng";
 "Leave" = "Rời khỏi";
 "Leave anyway" = "Vẫn rời đi";
 "Leave the game?" = "Rời ván đấu?";
@@ -2771,7 +2644,6 @@
 "Next: the game vs %@" = "Tiếp theo: ván với %@";
 "Next: the semifinal vs %@" = "Tiếp theo: bán kết với %@";
 "No 1v1 games are being played right now. When one starts, it shows up here to watch." = "Hiện không có ván 1v1 nào đang diễn ra. Khi có ván bắt đầu, nó sẽ hiện ở đây để bạn xem.";
-"No bot has been played yet." = "Chưa chơi với bot nào.";
 "No finished 1v1 games this month yet." = "Chưa có ván 1v1 nào kết thúc trong tháng này.";
 "No finished 1v1 games yet." = "Chưa có ván 1v1 nào kết thúc.";
 "No finished tournaments this month yet." = "Chưa có giải đấu nào kết thúc trong tháng này.";
@@ -2779,7 +2651,6 @@
 "No one joined in time. You're out of the queue - join again whenever you like." = "Không ai tham gia kịp. Bạn đã rời hàng chờ - hãy tham gia lại bất cứ lúc nào.";
 "No open tournament with that code. Codes are eight characters; the tournament must exist and still have seats." = "Không có giải đấu nào đang mở với mã đó. Mã gồm tám ký tự; giải đấu phải tồn tại và còn chỗ trống.";
 "No tournament is being played right now. When one starts, its games show up here to watch." = "Hiện không có giải đấu nào đang diễn ra. Khi có giải bắt đầu, các ván của giải sẽ hiện ở đây để bạn xem.";
-"Not beaten yet" = "Chưa bị đánh bại";
 "Novice" = "Tập sự";
 "On time" = "Do hết giờ";
 "Online, five minutes a side and every move is a Kaspa transaction. Bot games stamp their result on Kaspa when they end." = "Trực tuyến, mỗi bên năm phút và mỗi nước đi là một giao dịch Kaspa. Ván với bot được ghi kết quả lên Kaspa khi kết thúc.";
@@ -2787,7 +2658,6 @@
 "Play a friend: create a 1v1, share its code. Private 1v1s count on the leaderboard too." = "Đấu với bạn bè: tạo một ván 1v1 rồi chia sẻ mã. Ván 1v1 riêng tư cũng được tính vào bảng xếp hạng.";
 "Play again" = "Chơi lại";
 "Play as" = "Cầm quân";
-"Play the next person who joins, or a friend by code. One game, winner takes the leaderboard point." = "Đấu với người tham gia tiếp theo, hoặc với bạn bè qua mã. Một ván, người thắng nhận điểm bảng xếp hạng.";
 "Player" = "Người chơi";
 "Private" = "Riêng tư";
 "Private 1v1" = "1v1 riêng tư";
@@ -2800,8 +2670,6 @@
 "Public tournament #%lld" = "Giải đấu công khai #%lld";
 "Quarterfinals" = "Tứ kết";
 "Random" = "Ngẫu nhiên";
-"Ranked by the fewest moves to win." = "Xếp hạng theo số nước thắng ít nhất.";
-"Resets on the 1st of every month (UTC)." = "Đặt lại vào ngày 1 mỗi tháng (UTC).";
 "Resign and leave" = "Đầu hàng và rời đi";
 "Result stamped on Kaspa" = "Đã ghi kết quả lên Kaspa";
 "Retry the stamp" = "Ghi lại kết quả";
@@ -2851,7 +2719,6 @@
 "Tournament full!" = "Giải đấu đã đủ người!";
 "Tournament leaderboard" = "Bảng xếp hạng giải đấu";
 "Tournaments" = "Giải đấu";
-"Tournaments won and lost" = "Số giải đấu thắng và thua";
 "Victory" = "Chiến thắng";
 "Waiting" = "Đang chờ";
 "Waiting for %lld more players. It starts by itself when the eighth joins." = "Đang chờ thêm %lld người chơi. Giải tự bắt đầu khi người thứ tám tham gia.";
@@ -2906,7 +2773,6 @@
 "finished" = "đã kết thúc";
 "vs" = "vs";
 "Beat %@ to unlock" = "Thắng %@ để mở khóa";
-"Fewest moves to beat %@" = "Ít nước nhất để thắng %@";
 "Level %lld" = "Cấp %lld";
 "Level %lld · %@" = "Cấp %lld · %@";
 "Level %lld of 5" = "Cấp %lld trên 5";
@@ -2994,12 +2860,9 @@
 ".kachat Names Guide" = "Hướng dẫn tên .kachat";
 "Claim a .kachat name, make it your name, and keep it." = "Nhận một tên .kachat, biến nó thành tên của bạn và giữ lấy.";
 "Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it's yours." = "Tên của bạn nằm trên mạng Kaspa, do địa chỉ trò chuyện của bạn nắm giữ. Khi còn là của bạn, không ai có thể lấy hay đổi nó.";
-"Search for the name you want in the .kachat tab, then claim it." = "Tìm tên bạn muốn trong thẻ .kachat, rồi nhận tên đó.";
 "What kUSDT is, where it lives, and how sending and swapping work." = "kUSDT là gì, nằm ở đâu, và cách gửi, hoán đổi.";
 "It's the name people see you as across K and on your profile link. Without one, people see your address." = "Đây là tên mọi người thấy bạn trong K và trên liên kết hồ sơ. Không có tên, mọi người sẽ thấy địa chỉ của bạn.";
 "People can find you by typing your name." = "Mọi người có thể tìm bạn bằng cách gõ tên bạn.";
-"Your names are in Wallet > Your Domains > .kachat." = "Tên của bạn nằm ở Ví > Tên miền của bạn > .kachat.";
-"Claim your name in the .kachat tab whenever you're ready." = "Nhận tên của bạn trong thẻ .kachat bất cứ khi nào bạn sẵn sàng.";
 "I Agree" = "Tôi đồng ý";
 "K has no tolerance for objectionable content or abusive users. You may not post anything that is illegal, sexual content involving children, hate speech, threats, harassment, content that encourages violence or self-harm, or scams. Accounts that do can be removed from what K shows, without notice." = "K không khoan nhượng với nội dung phản cảm hoặc người dùng lạm dụng. Bạn không được đăng bất cứ nội dung nào bất hợp pháp, nội dung tình dục liên quan đến trẻ em, ngôn từ thù ghét, đe dọa, quấy rối, nội dung cổ vũ bạo lực hoặc tự làm hại bản thân, hay lừa đảo. Các tài khoản vi phạm có thể bị loại khỏi nội dung K hiển thị mà không cần báo trước.";
 "K is provided as it is, without warranty, and to the extent the law allows we are not liable for losses from using it or from what other users post. These terms are between you and K's developer, not Apple." = "K được cung cấp nguyên trạng, không có bảo hành, và trong phạm vi pháp luật cho phép, chúng tôi không chịu trách nhiệm về tổn thất do sử dụng K hoặc do nội dung người dùng khác đăng. Các điều khoản này là giữa bạn và nhà phát triển K, không phải Apple.";
@@ -3014,7 +2877,6 @@
 "Your account and your funds" = "Tài khoản và tiền của bạn";
 "Your account is 12 or 24 words kept on your device. We never have them, so we can't recover lost ones or reverse a transaction. Posting pays a network fee in KAS, and you are responsible for the funds you hold and send." = "Tài khoản của bạn là 12 hoặc 24 từ được giữ trên thiết bị của bạn. Chúng tôi không bao giờ có chúng, nên không thể khôi phục các từ đã mất hay hoàn lại giao dịch. Đăng bài tốn phí mạng bằng KAS, và bạn chịu trách nhiệm về số tiền bạn giữ và gửi.";
 "Your posts are public and permanent" = "Bài đăng của bạn là công khai và vĩnh viễn";
-"Who's on top in 1v1 and tournaments, this month or all time, and against each bot." = "Ai dẫn đầu ở 1v1 và giải đấu, tháng này hoặc mọi thời điểm, và trước từng bot.";
 "The trade may have gone through." = "Giao dịch có thể đã được thực hiện.";
 "Trestly's code reads this address's coins and sends the trade through public Kaspa nodes (kaspa.stream and its mirrors), not the node chosen in Settings. Those nodes see this address and your IP address." = "Mã của Trestly đọc các coin của địa chỉ này và gửi giao dịch qua các node Kaspa công khai (kaspa.stream và các bản sao), không qua node đã chọn trong Cài đặt. Các node đó thấy địa chỉ này và địa chỉ IP của bạn.";
 "Original message not loaded" = "Chưa tải tin nhắn gốc";
@@ -3044,3 +2906,361 @@
 
 /* Cold Storage Paste kpub (2026-11-22) */
 "Not a valid kpub" = "Không phải kpub hợp lệ";
+
+/* Pinned public chats (2026-11-23) */
+"Clears the unread badge on this public chat." = "Xóa huy hiệu chưa đọc của cuộc trò chuyện công khai này.";
+"No notifications from this public chat." = "Không có thông báo từ cuộc trò chuyện công khai này.";
+"Notifications from this public chat resume." = "Thông báo từ cuộc trò chuyện công khai này sẽ tiếp tục.";
+"Removes this public chat from your chats." = "Xóa cuộc trò chuyện công khai này khỏi danh sách trò chuyện của bạn.";
+"If these words already hold your identity at a different address - a .kachat name or a funded chatting balance - pick it here. Only addresses with a balance or names are shown." = "Nếu các từ này đã giữ danh tính của bạn ở một địa chỉ khác - một tên .kachat hoặc số dư trò chuyện có tiền - hãy chọn nó ở đây. Chỉ hiển thị các địa chỉ có số dư hoặc tên.";
+
+/* Swap with ChangeNOW and Trestly (2026-11-23) */
+"Swap" = "Hoán đổi";
+"Swap started" = "Đã bắt đầu hoán đổi";
+"Couldn't read this swap's amounts" = "Không đọc được số tiền của lần hoán đổi này";
+"Added to %@" = "Đã thêm vào %@";
+"This only removes it from your local history - it doesn't affect the actual exchange." = "Thao tác này chỉ xóa khỏi lịch sử trên máy - không ảnh hưởng đến giao dịch hoán đổi thực tế.";
+"Swap History" = "Lịch sử hoán đổi";
+"You Send" = "Bạn gửi";
+"Switch direction" = "Đổi chiều";
+"You Get" = "Bạn nhận";
+"Receive %@ at" = "Nhận %@ tại";
+"Receiving KAS At" = "Nhận KAS tại";
+"Powered by Trestly" = "Cung cấp bởi Trestly";
+"Powered by ChangeNOW" = "Cung cấp bởi ChangeNOW";
+"Rate" = "Tỷ giá";
+"Go to Spending Addresses" = "Đến Địa chỉ chi tiêu";
+"Send %@ to this address" = "Gửi %@ đến địa chỉ này";
+"ChangeNOW Exchange ID" = "Mã hoán đổi ChangeNOW";
+"Exchange ID copied" = "Đã sao chép mã hoán đổi";
+"Refresh Status" = "Làm mới trạng thái";
+"View on ChangeNOW" = "Xem trên ChangeNOW";
+"Change" = "Đổi";
+"No swaps yet." = "Chưa có lần hoán đổi nào.";
+"Swap Details" = "Chi tiết hoán đổi";
+"A swap pays out to an address you have not used before, so the payout cannot be tied to your earlier activity. Generate one if none are free." = "Hoán đổi trả về một địa chỉ bạn chưa từng dùng, để khoản nhận không thể liên kết với hoạt động trước đây của bạn. Hãy tạo một địa chỉ nếu không còn địa chỉ trống.";
+"Every address here has been used. Generate a new one above." = "Mọi địa chỉ ở đây đều đã dùng. Hãy tạo địa chỉ mới ở trên.";
+"Unused Addresses" = "Địa chỉ chưa dùng";
+"Choose Address" = "Chọn địa chỉ";
+"Check its history before you send a swap to it." = "Kiểm tra lịch sử của địa chỉ này trước khi gửi hoán đổi đến đó.";
+"Use for This Swap" = "Dùng cho lần hoán đổi này";
+"ChangeNOW pays the swapped KAS out to this address." = "ChangeNOW trả số KAS đã hoán đổi về địa chỉ này.";
+"Choose Coin" = "Chọn coin";
+"Swap uses two services K doesn't run. Read and agree to both before you continue." = "Hoán đổi dùng hai dịch vụ không do K vận hành. Hãy đọc và đồng ý với cả hai trước khi tiếp tục.";
+"Coins on other networks" = "Coin trên mạng khác";
+"Swaps between Kaspa and coins on other networks (Bitcoin, Ethereum, USDC, USDT and others) are made by ChangeNOW, a third-party exchange. K only asks ChangeNOW for a quote and a deposit address and shows the swap's status; ChangeNOW does the exchange and sends the coins. K isn't responsible for failed, delayed or lost swaps. If one doesn't go through, contact ChangeNOW's support." = "Hoán đổi giữa Kaspa và coin trên các mạng khác (Bitcoin, Ethereum, USDC, USDT và các coin khác) do ChangeNOW, một sàn giao dịch bên thứ ba, thực hiện. K chỉ hỏi ChangeNOW báo giá và địa chỉ nạp, rồi hiển thị trạng thái hoán đổi; ChangeNOW thực hiện hoán đổi và gửi coin. K không chịu trách nhiệm cho các lần hoán đổi thất bại, chậm trễ hoặc bị mất. Nếu một lần không hoàn tất, hãy liên hệ bộ phận hỗ trợ của ChangeNOW.";
+"Read ChangeNOW's Terms of Use" = "Đọc Điều khoản sử dụng của ChangeNOW";
+"I understand ChangeNOW is a third party, not K, and I agree to ChangeNOW's Terms of Use." = "Tôi hiểu ChangeNOW là bên thứ ba, không phải K, và tôi đồng ý với Điều khoản sử dụng của ChangeNOW.";
+"kUSDT on Kaspa" = "kUSDT trên Kaspa";
+"Swaps between KAS and kUSDT go through Trestly's pool on Kaspa. Trestly is a third party: it issues kUSDT and runs the pool, not K. Trestly's own code prices each swap and builds its transaction; K shows it to you, signs it with your address's key only after you approve, and sends it. Prices move, and the pool can be paused or limit sells. K isn't responsible for the pool, the token or a swap's outcome." = "Hoán đổi giữa KAS và kUSDT đi qua pool của Trestly trên Kaspa. Trestly là bên thứ ba: Trestly phát hành kUSDT và vận hành pool, không phải K. Chính mã của Trestly định giá mỗi lần hoán đổi và tạo giao dịch; K hiển thị cho bạn, chỉ ký bằng khóa của địa chỉ bạn sau khi bạn duyệt, rồi gửi đi. Giá biến động, và pool có thể bị tạm dừng hoặc giới hạn lệnh bán. K không chịu trách nhiệm về pool, token hay kết quả của một lần hoán đổi.";
+"Read Trestly's Terms of Service" = "Đọc Điều khoản dịch vụ của Trestly";
+"I understand Trestly is a third party, not K, and I agree to Trestly's Terms of Service." = "Tôi hiểu Trestly là bên thứ ba, không phải K, và tôi đồng ý với Điều khoản dịch vụ của Trestly.";
+"Before You Swap" = "Trước khi hoán đổi";
+"The swap's KAS and kUSDT both stay on this address." = "Cả KAS và kUSDT của lần hoán đổi đều ở lại địa chỉ này.";
+"Swap From" = "Hoán đổi từ";
+"The pool gives nothing for this amount." = "Pool không trả gì cho số tiền này.";
+"Trestly's pool is paused right now, so swaps are stopped for the moment." = "Pool của Trestly hiện đang tạm dừng, nên việc hoán đổi tạm ngừng lúc này.";
+"The pool's circuit breaker limits sells right now. Try a smaller amount, or again later." = "Bộ ngắt mạch của pool hiện đang giới hạn lệnh bán. Hãy thử số tiền nhỏ hơn, hoặc thử lại sau.";
+"Swap sent" = "Đã gửi hoán đổi";
+"ChangeNOW swaps aren't available in this build." = "Hoán đổi qua ChangeNOW không có trong bản dựng này.";
+"Built and checked by Trestly's own code inside K. If the pool moves first, it quotes again: it goes ahead only at this quote or better, asks you again for less, and never goes below your minimum, 1% under the quote." = "Được tạo và kiểm tra bởi chính mã của Trestly trong K. Nếu pool thay đổi trước, sẽ báo giá lại: chỉ tiếp tục với báo giá này hoặc tốt hơn, hỏi lại bạn nếu ít hơn, và không bao giờ dưới mức tối thiểu của bạn, thấp hơn báo giá 1%.";
+"Minimum You Get" = "Tối thiểu bạn nhận";
+"Through Trestly's pool" = "Qua pool của Trestly";
+"The pool pays less than your minimum right now, so this would be refused. Go back and get a new quote." = "Pool hiện trả ít hơn mức tối thiểu của bạn, nên giao dịch sẽ bị từ chối. Hãy quay lại và lấy báo giá mới.";
+"Swap From (kUSDT Lands Here)" = "Hoán đổi từ (kUSDT về đây)";
+"Swap From (KAS Lands Here)" = "Hoán đổi từ (KAS về đây)";
+"Search coins" = "Tìm coin";
+
+/* Tips in chats, Username (2026-11-23) */
+"Get a username" = "Nhận tên người dùng";
+"What Tip sends, on a post and in a chat." = "Thứ mà Tip gửi, trên bài đăng và trong cuộc trò chuyện.";
+"Tip this contact, as set in Settings > Customization > Tipping." = "Tip cho liên hệ này, theo thiết lập trong Cài đặt > Tùy chỉnh > Tip.";
+"Tip sends kUSDT to their chatting address. kUSDT tips aren't counted on a post." = "Tip gửi kUSDT đến địa chỉ trò chuyện của họ. Tiền tip bằng kUSDT không được tính trên bài đăng.";
+"Set what Tip sends in Settings > Customization > Tipping." = "Chọn thứ mà Tip gửi trong Cài đặt > Tùy chỉnh > Tip.";
+"Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > Customization > Tipping." = "Không gửi được tiền tip: mạng chỉ nhận tiền tip từ %@ trở lên. Hãy đổi tiền tip mặc định trong Cài đặt > Tùy chỉnh > Tip.";
+"Tips from your Chatting Address count on the post, and you're listed as a tipper. From another address a tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you. A tip in a chat comes from here too." = "Tiền tip từ Chatting Address được tính trên bài đăng và bạn có tên trong danh sách người tip. Từ địa chỉ khác, tiền tip là riêng tư: tác giả nhận và thấy trong cuộc trò chuyện, nhưng không tính trên bài đăng và không nêu tên bạn. Tiền tip trong cuộc trò chuyện cũng được gửi từ đây.";
+
+/* KaPost feed button (2026-11-23) */
+"Switches to the next feed" = "Chuyển sang bảng tin tiếp theo";
+
+/* Discord invite not found (2026-11-23) */
+"There's no Discord invite called %@. Use a server's invite code, like discord.gg/abc123: Discord accounts can't be looked up by username." = "Không có lời mời Discord nào tên %@. Hãy dùng mã mời của một máy chủ, như discord.gg/abc123: không thể tra tài khoản Discord theo tên người dùng.";
+
+/* Who Can Message You? (2026-11-23) */
+"Who Can Message You?" = "Ai có thể nhắn tin cho bạn?";
+"Anyone" = "Mọi người";
+"Only Users with a Username" = "Chỉ người dùng có tên người dùng";
+"Who can start a chat with you. People you already chat with aren't affected." = "Ai có thể bắt đầu trò chuyện với bạn. Không ảnh hưởng đến những người bạn đang trò chuyện.";
+"Anyone can send you a first message. It waits in Message Requests until you accept it." = "Mọi người đều có thể gửi cho bạn tin nhắn đầu tiên. Tin nhắn sẽ chờ trong Yêu cầu nhắn tin cho đến khi bạn chấp nhận.";
+"Only people with a username (a .kachat name) can reach your Message Requests. First messages from anyone else are hidden and don't notify you; choose Anyone to see them again. People you already chat with aren't affected." = "Chỉ những người có tên người dùng (tên .kachat) mới đến được Yêu cầu nhắn tin của bạn. Tin nhắn đầu tiên từ người khác sẽ bị ẩn và không gửi thông báo cho bạn; chọn Mọi người để xem lại. Không ảnh hưởng đến những người bạn đang trò chuyện.";
+
+/* Usernames wording (2026-11-23) */
+"No usernames yet" = "Chưa có tên người dùng";
+"Claim a Username" = "Nhận tên người dùng";
+"Your Usernames" = "Tên người dùng của bạn";
+"Usernames" = "Tên người dùng";
+
+/* KaPlay arcade (2026-11-23) */
+"Snake" = "Rắn săn mồi";
+"Eat, grow, don't hit the walls or yourself. Scores go on Kaspa." = "Ăn, lớn lên, đừng đâm vào tường hay chính mình. Điểm được ghi lên Kaspa.";
+"Swipe to merge tiles and reach 2048. Scores go on Kaspa." = "Vuốt để gộp các ô và đạt 2048. Điểm được ghi lên Kaspa.";
+"Your best: %@" = "Kỷ lục của bạn: %@";
+"Play" = "Chơi";
+"Each finished game's score is stamped on Kaspa from your chatting address, for a small network fee." = "Điểm của mỗi ván đã chơi xong được ghi lên Kaspa từ địa chỉ trò chuyện của bạn, với một khoản phí mạng nhỏ.";
+"%@ scored %@ in %@. Can you beat it?" = "%@ đạt %@ điểm trong %@. Bạn có vượt qua được không?";
+"Someone scored %@ in %@. Can you beat it?" = "Có người đạt %@ điểm trong %@. Bạn có vượt qua được không?";
+"The leaderboard couldn't be loaded. Pull down to try again." = "Không thể tải bảng xếp hạng. Kéo xuống để thử lại.";
+"No scores yet. Be the first." = "Chưa có điểm nào. Hãy là người đầu tiên.";
+"Game Over" = "Trò chơi kết thúc";
+"Play Again" = "Chơi lại";
+"Retry the Stamp" = "Ghi lại điểm";
+"Stamping the score on Kaspa…" = "Đang ghi điểm lên Kaspa…";
+"Score stamped on Kaspa" = "Đã ghi điểm lên Kaspa";
+"No score to stamp." = "Không có điểm để ghi.";
+"Score: %@" = "Điểm: %@";
+"Swipe on the board or use the arrows to start." = "Vuốt trên bàn chơi hoặc dùng các mũi tên để bắt đầu.";
+"Score" = "Điểm";
+"Best Tile" = "Ô cao nhất";
+"Swipe to move the tiles. Equal tiles merge." = "Vuốt để di chuyển các ô. Các ô bằng nhau sẽ gộp lại.";
+"This game was played on another account. Sign in to it to stamp the score." = "Ván này được chơi trên một tài khoản khác. Hãy đăng nhập vào tài khoản đó để ghi điểm.";
+"The score was not sent." = "Điểm chưa được gửi.";
+"Challenge: play %@" = "Thử thách: chơi %@";
+"Beat %@ in %@" = "Vượt %@ điểm trong %@";
+"I scored %@ in %@ on K. Think you can beat it?" = "Tôi đạt %@ điểm trong %@ trên K. Bạn nghĩ mình vượt qua được không?";
+"Arcade Challenge" = "Thử thách arcade";
+"Switches the leaderboard period" = "Chuyển khoảng thời gian của bảng xếp hạng";
+"Your record: %@ won, %@ lost" = "Thành tích: thắng %@, thua %@";
+"Play the next person who joins, or a friend by code." = "Chơi với người tiếp theo tham gia, hoặc với bạn bè bằng mã.";
+"Eight players, single elimination." = "Tám người chơi, loại trực tiếp.";
+"Five bots, level 1 to 5. Beat one to unlock the next." = "Năm bot, cấp 1 đến 5. Thắng một bot để mở khóa bot tiếp theo.";
+"Switches to the next leaderboard" = "Chuyển sang bảng xếp hạng tiếp theo";
+"Switches to the next page" = "Chuyển sang trang tiếp theo";
+"No usernames on this address" = "Địa chỉ này chưa có tên người dùng";
+"Usernames this address owns show here." = "Tên người dùng của địa chỉ này hiện ở đây.";
+"Couldn't load this address's usernames. Pull down to try again." = "Không tải được tên người dùng của địa chỉ này. Kéo xuống để thử lại.";
+"Posting to KaPost…" = "Đang đăng lên KaPost…";
+"Posted to KaPost" = "Đã đăng lên KaPost";
+"Shared to KaPost" = "Đã chia sẻ lên KaPost";
+"ChangeNOW returned an unusable rate for this pair." = "ChangeNOW trả về tỷ giá không dùng được cho cặp này.";
+"The least you can get is about %@ %@." = "Số tối thiểu bạn có thể nhận là khoảng %@ %@.";
+"This destination tag isn't valid. It's a whole number, with no letters or spaces." = "Thẻ đích này không hợp lệ. Đó là một số nguyên, không có chữ cái hay khoảng trắng.";
+"Enter an address to receive the %@." = "Nhập địa chỉ để nhận %@.";
+"ChangeNOW didn't return a deposit address." = "ChangeNOW không trả về địa chỉ nạp.";
+"ChangeNOW's answer doesn't match this swap, so K didn't show its deposit address. Nothing was sent." = "Phản hồi của ChangeNOW không khớp với giao dịch hoán đổi này, nên K không hiển thị địa chỉ nạp. Chưa có gì được gửi.";
+"This address doesn't belong to the account that's open now. Nothing was sent." = "Địa chỉ này không thuộc tài khoản đang mở. Chưa có gì được gửi.";
+"Delete this swap?" = "Xóa giao dịch hoán đổi này?";
+"Deposit Address" = "Địa chỉ nạp";
+"Status: %@" = "Trạng thái: %@";
+"Get Deposit Address" = "Lấy địa chỉ nạp";
+"Swap failed" = "Hoán đổi thất bại";
+"Already holds this swap - adding it again double-counts it." = "Đã có giao dịch hoán đổi này - thêm lần nữa sẽ tính hai lần.";
+"The swap lands in this portfolio." = "Giao dịch hoán đổi sẽ vào danh mục này.";
+"Buy %@ KAS at %@ - choose which portfolio to add it to." = "Mua %@ KAS với giá %@ - chọn danh mục để thêm vào.";
+"Sell %@ KAS at %@ - choose which portfolio to add it to." = "Bán %@ KAS với giá %@ - chọn danh mục để thêm vào.";
+"Destination tag (optional)" = "Thẻ đích (không bắt buộc)";
+"Only if the receiving address needs one, as most exchanges do. Without it, the exchange can't credit your coins." = "Chỉ khi địa chỉ nhận cần, như hầu hết các sàn. Nếu thiếu, sàn không thể ghi có coin cho bạn.";
+"Amount to Send" = "Số tiền cần gửi";
+"Destination tag copied" = "Đã sao chép thẻ đích";
+"Payout Address" = "Địa chỉ nhận thanh toán";
+"Destination Tag: %@" = "Thẻ đích: %@";
+"Destination Tag (Memo)" = "Thẻ đích (Memo)";
+"Required: send with this destination tag (memo), or the deposit can't be credited and may be lost." = "Bắt buộc: gửi kèm thẻ đích (memo) này, nếu không khoản nạp sẽ không được ghi có và có thể bị mất.";
+"Copy Destination Tag" = "Sao chép thẻ đích";
+"Confirming" = "Đang xác nhận";
+"Exchanging" = "Đang hoán đổi";
+"Refunded" = "Đã hoàn tiền";
+"Verifying" = "Đang xác minh";
+"Couldn't reach ChangeNOW - try again" = "Không kết nối được ChangeNOW - hãy thử lại";
+"%lld W" = "%lld thắng";
+"%lld L" = "%lld thua";
+"%lld D" = "%lld hòa";
+"%lld W  %lld L" = "%lld thắng  %lld thua";
+"W" = "Thắng";
+"L" = "Thua";
+"%lld moves" = "%lld nước";
+"%@ is unlocked!" = "Đã mở khóa %@!";
+"%@ moves first." = "%@ đi trước.";
+"#%lld on the 1v1 board" = "Hạng %lld trên bảng 1v1";
+"#%lld on the tournament board" = "Hạng %lld trên bảng giải đấu";
+"%@ vs %@" = "%@ đấu %@";
+"Code: %@" = "Mã: %@";
+"The eight-character code the creator shared. Joining is one transaction (fee: %@)." = "Mã tám ký tự mà người tạo đã chia sẻ. Tham gia là một giao dịch (phí: %@).";
+"They captured" = "Đối thủ đã ăn";
+"You captured" = "Bạn đã ăn";
+"Handshake" = "Yêu cầu liên lạc";
+"Nothing from people you follow" = "Chưa có gì từ những người bạn theo dõi";
+"Nothing trending yet" = "Chưa có gì thịnh hành";
+"Posts from accounts you follow will show up here." = "Bài đăng từ các tài khoản bạn theo dõi sẽ hiển thị ở đây.";
+"Be the first - tap the pencil to write a post." = "Hãy là người đầu tiên - chạm vào bút chì để viết bài.";
+"The most liked, reposted and talked-about posts will show up here." = "Những bài được thích, đăng lại và bàn tán nhiều nhất sẽ hiển thị ở đây.";
+"Show more" = "Xem thêm";
+"No followers yet" = "Chưa có người theo dõi";
+"New Thread" = "Chuỗi bài mới";
+"Post All (%lld)" = "Đăng tất cả (%lld)";
+"Show %lld new posts" = "Hiện %lld bài mới";
+"View 1 reply" = "Xem 1 trả lời";
+"View %lld replies" = "Xem %lld trả lời";
+"Thread · %lld posts" = "Chuỗi bài · %lld bài";
+"Conversation · %lld posts" = "Cuộc trò chuyện · %lld bài";
+"Comments (%lld)" = "Bình luận (%lld)";
+"%@ in %llds" = "%1$@ sau %2$lld giây";
+"· %lld posts" = "· %lld bài";
+"Translated from %@" = "Dịch từ %@";
+"Schedule for %@" = "Lên lịch vào %@";
+"Option %lld" = "Lựa chọn %lld";
+"Unknown" = "Không rõ";
+"Liking" = "Đang thích";
+"Disliking" = "Đang không thích";
+"Follow" = "Theo dõi";
+"Posts" = "Bài đăng";
+"Replies" = "Trả lời";
+"Goes out %@" = "Đăng lúc %@";
+"Goes out %@ - from this phone, so open K around then" = "Đăng lúc %@ từ điện thoại này, vì vậy hãy mở K vào khoảng thời gian đó";
+"Posted %@" = "Đã đăng %@";
+"Failed to post at %@" = "Không đăng được lúc %@";
+"Cancelled" = "Đã hủy";
+"Change the text. Posts can be edited for two hours; after that they stay as they are. %@." = "Thay đổi nội dung. Bài đăng có thể sửa trong hai giờ; sau đó sẽ giữ nguyên. %@.";
+"Mute %@" = "Tắt tiếng %@";
+"Block %@" = "Chặn %@";
+"%lldh %lldm left" = "Còn %lld giờ %lld phút";
+"Add another post" = "Thêm bài khác";
+"Est. fee: %@ KAS" = "Phí ước tính: %@ KAS";
+"Poll" = "Thăm dò";
+"Reschedule" = "Đổi lịch";
+"Posts and people" = "Bài đăng và mọi người";
+"%lld posts found" = "Tìm thấy %lld bài";
+"Searched the most recent %lld posts. Older ones have not been read yet." = "Đã tìm trong %lld bài gần nhất. Các bài cũ hơn chưa được đọc.";
+"Search older posts" = "Tìm trong các bài cũ hơn";
+"%lld read" = "Đã đọc %lld";
+"liked your post" = "đã thích bài đăng của bạn";
+"disliked your post" = "đã không thích bài đăng của bạn";
+"replied to your post" = "đã trả lời bài đăng của bạn";
+"quoted your post" = "đã trích dẫn bài đăng của bạn";
+"reposted your post" = "đã đăng lại bài đăng của bạn";
+"followed you" = "đã theo dõi bạn";
+"mentioned you in a post" = "đã nhắc đến bạn trong một bài đăng";
+"tipped your post" = "đã tip cho bài đăng của bạn";
+"interacted with your post" = "đã tương tác với bài đăng của bạn";
+"Bold" = "In đậm";
+"Italic" = "In nghiêng";
+"Underline" = "Gạch chân";
+"Strikethrough" = "Gạch ngang";
+"Bulleted list" = "Danh sách dấu đầu dòng";
+"Numbered list" = "Danh sách đánh số";
+"Small text" = "Chữ nhỏ";
+"You reacted to your message" = "Bạn đã bày tỏ cảm xúc với tin nhắn của mình";
+"You reacted to their message" = "Bạn đã bày tỏ cảm xúc với tin nhắn của họ";
+"Reacted to your message" = "Đã bày tỏ cảm xúc với tin nhắn của bạn";
+"Reacted to their message" = "Đã bày tỏ cảm xúc với tin nhắn của họ";
+"You reacted to a message" = "Bạn đã bày tỏ cảm xúc với một tin nhắn";
+"Send Tip" = "Gửi tiền tip";
+"Stop Recording" = "Dừng ghi âm";
+"Send Voice Message" = "Gửi tin nhắn thoại";
+"Delete 1 Chat?" = "Xóa 1 cuộc trò chuyện?";
+"Delete %lld Chats?" = "Xóa %lld cuộc trò chuyện?";
+"Delete 1 Message?" = "Xóa 1 tin nhắn?";
+"Delete %lld Messages?" = "Xóa %lld tin nhắn?";
+"Estimated network fee ≈ %@ %@ across 1 transaction." = "Phí mạng ước tính ≈ %@ %@ cho 1 giao dịch.";
+"Estimated network fee ≈ %@ %@ across %lld transactions." = "Phí mạng ước tính ≈ %@ %@ cho %lld giao dịch.";
+"(1 network transaction.)" = "(1 giao dịch mạng.)";
+"(%lld network transactions.)" = "(%lld giao dịch mạng.)";
+"Couldn't load that photo. Please try another." = "Không thể tải ảnh đó. Vui lòng thử ảnh khác.";
+"Couldn't load that photo. Please try a PNG, JPEG, or HEIF image." = "Không thể tải ảnh đó. Vui lòng thử ảnh PNG, JPEG hoặc HEIF.";
+"Audio export is unavailable on this device." = "Không thể xuất âm thanh trên thiết bị này.";
+"Audio export failed." = "Xuất âm thanh thất bại.";
+"Invites resent to all members." = "Đã gửi lại lời mời cho tất cả thành viên.";
+"Invite resent." = "Đã gửi lại lời mời.";
+"1 member could not be added. Please try again." = "Không thể thêm 1 thành viên. Vui lòng thử lại.";
+"%lld members could not be added. Please try again." = "Không thể thêm %lld thành viên. Vui lòng thử lại.";
+"Message copied to clipboard." = "Đã sao chép tin nhắn vào bộ nhớ tạm.";
+"Link copied to clipboard." = "Đã sao chép liên kết vào bộ nhớ tạm.";
+"File name copied." = "Đã sao chép tên tệp.";
+"Tap to start a chat on K." = "Nhấn để bắt đầu trò chuyện trên K.";
+"Group deleted." = "Đã xóa nhóm.";
+"%lld groups deleted." = "Đã xóa %lld nhóm.";
+"Chat deleted." = "Đã xóa cuộc trò chuyện.";
+"%lld chats deleted." = "Đã xóa %lld cuộc trò chuyện.";
+"Alias copied to clipboard." = "Đã sao chép bí danh vào bộ nhớ tạm.";
+"Alias unavailable." = "Không có bí danh.";
+"Enter a group name." = "Nhập tên nhóm.";
+"Add at least one member." = "Thêm ít nhất một thành viên.";
+"Turn On Notifications" = "Bật thông báo";
+"Load earlier messages" = "Tải tin nhắn cũ hơn";
+"Recording stopped" = "Đã dừng ghi âm";
+"Be the first to post in #%@." = "Hãy là người đầu tiên đăng trong #%@.";
+"Message #%@" = "Nhắn tin trong #%@";
+"Room info for #%@" = "Thông tin phòng #%@";
+"No hidden users in #%@. Long-press a message to hide its sender." = "Không có người dùng bị ẩn trong #%@. Nhấn giữ một tin nhắn để ẩn người gửi.";
+"Hidden Users - #%@" = "Người dùng bị ẩn - #%@";
+"A curated room, always in your list. Anyone on K can post to it." = "Một phòng được tuyển chọn, luôn có trong danh sách của bạn. Bất kỳ ai trên K đều có thể đăng vào đó.";
+"A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses. Leave it blank to follow %@." = "Một cuộc trò chuyện công khai nằm trên blockDAG của Kaspa, nên bất kỳ indexer nào theo dõi cùng mạng đều phục vụ cùng một phòng. Trỏ phòng này đến bất cứ đâu bạn muốn (của bạn hoặc của người khác) mà không đổi indexer các phòng khác dùng. Để trống để theo %@.";
+"Indexer updated for #%@." = "Đã cập nhật indexer cho #%@.";
+"Could not reach it: %@" = "Không thể kết nối: %@";
+"Lost on time" = "Thua vì hết giờ";
+"Resigned" = "Đã đầu hàng";
+"Accepted the game" = "Đã chấp nhận ván cờ";
+"Declined the game" = "Đã từ chối ván cờ";
+"Chess invite" = "Lời mời chơi cờ vua";
+"Shared a KaChat profile" = "Đã chia sẻ một hồ sơ KaChat";
+"Public chat room #%@" = "Phòng trò chuyện công khai #%@";
+"Chess game - %lld | %lld" = "Ván cờ vua - %lld | %lld";
+"Chess game" = "Ván cờ vua";
+"Sent a link" = "Đã gửi một liên kết";
+"%lldW - %lldL" = "%lld T - %lld B";
+"The recipient won't see your messages until they message you or you ping them with a handshake. Handshakes cost 0.2 KAS and are returned to you if they accept. You lose privacy if you ping them." = "Người nhận sẽ không thấy tin nhắn của bạn cho đến khi họ nhắn cho bạn hoặc bạn gửi handshake cho họ. Handshake tốn 0.2 KAS và được hoàn lại nếu họ chấp nhận. Gửi ping khiến bạn mất quyền riêng tư.";
+"Audio encoding failed. Please record again." = "Mã hóa âm thanh thất bại. Vui lòng ghi lại.";
+"Failed to start recording: %@" = "Không thể bắt đầu ghi âm: %@";
+"Failed to play audio." = "Không thể phát âm thanh.";
+"Failed to play audio: %@" = "Không thể phát âm thanh: %@";
+"Failed to encode audio: %@" = "Không thể mã hóa âm thanh: %@";
+"Audio is still being prepared. Please try again." = "Âm thanh vẫn đang được chuẩn bị. Vui lòng thử lại.";
+"Failed to prepare audio: %@" = "Không thể chuẩn bị âm thanh: %@";
+"Hide Window" = "Ẩn cửa sổ";
+"Hide" = "Ẩn";
+"Taken · for sale at %@" = "Đã có chủ · đang bán với giá %@";
+"About %lld s to go" = "Còn khoảng %lld giây";
+"From: %@" = "Từ: %@";
+"Balance after: %@" = "Số dư sau: %@";
+"Balance change: %@" = "Thay đổi số dư: %@";
+"Paid from %@ to %@" = "Đã trả từ %@ đến %@";
+"Grace period ends %@" = "Thời gian ân hạn kết thúc %@";
+"Your spending address #%lld" = "Địa chỉ chi tiêu #%lld của bạn";
+"Your KasSigner address (%@ #%lld)" = "Địa chỉ KasSigner của bạn (%@ #%lld)";
+"Opens the Usernames tab" = "Mở thẻ Tên người dùng";
+"One of your usernames expired" = "Một tên người dùng của bạn đã hết hạn";
+"%lld of your usernames expired" = "%lld tên người dùng của bạn đã hết hạn";
+"An address or a username - it's resolved to the address shown." = "Một địa chỉ hoặc tên người dùng - nó được chuyển thành địa chỉ hiển thị.";
+"Enter an address or a username." = "Nhập địa chỉ hoặc tên người dùng.";
+"This address has more than %lld UTXOs. KasSigner can sign at most %lld inputs per transaction, so this merges the largest %lld into one. Run Compound again afterward to keep combining the rest." = "Địa chỉ này có hơn %lld UTXO. KasSigner chỉ ký được tối đa %lld đầu vào mỗi giao dịch, nên thao tác này gộp %lld UTXO lớn nhất thành một. Hãy chạy Gộp lại sau đó để tiếp tục gộp phần còn lại.";
+"This transaction is already in %@. Adding it again will double-count it." = "Giao dịch này đã có trong %@. Thêm lại sẽ bị tính hai lần.";
+"this portfolio" = "danh mục này";
+"Delete '%@'" = "Xóa “%@”";
+"'%@' and its transactions will be deleted. This can't be undone." = "“%@” và các giao dịch của nó sẽ bị xóa. Không thể hoàn tác.";
+"Edit %@" = "Sửa %@";
+"Frame %lld / %lld" = "Khung %lld / %lld";
+"%lld / %lld frames" = "%lld / %lld khung";
+"No mail app could open it. Paste the report into an email to %@." = "Không ứng dụng thư nào mở được. Hãy dán báo cáo vào email gửi tới %@.";
+"kaspa:qr... or username" = "kaspa:qr... hoặc tên người dùng";
+"Looking up username..." = "Đang tra cứu tên người dùng...";
+"Kaspa Address or Username" = "Địa chỉ Kaspa hoặc tên người dùng";
+"Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat)." = "Nhập địa chỉ Kaspa (kaspa:...) hoặc tên người dùng (ví dụ alice.kachat).";
+"Pick people from your contacts, or add anyone by Kaspa address or username." = "Chọn người từ danh bạ, hoặc thêm bất kỳ ai bằng địa chỉ Kaspa hoặc tên người dùng.";
+"Use Their Username" = "Dùng tên người dùng của họ";
+"Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "Nhập địa chỉ Kaspa hoặc tên người dùng như name.kachat. Mỗi giao dịch nhận vào địa chỉ này thành một lần mua, mỗi giao dịch gửi đi thành một lần bán, theo giá KAS lịch sử của ngày đó. Thêm lại cùng địa chỉ sau này chỉ nhập các giao dịch tìm thấy kể từ lần nhập trước.";
+"No addresses with a balance or username yet" = "Chưa có địa chỉ nào có số dư hoặc tên người dùng";
+"Finds addresses holding a balance or a username." = "Tìm các địa chỉ có số dư hoặc tên người dùng.";
+"No addresses with a balance or username found." = "Không tìm thấy địa chỉ nào có số dư hoặc tên người dùng.";
+"Found 1 address with a balance or username." = "Đã tìm thấy 1 địa chỉ có số dư hoặc tên người dùng.";
+"Found %lld addresses with a balance or username." = "Đã tìm thấy %lld địa chỉ có số dư hoặc tên người dùng.";
+"Contains username" = "Chứa tên người dùng";
+"Use for chatting and acquiring usernames." = "Dùng để trò chuyện và nhận tên người dùng.";
+"Anyone can see this address and its balance on the Kaspa network, but they can't read your messages. Use it only for chatting and usernames." = "Ai cũng có thể thấy địa chỉ này và số dư của nó trên mạng Kaspa, nhưng không ai đọc được tin nhắn của bạn. Chỉ dùng nó để trò chuyện và cho tên người dùng.";
+"Search for the name you want in the Usernames tab, then claim it." = "Tìm tên bạn muốn trong thẻ Tên người dùng, rồi nhận nó.";
+"Your names are in Wallet > Your Usernames." = "Tên của bạn ở Ví > Tên người dùng của bạn.";
+"Claim your name in the Usernames tab whenever you're ready." = "Hãy nhận tên của bạn trong thẻ Tên người dùng bất cứ khi nào bạn sẵn sàng.";
+"No username found" = "Không tìm thấy tên người dùng";
+"Search contacts, or an address or username" = "Tìm danh bạ, hoặc một địa chỉ hay tên người dùng";
+"You have no contacts yet. Paste an address or a username above to invite someone." = "Bạn chưa có danh bạ. Dán một địa chỉ hoặc tên người dùng ở trên để mời ai đó.";
+"No contacts match your search. Paste an address or a username to invite someone new." = "Không có liên hệ nào khớp. Dán một địa chỉ hoặc tên người dùng để mời người mới.";
+"Create \"%@\" and invite 1 member?" = "Tạo “%@” và mời 1 thành viên?";
+"Create \"%@\" and invite %lld members?" = "Tạo “%@” và mời %lld thành viên?";

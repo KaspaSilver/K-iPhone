@@ -1,15 +1,8 @@
 import SwiftUI
 
-// Kaspa Hub and Customize Dock, back since 2026-11-20 (KaChat is the all-in-one app again).
-// The dock is Kaspa Hub plus up to four tabs the person picks; everything else is a tile in the
-// Hub's grid, and opens there. A feature is never in both places at once.
-
-extension Notification.Name {
-    /// Opens Customize Dock as a sheet over the tabs (from the Hub's toolbar or Settings). Posted
-    /// rather than pushed: a new arrangement rebuilds the whole tab bar, which would throw the
-    /// person out of a screen pushed inside one of its tabs.
-    static let openCustomizeDock = Notification.Name("KaChatOpenCustomizeDock")
-}
+// Kaspa Hub, back since 2026-11-20 (KaChat is the all-in-one app again). The dock is fixed
+// (owner's call, 2026-11-23: Kaspa Hub, Wallet, KaChat, Profile, Settings, so the connection dot
+// on Settings is always there); every other tab is a tile in the Hub's grid, and opens there.
 
 /// What the dock holds and the order of Kaspa Hub's grid, on this device.
 @MainActor
@@ -25,11 +18,13 @@ final class DockLayout: ObservableObject {
     @Published private(set) var hub: [AppTab]
 
     private init() {
-        let storedDock = (UserDefaults.standard.stringArray(forKey: Self.dockKey) ?? []).compactMap(AppTab.init(rawValue:))
+        // The dock is always `AppTab.defaultDock` (Customize Dock was removed on 2026-11-23); an
+        // arrangement saved before keeps only its Hub order.
         let storedHub = (UserDefaults.standard.stringArray(forKey: Self.hubKey) ?? []).compactMap(AppTab.init(rawValue:))
-        let (dock, hub) = Self.normalized(dock: storedDock.isEmpty ? AppTab.defaultDock : storedDock, hub: storedHub)
+        let (dock, hub) = Self.normalized(dock: AppTab.defaultDock, hub: storedHub)
         self.dock = dock
         self.hub = hub
+        UserDefaults.standard.removeObject(forKey: Self.dockKey)
     }
 
     /// A stored arrangement made whole: Kaspa Hub in the dock, no tab twice, at most five in the
@@ -51,15 +46,6 @@ final class DockLayout: ObservableObject {
         var newHub = hub.filter { !inDock.contains($0) && seen.insert($0).inserted }
         for tab in AppTab.allCases where !inDock.contains(tab) && !newHub.contains(tab) { newHub.append(tab) }
         return (newDock, newHub)
-    }
-
-    func set(dock: [AppTab], hub: [AppTab]) {
-        let (newDock, newHub) = Self.normalized(dock: dock, hub: hub)
-        guard newDock != self.dock || newHub != self.hub else { return }
-        self.dock = newDock
-        self.hub = newHub
-        UserDefaults.standard.set(newDock.map(\.rawValue), forKey: Self.dockKey)
-        UserDefaults.standard.set(newHub.map(\.rawValue), forKey: Self.hubKey)
     }
 }
 
@@ -130,9 +116,6 @@ struct AppTabContent: View {
                 // ProfileAppsView sets its own title; only the shared header items are added.
                 ProfileAppsView()
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            ConnectionStatusIndicator()
-                        }
                         ToolbarItem(placement: .principal) {
                             BalanceToolbarLabel()
                         }
@@ -219,35 +202,20 @@ struct KaspaHubView: View {
     private var grid: some View {
         NavigationStack {
             ScrollView {
-                if layout.hub.isEmpty {
-                    emptyState
-                } else {
-                    LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(layout.hub) { tab in
-                            tile(tab)
-                        }
+                LazyVGrid(columns: columns, spacing: 14) {
+                    ForEach(layout.hub) { tab in
+                        tile(tab)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
             }
             .navigationTitle(Text(LocalizedStringKey(AppTab.hub.label)))
             // large, like every section, so the bar doesn't change height when one opens
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    ConnectionStatusIndicator()
-                }
                 ToolbarItem(placement: .principal) {
                     BalanceToolbarLabel()
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        NotificationCenter.default.post(name: .openCustomizeDock, object: nil)
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                    }
-                    .accessibilityLabel(Text("Customize Dock"))
                 }
             }
         }
@@ -299,28 +267,10 @@ struct KaspaHubView: View {
         }
         .buttonStyle(.plain)
     }
-
-    /// Every tab is in the dock: nothing left for the grid.
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image("KaspaLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 44, height: 44)
-                .opacity(0.5)
-            Text("Nothing here right now")
-                .font(.headline)
-            Text("What isn't in your dock shows here. Arrange them in Customize Dock.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-        }
-        .padding(.top, 60)
-    }
 }
 
-/// A tab's icon at a size, as the Hub and Customize Dock draw it. Kaspa Hub is the Kaspa logo.
+/// A tab's icon at a size, as the Hub draws it. Kaspa Hub is the Kaspa logo,
+/// Domains the ".kachat" wordmark.
 struct AppTabIcon: View {
     let tab: AppTab
     let size: CGFloat
@@ -331,6 +281,9 @@ struct AppTabIcon: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: size, height: size)
+        } else if tab == .kachatNames {
+            // the ".kachat" wordmark, as the Domains screen's own header draws it
+            KachatTabIcon.view(side: size * 1.25)
         } else {
             Image(systemName: tab.icon)
                 .font(.scaled(size: size, weight: .medium))
@@ -375,165 +328,6 @@ enum KaspaDockIcon {
         let image = UIImage(cgImage: cut, scale: scale, orientation: .up)
         return Image(uiImage: image.withRenderingMode(.alwaysTemplate))
     }()
-}
-
-/// Customize Dock: two lists ordered by dragging. Your Dock is the dock itself, in order; Kaspa Hub
-/// is always in it (a lock instead of a remove button) and the others carry a red minus that sends
-/// them to the Hub. Kaspa Hub lists everything else in its grid order, each with a green plus that
-/// moves it into the dock while there's room (five at most). Every move applies at once.
-struct CustomizeDockView: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var layout = DockLayout.shared
-
-    @State private var dock: [AppTab] = []
-    @State private var hub: [AppTab] = []
-    /// Not saved before the lists are seeded, which would save an empty dock.
-    @State private var loaded = false
-
-    private var dockIsFull: Bool { dock.count >= AppTab.maxDockItems }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    ForEach(dock) { tab in
-                        dockRow(tab)
-                    }
-                    .onMove { source, destination in
-                        Haptics.impact(.light)
-                        dock.move(fromOffsets: source, toOffset: destination)
-                    }
-                } header: {
-                    HStack {
-                        Text("Your Dock")
-                        Spacer()
-                        Text(verbatim: "\(dock.count)/\(AppTab.maxDockItems)")
-                    }
-                } footer: {
-                    Text(String(format: AppLocalization.string("%@ always stays in your dock."),
-                                AppLocalization.string(AppTab.hub.label)))
-                }
-
-                Section {
-                    ForEach(hub) { tab in
-                        hubRow(tab)
-                    }
-                    .onMove { source, destination in
-                        Haptics.impact(.light)
-                        hub.move(fromOffsets: source, toOffset: destination)
-                    }
-                } header: {
-                    Text(LocalizedStringKey(AppTab.hub.label))
-                } footer: {
-                    Text(dockIsFull
-                         ? AppLocalization.string("Your dock is full. Remove one from it to add one of these.")
-                         : String(format: AppLocalization.string("In the order %@ shows them."),
-                                  AppLocalization.string(AppTab.hub.label)))
-                }
-            }
-            .environment(\.editMode, .constant(.active))
-            .navigationTitle("Customize Dock")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-            .onAppear {
-                guard !loaded else { return }
-                dock = layout.dock
-                hub = layout.hub
-                loaded = true
-            }
-            // live: the dock under this sheet follows every move
-            .onChange(of: dock) { _ in persist() }
-            .onChange(of: hub) { _ in persist() }
-        }
-    }
-
-    private func dockRow(_ tab: AppTab) -> some View {
-        HStack(spacing: 14) {
-            if AppTab.pinnedToDock.contains(tab) {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 15))
-                    .foregroundColor(.secondary)
-                    .frame(width: 24)
-                    .accessibilityLabel(Text("Always in your dock"))
-            } else {
-                Button {
-                    removeFromDock(tab)
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, .red)
-                        .font(.system(size: 22))
-                        .frame(width: 24)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(Text(String(format: AppLocalization.string("Move %@ to %@"),
-                                                AppLocalization.string(tab.label), AppLocalization.string(AppTab.hub.label))))
-            }
-            AppTabIcon(tab: tab, size: 20)
-                .frame(width: 28)
-            Text(LocalizedStringKey(tab.label))
-        }
-    }
-
-    private func hubRow(_ tab: AppTab) -> some View {
-        HStack(spacing: 14) {
-            if !dockIsFull {
-                Button {
-                    addToDock(tab)
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, .green)
-                        .font(.system(size: 22))
-                        .frame(width: 24)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(Text(String(format: AppLocalization.string("Add %@ to your dock"),
-                                                AppLocalization.string(tab.label))))
-            }
-            AppTabIcon(tab: tab, size: 20)
-                .frame(width: 28)
-            Text(LocalizedStringKey(tab.label))
-        }
-    }
-
-    /// Red minus: out of the dock, to the top of Kaspa Hub where it can be seen.
-    private func removeFromDock(_ tab: AppTab) {
-        guard !AppTab.pinnedToDock.contains(tab) else { return }
-        Haptics.impact(.light)
-        withAnimation(.snappy(duration: 0.22)) {
-            dock.removeAll { $0 == tab }
-            hub.removeAll { $0 == tab }
-            hub.insert(tab, at: 0)
-        }
-    }
-
-    /// Green plus: into the dock, at its end; drag it to where it should sit.
-    private func addToDock(_ tab: AppTab) {
-        guard !dockIsFull else { return }
-        Haptics.impact(.light)
-        withAnimation(.snappy(duration: 0.22)) {
-            hub.removeAll { $0 == tab }
-            dock.removeAll { $0 == tab }
-            dock.append(tab)
-        }
-    }
-
-    private func persist() {
-        guard loaded else { return }
-        layout.set(dock: dock, hub: hub)
-    }
-}
-
-extension View {
-    /// `AccountBackupBanner` under the navigation bar of one of the main tabs (KaPay's).
-    func accountBackupBanner() -> some View {
-        safeAreaInset(edge: .top, spacing: 0) { AccountBackupBanner() }
-    }
 }
 
 // MARK: - Sections kept alive in Kaspa Hub

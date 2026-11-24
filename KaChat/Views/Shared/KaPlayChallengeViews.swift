@@ -118,6 +118,8 @@ struct KaPlayBotChallenge: Equatable {
 
     /// The first valid challenge in a post's text.
     static func match(in text: String) -> Match? {
+        // nothing to look up for the many posts without a link (hashing the key reads it all too)
+        guard text.range(of: "kachatchess://", options: .caseInsensitive) != nil else { return nil }
         let key = text as NSString
         if let cached = matchCache.object(forKey: key) { return cached.value }
         let result = uncachedMatch(in: text)
@@ -209,5 +211,59 @@ struct KaPostBotChallengeCard: View {
                 Label("Copy Link", systemImage: "doc.on.doc")
             }
         }
+    }
+}
+
+/// An arcade score challenge in a KaPost (`kachatarcade://`, ARCADE.md §6), drawn as a card. Play
+/// opens that game in KaPlay with the score to beat.
+struct KaPostArcadeChallengeCard: View {
+    let challenge: ArcadeChallenge
+    /// The post's author: the game names the challenger only when it is the link's `by`
+    /// (audit 2026-11-24 #21).
+    var author: String? = nil
+
+    var body: some View {
+        Button {
+            Haptics.impact(.light)
+            ArcadeLinkRouter.open(challenge.url, author: author)
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                ArcadeGameIcon(game: challenge.game, size: 20)
+                    .foregroundColor(.accentColor)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Color.accentColor.opacity(0.15)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Arcade Challenge")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(.accentColor)
+                        .textCase(.uppercase)
+                    Text(verbatim: challenge.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Text("Play")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Color.accentColor))
+                    .fixedSize()
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.accentColor.opacity(0.35), lineWidth: 1)
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -193,7 +193,8 @@ struct MarkdownFormattingToolbar: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(.primary)
-                    .accessibilityLabel(Text(item.label))
+                    // `label` is a key: `Text(String)` showed it in English (audit 2026-11-24 #40).
+                    .accessibilityLabel(Text(LocalizedStringKey(item.label)))
                 }
             }
             .padding(.horizontal, 12)

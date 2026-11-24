@@ -93,9 +93,6 @@ struct PortfolioView: View {
                 HashrateChartScreen()
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    ConnectionStatusIndicator()
-                }
                 ToolbarItem(placement: .principal) {
                     if viewModel.valuesHidden {
                         HStack(spacing: 6) {
@@ -1702,7 +1699,6 @@ extension View {
     func pinnedTabHeader(_ title: LocalizedStringKey) -> some View {
         safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
-                AccountBackupBanner()
                 Text(title)
                     .font(.largeTitle.weight(.bold))
                     .lineLimit(1)

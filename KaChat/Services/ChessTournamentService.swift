@@ -206,7 +206,6 @@ final class ChessTournamentService: ObservableObject {
         }
         arenaJoined = true
         publicChat.acquire(ChessTournamentCodec.arenaChannel)
-        if let me = myAddress { resolveNames(for: [me]) }
         refreshIndexerLeaderboards()
         // The clock stood still while no chess screen was up: the first checks on this screen
         // must not read a time minutes old.
@@ -395,7 +394,6 @@ final class ChessTournamentService: ObservableObject {
         unsettledIds = reduced.values.filter { $0.status == .open || $0.status == .live }.map(\.id)
         refreshTimeState(force: true)
         recomputeLocalBoards()
-        resolveNames(for: Set(reduced.values.flatMap(\.players)))
         // The queued room is still waiting, but this player's seat in it has run out (or a join
         // that never showed is older than any seat): nothing races for that room any more. A
         // fill much later is not this join's race, and must not send a join nobody asked for.
@@ -840,7 +838,6 @@ final class ChessTournamentService: ObservableObject {
                 guard !Task.isCancelled, let self else { return }
                 self.indexerBoards[period] = (since, rows)
                 self.publishBoards()
-                self.resolveNames(for: Set(rows.prefix(100).map(\.address)))
             }
         }
     }
@@ -850,25 +847,6 @@ final class ChessTournamentService: ObservableObject {
     func refreshIndexerLeaderboardsNow() async {
         refreshIndexerLeaderboards(force: true)
         await indexerLeaderboardTask?.value
-    }
-
-    // MARK: - Names
-
-    /// Addresses whose KNS profile was asked for this session.
-    private var resolvedNames: Set<String> = []
-
-    /// Names in the arena follow the app's rule - contact name, then KNS domain, then the
-    /// shortened address (`ContactsManager.displayName`) - and the domain part needs the
-    /// profile in `KNSService.profileCache`. Fetched once per address per session; the cache
-    /// answers after that, and `KNSService` publishes so rows re-render when it lands.
-    func resolveNames(for addresses: Set<String>) {
-        let fresh = addresses.subtracting(resolvedNames)
-        guard !fresh.isEmpty else { return }
-        resolvedNames.formUnion(fresh)
-        let network = AppSettings.load().networkType
-        for address in fresh {
-            Task { _ = await KNSService.shared.fetchProfile(for: address, network: network) }
-        }
     }
 
     // MARK: - Fees

@@ -114,21 +114,17 @@ struct ChattingAddressCandidate: Identifiable, Equatable {
     let index: Int
     let address: String
     let balanceSompi: UInt64
-    let domains: [KNSDomain]
-    let primaryDomain: String?
-    /// Names on the other services (.k, .kaspa).
-    var otherNames: [OwnedServiceName] = []
     /// .kachat names (active or in grace) where the registry is live - listed first.
     var kachatNames: [OwnedServiceName] = []
 
     var id: Int { index }
 
-    var nameCount: Int { kachatNames.count + domains.count + otherNames.count }
+    var nameCount: Int { kachatNames.count }
 
     /// The one name to show on the row when there is exactly one.
     var onlyName: String? {
         guard nameCount == 1 else { return nil }
-        return kachatNames.first?.display ?? domains.first?.fullName ?? otherNames.first?.display
+        return kachatNames.first?.display
     }
 
     var shortAddress: String {
@@ -861,6 +857,7 @@ final class WalletManager: ObservableObject {
             KaPostTipLedger.shared.clear()
             // its bot games' records and stamped wins, on both networks' addresses
             ChessBotProgress.shared.removeAll(forAddress: owned)
+            ArcadeProgress.shared.removeAll(forAddress: owned)
             for variant in Self.accountAddressVariants(owned) {
                 ChatListSnapshotStore.clear(walletAddress: variant)
                 ChatService.shared.discardDrafts(forWallet: variant)
@@ -896,6 +893,9 @@ final class WalletManager: ObservableObject {
                 // .kachat: the claims in progress (`pending-<wallet>.json`), owned-name and
                 // market keys, the names notifier's record, its own profile copy.
                 KachatNamesActions.removeAllLocalData(forWallet: variant, addresses: spendingAddresses)
+                // Swap: its history (ChangeNOW ids, payout addresses) and the accepted
+                // agreements, both filed under the lowercased address (audit 2026-11-24 #5)
+                SwapService.removeAllData(forWalletAddress: variant)
                 UserDefaults.standard.removeObject(forKey: balanceCacheKey(for: variant))
                 UserDefaults.standard.removeObject(forKey: accountAddedDateKey(for: variant))
                 // Filed by types that have no remover of their own, in their exact formats.
@@ -2071,9 +2071,8 @@ final class WalletManager: ObservableObject {
     }
 
     /// Derives the given identity-chain index range and checks every address in BATCH for KAS
-    /// balance (one pooled `getUtxosByAddresses` call, gRPC with REST fallback) and KNS domains
-    /// (`KNSService.refreshIfNeeded`, the same capped/debounced batch lookup ContactsManager and
-    /// Manage Addresses use - never 50 raw requests). Returns ALL scanned candidates in index
+    /// balance (one pooled `getUtxosByAddresses` call, gRPC with REST fallback) and .kachat
+    /// names. Returns ALL scanned candidates in index
     /// order; the caller filters for interesting ones. Nil when derivation fails (no seed).
     func scanChattingAddressCandidates(indices: Range<Int>) async -> [ChattingAddressCandidate]? {
         guard !indices.isEmpty, let (baseNode, family) = chattingScanBase() else { return nil }
@@ -2088,22 +2087,13 @@ final class WalletManager: ObservableObject {
             balanceByAddress[utxo.address, default: 0] += utxo.amount
         }
 
-        let network = SettingsViewModel.loadSettings().networkType
-        await KNSService.shared.refreshIfNeeded(for: addresses, network: network)
-        // .k and .kaspa too: an identity can live at an address whose only trace is a name on
-        // one of them.
-        let otherNamesByAddress = await NameServicesClient.shared.ownedNames(of: addresses)
         let kachatNamesByAddress = await NameServicesClient.shared.kachatNames(of: addresses)
 
         return derived.map { entry in
-            let info = KNSService.shared.domainCache[entry.address]
-            return ChattingAddressCandidate(
+            ChattingAddressCandidate(
                 index: entry.index,
                 address: entry.address,
                 balanceSompi: balanceByAddress[entry.address] ?? 0,
-                domains: info?.allDomains ?? [],
-                primaryDomain: info?.primaryDomain,
-                otherNames: otherNamesByAddress[entry.address] ?? [],
                 kachatNames: kachatNamesByAddress[entry.address] ?? []
             )
         }

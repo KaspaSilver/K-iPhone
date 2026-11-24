@@ -7,7 +7,6 @@ struct ChessPlayerView: View {
     let address: String
 
     @ObservedObject private var service = ChessTournamentService.shared
-    @ObservedObject private var knsService = KNSService.shared
     @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
@@ -23,7 +22,7 @@ struct ChessPlayerView: View {
             Section {
                 VStack(spacing: 10) {
                     KNSAvatarView(
-                        avatarURLString: knsService.profileCache[address]?.avatarURL,
+                        avatarURLString: nil,
                         fallbackText: name,
                         size: 88,
                         contactAddress: address
@@ -77,7 +76,6 @@ struct ChessPlayerView: View {
                 Button("Done") { dismiss() }
             }
         }
-        .task { _ = await knsService.fetchProfile(for: address) }
     }
 
     private func recordLine(_ title: LocalizedStringKey, wins: Int, losses: Int) -> some View {

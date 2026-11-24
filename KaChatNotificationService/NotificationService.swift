@@ -1316,6 +1316,29 @@ class NotificationService: UNNotificationServiceExtension {
         if Set(defaults.stringArray(forKey: "chat_request_addresses") ?? []).contains(address) { return .silent }
         // Someone the app already knows and hasn't listed as a request: an ordinary chat.
         if getSharedContact(address: sender) != nil { return nil }
+        // Who Can Message You? set to usernames only (the app's `WhoCanMessage`): a first message
+        // from someone with no .kachat name this phone knows rings nothing, and isn't recorded as
+        // rung, so a later message once their name is known can still announce the request.
+        if defaults.string(forKey: "chat_who_can_message") == "usernames" {
+            let names = defaults.dictionary(forKey: "shared_identity_names") as? [String: String]
+            if (names?[address] ?? "").isEmpty {
+                // The name may only be unknown HERE (the extension reads cached names, it looks
+                // nothing up), and once the app opens the sender sits in
+                // `chat_request_addresses`, which is silent for good. So the silenced sender is
+                // filed for the app ("wallet|address", newest 500): when the app learns their
+                // name it announces the request once and takes them off this list
+                // (audit 2026-11-24 #13). Not recorded as rung.
+                let hiddenKey = "chat_hidden_request_addresses"
+                let hiddenEntry = "\(wallet.lowercased())|\(address)"
+                var hidden = defaults.stringArray(forKey: hiddenKey) ?? []
+                if !hidden.contains(hiddenEntry) {
+                    hidden.append(hiddenEntry)
+                    if hidden.count > 500 { hidden.removeFirst(hidden.count - 500) }
+                    defaults.set(hidden, forKey: hiddenKey)
+                }
+                return .silent
+            }
+        }
         // Whom this extension has rung once, per wallet (another account restored on this phone
         // still gets its own first banner), oldest dropped past 500 (IOS-053).
         let notifiedKey = "chat_request_notified_v2"
@@ -1326,6 +1349,13 @@ class NotificationService: UNNotificationServiceExtension {
         if notified.count > 500 { notified.removeFirst(notified.count - 500) }
         defaults.set(notified, forKey: notifiedKey)
         defaults.removeObject(forKey: "chat_request_notified")
+        // Rung here now (their name became known): the app has nothing left to announce
+        // (audit 2026-11-24 #13).
+        if var hidden = defaults.stringArray(forKey: "chat_hidden_request_addresses"),
+           let index = hidden.firstIndex(of: entry) {
+            hidden.remove(at: index)
+            defaults.set(hidden, forKey: "chat_hidden_request_addresses")
+        }
         return .newRequest
     }
 
@@ -1445,33 +1475,12 @@ class NotificationService: UNNotificationServiceExtension {
         return groupIds.contains(groupId)
     }
 
-    /// A mention arrives in one of TWO cross-platform wire forms: iOS/desktop compose
-    /// `@{fullKaspaAddress}` (see the main app's `GroupMentionCodec` doc comment), Android
-    /// composes `@{primaryKNSDomain}`. This checks both. The domain check: token after "@" at
-    /// a word boundary, lowercased, optional ".kas" suffix stripped, compared against the wallet's own reverse-resolved primary domain the
-    /// main app shares via `SharedDataManager.syncOwnKNSDomainForExtension`. No wallet address
-    /// available = treat as a mention (don't suppress).
+    /// A mention is `@{fullKaspaAddress}` (see the main app's `GroupMentionCodec` doc comment).
+    /// Android's `@{primaryKNSDomain}` form isn't matched: K reads no .kas names (2026-11-23).
+    /// No wallet address available = treat as a mention (don't suppress).
     private func mentionsMe(_ text: String) -> Bool {
         guard let myAddress = getWalletAddress() else { return true }
-        if text.contains("@\(myAddress)") { return true }
-        guard let defaults = UserDefaults(suiteName: appGroupIdentifier),
-              let myDomain = defaults.string(forKey: "shared_own_kns_domain"), !myDomain.isEmpty,
-              let regex = try? NSRegularExpression(
-                  pattern: "(^|[\\s(\\[{<\"'])@([a-z0-9-]+(?:\\.[a-z0-9-]+)*)",
-                  options: [.caseInsensitive]
-              ) else { return false }
-        let ns = text as NSString
-        var found = false
-        regex.enumerateMatches(in: text, options: [], range: NSRange(location: 0, length: ns.length)) { match, _, stop in
-            guard let match, match.numberOfRanges >= 3 else { return }
-            var domain = ns.substring(with: match.range(at: 2)).lowercased()
-            if domain.hasSuffix(".kas") { domain = String(domain.dropLast(4)) }
-            if domain == myDomain {
-                found = true
-                stop.pointee = true
-            }
-        }
-        return found
+        return text.contains("@\(myAddress)")
     }
 
     private func addPendingMessage(txId: String, sender: String, type: String) {

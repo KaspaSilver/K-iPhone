@@ -275,7 +275,8 @@ extension ChatService {
     func startForegroundContactSweep() {
         if let task = foregroundSweepTask, !task.isCancelled { return }
         guard WalletManager.shared.currentWallet != nil else { return }
-        // Runs on app-active and wallet load: a KNS commit left without its reveal gets finished.
+        // Runs on app-active and wallet load: a KNS commit left without its reveal (from before
+        // KNS left K) gets finished, which returns its coins (audit 2026-11-24 #4).
         Task { @MainActor in await KNSRevealRecovery.resumeIfNeeded() }
         AppLog.log("[ChatService] Foreground contact sweep started (%.0fs, cap %d)",
                    currentForegroundSweepBaseInterval, foregroundSweepMaxContacts)
@@ -4505,14 +4506,44 @@ extension ChatService {
     /// How many chats wait in Message Requests - the chat list's row reads this on every draw,
     /// so it counts without building and sorting the list.
     var messageRequestCount: Int {
-        conversations.lazy.filter { self.isMessageRequest($0) }.count
+        // What the count depends on: each chat's messages (count and newest), the request
+        // state's revision, the wallet, Who Can Message You? and, with Usernames only, the names
+        // known so far. Cheap to hash next to scanning every unanswered chat's messages.
+        var hasher = Hasher()
+        hasher.combine(WalletManager.shared.currentWallet?.publicAddress)
+        hasher.combine(chatRequestsRevision)
+        let usernamesOnly = WhoCanMessage.current == .usernames
+        hasher.combine(usernamesOnly)
+        if usernamesOnly { hasher.combine(KachatNamesRegistry.shared.identityRevision) }
+        hasher.combine(conversations.count)
+        for conversation in conversations {
+            hasher.combine(conversation.contact.address)
+            // the live contact's flags, which `isMessageRequest` reads (audit 2026-11-24 #18)
+            let contact = contactsManager.getContact(byAddress: conversation.contact.address) ?? conversation.contact
+            hasher.combine(contact.isAutoAdded)
+            hasher.combine(contact.hasSentOutgoingMessage)
+            hasher.combine(conversation.messages.count)
+            hasher.combine(conversation.lastMessage?.id)
+        }
+        let key = hasher.finalize()
+        if let memo = requestCountMemo, memo.key == key { return memo.count }
+        let count = conversations.lazy.filter { self.isMessageRequest($0) && !self.isHiddenRequest($0) }.count
+        requestCountMemo = (key, count)
+        return count
     }
 
-    /// Message Requests, newest first.
+    /// Message Requests, newest first, without the ones Who Can Message You? hides.
     var messageRequests: [Conversation] {
         conversations
-            .filter { isMessageRequest($0) }
+            .filter { isMessageRequest($0) && !isHiddenRequest($0) }
             .sorted { ($0.lastMessage?.timestamp ?? .distantPast) > ($1.lastMessage?.timestamp ?? .distantPast) }
+    }
+
+    /// A request Settings > Chats > Who Can Message You? hides: Only Users with a Username is on and
+    /// the sender has no .kachat name (or none known yet; one that lands shows the request).
+    func isHiddenRequest(_ conversation: Conversation) -> Bool {
+        guard WhoCanMessage.current == .usernames else { return false }
+        return KachatNamesRegistry.shared.cachedIdentity(for: conversation.contact.address)?.label == nil
     }
 
     /// Accept: the chat joins the chat list. Nothing is sent on chain. Also what writing to
@@ -5652,13 +5683,31 @@ final class KaPostTipLedger: ObservableObject {
 
     private init() {
         notTip = Set(UserDefaults.standard.stringArray(forKey: Self.notTipKey) ?? [])
+        // The notification extension files tips while K is in the background: read them again
+        // when it comes back.
+        NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.tipsCache = nil
+                // cards re-read, so tips the extension filed meanwhile show
+                self.revision += 1
+            }
+        }
     }
 
-    private var defaults: UserDefaults? { UserDefaults(suiteName: SharedDataManager.appGroupIdentifier) }
+    private let defaults = UserDefaults(suiteName: SharedDataManager.appGroupIdentifier)
+
+    /// The App Group's tips, held in memory: every payment card asks on every draw, and reading
+    /// them bridged the whole dictionary (up to 2,000 entries) each time.
+    private var tipsCache: [String: String]?
 
     private var tips: [String: String] {
-        (defaults?.dictionary(forKey: Self.sharedKey) as? [String: String]) ?? [:]
+        if let tipsCache { return tipsCache }
+        let loaded = (defaults?.dictionary(forKey: Self.sharedKey) as? [String: String]) ?? [:]
+        tipsCache = loaded
+        return loaded
     }
+    private var notTipSaveScheduled = false
 
     /// The tipped post's txid, when this payment is a known tip.
     func postId(for txId: String) -> String? {
@@ -5668,11 +5717,23 @@ final class KaPostTipLedger: ObservableObject {
     func record(txId: String, postId: String) {
         let key = txId.lowercased()
         guard !key.isEmpty, !postId.isEmpty else { return }
-        var all = tips
-        guard all[key] != postId.lowercased() else { return }
+        // Read from the App Group, not the cache: the notification extension files tips there
+        // while K is open, and writing back a stale copy erased them (audit 2026-11-24 #15).
+        var all = (defaults?.dictionary(forKey: Self.sharedKey) as? [String: String]) ?? [:]
+        guard all[key] != postId.lowercased() else {
+            tipsCache = all
+            return
+        }
         all[key] = postId.lowercased()
-        if all.count > Self.limit { all = Dictionary(uniqueKeysWithValues: all.prefix(Self.limit).map { ($0.key, $0.value) }) }
+        // Over the limit: others go, never the tip just filed.
+        if all.count > Self.limit {
+            for other in all.keys where other != key {
+                all[other] = nil
+                if all.count <= Self.limit { break }
+            }
+        }
         defaults?.set(all, forKey: Self.sharedKey)
+        tipsCache = all
         revision += 1
     }
 
@@ -5699,9 +5760,19 @@ final class KaPostTipLedger: ObservableObject {
             return parts.postId.lowercased()
         }
         notTip.insert(key)
-        var list = Array(notTip)
-        if list.count > Self.limit { list = Array(list.suffix(Self.limit)) }
-        UserDefaults.standard.set(list, forKey: Self.notTipKey)
+        // saved once for a burst of answers (a chat's cards resolve together as it scrolls), not
+        // rewritten whole for each one
+        if !notTipSaveScheduled {
+            notTipSaveScheduled = true
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard let self else { return }
+                self.notTipSaveScheduled = false
+                var list = Array(self.notTip)
+                if list.count > Self.limit { list = Array(list.suffix(Self.limit)) }
+                UserDefaults.standard.set(list, forKey: Self.notTipKey)
+            }
+        }
         return nil
     }
 
@@ -5709,6 +5780,7 @@ final class KaPostTipLedger: ObservableObject {
     func clear() {
         defaults?.removeObject(forKey: Self.sharedKey)
         UserDefaults.standard.removeObject(forKey: Self.notTipKey)
+        tipsCache = nil
         notTip = []
         revision += 1
     }

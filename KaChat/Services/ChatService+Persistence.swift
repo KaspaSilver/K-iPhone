@@ -1055,47 +1055,6 @@ extension ChatService {
         return hiddenPaymentTxIdTimestamps[normalized] != nil
     }
 
-    func registerKNSTransferChatHint(
-        txId: String,
-        domainName: String,
-        domainId: String,
-        counterpartyAddress: String,
-        isOutgoing: Bool,
-        timestampMs: UInt64? = nil
-    ) {
-        let normalizedTxId = txId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let normalizedDomain = domainName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let normalizedDomainId = domainId.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedCounterparty = counterpartyAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedTxId.isEmpty,
-              !normalizedDomain.isEmpty,
-              !normalizedDomainId.isEmpty,
-              !normalizedCounterparty.isEmpty else {
-            return
-        }
-
-        knsTransferHintsByTxId[normalizedTxId] = KNSTransferChatHint(
-            txId: txId,
-            domainName: normalizedDomain,
-            domainId: normalizedDomainId,
-            counterpartyAddress: normalizedCounterparty,
-            isOutgoing: isOutgoing,
-            timestampMs: timestampMs ?? currentTimeMs()
-        )
-    }
-
-    func knsTransferChatHint(for txId: String) -> KNSTransferChatHint? {
-        let normalizedTxId = txId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !normalizedTxId.isEmpty else { return nil }
-        return knsTransferHintsByTxId[normalizedTxId]
-    }
-
-    func removeKNSTransferChatHint(for txId: String) {
-        let normalizedTxId = txId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !normalizedTxId.isEmpty else { return }
-        knsTransferHintsByTxId.removeValue(forKey: normalizedTxId)
-    }
-
     func registerSuppressedPaymentTxIds(_ txIds: [String], reason: String) {
         guard !txIds.isEmpty else { return }
         pruneHiddenPaymentTxIds()

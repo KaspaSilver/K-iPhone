@@ -53,6 +53,11 @@ struct ChatListView: View {
     @State private var groupActionTarget: GroupChat?
     /// A group waiting on its delete confirmation.
     @State private var groupDeleteTarget: GroupChat?
+    /// Public rooms pinned up into the circles row (room names), newest pin first, saved per
+    /// wallet (`kachat_room_pins_<wallet>`).
+    @State private var roomPins: [String] = []
+    /// The pinned room whose long-press half sheet is up (list rows swipe instead).
+    @State private var roomActionTarget: PublicChatRoomSummary?
     @State private var showMessageRequests = false
     @State private var selectedContactStartInPaymentMode = false
     /// The bottom-right +: New Chat or New Group Chat, then that screen, all in one sheet.
@@ -75,13 +80,13 @@ struct ChatListView: View {
     @State private var loadedConversationCount = 80
     @State private var isPaginatingConversations = false
     @State private var filteredConversationsCache: [Conversation] = []
+    @State private var refreshClock = RefreshClock()
     @State private var searchFilterTask: Task<Void, Never>?
     /// True for the duration of a pull-to-refresh. While set, conversation/contact changes DON'T
     /// rebuild the visible list — reloading the underlying List mid-spin resets the native refresh
     /// control's animation, which is what made the wheel blink/stutter. The coalesced changes are
     /// applied in one pass when the pull finishes (the spinner is dismissing then anyway).
     @State private var isPullRefreshing = false
-    @State private var avatarPrefetchTask: Task<Void, Never>?
     @State private var splitColumnVisibility: NavigationSplitViewVisibility = .all
     @State private var showBulkDeleteConfirmation = false
     /// Row-level delete targets from a row's swipe or a circle's half sheet - separate from the
@@ -148,9 +153,6 @@ struct ChatListView: View {
             .navigationTitle("KaChat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    ConnectionStatusIndicator()
-                }
                 ToolbarItem(placement: .principal) {
                     balanceToolbarView
                 }
@@ -179,7 +181,6 @@ struct ChatListView: View {
                 // Apply everything that changed during the pull in a single rebuild, now that the
                 // refresh control is no longer animating — so the wheel spins smoothly throughout.
                 refreshFilteredConversations()
-                scheduleAvatarPrefetch()
             }
             .toast(message: toastMessage, style: toastStyle)
 
@@ -237,6 +238,9 @@ struct ChatListView: View {
             .sheet(item: $groupActionTarget) { group in
                 groupActionSheet(for: group)
             }
+            .sheet(item: $roomActionTarget) { room in
+                roomActionSheet(for: room)
+            }
             .alert(
                 "Delete Group?",
                 isPresented: Binding(get: { groupDeleteTarget != nil }, set: { if !$0 { groupDeleteTarget = nil } }),
@@ -275,6 +279,7 @@ struct ChatListView: View {
             }
             .onAppear {
                 loadGroupPins()
+                loadRoomPins()
                 checkPendingGroupNavigation()
                 groupChatService.pendingGroupListNavigation = false
                 openPendingMessageRequests()
@@ -311,6 +316,7 @@ struct ChatListView: View {
         .onChange(of: walletManager.currentWallet?.publicAddress) { _ in
             loadCirclePins()
             loadGroupPins()
+            loadRoomPins()
             // An account switch keeps this view alive, so a chat open in the old account would
             // otherwise reopen in the new one. Every account starts on its own list.
             selectedContact = nil
@@ -387,13 +393,14 @@ struct ChatListView: View {
             checkPendingNavigation()
             // Suppressed during a pull-to-refresh; the pull's completion handler rebuilds once.
             guard !isPullRefreshing else { return }
-            scheduleFilteredConversationsRefresh(debounce: false)
-            scheduleAvatarPrefetch()
+            // Coalesced: a sync files messages one by one, and rebuilding the list for each one
+            // stalled scrolling while it ran.
+            scheduleFilteredConversationsRefresh(debounce: true)
         }
         .onChange(of: contactsManager.contacts) { _ in
             checkPendingNavigation()
             guard !isPullRefreshing else { return }
-            scheduleFilteredConversationsRefresh(debounce: false)
+            scheduleFilteredConversationsRefresh(debounce: true)
         }
         // Accept / Reject / Private move chats between the list and Message Requests.
         .onChange(of: chatService.chatRequestsRevision) { _ in
@@ -404,11 +411,8 @@ struct ChatListView: View {
         }
         .onDisappear {
             searchFilterTask?.cancel()
-            avatarPrefetchTask?.cancel()
         }
         .task {
-            await contactsManager.fetchKNSDomainsForAllContacts()
-            await preloadAvatarsForAllChats(forceProfileRefresh: false)
             await chatService.refreshLatestReactionPreviews()
         }
         .onChange(of: chatService.pendingChatNavigation) { newValue in
@@ -735,12 +739,110 @@ struct ChatListView: View {
     }
 
     /// The rooms in the list (default rooms switched off in Edit Default Public Chats are left
-    /// out), filtered by the search.
+    /// out), filtered by the search. Pinned rooms are circles instead, except while searching.
     private var displayedRooms: [PublicChatRoomSummary] {
         let rooms = roomSummaries.rooms
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return rooms }
+        guard !query.isEmpty else {
+            let pinned = Set(roomPins)
+            return pinned.isEmpty ? rooms : rooms.filter { !pinned.contains($0.channelName) }
+        }
         return rooms.filter { $0.channelName.range(of: query, options: .caseInsensitive) != nil }
+    }
+
+    /// The pinned rooms, in pin order (newest pin first). Empty while searching: the results list
+    /// them with the rest. A room switched off or left finds nothing and shows nowhere.
+    private var pinnedRoomSummaries: [PublicChatRoomSummary] {
+        guard searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !roomPins.isEmpty else { return [] }
+        let byName = Dictionary(roomSummaries.rooms.map { ($0.channelName, $0) }, uniquingKeysWith: { a, _ in a })
+        return roomPins.compactMap { byName[$0] }
+    }
+
+    private var roomPinsKey: String? {
+        guard let address = walletManager.currentWallet?.publicAddress.lowercased() else { return nil }
+        return "kachat_room_pins_\(address)"
+    }
+
+    private func loadRoomPins() {
+        guard let key = roomPinsKey else { roomPins = []; return }
+        roomPins = UserDefaults.standard.stringArray(forKey: key) ?? []
+    }
+
+    private func toggleRoomPin(_ name: String) {
+        if let index = roomPins.firstIndex(of: name) {
+            roomPins.remove(at: index)
+            showToast(AppLocalization.string("Unpinned"))
+        } else {
+            roomPins.insert(name, at: 0)
+            showToast(AppLocalization.string("Pinned to the top row"))
+        }
+        if let key = roomPinsKey { UserDefaults.standard.set(roomPins, forKey: key) }
+    }
+
+    /// A room switched off or deleted loses its pin, so it comes back in the list, not the row.
+    private func dropRoomPin(_ name: String) {
+        guard let index = roomPins.firstIndex(of: name) else { return }
+        roomPins.remove(at: index)
+        if let key = roomPinsKey { UserDefaults.standard.set(roomPins, forKey: key) }
+    }
+
+    /// A pinned room's long-press half sheet: read state, pin, notifications and delete.
+    private func roomActionSheet(for room: PublicChatRoomSummary) -> some View {
+        let channel = room.channel
+        let isPinned = roomPins.contains(room.channelName)
+        return VStack(spacing: 12) {
+            Text(verbatim: "#\(room.displayName)")
+                .font(.headline)
+                .lineLimit(1)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+
+            ActionSheetTiles {
+                if room.unreadCount > 0 {
+                    ActionSheetRow(title: "Mark as Read", subtitle: "Clears the unread badge on this public chat.", systemImage: "envelope.open") {
+                        roomActionTarget = nil
+                        publicChats.markChannelRead(channel.channelName)
+                        roomSummaries.recompute()
+                    }
+                } else {
+                    ActionSheetRow(title: "Mark as Unread", subtitle: "Puts the unread badge back so you come across it again.", systemImage: "envelope.badge") {
+                        roomActionTarget = nil
+                        publicChats.markChannelUnread(channel.channelName)
+                        roomSummaries.recompute()
+                    }
+                }
+                ActionSheetRow(
+                    title: isPinned ? "Unpin" : "Pin to Top Row",
+                    subtitle: isPinned ? "Moves it back into your chats." : "Moves it into the row above your chats.",
+                    systemImage: isPinned ? "pin.slash" : "pin"
+                ) {
+                    roomActionTarget = nil
+                    toggleRoomPin(channel.channelName)
+                }
+                ActionSheetRow(
+                    title: channel.notifyEnabled ? "Mute" : "Unmute",
+                    subtitle: channel.notifyEnabled
+                        ? "No notifications from this public chat."
+                        : "Notifications from this public chat resume.",
+                    systemImage: channel.notifyEnabled ? "bell.slash" : "bell"
+                ) {
+                    roomActionTarget = nil
+                    toggleRoomNotify(channel)
+                }
+                ActionSheetRow(title: "Delete", subtitle: "Removes this public chat from your chats.", systemImage: "trash", tint: .red) {
+                    roomActionTarget = nil
+                    // One turn later: the confirmation can't present while this sheet goes down.
+                    DispatchQueue.main.async { deleteRoom(channel.channelName) }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .presentationDetents([.height(ActionSheetTileMetrics.sheetHeight(tiles: 4))])
+        .presentationDragIndicator(.visible)
     }
 
     /// Who wrote a room's newest message, as its row says it.
@@ -760,7 +862,7 @@ struct ChatListView: View {
                 .equatable()
         }
         .buttonStyle(ChatRowPressStyle())
-        // Delete and Mute; no full swipe, so a long swipe can't start a delete
+        // Delete, Mute and Pin; no full swipe, so a long swipe can't start a delete
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button {
                 deleteRoom(channel.channelName)
@@ -775,6 +877,13 @@ struct ChatListView: View {
                       systemImage: channel.notifyEnabled ? "bell.slash" : "bell")
             }
             .tint(.orange)
+            Button {
+                toggleRoomPin(channel.channelName)
+            } label: {
+                let isPinned = roomPins.contains(channel.channelName)
+                Label(LocalizedStringKey(isPinned ? "Unpin" : "Pin"), systemImage: isPinned ? "pin.slash" : "pin")
+            }
+            .tint(.accentColor)
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             if room.unreadCount > 0 {
@@ -803,6 +912,7 @@ struct ChatListView: View {
     private func deleteRoom(_ name: String) {
         if PublicChatService.curatedChannels.contains(name) {
             publicChats.removeFromList(name)
+            dropRoomPin(name)
             roomSummaries.recompute()
             showToast(String(format: AppLocalization.string("#%@ is off - turn it back on in Edit Default Public Chats"),
                              locale: AppLocalization.locale, name))
@@ -838,6 +948,7 @@ struct ChatListView: View {
                 .padding(.horizontal, 24)
             ActionSheetRow(title: "Delete", subtitle: "Removes this room and its messages from this device.", systemImage: "trash", tint: .red) {
                 publicChats.leaveChannel(name)
+                dropRoomPin(name)
                 roomSummaries.recompute()
                 if selectedPublicRoom == name { selectedPublicRoom = nil }
                 roomToLeave = nil
@@ -1007,6 +1118,7 @@ struct ChatListView: View {
         // when the results are the whole match, pinned or not.
         let pinnedChats = searchText.isEmpty ? pinnedChatConversations : [:]
         let pinnedGroups = pinnedGroupChats
+        let pinnedRooms = pinnedRoomSummaries
         let entries = allEntries
         let totalCount = entries.count
         let displayed: [ChatListEntry]
@@ -1036,6 +1148,13 @@ struct ChatListView: View {
                     selectedGroup = group
                 },
                 onLongPressGroup: { groupActionTarget = $0 },
+                pinnedRooms: pinnedRooms,
+                onOpenRoom: { room in
+                    guard roomActionTarget == nil else { return }
+                    Haptics.impact(.light)
+                    openRoom(room.channelName)
+                },
+                onLongPressRoom: { roomActionTarget = $0 },
                 chatName: circleName(for:),
                 // The open is guarded on the hold's half sheet: the hold's touch-up still fires
                 // the circle's Button (simultaneousGesture), and opened the chat behind it.
@@ -1093,7 +1212,7 @@ struct ChatListView: View {
         .listStyle(.plain)
         .overlay(alignment: .center) {
             // Below the circles row rather than over it: only when there are no chats at all.
-            if displayed.isEmpty && searchText.isEmpty && pinnedChats.isEmpty && pinnedGroups.isEmpty {
+            if displayed.isEmpty && searchText.isEmpty && pinnedChats.isEmpty && pinnedGroups.isEmpty && pinnedRooms.isEmpty {
                 emptyStateView
                     .padding(.top, 120)
                     .allowsHitTesting(false)
@@ -1209,11 +1328,12 @@ struct ChatListView: View {
         return "kachat_group_pins_\(address)"
     }
 
-    /// Delete Account: the wallet's pinned circles and groups.
+    /// Delete Account: the wallet's pinned circles, groups and rooms.
     static func removeAllData(forWallet wallet: String) {
         let address = wallet.lowercased()
         UserDefaults.standard.removeObject(forKey: "kachat_chat_circle_pins_\(address)")
         UserDefaults.standard.removeObject(forKey: "kachat_group_pins_\(address)")
+        UserDefaults.standard.removeObject(forKey: "kachat_room_pins_\(address)")
     }
 
     /// The first time, the groups pinned in the old circles row (their "g:" ids in
@@ -1356,7 +1476,10 @@ struct ChatListView: View {
         groupPins.removeAll { deleted.contains($0) }
         if let key = groupPinsKey { UserDefaults.standard.set(groupPins, forKey: key) }
         selectedEntryIDs.subtract(groups.map { Self.entryID($0) })
-        showToast(groups.count == 1 ? "Group deleted." : "\(groups.count) groups deleted.")
+        // One key per form (audit 2026-11-24 #33).
+        showToast(groups.count == 1
+                  ? AppLocalization.string("Group deleted.")
+                  : String(format: AppLocalization.string("%lld groups deleted."), groups.count))
     }
 
     private func handleOpenGroupNotification(_ notification: Notification) {
@@ -1525,8 +1648,17 @@ struct ChatListView: View {
         }
     }
 
+    /// When the list was last rebuilt, held by reference so noting it redraws nothing.
+    private final class RefreshClock { var at = Date.distantPast }
+
     private func scheduleFilteredConversationsRefresh(debounce: Bool) {
         searchFilterTask?.cancel()
+        // Coalesced, but never held longer than a second: a long sync changes the chats more
+        // often than every 180 ms and kept the list stale until it paused (audit 2026-11-24 #27).
+        if debounce, Date().timeIntervalSince(refreshClock.at) > 1 {
+            refreshFilteredConversations()
+            return
+        }
         if debounce {
             searchFilterTask = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 180_000_000)
@@ -1544,76 +1676,40 @@ struct ChatListView: View {
         showMessageRequests = true
     }
 
-    private func scheduleAvatarPrefetch() {
-        avatarPrefetchTask?.cancel()
-        avatarPrefetchTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 220_000_000)
-            guard !Task.isCancelled else { return }
-            await preloadAvatarsForAllChats(forceProfileRefresh: false)
-        }
-    }
-
-    @MainActor
-    private func preloadAvatarsForAllChats(forceProfileRefresh: Bool) async {
-        let addresses = Array(Set(chatService.conversations.map { $0.contact.address }))
-        guard !addresses.isEmpty else { return }
-
-        let kns = KNSService.shared
-        let addressesToFetch: [String]
-        if forceProfileRefresh {
-            addressesToFetch = addresses
-        } else {
-            addressesToFetch = addresses.filter { kns.profileCache[$0] == nil }
-        }
-
-        if !addressesToFetch.isEmpty {
-            await fetchProfilesInBatches(for: addressesToFetch)
-        }
-
-        let avatarURLs = addresses.compactMap { address in
-            kns.profileCache[address]?.avatarURL
-        }
-        await KNSProfileImagePrefetcher.preload(rawURLStrings: avatarURLs, maxConcurrent: 6)
-    }
-
-    @MainActor
-    private func fetchProfilesInBatches(for addresses: [String]) async {
-        guard !addresses.isEmpty else { return }
-        // Concurrent batch refresh (KNSService's own bounded-concurrency path) instead of awaiting
-        // each contact serially - the serial loop meant N sequential network round-trips, each one
-        // triggering a KNSService @Published write that re-rendered every visible chat row.
-        await KNSService.shared.refreshProfilesIfNeeded(for: addresses, network: AppSettings.load().networkType)
-    }
-
     private func refreshFilteredConversations() {
+        refreshClock.at = Date()
+        let next = filteredConversations()
+        // An unchanged list isn't written back: each write redraws the whole list a second time.
+        if next != filteredConversationsCache { filteredConversationsCache = next }
+    }
+
+    private func filteredConversations() -> [Conversation] {
         let settings = settingsViewModel.settings
         // Bot chats are reached from their circles above the list, never the chat list.
         let sourceConversations = chatService.conversations.filter { !KaChatBot.isBot($0.contact.address) }
 
         if searchText.isEmpty {
-            filteredConversationsCache = sourceConversations
+            return sourceConversations
                 .filter { conversation in
                     chatService.isConversationVisibleInChatList(conversation, settings: settings)
                 }
                 .map { (key: $0.lastMessage?.timestamp ?? Date.distantPast, value: $0) }
                 .sorted { $0.key > $1.key }
                 .map(\.value)
-                        return
         }
 
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
-            filteredConversationsCache = sourceConversations
+            return sourceConversations
                 .filter { conversation in
                     chatService.isConversationVisibleInChatList(conversation, settings: settings)
                 }
                 .map { (key: $0.lastMessage?.timestamp ?? Date.distantPast, value: $0) }
                 .sorted { $0.key > $1.key }
                 .map(\.value)
-                        return
         }
 
-        filteredConversationsCache = sourceConversations.filter { conv in
+        return sourceConversations.filter { conv in
             guard chatService.isConversationVisibleInChatList(conv, settings: settings) else { return false }
             if contactsManager.displayName(for: conv.contact).range(of: query, options: .caseInsensitive) != nil {
                 return true
@@ -1642,7 +1738,10 @@ struct ChatListView: View {
     /// `.alert` expression in reasonable time.
     private var bulkDeleteAlertTitle: String {
         let chats = selectedEntryIDs.count
-        return "Delete \(chats) Chat\(chats == 1 ? "" : "s")?"
+        // One key per form, not an English "s" glued on (audit 2026-11-24 #34).
+        return chats == 1
+            ? AppLocalization.string("Delete 1 Chat?")
+            : String(format: AppLocalization.string("Delete %lld Chats?"), chats)
     }
 
     private var bulkDeleteAlertMessage: String {
@@ -1849,7 +1948,10 @@ struct ChatListView: View {
             if let key = circlePinsKey { UserDefaults.standard.set(circlePins, forKey: key) }
         }
         chatService.checkAndResubscribeIfNeeded()
-        showToast(contacts.count == 1 ? "Chat deleted." : "\(contacts.count) chats deleted.")
+        // One key per form (audit 2026-11-24 #33).
+        showToast(contacts.count == 1
+                  ? AppLocalization.string("Chat deleted.")
+                  : String(format: AppLocalization.string("%lld chats deleted."), contacts.count))
     }
 
     private func maybeLoadMoreConversations(currentIndex: Int, displayedCount: Int, totalCount: Int) {
@@ -1932,7 +2034,6 @@ struct ConversationRow: View {
     let conversation: Conversation
     @EnvironmentObject var chatService: ChatService
     @EnvironmentObject var walletManager: WalletManager
-    @ObservedObject private var knsService = KNSService.shared
     @ObservedObject private var kachatRegistry = KachatNamesRegistry.shared
     /// A name saved in the Address Book names the row, and the row redraws when it changes.
     @ObservedObject private var addressBook = AddressBookManager.shared
@@ -1943,7 +2044,7 @@ struct ConversationRow: View {
     }()
 
     private var avatarURLString: String? {
-        knsService.profileCache[conversation.contact.address]?.avatarURL
+        nil
     }
 
     /// `ContactsManager.displayName` - the name you gave the chat, else its Address Book name,
@@ -1965,20 +2066,19 @@ struct ConversationRow: View {
             if let label = kachatRegistry.cachedIdentity(for: conversation.contact.address)?.label { return KachatNameLabel.display(label) }
             return Contact.generateDefaultAlias(from: conversation.contact.address)
         }
-        if let domain = knsService.profileCache[conversation.contact.address]?.domainName, !domain.isEmpty {
-            return domain
-        }
         return Contact.generateDefaultAlias(from: conversation.contact.address)
     }
 
     var body: some View {
         let lastMessage = conversation.lastMessage
+        // worked out once per draw (it was twice: the avatar's fallback and the title)
+        let name = rowDisplayName
 
         HStack(spacing: 12) {
             // Avatar
             KNSAvatarView(
                 avatarURLString: avatarURLString,
-                fallbackText: rowDisplayName,
+                fallbackText: name,
                 size: 50,
                 contactAddress: conversation.contact.address
             )
@@ -1988,7 +2088,7 @@ struct ConversationRow: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 1) {
                         HStack(spacing: 5) {
-                            Text(rowDisplayName)
+                            Text(name)
                                 .font(.headline)
                                 .lineLimit(1)
                             // Silenced: no banner from this conversation, ever. Worth a mark on
@@ -2062,12 +2162,6 @@ struct ConversationRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle()) // Make entire row tappable
-        .task(id: conversation.contact.address) {
-            let address = conversation.contact.address
-            if knsService.profileCache[address] == nil {
-                _ = await knsService.fetchProfile(for: address)
-            }
-        }
     }
 
     private func formatDate(_ date: Date) -> String {
@@ -2103,11 +2197,12 @@ struct ConversationRow: View {
         let myAddress = walletManager.currentWallet?.publicAddress
         let reactedByMe = preview.reactorAddress == myAddress
         let targetIsMine = preview.targetMessageIsOutgoing ?? false
+        // Shown as Text(String), which skips the lookup: localized here (audit 2026-11-24 #33).
         switch (reactedByMe, targetIsMine) {
-        case (true, true): return "You reacted to your message"
-        case (true, false): return "You reacted to their message"
-        case (false, true): return "Reacted to your message"
-        case (false, false): return "Reacted to their message"
+        case (true, true): return AppLocalization.string("You reacted to your message")
+        case (true, false): return AppLocalization.string("You reacted to their message")
+        case (false, true): return AppLocalization.string("Reacted to your message")
+        case (false, false): return AppLocalization.string("Reacted to their message")
         }
     }
 
@@ -2142,7 +2237,8 @@ struct ConversationRow: View {
         // row in the chat list paid two full scans of its entire last-message content on every
         // single render - including the render triggered by returning from a chat, which made
         // that transition visibly freeze for chats with large last messages.
-        let key = "\(content.utf8.count)|\(content.prefix(24))" as NSString
+        // The language is in the key: the labels below are translated (audit 2026-11-24 #33).
+        let key = "\(AppLocalization.locale.identifier)|\(content.utf8.count)|\(content.prefix(24))" as NSString
         if let cached = Self.previewCache.object(forKey: key) {
             return cached as String
         }
@@ -2158,13 +2254,13 @@ struct ConversationRow: View {
         if let internalLink = KaChatInternalLink.match(in: unwrapped), internalLink.coversWholeMessage {
             switch internalLink.link {
             case .profile:
-                result = "Shared a KaChat profile"
+                result = AppLocalization.string("Shared a KaChat profile")
             case .paymentRequest(let request):
                 result = KaspaUnit.label(String(format: AppLocalization.string("Payment request: %@ KAS"), request.amountText))
             case .kaPost:
                 result = AppLocalization.string("Shared a KaPost")
             case .publicChatRoom(let channel):
-                result = "Public chat room #\(channel)"
+                result = String(format: AppLocalization.string("Public chat room #%@"), channel)
             }
             Self.previewCache.setObject(result as NSString, forKey: key)
             return result
@@ -2180,9 +2276,9 @@ struct ConversationRow: View {
 
         if let chessEnvelope = ChessCodec.parseAny(unwrapped) {
             if case .invite(let invite) = chessEnvelope, let minutes = invite.tcMinutes {
-                result = "♟️ Chess game - \(minutes) | \(invite.tcIncSeconds ?? 0)"
+                result = "♟️ " + String(format: AppLocalization.string("Chess game - %lld | %lld"), minutes, invite.tcIncSeconds ?? 0)
             } else {
-                result = "♟️ Chess game"
+                result = "♟️ " + AppLocalization.string("Chess game")
             }
             Self.previewCache.setObject(result as NSString, forKey: key)
             return result
@@ -2201,13 +2297,13 @@ struct ConversationRow: View {
         if mime == "image/gif" {
             result = "GIF"
         } else if mime.hasPrefix("image/") {
-            result = "Photo"
+            result = AppLocalization.string("Photo")
         } else if mime.hasPrefix("audio/") {
-            result = "Voice message"
+            result = AppLocalization.string("Voice message")
         } else if mime.hasPrefix("video/") {
-            result = "Video"
+            result = AppLocalization.string("Video")
         } else {
-            result = "File"
+            result = AppLocalization.string("File")
         }
         Self.previewCache.setObject(result as NSString, forKey: key)
         return result
@@ -2222,7 +2318,10 @@ struct ConversationRow: View {
 /// whatever else it says. Only web links count: a message that is a `kaspa:` address must keep
 /// reading as one, and the detector would otherwise take that for a URL too.
 enum LinkSafePreview {
-    static let sentALink = "📎 Sent a link"
+    /// Translated each time it's read (audit 2026-11-24 #33); the cache below keeps a marker
+    /// instead, so a language change doesn't leave the old wording behind.
+    static var sentALink: String { "📎 " + AppLocalization.string("Sent a link") }
+    private static let sentALinkMarker = "\u{0}sent-a-link"
 
     /// Keyed the same way `formatPreview`'s cache is - the group row has no cache of its own and
     /// renders its preview on every pass, and a detector scan per pass is exactly the kind of
@@ -2240,10 +2339,12 @@ enum LinkSafePreview {
         let key: NSString = text.utf8.count <= 4_096
             ? "t:\(text)" as NSString
             : "h:\(text.utf8.count)|\(text.hashValue)" as NSString
-        if let cached = cache.object(forKey: key) { return cached as String }
-        let result = containsWebLink(text) ? sentALink : text
-        cache.setObject(result as NSString, forKey: key)
-        return result
+        if let cached = cache.object(forKey: key) {
+            return (cached as String) == sentALinkMarker ? sentALink : cached as String
+        }
+        let isLink = containsWebLink(text)
+        cache.setObject((isLink ? sentALinkMarker : text) as NSString, forKey: key)
+        return isLink ? sentALink : text
     }
 
     private static func containsWebLink(_ text: String) -> Bool {
@@ -2409,7 +2510,6 @@ private enum ChatCircleItem {
 /// own rows in this list.
 private struct ChatCirclesStrip: View {
     @Environment(\.editMode) private var editMode
-    @ObservedObject private var knsService = KNSService.shared
     let searchText: String
     let pins: [String]
     /// Every bot, with its chat when there is one (`ChatListView.botCircles`).
@@ -2423,6 +2523,11 @@ private struct ChatCirclesStrip: View {
     let onOpenGroup: (GroupChat) -> Void
     /// Hold a pinned group: its half sheet.
     let onLongPressGroup: (GroupChat) -> Void
+    /// The public rooms pinned into the row. Empty while searching, like the chats.
+    let pinnedRooms: [PublicChatRoomSummary]
+    let onOpenRoom: (PublicChatRoomSummary) -> Void
+    /// Hold a pinned room: its half sheet.
+    let onLongPressRoom: (PublicChatRoomSummary) -> Void
     let chatName: (Conversation) -> String
     let onOpenBot: (KaChatBot) -> Void
     let onOpenChat: (Conversation) -> Void
@@ -2458,7 +2563,7 @@ private struct ChatCirclesStrip: View {
 
     var body: some View {
         let items = items
-        if items.isEmpty && pinnedGroups.isEmpty {
+        if items.isEmpty && pinnedGroups.isEmpty && pinnedRooms.isEmpty {
             Color.clear.frame(height: 1)
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -2474,6 +2579,24 @@ private struct ChatCirclesStrip: View {
                             onLongPress: { onLongPressGroup(group) }
                         ) {
                             GroupAvatar(group: group, size: 60)
+                        }
+                    }
+                    ForEach(pinnedRooms) { room in
+                        PinnedCircleButton(
+                            name: "#\(room.displayName)",
+                            unreadCount: room.unreadCount,
+                            showsPin: true,
+                            isSelecting: isSelecting,
+                            onTap: { onOpenRoom(room) },
+                            onLongPress: { onLongPressRoom(room) }
+                        ) {
+                            Circle()
+                                .fill(Color.accentColor.opacity(0.2))
+                                .overlay(
+                                    Text(verbatim: "#")
+                                        .font(.scaled(size: 28, weight: .bold, design: .rounded))
+                                        .foregroundColor(.accentColor)
+                                )
                         }
                     }
                     ForEach(items, id: \.id) { item in
@@ -2519,7 +2642,7 @@ private struct ChatCirclesStrip: View {
                 onLongPress: { onLongPressChat(conversation) }
             ) {
                 KNSAvatarView(
-                    avatarURLString: knsService.profileCache[conversation.contact.address]?.avatarURL,
+                    avatarURLString: nil,
                     fallbackText: name,
                     size: 60,
                     contactAddress: conversation.contact.address

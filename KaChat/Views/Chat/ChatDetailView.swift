@@ -73,7 +73,6 @@ struct ChatDetailView: View {
     /// Closes the chat after a Message Request is rejected.
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var settingsViewModel: SettingsViewModel
-    @ObservedObject private var knsService = KNSService.shared
     @ObservedObject private var priceModel = KasPriceModel.shared
     @StateObject private var fiatAmountState = KaspaFiatAmountState()
 
@@ -182,6 +181,24 @@ struct ChatDetailView: View {
     }
     /// Send Dollars' pick: the token's send sheet, to this chat
     @State private var dollarSendToken: WalletToken?
+    /// The + sheet's Tip, when it needs a screen: the tip amount (Kaspa), or "What are you tipping
+    /// in?" (Ask Each Time). Settings > Customization > Tipping decides, as for a KaPost tip.
+    @State private var chatTipTarget: ChatTipTarget?
+    /// An instant tip going out: a second tap waits for it.
+    @State private var isSendingInstantTip = false
+    /// The default tip, waiting in the composer as a card until Send (owner's call, 2026-11-23:
+    /// never straight out of the + sheet). The trash takes it back.
+    @State private var pendingTip: PendingTip?
+    private struct PendingTip: Equatable {
+        let sompi: UInt64
+        /// The currency amount it was worked out from, for a default tip set in a currency.
+        let fiatText: String?
+    }
+    private struct ChatTipTarget: Identifiable {
+        let asset: KaPostsTipAsset?
+        var failure: String? = nil
+        var id: String { "\(asset?.rawValue ?? "ask")-\(failure ?? "")" }
+    }
     @State private var previousMessagesCount = 0
     @State private var lastMessageSnapshotDigest: Int?
     @State private var snapshotRebuildTask: Task<Void, Never>?
@@ -1117,6 +1134,14 @@ struct ChatDetailView: View {
                 chatService.recordTokenPayment(to: contact, token: token, txId: txId, index: index, amount: amount)
             }
         }
+        .sheet(item: $chatTipTarget) { target in
+            KaPostTipFlow(address: contact.address, displayName: contactsManager.displayName(for: contact),
+                          tip: nil, initialError: target.failure, asset: target.asset, onTipped: nil,
+                          onPickKusdt: {
+                              // after this sheet is gone: the chat's Send Dollars, with its bubble
+                              DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { dollarSendToken = .kusdt }
+                          })
+        }
         .sheet(item: $paymentDetailMessage) { message in
             paymentDetailSheet(for: message)
         }
@@ -1141,7 +1166,7 @@ struct ChatDetailView: View {
                     .map { ReactionsSheet.Entry(emoji: $0.emoji, reactorAddress: $0.reactorAddress) },
                 myAddress: walletManager.currentWallet?.publicAddress ?? "",
                 displayName: { _ in contactsManager.displayName(for: contact) },
-                avatarURL: { knsService.profileCache[$0]?.avatarURL }
+                avatarURL: { _ in nil }
             )
         }
         .sheet(isPresented: $showChatInfo) {
@@ -1302,12 +1327,6 @@ struct ChatDetailView: View {
                 replyBannerHeight = 0
             }
         }
-        .task(id: myAddress) {
-            // Resolves regardless of who's
-            // messaged, since it's always needed for our own outgoing bubbles.
-            guard let myAddress, knsService.profileCache[myAddress] == nil else { return }
-            _ = await knsService.fetchProfile(for: myAddress)
-        }
         .task(id: derived().photosUnlockDate) {
             guard let date = derived().photosUnlockDate else { return }
             contactsManager.storePhotosUnlockDate(date, for: contact.address)
@@ -1316,10 +1335,6 @@ struct ChatDetailView: View {
             try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
             guard !Task.isCancelled else { return }
             photosUnlockTick &+= 1
-        }
-        .task(id: contact.address) {
-            guard knsService.profileCache[contact.address] == nil else { return }
-            _ = await knsService.fetchProfile(for: contact.address)
         }
         .onReceive(NotificationCenter.default.publisher(for: .openChat)) { notification in
             guard let targetAddress = notification.userInfo?["contactAddress"] as? String else { return }
@@ -1655,8 +1670,13 @@ struct ChatDetailView: View {
     }
 
     private func markUserScrollInteractionBegan() {
-        scrollInteractionResetWorkItem?.cancel()
-        isUserInteractingWithScroll = true
+        // Called on every touch move of a scroll: write the state only when it changes, so the
+        // drag doesn't redraw the chat screen on every frame.
+        if scrollInteractionResetWorkItem != nil {
+            scrollInteractionResetWorkItem?.cancel()
+            scrollInteractionResetWorkItem = nil
+        }
+        if !isUserInteractingWithScroll { isUserInteractingWithScroll = true }
     }
 
     private func markUserScrollInteractionEndedSoon() {
@@ -2278,6 +2298,12 @@ struct ChatDetailView: View {
         Group {
             if isDeclined {
                 EmptyView()
+            } else if inputMode == .message, pendingTip != nil {
+                // the waiting tip goes on Send, and only then
+                sendButton(
+                    tapAction: { sendPendingTip() },
+                    isDisabled: isSendingInstantTip
+                )
             } else if inputMode == .message && pendingPhotoImage == nil && !composerHasText {
                 composerPlusMenu
             } else {
@@ -2306,7 +2332,7 @@ struct ChatDetailView: View {
         } label: {
             VStack(spacing: -12) {
                 KNSAvatarView(
-                    avatarURLString: knsService.profileCache[contact.address]?.avatarURL,
+                    avatarURLString: nil,
                     fallbackText: contactsManager.displayName(for: contact),
                     size: 46,
                     contactAddress: contact.address
@@ -2561,6 +2587,18 @@ struct ChatDetailView: View {
                     ) {
                         composerSheetStep = .dollars
                     }
+                    // Tip (2026-11-23): what Settings > Customization > Tipping sets, as on a
+                    // KaPost: a default Kaspa tip goes at once, else the tip screen.
+                    if !isSelfChat {
+                        ActionSheetRow(
+                            title: "Tip",
+                            subtitle: "Tip this contact, as set in Settings > Customization > Tipping.",
+                            systemImage: "gift"
+                        ) {
+                            afterPlusSheet = { tipFromChat() }
+                            showComposerPlusSheet = false
+                        }
+                    }
                     // Camera, Photo and Voice Message each ask on chain or via Nextcloud when a server is
                     // connected (that choice replaced the "Send Media via Nextcloud" setting), and go
                     // straight on chain when none is.
@@ -2654,6 +2692,7 @@ struct ChatDetailView: View {
     private var composerPlusSheetHeight: CGFloat {
         if KaChatBot.isBot(contact.address) { return ActionSheetTileMetrics.sheetHeight(tiles: 1) }
         var tiles = 8
+        if !isSelfChat { tiles += 1 }
         if nextcloudService.isConnected { tiles += 1 }
         if canSendRequestToCommunicate && !inboxSupported { tiles += 1 }
         return ActionSheetTileMetrics.sheetHeight(tiles: tiles)
@@ -2728,6 +2767,19 @@ struct ChatDetailView: View {
         .buttonStyle(.plain)
         .disabled(isDisabled)
         .opacity(isDisabled ? 0.5 : 1.0)
+        .accessibilityLabel(sendButtonAccessibilityLabel)
+    }
+
+    /// What the send button does right now, for VoiceOver: the icon alone said nothing
+    /// (audit 2026-11-24 #32). Same branches as `sendButtonArea` and `currentButtonIcon`.
+    private var sendButtonAccessibilityLabel: Text {
+        if inputMode == .message, pendingTip != nil { return Text("Send Tip") }
+        if inputMode == .audio {
+            if isRecording { return Text("Stop Recording") }
+            if recordedAudioPreviewURL != nil { return Text("Send Voice Message") }
+            return Text("Record voice message")
+        }
+        return Text("Send")
     }
 
     private var sendButtonLabel: some View {
@@ -2897,7 +2949,9 @@ struct ChatDetailView: View {
         Group {
             switch inputMode {
             case .message:
-                if let pendingPhotoImage {
+                if let pendingTip {
+                    pendingTipRow(pendingTip)
+                } else if let pendingPhotoImage {
                     pendingPhotoRow(pendingPhotoImage)
                 } else {
                     // Read so a programmatic change (`messageText = ...`) redraws this and
@@ -3007,6 +3061,49 @@ struct ChatDetailView: View {
                 .background(glassBackground(cornerRadius: 20))
             }
         }
+    }
+
+    /// The default tip waiting in the composer: the amount (and the currency amount it came from),
+    /// sent by the send button beside it, taken back by the trash.
+    private func pendingTipRow(_ tip: PendingTip) -> some View {
+        HStack(spacing: 10) {
+            Image("KaspaLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 36, height: 36)
+                .clipShape(Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Tip")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+                Text(verbatim: KaspaUnit.amount(tip.sompi))
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                if let fiatText = tip.fiatText {
+                    Text(verbatim: fiatText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            Spacer()
+            if isSendingInstantTip {
+                ProgressView()
+            } else {
+                Button {
+                    Haptics.impact(.light)
+                    withAnimation(.easeInOut(duration: 0.2)) { pendingTip = nil }
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                }
+                .accessibilityLabel(Text("Remove"))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(glassBackground(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.accentColor.opacity(0.6), lineWidth: 1))
     }
 
     private func pendingPhotoRow(_ image: UIImage) -> some View {
@@ -4125,7 +4222,7 @@ struct ChatDetailView: View {
                 ? { beginEdit(message) } : nil,
             activeQuickReactionMessageId: $activeQuickReactionMessageId,
             onJumpToReply: replyQuote != nil ? { pendingJumpToTxId = replyQuote?.replyToId } : nil,
-            avatarURLString: senderAddress.flatMap { knsService.profileCache[$0]?.avatarURL },
+            avatarURLString: nil,
             avatarDisplayName: replyDisplayName(for: senderAddress ?? contact.address),
             photosBlocked: incomingPhotosBlocked,
             linkPreviewsAutoLoad: contactsManager.isAcceptedContact(contact),
@@ -4210,7 +4307,11 @@ struct ChatDetailView: View {
     /// nested inside string interpolation there was making the compiler unable to type-check the
     /// `.alert` expression in reasonable time (same fix as `ChatListView`'s bulk-delete alert).
     private var deleteMessagesAlertTitle: String {
-        "Delete \(selectedMessageIDs.count) Message\(selectedMessageIDs.count == 1 ? "" : "s")?"
+        // One key per form, not an English "s" glued on (audit 2026-11-24 #34).
+        let count = selectedMessageIDs.count
+        return count == 1
+            ? AppLocalization.string("Delete 1 Message?")
+            : String(format: AppLocalization.string("Delete %lld Messages?"), count)
     }
 
     @ViewBuilder
@@ -4668,7 +4769,7 @@ struct ChatDetailView: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.error = "Failed to start recording: \(error.localizedDescription)"
+                    self.error = String(format: AppLocalization.string("Failed to start recording: %@"), error.localizedDescription)
                 }
             }
         }
@@ -5002,7 +5103,7 @@ struct ChatDetailView: View {
             previewIsPlaying = true
             startPreviewTimer()
         } catch {
-            self.error = "Failed to play audio: \(error.localizedDescription)"
+            self.error = String(format: AppLocalization.string("Failed to play audio: %@"), error.localizedDescription)
         }
     }
 
@@ -5333,7 +5434,7 @@ struct ChatDetailView: View {
                 self.discardEncodedAudio()
                 self.isEstimatingFee = false
                 self.isEncodingAudio = false
-                self.error = "Failed to encode audio: \(error.localizedDescription)"
+                self.error = String(format: AppLocalization.string("Failed to encode audio: %@"), error.localizedDescription)
             }
         }
     }
@@ -5532,7 +5633,94 @@ struct ChatDetailView: View {
                 }
             }
         } catch {
-            self.error = "Failed to prepare audio: \(error.localizedDescription)"
+            self.error = String(format: AppLocalization.string("Failed to prepare audio: %@"), error.localizedDescription)
+        }
+    }
+
+    // MARK: - Tip
+
+    /// The + sheet's Tip: Tip In (Settings > Customization > Tipping) picks Kaspa, kUSDT or asking;
+    /// a Kaspa tip with a default amount goes at once (at most 10 KAS, as on a KaPost), from Tips
+    /// From, as an ordinary payment in this chat. kUSDT is the chat's Send Dollars.
+    private func tipFromChat() {
+        let settings = settingsViewModel.settings
+        switch settings.kaPostsTipAssetInUse {
+        case .kusdt:
+            dollarSendToken = .kusdt
+            return
+        case nil:
+            chatTipTarget = ChatTipTarget(asset: nil)
+            return
+        case .kaspa:
+            break
+        }
+        switch KaPostsSettingsView.instantTip(settings) {
+        case .none:
+            chatTipTarget = ChatTipTarget(asset: .kaspa)
+        case .overLimit:
+            chatTipTarget = ChatTipTarget(asset: .kaspa, failure: KaPostsSettingsView.instantTipLimitNotice)
+        case .tooSmall:
+            Haptics.error()
+            showToast(String(format: AppLocalization.string("Tip didn't send: the smallest tip the network takes is %@. Change your default tip in Settings > Customization > Tipping."),
+                             KaPostsSettingsView.instantTipMinimumText), style: .error)
+        case .noPrice(let fiatText):
+            Haptics.error()
+            showToast(String(format: AppLocalization.string("Tip didn't send: there is no recent KAS price to turn %@ into KAS."), fiatText), style: .error)
+        case .send(let sompi, let fiatText):
+            // waits in the composer until Send
+            withAnimation(.easeInOut(duration: 0.2)) {
+                pendingTip = PendingTip(sompi: sompi, fiatText: fiatText)
+            }
+        }
+    }
+
+    /// Send on a waiting tip: it goes out, and the card leaves once it has (a failure keeps it,
+    /// to try again or take back).
+    private func sendPendingTip() {
+        guard let tip = pendingTip else { return }
+        sendInstantTip(tip.sompi, fiatText: tip.fiatText) { sent in
+            if sent { withAnimation(.easeInOut(duration: 0.2)) { pendingTip = nil } }
+        }
+    }
+
+    private func sendInstantTip(_ amountSompi: UInt64, fiatText: String?, done: @escaping (Bool) -> Void = { _ in }) {
+        guard !isSendingInstantTip else { return }
+        // Tips From: one that can't be read must not quietly become a tip from somewhere else
+        guard let source = SendSource.defaultTip() else {
+            Haptics.error()
+            showToast(AppLocalization.string("Tip didn't send: your Tips From address can't be read right now."), style: .error)
+            return
+        }
+        isSendingInstantTip = true
+        Haptics.impact(.light)
+        let recipient = contact
+        let name = contactsManager.displayName(for: contact)
+        let amountText = fiatText.map { "\(KaspaUnit.amount(amountSompi)) (\($0))" } ?? KaspaUnit.amount(amountSompi)
+        Task {
+            defer { isSendingInstantTip = false }
+            do {
+                let txId = try await chatService.sendPayment(
+                    to: recipient, amountSompi: amountSompi, extraFeeSompi: 0,
+                    sourceSpendingIndex: source.spendingIndex, tip: nil
+                )
+                guard txId != nil else {
+                    // put off until the coins confirm: the retry timer sends it
+                    showToast(SendDeferredError.message)
+                    done(true)
+                    return
+                }
+                Haptics.success()
+                showToast(String(format: AppLocalization.string("Tipped %@ to %@"), amountText, name))
+                done(true)
+            } catch is SendOutcomeUnknownError {
+                // it may have gone: the card goes too, so it can't be sent twice
+                showToast(SendOutcomeUnknownError.message, style: .error)
+                done(true)
+            } catch {
+                Haptics.error()
+                showToast(String(format: AppLocalization.string("Tip didn't send: %@"), UserFacingError.message(for: error)), style: .error)
+                done(false)
+            }
         }
     }
 

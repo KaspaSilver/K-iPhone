@@ -42,6 +42,9 @@ struct KaChatApp: App {
         _ = NextcloudService.shared
         // People shown as their address are asked again for a .kachat name, once a minute.
         KachatNamesRegistry.shared.startUnnamedIdentitySweep()
+        // The Appearance setting on every window from the first one on, not from the first
+        // screen's onAppear (see `WindowAppearance`).
+        WindowAppearance.install(AppSettings.load().appearance)
     }
 
     var body: some Scene {
@@ -92,16 +95,10 @@ struct KaChatApp: App {
     /// light-mode device, that mismatch showed as white edges peeking out around presented
     /// sheets. Overriding the windows' interface style makes the whole window chrome match.
     private func applyWindowAppearanceOverride() {
-        let style: UIUserInterfaceStyle
-        switch settingsViewModel.settings.appearance {
-        case .system: style = .unspecified
-        case .light: style = .light
-        case .dark: style = .dark
-        }
+        WindowAppearance.set(settingsViewModel.settings.appearance)
         for scene in UIApplication.shared.connectedScenes {
             guard let windowScene = scene as? UIWindowScene else { continue }
             for window in windowScene.windows {
-                window.overrideUserInterfaceStyle = style
                 // The tab bar at the bottom kept the OLD theme's colours after a switch until
                 // the app was relaunched: UIKit caches its resolved appearance and does not
                 // re-resolve it for a window override change. Walking the bar and re-applying
@@ -293,7 +290,12 @@ struct KaChatApp: App {
             // KaPosts' Chat button: a profile link that asks for the chat (`?chat=1`) opens the
             // 1:1 chat itself rather than User Info. Older KaChat versions ignore the query and
             // show User Info, so KaPosts can send it to everyone.
-            if case .profile(let address) = link, KaChatLinkRouter.asksForChat(url) {
+            // Only for someone already known (a contact or a chat): `openChat` saves the contact
+            // and the chat, and a saved contact skips Message Requests and Who Can Message You?
+            // in the push extension, so a link from anywhere mustn't do that for a stranger.
+            // A stranger's link opens User Info, where Open Chat is one tap (audit 2026-11-24 #20).
+            if case .profile(let address) = link, KaChatLinkRouter.asksForChat(url),
+               KaChatLinkRouter.isKnownChatPartner(address) {
                 KaChatLinkRouter.openChat(address: address)
             } else {
                 KaChatLinkRouter.open(link)
@@ -319,6 +321,11 @@ struct KaChatApp: App {
         // the game opens here, in the Games tab.
         if ChessBotLinks.challenge(from: url) != nil {
             ChessBotLinks.open(url)
+            return
+        }
+        // An arcade score challenge (`kachatarcade://snake?score=...`, ARCADE.md): KaPlay opens the game.
+        if ArcadeChallenge(url: url) != nil {
+            ArcadeLinkRouter.open(url)
             return
         }
 
@@ -574,7 +581,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Replace Close Window (Cmd+W) with Hide Window to keep the scene alive.
         // This avoids a full scene rebuild when the user clicks the dock icon.
         let hideCommand = UIKeyCommand(
-            title: "Hide Window",
+            title: AppLocalization.string("Hide Window"),
             action: #selector(hideActiveWindow),
             input: "W",
             modifierFlags: .command
@@ -1202,10 +1209,11 @@ enum RetiredFeatureCleanup {
     private static let doneKeyV2 = "kachat_retired_features_cleaned_v2"
     /// Once deleted the data of Portfolio, Cold Storage, Swap, the .kachat market and the old
     /// customizable dock (they left on 2026-10-24). Since 2026-11-21 KaChat is the all-in-one app
-    /// again and those features are back, so it deletes only what stays retired: Swap's settings
-    /// and the old Home Screen widget's snapshot. (The old dock keys were `kachat_dock_*`, which the
+    /// again and those features are back, so it deletes only what stays retired: the old Home
+    /// Screen widget's snapshot. Swap is back too (2026-11-23), so its `kachat_swap_*` history and
+    /// agreements are kept (audit 2026-11-24). (The old dock keys were `kachat_dock_*`, which the
     /// new `DockLayout` keys would also match, so they're left alone too.)
-    private static let defaultsPrefixesV2 = ["kachat_swap_"]
+    private static let defaultsPrefixesV2: [String] = []
 
     static func runOnceV2() async {
         let defaults = UserDefaults.standard
@@ -1337,6 +1345,15 @@ enum KaChatLinkRouter {
     static func asksForChat(_ url: URL) -> Bool {
         URLComponents(url: url, resolvingAgainstBaseURL: false)?
             .queryItems?.contains { $0.name.lowercased() == "chat" && $0.value == "1" } ?? false
+    }
+
+    /// A saved contact or someone with a conversation here: a `?chat=1` link may open their chat
+    /// straight away (audit 2026-11-24 #20).
+    @MainActor
+    static func isKnownChatPartner(_ address: String) -> Bool {
+        let normalized = address.lowercased()
+        if ContactsManager.shared.contacts.contains(where: { $0.address.lowercased() == normalized }) { return true }
+        return ChatService.shared.conversations.contains { $0.contact.address.lowercased() == normalized }
     }
 
     /// Opens (or starts) the 1:1 chat with `address` - the route the Addresses screen's Chat
@@ -1637,5 +1654,67 @@ enum RoomVoicePushBursts {
         }
         bursts[owner] = Burst(lastPush: now, quietId: identifier)
         return true
+    }
+}
+
+/// The Appearance setting (System / Light / Dark) on every UIKit window, all the time.
+///
+/// It used to reach the windows only from the first screen's onAppear and on a change. iOS
+/// draws the App Switcher card from a snapshot it takes when K leaves the screen, and again
+/// whenever it wakes K in the background (a push, a fetch) or the phone's own Light/Dark Mode
+/// flips. When that drawing happened while a window had no override, SwiftUI's
+/// `.preferredColorScheme` and UIKit disagreed and the card came out half Light, half Dark:
+/// black text on the black background, so names and titles vanished (2026-11-23). Now the
+/// override is set as each window shows, and again on every scene change, so the snapshot
+/// always matches the app.
+@MainActor
+enum WindowAppearance {
+    private static var style: UIUserInterfaceStyle = .unspecified
+    private static var observers: [NSObjectProtocol] = []
+
+    /// Called once at launch with the saved setting.
+    static func install(_ appearance: AppAppearance) {
+        style = uiStyle(for: appearance)
+        guard observers.isEmpty else { return }
+        let names: [Notification.Name] = [
+            UIWindow.didBecomeVisibleNotification,
+            UIWindow.didBecomeKeyNotification,
+            UIScene.willEnterForegroundNotification,
+            UIScene.didActivateNotification,
+            UIScene.willDeactivateNotification,
+            UIScene.didEnterBackgroundNotification,
+        ]
+        observers = names.map { name in
+            // Delivered on the main queue, and applied right away (not in a Task), so the
+            // override is in place before iOS takes the snapshot that follows going to the
+            // background.
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { applyToAllWindows() }
+            }
+        }
+        applyToAllWindows()
+    }
+
+    /// A change in Settings > Customization.
+    static func set(_ appearance: AppAppearance) {
+        style = uiStyle(for: appearance)
+        applyToAllWindows()
+    }
+
+    private static func applyToAllWindows() {
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows where window.overrideUserInterfaceStyle != style {
+                window.overrideUserInterfaceStyle = style
+            }
+        }
+    }
+
+    private static func uiStyle(for appearance: AppAppearance) -> UIUserInterfaceStyle {
+        switch appearance {
+        case .system: return .unspecified
+        case .light: return .light
+        case .dark: return .dark
+        }
     }
 }

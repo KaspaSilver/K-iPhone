@@ -57,17 +57,17 @@ enum ChessBotLinks {
         return ChessBotChallenge(bot: bot, moves: moves, by: by)
     }
 
-    /// Opens the KaPosts composer with the post written; the player still taps Post there.
+    /// The post Share to KaPost writes after a win: the boast and the challenge link. KaPlay
+    /// slides KaPost's composer up over the game with it (`KaPostQuickComposer`).
     @MainActor
-    static func shareToKaPosts(bot: ChessBot, moves: Int, gameId: String) {
+    static func shareText(bot: ChessBot, moves: Int, gameId: String) -> String? {
         guard let address = WalletManager.shared.currentWallet?.publicAddress,
-              let challenge = challengeURL(bot: bot, moves: moves, by: address, gameId: gameId) else { return }
+              let challenge = challengeURL(bot: bot, moves: moves, by: address, gameId: gameId) else { return nil }
         let boast = String(
             format: AppLocalization.string("I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?"),
             locale: AppLocalization.locale, bot.name, bot.level, moves
         )
-        KaPostsDeepLink.pendingComposeText = "\(boast)\n\n\(challenge.absoluteString)"
-        NotificationCenter.default.post(name: .openKaPost, object: nil, userInfo: [:])
+        return "\(boast)\n\n\(challenge.absoluteString)"
     }
 
     /// A challenge card's button in a post: the Games tab, wherever it lives, opens the bot.

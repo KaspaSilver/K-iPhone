@@ -230,7 +230,7 @@ struct PublicChatRoomInfoView: View {
         publicChatService.setIndexerOverride(trimmed, forChannel: normalized)
         toastMessage = trimmed.isEmpty
             ? "This room follows the app's indexer again."
-            : "Indexer updated for #\(normalized)."
+            : String(format: AppLocalization.string("Indexer updated for #%@."), normalized)
 
         // Whichever one the room now reads from - the override just saved, or the app-wide one
         // a cleared field falls back to.
@@ -253,7 +253,8 @@ struct PublicChatRoomInfoView: View {
                 )
                 indexerCheck = .reachable(page.messages.count)
             } catch {
-                indexerCheck = .failed("Could not reach it: \(error.localizedDescription)")
+                // Shown through `Label(String)`, which skips the lookup (audit 2026-11-24 #38).
+                indexerCheck = .failed(String(format: AppLocalization.string("Could not reach it: %@"), error.localizedDescription))
             }
         }
     }

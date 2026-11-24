@@ -460,7 +460,7 @@ struct ManageAddressesView: View {
                     Text("Checking address #\(progress.checkingIndex)")
                         .font(.subheadline.weight(.semibold))
                     Text(progress.foundCount == 0
-                         ? "No addresses with a balance or domain yet"
+                         ? "No addresses with a balance or username yet"
                          : "\(progress.foundCount) found so far")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -514,7 +514,7 @@ struct ManageAddressesView: View {
                     }
                     ActionSheetRow(
                         title: "Discover Addresses",
-                        subtitle: "Finds addresses holding a balance or a domain.",
+                        subtitle: "Finds addresses holding a balance or a username.",
                         systemImage: "magnifyingglass",
                         isDisabled: isDiscovering
                     ) {
@@ -788,19 +788,11 @@ struct ManageAddressesView: View {
         // Persist the freshly-loaded snapshot so the NEXT open paints instantly from cache.
         walletManager.storeSpendingAddressListCache(entries)
 
-        // Contains-domain tags, after the rows are already visible. refreshIfNeeded is the same
-        // batched KNS lookup ContactsManager.fetchKNSDomainsForAllContacts uses: capped
-        // concurrency, per-address debounce and failure cooldown, shared in-flight requests -
-        // so re-opening this screen reads warm cache instead of re-firing a request burst.
+        // Contains-domain tags (.kachat names), after the rows are already visible.
         // The chatting address first: it can hold a domain as much as any spending address.
         let addresses = (walletManager.currentWallet.map { [$0.publicAddress] } ?? []) + baseEntries.map { $0.address }
-        await KNSService.shared.refreshIfNeeded(for: addresses)
-        var owners: Set<String> = []
-        for address in addresses where KNSService.shared.domainCache[address]?.allDomains.isEmpty == false {
-            owners.insert(address)
-        }
-        // .kachat names count too (testnet, where the registry is live).
-        owners.formUnion(await KachatNamesRegistry.shared.ownersOfNames(among: addresses))
+        // the addresses holding a .kachat name
+        let owners = await KachatNamesRegistry.shared.ownersOfNames(among: addresses)
         domainOwningAddresses = owners
     }
 
@@ -933,11 +925,14 @@ struct ManageAddressesView: View {
             await loadEntries()
             isDiscovering = false
             discoveryProgress = nil
-            // The count is addresses that hold a balance or a KNS domain - say so, rather than
+            // The count is addresses that hold a balance or a username - say so, rather than
             // "used", which is what the old high-water-mark number implied and was not.
+            // One key per plural form, translated (audit 2026-11-24 #34, #36).
             let summary = discovered == 0
-                ? "No addresses with a balance or domain found."
-                : "Found \(discovered) address\(discovered == 1 ? "" : "es") with a balance or domain."
+                ? AppLocalization.string("No addresses with a balance or username found.")
+                : discovered == 1
+                    ? AppLocalization.string("Found 1 address with a balance or username.")
+                    : String(format: AppLocalization.string("Found %lld addresses with a balance or username."), discovered)
             discoverySummary = summary
             // Closed the sheet and carried on? Then the summary above has nowhere to render, so
             // say it here instead of finishing silently.
@@ -967,7 +962,7 @@ struct ManageAddressesView: View {
 /// with the accent color instead of drawn on a dark card.
 struct ContainsDomainTag: View {
     var body: some View {
-        Text("Contains domain")
+        Text("Contains username")
             .font(.caption2)
             .fontWeight(.semibold)
             .foregroundColor(.accentColor)
@@ -996,7 +991,7 @@ struct SpendingAddressWithdrawView: View {
     let onComplete: () -> Void
 
     @EnvironmentObject var chatService: ChatService
-    @EnvironmentObject var contactsManager: ContactsManager
+    // (no ContactsManager: it was observed and never read, audit 2026-11-24 #29)
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var priceModel = KasPriceModel.shared
@@ -1391,8 +1386,7 @@ struct SpendingAddressWithdrawView: View {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 300_000_000)
 
-            guard addressInput.trimmingCharacters(in: .whitespacesAndNewlines) == domain ||
-                  addressInput.trimmingCharacters(in: .whitespacesAndNewlines) + ".kas" == domain + ".kas" else {
+            guard addressInput.trimmingCharacters(in: .whitespacesAndNewlines) == domain else {
                 return
             }
 
@@ -1837,16 +1831,17 @@ struct SpendingAddressTransactionHistoryView: View {
     }
 
     /// Plain names - History, UTXOs - the way the user asked for them.
+    /// The .kachat page is called Usernames (owner, 2026-11-24), like the Wallet's card.
     private func tabLabel(_ tab: Tab) -> String {
-        tab.rawValue
+        tab == .kachatDomains ? "Usernames" : tab.rawValue
     }
 
     var body: some View {
         VStack(spacing: 0) {
             KaspaAddressBalanceCard(label: entry.displayLabel, sompi: entry.balanceSompi)
 
-            // The app's tab look, not a segmented control.
-            UnderlineTabBar(
+            // The app's page switch (`PageCycleBar`), not a segmented control.
+            PageCycleBar(
                 tabs: Tab.allCases.map { (tab: $0, title: tabLabel($0)) },
                 selection: $selectedTab
             )

@@ -218,23 +218,10 @@ final class SharedDataManager {
         }
     }
 
-    /// The wallet's own primary KNS domain (bare, lowercased) for the extension's mentions-only
-    /// gate: Android's composer writes mentions as `@{primaryKNSDomain}` in the wire plaintext
-    /// (not iOS's `@{address}` form), so the NSE must recognize that token too. Refreshed by
-    /// `KNSService.updateCache` whenever the wallet's own KNS info (re)loads. Skips when nothing
-    /// is cached yet - "not loaded" must not erase a previously shared domain - and clears when
-    /// the lookup is loaded but finds no explicit primary.
-    @MainActor
+    /// The extension once matched Android's `@{primaryKNSDomain}` mentions against the wallet's
+    /// own .kas name. K reads no .kas names since 2026-11-23, so any name shared before is cleared.
     static func syncOwnKNSDomainForExtension() {
-        guard let address = WalletManager.shared.currentWallet?.publicAddress,
-              KNSService.shared.domainCache[address] != nil else { return }
-        // `barePrimaryDomain` is nil while .kas names aren't shown as names (5.2), so this clears
-        // a domain shared before the update rather than leaving it for the extension.
-        if let domain = KNSService.shared.barePrimaryDomain(for: address) {
-            sharedDefaults?.set(domain, forKey: Keys.ownPrimaryKNSDomain)
-        } else {
-            sharedDefaults?.removeObject(forKey: Keys.ownPrimaryKNSDomain)
-        }
+        sharedDefaults?.removeObject(forKey: Keys.ownPrimaryKNSDomain)
     }
 
     /// Sync notification defaults used by the notification service extension.
@@ -495,7 +482,7 @@ final class SharedDataManager {
         // bookkeeping and debug, group notification modes, and the old portfolio widget's snapshot,
         // which kept showing a deleted wallet's holdings on the Home Screen.
         for key in [Keys.chatRequestAddresses, Keys.chatBlockedAddresses, Keys.chatRequestsWallet,
-                    "chat_request_notified", "chat_request_notified_v2",
+                    "chat_request_notified", "chat_request_notified_v2", "chat_hidden_request_addresses",
                     // ledgers of the local banners the app no longer posts: only cleared now
                     "chat_push_handled_txids", "group_push_handled_txids",
                     "chat_local_posted_txids", "group_local_posted_txids", "kaposts_displayed_action_ids",

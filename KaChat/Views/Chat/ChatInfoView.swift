@@ -16,7 +16,6 @@ struct ChatInfoView: View {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @EnvironmentObject var chatService: ChatService
     @EnvironmentObject var walletManager: WalletManager
-    @ObservedObject private var knsService = KNSService.shared
     /// The address's `.kachat` identity (testnet): its label and its profile record - your own
     /// straight from the registry, anyone else's through the names indexer once one is connected.
     @ObservedObject private var kachatRegistry = KachatNamesRegistry.shared
@@ -30,13 +29,12 @@ struct ChatInfoView: View {
     @State private var activeSheet: InfoSheet?
 
     private enum InfoSheet: String, Identifiable {
-        case address, domains, kachatNames, aliases, notifications
+        case address, kachatNames, aliases, notifications
         var id: String { rawValue }
     }
     /// Add to Contacts, or the Contacts entry, full screen.
     @State private var showAddressBookEditor = false
     @State private var showAvatarPreview = false
-    @State private var moreInfoExpanded = false
     @State private var isBioExpanded = false
     @State private var toastMessage: String?
     @State private var toastToken = UUID()
@@ -88,74 +86,17 @@ struct ChatInfoView: View {
         return ChessRecordValue(wins: record.wins, losses: record.losses)
     }
 
-    private var knsInfo: KNSAddressInfo? {
-        contactsManager.getKNSInfo(for: contact)
-    }
-
-    private var knsDomains: [KNSDomain] {
-        knsInfo?.allDomains ?? []
-    }
-
-    /// Bare, lowercased domain key (".kas" stripped) - `/primary-name` and `/assets` don't
-    /// agree on whether the suffix is present, so compare without it.
-    private func normalizedDomainKey(_ raw: String?) -> String? {
-        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-              !trimmed.isEmpty else { return nil }
-        return trimmed.hasSuffix(".kas") ? String(trimmed.dropLast(4)) : trimmed
-    }
-
-    /// Which domain gets the "Primary" badge. Prefers the inscription id KNS returns with the
-    /// reverse lookup (an exact on-chain asset id), and falls back to name matching.
-    /// `explicitPrimaryDomain` is the real `/primary-name` answer; when the contact never set a
-    /// primary it's nil and KNS falls back to `allDomains.first` for `primaryDomain` (see
-    /// `KNSAddressInfo`). We badge that fallback too, since it is the name the rest of the app
-    /// already shows for this contact, and the section footer says which case applies.
-    private func isPrimaryDomain(_ domain: KNSDomain) -> Bool {
-        guard let info = knsInfo else { return false }
-        if let inscriptionId = info.primaryInscriptionId?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !inscriptionId.isEmpty {
-            return domain.inscriptionId == inscriptionId
-        }
-        guard let primaryKey = normalizedDomainKey(info.explicitPrimaryDomain ?? info.primaryDomain) else {
-            return false
-        }
-        return normalizedDomainKey(domain.fullName) == primaryKey
-    }
-
-
-    private var knsProfileInfo: KNSAddressProfileInfo? {
-        contactsManager.getKNSProfile(for: contact) ?? knsService.profileCache[contact.address]
-    }
-
-    private var knsProfile: KNSDomainProfile? {
-        knsProfileInfo?.profile
-    }
-
     /// The `.kachat` profile's pieces, each looked up from its social link on this device. They
     /// come first; the KNS ones are the fallback.
     private var kachatAvatar: String? { socialImages.openedProfile(for: kachatProfile?.avatar, address: contact.address)?.avatar }
     private var kachatBanner: String? { socialImages.openedProfile(for: kachatProfile?.banner, address: contact.address)?.banner }
     private var kachatBio: String? { socialImages.openedProfile(for: kachatProfile?.bio, address: contact.address)?.bio }
-    /// On testnet identity is `.kachat` only: KNS pictures and bios aren't shown there.
-    private var usesKNSProfile: Bool { !KachatNamesService.isEnabled }
 
     /// The address's active `.kachat` names, its primary (label) first.
     private var kachatNames: [String] {
         let names = kachatRegistry.cachedIdentity(for: contact.address)?.names ?? []
         guard let label = kachatLabel, names.contains(label) else { return names }
         return [label] + names.filter { $0 != label }
-    }
-
-    private var hasProfileDetailFields: Bool {
-        guard let profile = knsProfile else { return false }
-        return profile.bio != nil
-            || profile.x != nil
-            || profile.website != nil
-            || profile.telegram != nil
-            || profile.discord != nil
-            || profile.contactEmail != nil
-            || profile.github != nil
-            || profile.redirectUrl != nil
     }
 
     var body: some View {
@@ -172,13 +113,6 @@ struct ChatInfoView: View {
                 Section {
                     if let kachatBanner {
                         KNSBannerImageView(bannerURLString: kachatBanner, height: 110, cornerRadius: 10, fitsWidth: true)
-                    } else if usesKNSProfile, KNSProfileLinkBuilder.websiteURL(from: knsProfile?.bannerUrl) != nil {
-                        KNSBannerImageView(
-                            bannerURLString: knsProfile?.bannerUrl,
-                            height: 110,
-                            cornerRadius: 10,
-                            fitsWidth: true
-                        )
                     }
 
                     HStack {
@@ -186,7 +120,7 @@ struct ChatInfoView: View {
                             showAvatarPreview = true
                         } label: {
                             KNSAvatarView(
-                                avatarURLString: usesKNSProfile ? knsProfileInfo?.avatarURL : kachatAvatar,
+                                avatarURLString: kachatAvatar,
                                 fallbackText: contactsManager.displayName(for: contact),
                                 size: 60,
                                 contactAddress: contact.address
@@ -245,88 +179,16 @@ struct ChatInfoView: View {
                                         .font(.caption.weight(.semibold))
                                     }
                                 }
-                            } else if !usesKNSProfile || knsDomains.isEmpty || knsProfile?.bio == nil {
-                                // The address, unless a profile supplies a bio. Since 5.2 .kas
-                                // profiles are not loaded (KNSService.loadsDomainProfiles), so
-                                // this is what a .kas owner shows until .kachat profiles exist.
+                            } else {
                                 Text(formatAddress(contact.address))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
-                            } else if let bio = knsProfile?.bio {
-                                Text(bio)
-                                    .font(.subheadline)
-                                    .lineLimit(isBioExpanded ? nil : 5)
-                                    .onTapGesture {
-                                        withAnimation { isBioExpanded.toggle() }
-                                    }
-                                    .onLongPressGesture(minimumDuration: 0.45) {
-                                        copyProfileFieldValue(bio, fieldName: "Bio")
-                                    }
-                            } else {
-                                Text(hasProfileDetailFields ? "On-chain profile data available." : "No on-chain profile data yet.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
                             }
                         }
                         .padding(.leading, 8)
                     }
                     .padding(.vertical, 8)
-
-                    if usesKNSProfile, !knsDomains.isEmpty, !isBot {
-                        // Same DisclosureGroup used by the user's own Profile view's KNS card
-                        // (ContactsView.knsProfileCard) - native chevron/expand behavior, teal
-                        // label, LabeledContent rows with no dividers between them.
-                        if hasProfileDetailFields, let profile = knsProfile {
-                            DisclosureGroup(isExpanded: $moreInfoExpanded) {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    if let x = profile.x {
-                                        LabeledContent("X") {
-                                            profileLinkView(text: x, url: KNSProfileLinkBuilder.xURL(from: x), fieldName: "X")
-                                        }
-                                    }
-                                    if let website = profile.website {
-                                        LabeledContent("Website") {
-                                            profileLinkView(text: website, url: KNSProfileLinkBuilder.websiteURL(from: website), fieldName: "Website")
-                                        }
-                                    }
-                                    if let telegram = profile.telegram {
-                                        LabeledContent("Telegram") {
-                                            profileLinkView(text: telegram, url: KNSProfileLinkBuilder.telegramURL(from: telegram), fieldName: "Telegram")
-                                        }
-                                    }
-                                    if let discord = profile.discord {
-                                        LabeledContent("Discord") {
-                                            profileLinkView(text: discord, url: KNSProfileLinkBuilder.discordURL(from: discord), fieldName: "Discord")
-                                        }
-                                    }
-                                    if let contactEmail = profile.contactEmail {
-                                        LabeledContent("Email") {
-                                            profileLinkView(text: contactEmail, url: KNSProfileLinkBuilder.emailURL(from: contactEmail), fieldName: "Email")
-                                        }
-                                    }
-                                    if let github = profile.github {
-                                        LabeledContent("GitHub") {
-                                            profileLinkView(text: github, url: KNSProfileLinkBuilder.githubURL(from: github), fieldName: "GitHub")
-                                        }
-                                    }
-                                    if let redirectUrl = profile.redirectUrl {
-                                        LabeledContent("Redirect") {
-                                            profileLinkView(text: redirectUrl, url: KNSProfileLinkBuilder.websiteURL(from: redirectUrl), fieldName: "Redirect")
-                                        }
-                                    }
-                                }
-                                .padding(.top, 4)
-                            } label: {
-                                Text("More Info")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.accentColor)
-                            }
-                            .tint(.accentColor)
-                        }
-
-                    }
                 }
 
                 if isBot {
@@ -352,16 +214,6 @@ struct ChatInfoView: View {
                             "Address",
                             systemImage: "qrcode"
                         ) { activeSheet = .address }
-
-                        // Someone's .kas names aren't shown since 5.2 (KNSService
-                        // .showsDomainNamesAsIdentity) - the card would only ever be disabled.
-                        if KNSService.showsDomainNamesAsIdentity {
-                            infoCard(
-                                "KNS Domains",
-                                systemImage: "at"
-                            ) { activeSheet = .domains }
-                            .disabled(knsDomains.isEmpty)
-                        }
 
                         // On testnet: the address's .kachat names (its identity there, not KNS).
                         if KachatNamesService.isEnabled {
@@ -402,7 +254,6 @@ struct ChatInfoView: View {
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
                 case .address: addressSheet
-                case .domains: domainsSheet
                 case .kachatNames: kachatNamesSheet
                 case .aliases: aliasesSheet
                 case .notifications: notificationsSheet
@@ -432,7 +283,7 @@ struct ChatInfoView: View {
             .navigationBarTitleDisplayMode(.inline)
             .fullScreenCover(isPresented: $showAvatarPreview) {
                 KNSAvatarFullscreenView(
-                    avatarURLString: usesKNSProfile ? knsProfileInfo?.avatarURL : kachatAvatar,
+                    avatarURLString: kachatAvatar,
                     fallbackText: contactsManager.displayName(for: contact),
                     title: contactsManager.displayName(for: contact),
                     contactAddress: contact.address
@@ -464,18 +315,6 @@ struct ChatInfoView: View {
                 notificationModeOverride = contact.notificationModeOverride
             }
             .task {
-                // Always force-refresh selected contact KNS info and profile when opening chat info.
-                // This ensures profile selection is anchored to the latest primary domain metadata.
-                // ONE forced round per open: `fetchInfo` is the forced call, and the profile
-                // fetch after it reuses the info it just landed rather than asking again.
-                if KNSService.showsDomainNamesAsIdentity {
-                    _ = await KNSService.shared.fetchInfo(for: contact.address, force: true)
-                }
-                // On testnet identity is .kachat (loadKachatIdentity); KNS isn't asked there.
-                if !KachatNamesService.isEnabled {
-                    _ = await KNSService.shared.fetchProfile(for: contact.address, force: true)
-                }
-
                 let stats = await MessageStore.shared.messageStats(contactAddress: contact.address)
                 messageSent = stats.sent
                 messageReceived = stats.received
@@ -502,21 +341,6 @@ struct ChatInfoView: View {
         kachatLabel = identity?.label
         kachatProfile = (isSelf ? kachatRegistry.ownProfile(for: contact.address)?.profile : nil) ?? identity?.profile
     }
-
-    /// Primary first, then the rest alphabetically - a stable order that doesn't jump around as
-    /// the cache refreshes. Keyed by `inscriptionId` via `KNSDomain: Identifiable`.
-    private var sortedKNSDomains: [KNSDomain] {
-        knsDomains.sorted { lhs, rhs in
-            let lhsIsPrimary = isPrimaryDomain(lhs)
-            let rhsIsPrimary = isPrimaryDomain(rhs)
-            if lhsIsPrimary != rhsIsPrimary { return lhsIsPrimary }
-            return lhs.fullName.lowercased() < rhs.fullName.lowercased()
-        }
-    }
-
-    /// One domain row: name, a Primary badge on the contact's primary, and a verified check.
-    /// Tapping copies the full domain, matching the copy-on-tap idiom the Address and Aliases
-    /// sections already use.
 
     private func formatAddress(_ address: String) -> String {
         guard address.count > 20 else { return address }
@@ -638,22 +462,6 @@ struct ChatInfoView: View {
             }
             .buttonStyle(.borderless)
         }
-    }
-
-    /// The list itself, not a row that opens it. Data comes from the same KNSService address-info
-    /// cache the rest of the screen reads, so this costs no fetch.
-    private var domainsSheet: some View {
-        NavigationStack {
-            ContactDomainsView(
-                domains: sortedKNSDomains,
-                isPrimary: isPrimaryDomain,
-                onCopy: { copyProfileFieldValue($0, fieldName: "Domain") }
-            )
-            .navigationTitle("KNS Domains")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 
     private var aliasesSheet: some View {
@@ -896,49 +704,11 @@ struct ChatInfoView: View {
         }
     }
 
-    /// Set by the hold that copies a link's value: the hold's own touch-up still fires the
-    /// row's tap (simultaneousGesture), which used to open Safari right after the copy.
-    /// Consumed by that tap; cleared on its own shortly after, so a hold whose finger slid
-    /// away doesn't swallow a later, deliberate tap.
-    @State private var suppressNextLinkOpen = false
-
-    @ViewBuilder
-    private func profileLinkView(text: String, url: URL?, fieldName: String) -> some View {
-        if let url {
-            Button {
-                guard !suppressNextLinkOpen else {
-                    suppressNextLinkOpen = false
-                    return
-                }
-                UIApplication.shared.open(url)
-            } label: {
-                Text(text)
-                    .foregroundColor(.accentColor)
-            }
-            .buttonStyle(.plain)
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.45).onEnded { _ in
-                    copyProfileFieldValue(text, fieldName: fieldName)
-                    suppressNextLinkOpen = true
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 2_500_000_000)
-                        suppressNextLinkOpen = false
-                    }
-                }
-            )
-        } else {
-            Text(text)
-                .foregroundColor(.secondary)
-                .onLongPressGesture(minimumDuration: 0.45) {
-                    copyProfileFieldValue(text, fieldName: fieldName)
-                }
-        }
-    }
-
     private func copyProfileFieldValue(_ value: String, fieldName: String) {
         UIPasteboard.general.string = value
         Haptics.success()
-        showToast(localizedFormat("%@ copied to clipboard.", fieldName))
+        // The field's name is translated too, or "Bio copied" stayed half English.
+        showToast(localizedFormat("%@ copied to clipboard.", localized(fieldName)))
     }
 }
 
@@ -955,68 +725,5 @@ private struct StatItem: View {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-/// The contact's KNS domains, primary first, on their own screen.
-///
-/// Pushed from User Info rather than listed inline: an address owning a few dozen domains buried
-/// everything below it in that form. The rows are handed in already sorted and already resolved,
-/// so this view does no lookups of its own and shows whatever User Info had cached.
-private struct ContactDomainsView: View {
-    let domains: [KNSDomain]
-    let isPrimary: (KNSDomain) -> Bool
-    let onCopy: (String) -> Void
-
-    var body: some View {
-        Form {
-            Section {
-                ForEach(domains) { domain in
-                    row(domain)
-                }
-            }
-        }
-        .navigationTitle("Domains")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func row(_ domain: KNSDomain) -> some View {
-        let primary = isPrimary(domain)
-        return Button {
-            onCopy(domain.fullName)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: primary ? "star.fill" : "at")
-                    .font(.caption)
-                    .foregroundColor(primary ? .accentColor : .secondary)
-                    .frame(width: 18)
-
-                Text(domain.fullName)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                if domain.isVerified {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.caption)
-                        .foregroundColor(.accentColor)
-                        .accessibilityLabel(Text("Verified"))
-                }
-
-                Spacer(minLength: 8)
-
-                if primary {
-                    Text("PRIMARY")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.accentColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(Color.accentColor.opacity(0.15)))
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
