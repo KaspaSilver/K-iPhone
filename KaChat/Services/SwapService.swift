@@ -96,6 +96,67 @@ final class SwapService: ObservableObject {
 
     var isKusdt: Bool { otherCoin.isTrestly }
 
+    // MARK: Available and Max (kUSDT swaps, 2026-11-24)
+
+    /// The Swap From address's spendable KAS, for "Available" and Max on a kUSDT swap. nil until
+    /// read (`refreshKusdtBalances`).
+    @Published private(set) var kusdtFromKasSompi: UInt64?
+    private var balanceTask: Task<Void, Never>?
+
+    /// What a KAS-for-kUSDT buy keeps back, exactly as Trestly's pool works out its own max
+    /// (`maxKasIn` in kusdt-wallet.js): the KAS locked in the new kUSDT coin (`tokenValue`, 1.5 KAS)
+    /// and `FEE_KEEP` (0.3 KAS) for the network fee. Less, and the pool refuses a Max buy.
+    static let feeKeptForBuy: UInt64 = 30_000_000
+    static var kasKeptForBuy: UInt64 { WalletToken.kusdt.kasPerCoinSompi + feeKeptForBuy }
+
+    /// The Swap From address's kUSDT, in units.
+    var kusdtFromUnits: UInt64 {
+        guard let address = kusdtTarget?.address.lowercased() else { return 0 }
+        return TokenWallet.shared.holdings(of: .kusdt).filter { $0.address.lowercased() == address }.reduce(0) { $0 + $1.units }
+    }
+
+    /// The most "You Send" can be on a kUSDT swap: the address's kUSDT on a sell, its KAS less what
+    /// a buy keeps back. nil when it isn't known (or this isn't a kUSDT swap).
+    var kusdtMaxSend: UInt64? {
+        guard isKusdt else { return nil }
+        if kasIsSendSide {
+            guard let kas = kusdtFromKasSompi else { return nil }
+            return kas > Self.kasKeptForBuy ? kas - Self.kasKeptForBuy : 0
+        }
+        return kusdtFromUnits
+    }
+
+    /// Reads the Swap From address's KAS (its plain coins; kUSDT coins live at the token's own
+    /// script address, so they aren't counted).
+    func refreshKusdtBalances() {
+        balanceTask?.cancel()
+        guard isKusdt, let address = kusdtTarget?.address else {
+            kusdtFromKasSompi = nil
+            return
+        }
+        if let wallet = WalletManager.shared.currentWallet, wallet.publicAddress == address, let known = wallet.balanceSompi {
+            kusdtFromKasSompi = known
+        }
+        balanceTask = Task { @MainActor [weak self] in
+            guard let utxos = try? await NodePoolService.shared.getUtxosByAddresses([address]),
+                  !Task.isCancelled, self?.kusdtTarget?.address == address else { return }
+            self?.kusdtFromKasSompi = utxos.reduce(0) { $0 + $1.amount }
+        }
+    }
+
+    /// Max: "You Send" becomes all that can go.
+    func setMaxAmount() {
+        guard let max = kusdtMaxSend, max > 0 else { return }
+        if kasIsSendSide {
+            let whole = max / 100_000_000
+            var frac = String(format: "%08llu", max % 100_000_000)
+            while frac.hasSuffix("0") { frac.removeLast() }
+            setAmountText(frac.isEmpty ? "\(whole)" : "\(whole).\(frac)")
+        } else {
+            setAmountText(TokenAmount.typed(max, token: .kusdt))
+        }
+    }
+
     /// The kUSDT swap's address, the Chatting Address unless another was picked.
     var kusdtTarget: TrestlyTarget? {
         if let kusdtFrom { return kusdtFrom }

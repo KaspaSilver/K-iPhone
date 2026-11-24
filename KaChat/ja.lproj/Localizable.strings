@@ -3281,3 +3281,4 @@
 "%@ declined the invite" = "%@が招待を辞退しました";
 "%@ was invited to the group chat" = "%@がグループチャットに招待されました";
 "%@ was removed from the group chat" = "%@がグループチャットから削除されました";
+"Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee." = "最大は %@ を残します：%@ は新しい kUSDT コインに入り、最大 %@ がネットワーク手数料になります。";

@@ -3281,3 +3281,4 @@
 "%@ declined the invite" = "%@ আমন্ত্রণ প্রত্যাখ্যান করেছেন";
 "%@ was invited to the group chat" = "%@-কে গ্রুপ চ্যাটে আমন্ত্রণ জানানো হয়েছে";
 "%@ was removed from the group chat" = "%@-কে গ্রুপ চ্যাট থেকে সরানো হয়েছে";
+"Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee." = "সর্বোচ্চ %@ রেখে দেয়: %@ আপনার নতুন kUSDT কয়েনের ভেতরে যায়, আর সর্বোচ্চ %@ নেটওয়ার্ক ফি দেয়।";

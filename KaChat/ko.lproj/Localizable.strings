@@ -3281,3 +3281,4 @@
 "%@ declined the invite" = "%@ 님이 초대를 거절했습니다";
 "%@ was invited to the group chat" = "%@ 님이 그룹 채팅에 초대되었습니다";
 "%@ was removed from the group chat" = "%@ 님이 그룹 채팅에서 제거되었습니다";
+"Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee." = "최대는 %@를 남깁니다: %@는 새 kUSDT 코인에 들어가고, 최대 %@는 네트워크 수수료로 쓰입니다.";

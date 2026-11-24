@@ -3281,3 +3281,4 @@
 "%@ declined the invite" = "%@ 拒绝了邀请";
 "%@ was invited to the group chat" = "%@ 已被邀请加入群聊";
 "%@ was removed from the group chat" = "%@ 已被移出群聊";
+"Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee." = "最大值会留下 %@：%@ 存入你的新 kUSDT 币，最多 %@ 用于支付网络费。";

@@ -220,8 +220,28 @@ struct SwapView: View {
                     field: .amount,
                     isQuoting: swapService.editedSide == .get && swapService.estimateState.status == .loading,
                     onAmountChange: { swapService.setAmountText($0) },
-                    onMaxTap: nil
+                    // kUSDT swaps spend what K holds: Max, and the balance beside "You Send"
+                    // (owner, 2026-11-24). A ChangeNOW coin is paid from elsewhere.
+                    onMaxTap: (swapService.kusdtMaxSend ?? 0) > 0 ? { swapService.setMaxAmount() } : nil,
+                    available: kusdtAvailableText
                 )
+                .task(id: "\(swapService.isKusdt)|\(swapService.kusdtTarget?.address ?? "")|\(swapService.kasIsSendSide)") {
+                    swapService.refreshKusdtBalances()
+                }
+
+                // Why Max on a buy is less than the balance (owner, 2026-11-24: "max does not
+                // actually pull"): what stays behind, and what it's for.
+                if swapService.isKusdt, swapService.kasIsSendSide {
+                    Text(verbatim: String(format: AppLocalization.string("Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee."),
+                                          KaspaUnit.amount(SwapService.kasKeptForBuy),
+                                          KaspaUnit.amount(WalletToken.kusdt.kasPerCoinSompi),
+                                          KaspaUnit.amount(SwapService.feeKeptForBuy)))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
+                }
 
                 HStack(spacing: 12) {
                     Button {
@@ -535,12 +555,23 @@ struct SwapView: View {
         isQuoting: Bool,
         onAmountChange: @escaping (String) -> Void,
         onMaxTap: (() -> Void)?,
+        available: String? = nil,
         editable: Bool = true
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            HStack {
+                Text(LocalizedStringKey(label))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer(minLength: 8)
+                if let available {
+                    Text(verbatim: String(format: AppLocalization.string("Available: %@"), available))
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+            }
             HStack(spacing: 12) {
                 if isQuoting {
                     ProgressView()
@@ -563,6 +594,15 @@ struct SwapView: View {
         }
         .padding(16)
         .background(glassBackground(cornerRadius: 18))
+    }
+
+    /// The Swap From address's balance of what a kUSDT swap sends: KAS on a buy, kUSDT on a sell.
+    private var kusdtAvailableText: String? {
+        guard swapService.isKusdt else { return nil }
+        if swapService.kasIsSendSide {
+            return swapService.kusdtFromKasSompi.map { KaspaUnit.amount($0) }
+        }
+        return TokenAmount.amount(swapService.kusdtFromUnits, token: .kusdt)
     }
 
     /// Only the non-KAS side of the pair is actually pickable - KAS is always the fixed side.

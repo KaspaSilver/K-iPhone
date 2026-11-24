@@ -3281,3 +3281,4 @@
 "%@ declined the invite" = "%@ دعوت را رد کرد";
 "%@ was invited to the group chat" = "%@ به گفت‌وگوی گروهی دعوت شد";
 "%@ was removed from the group chat" = "%@ از گفت‌وگوی گروهی حذف شد";
+"Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee." = "حداکثر %@ را نگه می‌دارد: %@ داخل سکه‌ی kUSDT جدید شما می‌رود و تا %@ کارمزد شبکه را می‌پردازد.";

@@ -3284,3 +3284,4 @@
 "%@ declined the invite" = "%@ hat die Einladung abgelehnt";
 "%@ was invited to the group chat" = "%@ wurde in den Gruppenchat eingeladen";
 "%@ was removed from the group chat" = "%@ wurde aus dem Gruppenchat entfernt";
+"Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee." = "Max behält %@ zurück: %@ steckt in deiner neuen kUSDT-Münze, und bis zu %@ zahlen die Netzwerkgebühr.";

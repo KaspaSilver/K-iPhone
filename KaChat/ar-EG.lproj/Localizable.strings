@@ -3281,3 +3281,4 @@
 "%@ declined the invite" = "%@ رفض الدعوة";
 "%@ was invited to the group chat" = "اتعزم %@ على شات المجموعة";
 "%@ was removed from the group chat" = "اتشال %@ من شات المجموعة";
+"Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee." = "الماكس بيسيب %@: %@ بيدخل في عملة kUSDT الجديدة بتاعتك، ولحد %@ بيدفع رسوم الشبكة.";

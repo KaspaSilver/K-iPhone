@@ -3281,3 +3281,4 @@
 "%@ declined the invite" = "%@ đã từ chối lời mời";
 "%@ was invited to the group chat" = "%@ đã được mời vào nhóm chat";
 "%@ was removed from the group chat" = "%@ đã bị xóa khỏi nhóm chat";
+"Max keeps %@ back: %@ goes inside your new kUSDT coin, and up to %@ pays the network fee." = "Tối đa giữ lại %@: %@ nằm trong đồng kUSDT mới của bạn, và tối đa %@ trả phí mạng.";
