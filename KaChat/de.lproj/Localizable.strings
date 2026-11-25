@@ -3381,3 +3381,10 @@
 "Delete 1 Public Chat?" = "1 öffentlichen Chat löschen?";
 "Delete %lld Public Chats?" = "%lld öffentliche Chats löschen?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Standard-Chats werden ausgeschaltet (in Standard-Chats bearbeiten wieder einschalten). Räume, die du hinzugefügt hast, werden samt ihren Nachrichten auf diesem Gerät gelöscht.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "Für alle löschen";
+"Removes it from this room for everyone using K." = "Entfernt sie für alle, die K nutzen, aus diesem Raum.";
+"Delete for Everyone?" = "Für alle löschen?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Sie verschwindet für alle, die K nutzen, aus diesem Raum. Im Kaspa-Netzwerk bleibt sie, wo jeder, der die Chain liest, sie noch finden kann. Das Löschen kostet eine kleine Netzwerkgebühr.";
+"Couldn't delete the message. Try again." = "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.";

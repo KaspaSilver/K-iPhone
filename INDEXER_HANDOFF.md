@@ -21,6 +21,13 @@ also goes there as its own `docs/<TOPIC>.md` ("For / From / Status", what to bui
 
 ## Open
 
+- **2026-11-25 - A room message's sender deletes it for everyone.** Not yet committed here;
+  `MessageDeleteCodec`, `PublicChatService.deletePublicChatMessage` / `applyIncomingDeletes`. A
+  room message `{"type":"delete","targetTxId":...}` from the target's own sender: the indexer
+  removes the target with its reactions and edits (holding a delete that arrives first), keeps the
+  delete row, and sends no push for it. In the indexer repo as `docs/ROOM_MESSAGE_DELETES.md`
+  (8423625, 5feccd6: no deletes in the machinery rooms).
+
 - **2026-11-25 - One Received push per block found.** `emit_funds_received` pushes every
   transaction of every block on sighting, coinbase included; each block merging a miner's block
   carries its own coinbase paying them, so one block found pings once per merging block. Push

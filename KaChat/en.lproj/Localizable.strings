@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "Delete 1 Public Chat?";
 "Delete %lld Public Chats?" = "Delete %lld Public Chats?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "Delete for Everyone";
+"Removes it from this room for everyone using K." = "Removes it from this room for everyone using K.";
+"Delete for Everyone?" = "Delete for Everyone?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee.";
+"Couldn't delete the message. Try again." = "Couldn't delete the message. Try again.";

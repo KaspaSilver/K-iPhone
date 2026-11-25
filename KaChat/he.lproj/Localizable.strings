@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "למחוק צ'אט ציבורי אחד?";
 "Delete %lld Public Chats?" = "למחוק %lld צ'אטים ציבוריים?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "צ'אטים ציבוריים ברירת מחדל מושבתים (אפשר להפעיל אותם שוב ב„עריכת צ׳אטים ציבוריים ברירת מחדל”). חדרים שהוספתם נמחקים יחד עם ההודעות שלהם מהמכשיר הזה.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "מחיקה אצל כולם";
+"Removes it from this room for everyone using K." = "מסיר אותה מהחדר הזה אצל כל מי שמשתמש ב-K.";
+"Delete for Everyone?" = "למחוק אצל כולם?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "היא תיעלם מהחדר הזה אצל כל מי שמשתמש ב-K. היא נשארת ברשת Kaspa, שם כל מי שקורא את השרשרת עדיין יכול למצוא אותה. המחיקה עולה עמלת רשת קטנה.";
+"Couldn't delete the message. Try again." = "לא ניתן היה למחוק את ההודעה. נסו שוב.";

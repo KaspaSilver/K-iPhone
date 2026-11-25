@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "删除 1 个公共聊天？";
 "Delete %lld Public Chats?" = "删除 %lld 个公共聊天？";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "默认公共聊天会被关闭（可在“编辑默认公开聊天”中重新打开）。你添加的房间会连同其消息从此设备上删除。";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "为所有人删除";
+"Removes it from this room for everyone using K." = "为所有使用 K 的人将其从此房间移除。";
+"Delete for Everyone?" = "要为所有人删除吗？";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "所有使用 K 的人都将在此房间看不到它。它仍留在 Kaspa 网络上，任何读取链的人仍能找到它。删除需支付少量网络费。";
+"Couldn't delete the message. Try again." = "无法删除这条消息。请重试。";

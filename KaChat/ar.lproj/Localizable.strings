@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "حذف محادثة عامة واحدة؟";
 "Delete %lld Public Chats?" = "حذف %lld من المحادثات العامة؟";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "يتم إيقاف المحادثات العامة الافتراضية (أعد تشغيلها من تعديل المحادثات العامة الافتراضية). أما الغرف التي أضفتها فتُحذف مع رسائلها من هذا الجهاز.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "حذف لدى الجميع";
+"Removes it from this room for everyone using K." = "يزيلها من هذه الغرفة لدى كل من يستخدم K.";
+"Delete for Everyone?" = "حذف لدى الجميع؟";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "تختفي من هذه الغرفة لدى كل من يستخدم K. لكنها تبقى على شبكة Kaspa، حيث يمكن لأي شخص يقرأ السلسلة أن يجدها. الحذف يكلّف رسوم شبكة بسيطة.";
+"Couldn't delete the message. Try again." = "تعذّر حذف الرسالة. حاول مرة أخرى.";

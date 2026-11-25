@@ -116,6 +116,7 @@ final class PublicChatStore {
         }
 
         currentWalletAddress = walletAddress
+        deletesLock.lock(); deletesCache = nil; deletesLock.unlock()
         isLoaded = false
         loadGeneration += 1
         settleLoad()
@@ -357,6 +358,8 @@ final class PublicChatStore {
     func insertMessages(
         _ messages: [(id: String, channel: String, senderAddress: String, content: String, blockTime: Int64)]
     ) async -> Set<String> {
+        // never a message its sender deleted for everyone
+        let messages = messages.filter { !isDeleted($0.id, channel: $0.channel, sender: $0.senderAddress) }
         guard isLoaded, !messages.isEmpty, let store = currentStore else { return [] }
         return await withCheckedContinuation { continuation in
             container.performBackgroundTask { context in
@@ -637,6 +640,126 @@ final class PublicChatStore {
                 request.propertiesToFetch = ["id"]
                 let rows = (try? context.fetch(request)) ?? []
                 continuation.resume(returning: Set(rows.compactMap { $0["id"] as? String }))
+            }
+        }
+    }
+
+    /// The delivered rows a channel holds with a block time in `from...to`, for checking them
+    /// against an indexer page (`PublicChatService.dropRowsTheIndexerNoLongerHas`). Only `.sent`
+    /// rows with a transaction id: a pending or unconfirmed send isn't the indexer's to answer for.
+    func deliveredMessages(inChannel channel: String, from: Int64, to: Int64) async -> [(id: String, blockTime: Int64, sender: String)] {
+        guard isLoaded, from <= to else { return [] }
+        let normalized = PublicChatChannelName.normalize(channel)
+        return await withCheckedContinuation { continuation in
+            container.performBackgroundTask { context in
+                let request = NSFetchRequest<NSDictionary>(entityName: CDPublicChatMessage.entityName)
+                request.predicate = NSPredicate(
+                    format: "channelName == %@ AND blockTime >= %lld AND blockTime <= %lld",
+                    normalized, from, to
+                )
+                request.resultType = .dictionaryResultType
+                request.propertiesToFetch = ["id", "blockTime", "deliveryStatus", "senderAddress"]
+                let rows = (try? context.fetch(request)) ?? []
+                let result: [(id: String, blockTime: Int64, sender: String)] = rows.compactMap { row in
+                    guard let id = row["id"] as? String,
+                          let time = row["blockTime"] as? Int64,
+                          let sender = row["senderAddress"] as? String,
+                          (row["deliveryStatus"] as? String ?? PublicChatMessage.DeliveryStatus.sent.rawValue)
+                            == PublicChatMessage.DeliveryStatus.sent.rawValue else { return nil }
+                    return (id, time, sender)
+                }
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
+    // MARK: - Deleted for everyone
+
+    /// Messages their sender deleted for everyone (`MessageDeleteCodec`), per account, as
+    /// "room|txid|sender": kept so a page or block that still carries one (before the indexer has
+    /// removed it, or from an indexer that never will) doesn't bring it back. Only that room's row
+    /// from that same address is refused, so nobody else's "delete" can hide a message, and a
+    /// stranger's earlier one can't stand in the way of the sender's own. Newest 2,000.
+    private let deletesLock = NSLock()
+    private var deletesCache: (wallet: String, set: Set<String>, order: [String])?
+
+    private func deletesKey(_ wallet: String) -> String { "kachat_room_deletes_v2_\(wallet.lowercased())" }
+
+    private static func deleteEntry(_ txId: String, channel: String, sender: String) -> String {
+        "\(PublicChatChannelName.normalize(channel))|\(txId.lowercased())|\(sender.lowercased())"
+    }
+
+    private func loadDeletes(wallet: String) -> (set: Set<String>, order: [String]) {
+        if let cached = deletesCache, cached.wallet == wallet { return (cached.set, cached.order) }
+        let order = UserDefaults.standard.stringArray(forKey: deletesKey(wallet)) ?? []
+        deletesCache = (wallet, Set(order), order)
+        return (Set(order), order)
+    }
+
+    /// Records a delete; true when it's new.
+    @discardableResult
+    func recordDelete(targetTxId: String, channel: String, by sender: String) -> Bool {
+        guard let wallet = currentWalletAddress else { return false }
+        deletesLock.lock(); defer { deletesLock.unlock() }
+        var (set, order) = loadDeletes(wallet: wallet)
+        let entry = Self.deleteEntry(targetTxId, channel: channel, sender: sender)
+        guard set.insert(entry).inserted else { return false }
+        order.append(entry)
+        if order.count > 2_000 {
+            for dropped in order.prefix(order.count - 2_000) { set.remove(dropped) }
+            order.removeFirst(order.count - 2_000)
+        }
+        deletesCache = (wallet, set, order)
+        UserDefaults.standard.set(order, forKey: deletesKey(wallet))
+        return true
+    }
+
+    /// Whether this room's row is one its sender deleted.
+    func isDeleted(_ txId: String, channel: String, sender: String) -> Bool {
+        guard let wallet = currentWalletAddress else { return false }
+        deletesLock.lock(); defer { deletesLock.unlock() }
+        return loadDeletes(wallet: wallet).set.contains(Self.deleteEntry(txId, channel: channel, sender: sender))
+    }
+
+    /// Deletes these messages from a channel, with their reactions and edits; true when any went.
+    /// For rows the indexer no longer serves (a moderator removed them).
+    @discardableResult
+    func deleteMessages(ids: Set<String>, inChannel channel: String) async -> Bool {
+        guard isLoaded, !ids.isEmpty, let store = currentStore else { return false }
+        let normalized = PublicChatChannelName.normalize(channel)
+        let viewContext = self.viewContext
+        // as given and lowercased: another client may write a txid in capitals
+        let idList = Array(Set(ids.flatMap { [$0, $0.lowercased()] }))
+        return await withCheckedContinuation { continuation in
+            container.performBackgroundTask { context in
+                guard Self.isStillOpen(store, in: context) else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                func batchDelete(_ entity: String, _ predicate: NSPredicate) -> [NSManagedObjectID] {
+                    let request = NSFetchRequest<NSFetchRequestResult>(entityName: entity)
+                    request.predicate = predicate
+                    let delete = NSBatchDeleteRequest(fetchRequest: request)
+                    delete.resultType = .resultTypeObjectIDs
+                    delete.affectedStores = [store]
+                    return ((try? context.execute(delete)) as? NSBatchDeleteResult)?.result as? [NSManagedObjectID] ?? []
+                }
+                let messages = batchDelete(CDPublicChatMessage.entityName,
+                                           NSPredicate(format: "channelName == %@ AND id IN %@", normalized, idList))
+                // what hung off them: reactions on them, and their edits
+                let reactions = batchDelete(CDPublicChatReaction.entityName,
+                                            NSPredicate(format: "channelName == %@ AND targetTxId IN %@", normalized, idList))
+                let edits = batchDelete(CDPublicChatEdit.entityName,
+                                        NSPredicate(format: "channelName == %@ AND targetTxId IN %@", normalized, idList))
+                let all = messages + reactions + edits
+                // batch deletes skip the contexts' caches: merge every deleted row into both
+                if !all.isEmpty {
+                    NSManagedObjectContext.mergeChanges(
+                        fromRemoteContextSave: [NSDeletedObjectsKey: all],
+                        into: [context, viewContext]
+                    )
+                }
+                continuation.resume(returning: !messages.isEmpty)
             }
         }
     }

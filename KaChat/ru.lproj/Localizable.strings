@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "Удалить 1 публичный чат?";
 "Delete %lld Public Chats?" = "Удалить публичные чаты (%lld)?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Публичные чаты по умолчанию выключаются (включить их снова можно в разделе «Изменить общие чаты по умолчанию»). Добавленные вами комнаты удаляются вместе с сообщениями с этого устройства.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "Удалить для всех";
+"Removes it from this room for everyone using K." = "Удаляет сообщение из этой комнаты для всех, кто пользуется K.";
+"Delete for Everyone?" = "Удалить для всех?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Сообщение исчезнет из этой комнаты для всех, кто пользуется K. Оно останется в сети Kaspa, где любой, кто читает блокчейн, всё ещё может его найти. Удаление стоит небольшой комиссии сети.";
+"Couldn't delete the message. Try again." = "Не удалось удалить сообщение. Попробуйте ещё раз.";

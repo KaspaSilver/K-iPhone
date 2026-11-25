@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "১টি পাবলিক চ্যাট মুছবেন?";
 "Delete %lld Public Chats?" = "%lldটি পাবলিক চ্যাট মুছবেন?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "ডিফল্ট পাবলিক চ্যাট বন্ধ করা হয় (ডিফল্ট পাবলিক চ্যাট সম্পাদনা থেকে আবার চালু করুন)। আপনার যোগ করা রুমগুলো তাদের মেসেজসহ এই ডিভাইস থেকে মুছে যায়।";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "সবার জন্য মুছুন";
+"Removes it from this room for everyone using K." = "K ব্যবহারকারী সবার জন্য এটি এই রুম থেকে সরায়।";
+"Delete for Everyone?" = "সবার জন্য মুছবেন?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "K ব্যবহারকারী সবার জন্য এটি এই রুম থেকে চলে যায়। এটি Kaspa নেটওয়ার্কে থেকে যায়, যেখানে চেইন পড়া যে কেউ এখনও এটি খুঁজে পেতে পারে। মুছতে সামান্য নেটওয়ার্ক ফি লাগে।";
+"Couldn't delete the message. Try again." = "বার্তাটি মোছা যায়নি। আবার চেষ্টা করুন।";

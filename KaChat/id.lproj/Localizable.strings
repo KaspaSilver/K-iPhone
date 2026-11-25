@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "Hapus 1 obrolan publik?";
 "Delete %lld Public Chats?" = "Hapus %lld obrolan publik?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Obrolan publik bawaan dimatikan (nyalakan lagi di Edit Obrolan Publik Bawaan). Ruang yang kamu tambahkan dihapus beserta pesannya dari perangkat ini.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "Hapus untuk Semua";
+"Removes it from this room for everyone using K." = "Menghapusnya dari ruang ini untuk semua pengguna K.";
+"Delete for Everyone?" = "Hapus untuk Semua?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Pesan hilang dari ruang ini untuk semua pengguna K. Pesan tetap ada di jaringan Kaspa, tempat siapa pun yang membaca chain masih bisa menemukannya. Menghapus memerlukan biaya jaringan kecil.";
+"Couldn't delete the message. Try again." = "Tidak dapat menghapus pesan. Coba lagi.";

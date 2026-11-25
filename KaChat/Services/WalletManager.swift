@@ -953,6 +953,8 @@ final class WalletManager: ObservableObject {
                     // rooms, read marks, rooms marked unread, default bells
                     "kachat_broadcast_hidden_curated_\(lowered)",
                     "kachat_broadcast_hidden_missing_\(lowered)",
+                    // rooms' deletes for everyone (`PublicChatStore.recordDelete`)
+                    "kachat_room_deletes_v2_\(lowered)",
                     "kachat_broadcast_last_read_\(lowered)",
                     "kachat_broadcast_manual_unread_\(lowered)",
                     "kaposts_broadcast_default_bells_\(lowered)"

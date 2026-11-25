@@ -192,7 +192,8 @@ class NotificationService: UNNotificationServiceExtension {
                 contentHandler(content)
                 return
             }
-            if isEditEnvelope(content.body) {
+            // A delete for everyone takes an earlier message away: nothing to announce either.
+            if isEditEnvelope(content.body) || isDeleteEnvelope(content.body) {
                 content.title = ""
                 content.subtitle = ""
                 content.body = ""
@@ -245,7 +246,7 @@ class NotificationService: UNNotificationServiceExtension {
             // `broadcast:<channel>` the spec asks for lands here, and its body is still the raw
             // on-chain content - a reply/voice/photo envelope shows as JSON (or base64) on the
             // lock screen. Tidy any body that looks like one, whatever the thread-id says.
-            if isEditEnvelope(content.body) {
+            if isEditEnvelope(content.body) || isDeleteEnvelope(content.body) {
                 content.title = ""
                 content.subtitle = ""
                 content.body = ""
@@ -1967,6 +1968,14 @@ class NotificationService: UNNotificationServiceExtension {
             return trimmed.first == "{" && trimmed.replacingOccurrences(of: " ", with: "").contains("\"type\":\"edit\"")
         }
         return true
+    }
+
+    /// A room message's delete for everyone (`{"type":"delete","targetTxId":...}`, the app's
+    /// `MessageDeleteCodec`): never announced.
+    private func isDeleteEnvelope(_ content: String) -> Bool {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.first == "{" else { return false }
+        return trimmed.replacingOccurrences(of: " ", with: "").contains("\"type\":\"delete\"")
     }
 
     /// True when `content` is a reaction envelope targeting one of the wallet's OWN group

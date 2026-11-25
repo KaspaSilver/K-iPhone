@@ -234,7 +234,24 @@ cache, the names indexer setting); Edit KaChat Profile is KaChat's own
 bell, and your profile is the dock's Profile tab; Edit Profile's Username section (first, since 2026-11-23) has "Get a username", which opens the
 .kachat tab;
 tips go through `ChatService.sendPayment(tip:)`) and Public Chats (`Views/Chat/PublicChat*`,
-`PublicChatService`, `PublicChatStore` in `KaChatBroadcasts-<hash>.sqlite`). Room messages translate like KaPost posts:
+`PublicChatService`, `PublicChatStore` in `KaChatBroadcasts-<hash>.sqlite`). Room messages are cached on the phone (`KaChatBroadcasts-<hash>.sqlite`; 30 days for indexer-tracked
+rooms, the room's setting up to 3 days otherwise). A message removed from the indexer (a moderator,
+or its sender's delete) goes from the cache too (owner, 2026-11-25, `dropRowsTheIndexerNoLongerHas`):
+a page answers for the span between its own oldest and newest rows, so a delivered row in it that
+isn't on the page is deleted, with its reactions and edits. Only from the app-wide indexer, for
+rooms it tracks, never the machinery rooms or an empty page, never below the page's oldest row
+(an indexer holding less than the phone says nothing about older messages), a minute inside both
+edges, not the newest 3 minutes or the oldest day, never your own messages; a row goes on its
+second miss, and a read that would remove more than a handful (over 3 and over a fifth) removes
+nothing and logs. **Delete for Everyone** (owner, 2026-11-25): your own delivered text message's
+menu in a room, after a confirmation, sends `{"type":"delete","targetTxId":...}` in the room
+(`MessageDeleteCodec`, `deletePublicChatMessage`); the message goes once the delete is sent, and
+stays (edits and reactions too) if it isn't. A delete counts only from the target's sender, in that
+room, never in the machinery rooms (chess, bots, arcade); applied from pages, sweeps and the block
+stream (`applyIncomingDeletes`) and remembered per account as room|txid|sender
+(`PublicChatStore.recordDelete`, `kachat_room_deletes_v2_<wallet>`, newest 2,000) so the message
+can't come back; never a row, banner or push. The indexer removes the target (indexer repo
+docs/ROOM_MESSAGE_DELETES.md). Room messages translate like KaPost posts:
 a Translate link under someone else's message in another language (owner, 2026-11-24), and in its
 long-press menu (`PostTranslationService`, served by the message indexer). Public rooms are the KaChat
 tab's second page (owner, 2026-11-25): the cycle button beside the KaChat title (`ListPage`,

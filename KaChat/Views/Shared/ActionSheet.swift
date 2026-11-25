@@ -711,6 +711,9 @@ struct MessageAction: Identifiable {
     static func edit(_ action: @escaping () -> Void) -> MessageAction {
         MessageAction(title: "Edit", subtitle: "Changes the text. Everyone sees the new version.", systemImage: "pencil", action: action)
     }
+    static func deleteForEveryone(_ action: @escaping () -> Void) -> MessageAction {
+        MessageAction(title: "Delete for Everyone", subtitle: "Removes it from this room for everyone using K.", systemImage: "trash", tint: .red, action: action)
+    }
     static func copyMessage(_ action: @escaping () -> Void) -> MessageAction {
         MessageAction(title: "Copy Message", subtitle: "Copies the text to your clipboard.", systemImage: "doc.on.doc", action: action)
     }

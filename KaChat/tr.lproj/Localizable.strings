@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "1 herkese açık sohbet silinsin mi?";
 "Delete %lld Public Chats?" = "%lld herkese açık sohbet silinsin mi?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Varsayılan herkese açık sohbetler kapatılır (Varsayılan Herkese Açık Sohbetleri Düzenle'den yeniden aç). Eklediğin odalar mesajlarıyla birlikte bu cihazdan silinir.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "Herkesten Sil";
+"Removes it from this room for everyone using K." = "K kullanan herkes için bunu bu odadan kaldırır.";
+"Delete for Everyone?" = "Herkesten silinsin mi?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "K kullanan herkes için bu odadan kalkar. Kaspa ağında kalır; zinciri okuyan herkes onu hâlâ bulabilir. Silmenin küçük bir ağ ücreti vardır.";
+"Couldn't delete the message. Try again." = "Mesaj silinemedi. Tekrar deneyin.";

@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "Xóa 1 trò chuyện công khai?";
 "Delete %lld Public Chats?" = "Xóa %lld trò chuyện công khai?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Các trò chuyện công khai mặc định sẽ bị tắt (bật lại trong Sửa trò chuyện công khai mặc định). Các phòng bạn đã thêm sẽ bị xóa cùng tin nhắn trên thiết bị này.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "Xóa với mọi người";
+"Removes it from this room for everyone using K." = "Xóa tin nhắn khỏi phòng này với mọi người dùng K.";
+"Delete for Everyone?" = "Xóa với mọi người?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Tin nhắn sẽ biến mất khỏi phòng này với mọi người dùng K. Nó vẫn còn trên mạng Kaspa, nơi bất kỳ ai đọc chuỗi vẫn có thể tìm thấy. Việc xóa tốn một khoản phí mạng nhỏ.";
+"Couldn't delete the message. Try again." = "Không thể xóa tin nhắn. Hãy thử lại.";

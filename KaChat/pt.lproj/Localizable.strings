@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "Excluir 1 chat público?";
 "Delete %lld Public Chats?" = "Excluir %lld chats públicos?";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Os chats públicos padrão são desativados (ative-os de novo em Editar chats públicos padrão). As salas que você adicionou são excluídas com as mensagens deste dispositivo.";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "Excluir para todos";
+"Removes it from this room for everyone using K." = "Remove a mensagem desta sala para todos que usam o K.";
+"Delete for Everyone?" = "Excluir para todos?";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Ela some desta sala para todos que usam o K. Continua na rede Kaspa, onde qualquer pessoa que leia a blockchain ainda pode encontrá-la. Excluir custa uma pequena taxa de rede.";
+"Couldn't delete the message. Try again." = "Não foi possível excluir a mensagem. Tente novamente.";

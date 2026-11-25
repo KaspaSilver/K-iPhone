@@ -605,6 +605,37 @@ Reference implementation: `MessageEditCodec` in `Models.swift`; interception in
 `ChatService.addMessageToConversation` and `GroupChatService` (next to the reaction branch). Public
 chats left the iOS app; clients that still have them intercept edits on every room path too.
 
+## Public Chat Deletes (delete for everyone)
+
+Since 2026-11-25 (owner), a sender can delete their own public chat room message for everyone. The
+delete is a room message of its own, sent in the same room:
+
+```json
+{"type":"delete","targetTxId":"<txid of the message>"}
+```
+
+- **Who may delete:** it counts only from the address that sent the target message, in the same
+  room (a room message's sender is its transaction's input address). Anyone else's delete of a
+  message does nothing. Never in the machinery rooms (`chess-arena`, `chess-bots`, `kplay-arcade`):
+  a move or a result can't be taken back.
+- **Clients:**
+  - never show a delete as a message;
+  - drop the target from their cache;
+  - remember the delete (room, txid and the deleter's address), so a later page or block carrying
+    the target from that sender doesn't bring it back;
+  - announce nothing for it. K's push extension silences one, like edits.
+- **The KaChat indexer** removes the target and its reactions and edits from the room's history,
+  and sends no push for the delete (indexer repo `docs/ROOM_MESSAGE_DELETES.md`). K also drops any
+  cached message the indexer no longer serves within a page's span, which covers moderator
+  removals too.
+- **The chain:** the message stays on the Kaspa network. "Delete for everyone" means every K and
+  the indexer stop showing it, not that it's erased.
+- **K:** Delete for Everyone in a room message's menu, on your own delivered text messages, after
+  a confirmation. The message goes once the delete is sent; if it isn't, nothing changes
+  (`PublicChatService.deletePublicChatMessage`, `MessageDeleteCodec`). Other clients (Android,
+  desktop) need the same parsing to honour deletes; until then they still show the message unless
+  their own indexer reads drop it.
+
 ## Chat Payments From a Spending Address (`payment_notice`)
 
 Every send screen has a **From**: the chatting address (the default) or one of the person's

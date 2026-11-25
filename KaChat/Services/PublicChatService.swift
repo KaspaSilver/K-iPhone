@@ -580,6 +580,10 @@ final class PublicChatService: ObservableObject {
             noteIndexerResult(base: base, failed: nil)
             // Asked for the account that has since logged out or switched: not this store's.
             guard isCurrentWallet(generation) else { return false }
+            // a message a moderator removed goes from closed rooms too, not only when one opens
+            await dropRowsTheIndexerNoLongerHas(page.messages, before: nil, base: base,
+                                                channel: channel, generation: generation)
+            guard isCurrentWallet(generation) else { return false }
             defer { noteArenaAnswered(channel: channel, askedAt: askedAt, coveredFrom: nil) }
             // Guarded: inserting an element that is already there still publishes, which
             // re-rendered an open room on every sweep for nothing.
@@ -593,8 +597,12 @@ final class PublicChatService: ObservableObject {
                 }
             }
             if editsChanged { loadEdits(for: channel) }
+            await applyIncomingDeletes(page.messages.compactMap { row in
+                MessageDeleteCodec.parse(row.content).map { (target: $0.targetTxId, sender: row.senderAddress) }
+            }, channel: channel)
+            guard isCurrentWallet(generation) else { return false }
             let rows = page.messages
-                .filter { !hidden.contains($0.senderAddress) && MessageReactionCodec.parse($0.content) == nil && MessageEditCodec.parse($0.content) == nil }
+                .filter { !hidden.contains($0.senderAddress) && !Self.isControlEnvelope($0.content) }
                 .map { (id: $0.txId, channel: channel, senderAddress: $0.senderAddress, content: $0.content, blockTime: $0.blockTime) }
             let known = await store.messageIds(forChannel: channel)
             guard isCurrentWallet(generation) else { return false }
@@ -914,8 +922,7 @@ final class PublicChatService: ObservableObject {
         // blank gap in it (the store also deletes duplicates on read)
         var seen = Set<String>()
         let fresh = rows.filter {
-            seen.insert($0.id).inserted
-                && MessageReactionCodec.parse($0.content) == nil && MessageEditCodec.parse($0.content) == nil
+            seen.insert($0.id).inserted && !Self.isControlEnvelope($0.content)
         }
         let byId = indexed ? Dictionary(fresh.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) : [:]
         return (fresh, PublicChatVoiceParts.group(fresh), byId)
@@ -1101,8 +1108,7 @@ final class PublicChatService: ObservableObject {
               !isViewing(channel: channel),
               !store.hiddenSenderAddresses(forChannel: channel).contains(senderAddress),
               InAppBanner.isRecent(blockTimeMs: blockTime),
-              MessageReactionCodec.parse(content) == nil,
-              MessageEditCodec.parse(content) == nil else { return }
+              !Self.isControlEnvelope(content) else { return }
         let settings = AppSettings.load()
         guard settings.notificationsEnabled else { return }
         let sender: String
@@ -1406,6 +1412,9 @@ final class PublicChatService: ObservableObject {
             // opened, not with it.
             await mergeIndexerRows(messages.messages, channel: channel, prune: true, generation: generation)
             guard stillWanted() else { return }
+            await dropRowsTheIndexerNoLongerHas(messages.messages, before: nil, base: baseURL,
+                                                channel: channel, generation: generation)
+            guard stillWanted() else { return }
             indexerCoveredUntil[channel] = askedAt
             // More arrived since the last poll than the page holds (a busy room, or the app
             // away for a while): page back to the rows already seen, through the backfill below
@@ -1472,6 +1481,9 @@ final class PublicChatService: ObservableObject {
                     guard !page.messages.isEmpty else { break }
                     // Each page merged as it arrives, oldest last.
                     await mergeIndexerRows(page.messages, channel: channel, prune: false, generation: generation)
+                    guard stillWanted() else { return }
+                    await dropRowsTheIndexerNoLongerHas(page.messages, before: before, base: baseURL,
+                                                        channel: channel, generation: generation)
                     guard stillWanted() else { return }
                     hasMore = page.hasMore
                     // The indexer's `before` is exclusive (`block_time < before`), and rows of one
@@ -1540,6 +1552,11 @@ final class PublicChatService: ObservableObject {
         // `PublicChatStore.applyIncoming`) - this was a main-thread fetch and save per row.
         var incomingReactions: [PublicChatStore.IncomingReaction] = []
         var incomingEdits: [PublicChatStore.IncomingEdit] = []
+        // Deletes from every row, hidden senders' too: removing their own message only hides more.
+        await applyIncomingDeletes(page.compactMap { row in
+            MessageDeleteCodec.parse(row.content).map { (target: $0.targetTxId, sender: row.senderAddress) }
+        }, channel: channel)
+        guard isCurrentWallet(generation) else { return }
         for row in visible {
             if let edit = MessageEditCodec.parse(row.content) {
                 guard !wasApplied(row.txId, channel: channel) else { continue }
@@ -1574,7 +1591,7 @@ final class PublicChatService: ObservableObject {
         }
 
         let rows = visible
-            .filter { MessageReactionCodec.parse($0.content) == nil && MessageEditCodec.parse($0.content) == nil }
+            .filter { !Self.isControlEnvelope($0.content) }
             .map { (id: $0.txId, channel: channel, senderAddress: $0.senderAddress, content: $0.content, blockTime: $0.blockTime) }
         var insertedCount = await store.insertMessages(rows).count
         guard isCurrentWallet(generation) else { return }
@@ -1603,6 +1620,72 @@ final class PublicChatService: ObservableObject {
             loadMessages(for: channel)
         }
     }
+
+    /// A message a moderator removed from the indexer, or its sender deleted, is dropped here
+    /// too (owner, 2026-11-25). The indexer has no list of removals, so absence is the signal: a
+    /// page answers for the messages in the span between its own oldest and newest rows, so a
+    /// delivered row this phone holds inside that span that isn't on the page is gone. Only when
+    /// the evidence is solid (audit 2026-11-25, second review):
+    /// - the app-wide indexer only, for a room it tracks; never the machinery rooms (chess, bots,
+    ///   arcade) and never an empty page;
+    /// - never below the page's oldest row, even on its last page: an indexer holding less than
+    ///   this phone (rebuilt, newly tracking the room, another indexer) says nothing about older
+    ///   messages, which stay;
+    /// - a minute inside both edges (this phone's time for a row can differ from the indexer's),
+    ///   never the newest 3 minutes, never the oldest day of the 30-day window;
+    /// - never your own messages, nor pending or unconfirmed sends;
+    /// - a row must be missing from two reads before it goes (`absenceStrikes`);
+    /// - and if one read would remove more than a handful (over 3, and over a fifth of what it
+    ///   covers), nothing goes: that is an indexer problem, not a moderator, and it is logged.
+    /// `before` is the page's exclusive upper bound when it was asked for older history.
+    private func dropRowsTheIndexerNoLongerHas(
+        _ page: [PublicChatIndexerClient.IndexedPublicChat],
+        before: Int64?,
+        base: String,
+        channel: String,
+        generation: Int
+    ) async {
+        guard PublicChatIndexerClient.isAppWideIndexer(base), Self.isIndexerTracked(channel),
+              !Self.serviceChannels.contains(channel), !Self.hiddenIndexerRooms.contains(channel), !page.isEmpty,
+              let newest = page.map(\.blockTime).max(), let oldest = page.map(\.blockTime).min() else { return }
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let margin: Int64 = 60_000
+        var upper = (before.map { $0 - 1 } ?? newest) - margin
+        upper = min(upper, now - 180_000)
+        var lower = oldest + margin
+        lower = max(lower, now - PublicChatStore.indexerRetentionMillis + 86_400_000)
+        guard lower <= upper else { return }
+        let me = WalletManager.shared.currentWallet?.publicAddress.lowercased() ?? ""
+        let onPage = Set(page.map { $0.txId.lowercased() })
+        let held = await store.deliveredMessages(inChannel: channel, from: lower, to: upper)
+        guard isCurrentWallet(generation) else { return }
+        let considered = held.filter { Self.isTxIdShaped($0.id.lowercased()) && $0.sender.lowercased() != me }
+        var gone = Set<String>()
+        for row in considered {
+            let key = "\(channel)|\(row.id.lowercased())"
+            if onPage.contains(row.id.lowercased()) {
+                absenceStrikes[key] = nil
+                continue
+            }
+            let strikes = (absenceStrikes[key] ?? 0) + 1
+            absenceStrikes[key] = strikes
+            if strikes >= 2 { gone.insert(row.id) }
+        }
+        if absenceStrikes.count > 5_000 { absenceStrikes.removeAll() }
+        guard !gone.isEmpty else { return }
+        guard gone.count <= 3 || gone.count * 5 <= considered.count else {
+            AppLog.log("%@", "[PublicChat] #\(channel): \(gone.count) of \(considered.count) cached messages missing from the indexer - left alone (looks like an indexer problem)")
+            return
+        }
+        guard await store.deleteMessages(ids: gone, inChannel: channel), isCurrentWallet(generation) else { return }
+        for id in gone { absenceStrikes["\(channel)|\(id.lowercased())"] = nil }
+        AppLog.log("%@", "[PublicChat] #\(channel): \(gone.count) message(s) no longer on the indexer, removed here too")
+        loadMessages(for: channel)
+    }
+
+    /// How many reads in a row each cached room message ("room|txid") was missing from, for
+    /// `dropRowsTheIndexerNoLongerHas`: a row goes on its second miss, never on one read alone.
+    private var absenceStrikes: [String: Int] = [:]
 
     /// Marks a row whose block time came from the indexer, which then has the last word: the
     /// stream can see a transaction in a different block, with a different time.
@@ -1739,6 +1822,78 @@ final class PublicChatService: ObservableObject {
               target.senderAddress == senderAddress,
               MessageEditCodec.isEditable(target.content) else { return false }
         return store.upsertEdit(targetTxId: edit.targetTxId, channel: channel, text: edit.text, editTxId: editTxId, blockTime: blockTime, deliveryStatus: nil)
+    }
+
+    /// A reaction, edit or delete envelope: never a message row of its own.
+    nonisolated static func isControlEnvelope(_ content: String) -> Bool {
+        // Plain text is most of a room, and each codec copies and parses: only JSON is asked.
+        guard content.first(where: { !$0.isWhitespace }) == "{", content.contains("\"type\"") else { return false }
+        return MessageReactionCodec.parse(content) != nil || MessageEditCodec.parse(content) != nil
+            || MessageDeleteCodec.parse(content) != nil
+    }
+
+    /// Delete envelopes seen in a room (scan, indexer page or sweep). A delete counts only from
+    /// the sender of the message it names: remembered for that room and sender, so the message
+    /// never comes back, and gone now when this phone holds it. A delete naming someone else's
+    /// message does nothing and isn't kept. Never in the machinery rooms (chess, the bots, the
+    /// arcade): a move or a result can't be taken back.
+    @discardableResult
+    private func applyIncomingDeletes(_ deletes: [(target: String, sender: String)], channel: String) async -> Bool {
+        let channel = PublicChatChannelName.normalize(channel)
+        guard !deletes.isEmpty, store.isReady,
+              !Self.serviceChannels.contains(channel), !Self.hiddenIndexerRooms.contains(channel) else { return false }
+        var gone = Set<String>()
+        for delete in deletes {
+            let held = store.sender(ofMessage: delete.target) ?? store.sender(ofMessage: delete.target.lowercased())
+            if let held {
+                // someone else's message: not theirs to delete
+                guard held.senderAddress.lowercased() == delete.sender.lowercased() else { continue }
+                gone.insert(delete.target)
+            }
+            // held from that sender, or not here (yet): remembered either way
+            store.recordDelete(targetTxId: delete.target, channel: channel, by: delete.sender)
+        }
+        guard !gone.isEmpty, await store.deleteMessages(ids: gone, inChannel: channel) else { return false }
+        loadMessages(for: channel)
+        loadEdits(for: channel)
+        loadReactions(for: channel)
+        return true
+    }
+
+    // MARK: - Delete for everyone
+
+    /// Deletes one of this wallet's own delivered messages in a room for everyone (owner,
+    /// 2026-11-25): a delete envelope goes out, one transaction like an edit, and once it has, the
+    /// message goes from this phone (and is remembered as deleted). The KaChat indexer removes it
+    /// for everyone it serves, and every K drops it. Nothing changes here until the send went out,
+    /// so a failure leaves the message exactly as it was, edits and reactions included. A send
+    /// whose outcome is unknown leaves it too: if it landed, its own delete comes back through the
+    /// room's reads and removes it then.
+    func deletePublicChatMessage(_ message: PublicChatMessage) async throws {
+        let channel = PublicChatChannelName.normalize(message.channelName)
+        guard !Self.serviceChannels.contains(channel), !Self.hiddenIndexerRooms.contains(channel),
+              let wallet = WalletManager.shared.currentWallet,
+              message.senderAddress.lowercased() == wallet.publicAddress.lowercased(),
+              message.deliveryStatus == .sent, Self.isTxIdShaped(message.id.lowercased()) else { return }
+        guard let privateKey = WalletManager.shared.getPrivateKey() else { throw KasiaError.keychainError("Could not get private key") }
+        do {
+            _ = try await ChatService.shared.enqueueOutgoingTxOperation {
+                try await self.sendPublicChatInternal(
+                    channel: channel, content: MessageDeleteCodec.encode(targetTxId: message.id),
+                    walletAddress: wallet.publicAddress, privateKey: privateKey,
+                    pendingId: "delete_\(UUID().uuidString)"
+                )
+            }
+        } catch is SendOutcomeUnknownError {
+            return
+        }
+        if replyingTo?.id == message.id { replyingTo = nil }
+        if editingMessage?.id == message.id { editingMessage = nil }
+        store.recordDelete(targetTxId: message.id, channel: channel, by: wallet.publicAddress)
+        await store.deleteMessages(ids: [message.id], inChannel: channel)
+        loadMessages(for: channel)
+        loadEdits(for: channel)
+        loadReactions(for: channel)
     }
 
     // MARK: - Edit
@@ -3230,6 +3385,7 @@ final class PublicChatService: ObservableObject {
         var editChannels = Set<String>()
         var messageHits: [BlockScanHit] = []
         var editHits: [(hit: BlockScanHit, edit: MessageEditContent)] = []
+        var deleteHits: [String: [(target: String, sender: String)]] = [:]
 
         for hit in hits {
             guard wanted.contains(hit.channel) else { continue }
@@ -3241,6 +3397,10 @@ final class PublicChatService: ObservableObject {
             // update at send time (sendPublicChatReaction); newest-blockTime-wins dedupes the echo.
             if let edit = MessageEditCodec.parse(hit.content) {
                 editHits.append((hit, edit))
+                continue
+            }
+            if let delete = MessageDeleteCodec.parse(hit.content) {
+                deleteHits[hit.channel, default: []].append((target: delete.targetTxId, sender: hit.senderAddress))
                 continue
             }
             if let reaction = MessageReactionCodec.parse(hit.content) {
@@ -3258,6 +3418,9 @@ final class PublicChatService: ObservableObject {
             messageHits.append(hit)
         }
 
+        for (channel, deletes) in deleteHits {
+            await applyIncomingDeletes(deletes, channel: channel)
+        }
         if !messageHits.isEmpty {
             let inserted = await store.insertMessages(messageHits.map {
                 (id: $0.txId, channel: $0.channel, senderAddress: $0.senderAddress, content: $0.content, blockTime: $0.blockTime)
@@ -3671,7 +3834,7 @@ enum PublicChatIndexerClient {
     }
 
     /// Whether `base` is the app-wide public chat indexer (trailing slash and case aside).
-    private static func isAppWideIndexer(_ base: String) -> Bool {
+    static func isAppWideIndexer(_ base: String) -> Bool {
         func canonical(_ url: String) -> String {
             var value = url.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             while value.hasSuffix("/") { value.removeLast() }

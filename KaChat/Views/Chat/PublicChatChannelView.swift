@@ -69,6 +69,8 @@ struct PublicChatChannelView: View {
     @State private var reactionsSheetTarget: ReactionsSheetTarget?
     /// The sender whose avatar was tapped; non-nil presents `senderSheet`.
     @State private var senderSheetTarget: SenderSheetTarget?
+    /// Your own message picked for Delete for Everyone, waiting for the confirmation.
+    @State private var deleteTarget: PublicChatMessage?
     private struct SenderSheetTarget: Identifiable {
         let address: String
         let isOwnMessage: Bool
@@ -233,6 +235,25 @@ struct PublicChatChannelView: View {
                 displayName: { displayName(for: $0) },
                 avatarURL: { _ in nil }
             )
+        }
+        .alert(
+            "Delete for Everyone?",
+            isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } })
+        ) {
+            Button("Delete", role: .destructive) {
+                guard let target = deleteTarget else { return }
+                deleteTarget = nil
+                Task {
+                    do {
+                        try await publicChatService.deletePublicChatMessage(target)
+                    } catch {
+                        showToast(AppLocalization.string("Couldn't delete the message. Try again."))
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) { deleteTarget = nil }
+        } message: {
+            Text("It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee.")
         }
         .alert("Adjust Network Fee", isPresented: $showFeeEditor) {
             TextField(KaspaUnit.label(AppLocalization.string("Fee (KAS)")), text: $feeEditorText)
@@ -826,6 +847,9 @@ struct PublicChatChannelView: View {
             },
             isEdited: edit != nil,
             onEdit: canEdit ? { beginEdit(message) } : nil,
+            // your own delivered message (a long voice note is several, so not that)
+            onDelete: (message.senderAddress == myAddress && message.deliveryStatus == .sent && voiceNote == nil)
+                ? { deleteTarget = message } : nil,
             voiceNote: voiceNoteInput
         )
         // Compared on its data (see `PublicChatMessageRow.==`): its closures made every row
@@ -1563,6 +1587,8 @@ private struct PublicChatMessageRow: View, Equatable {
     /// "edited" chip sits on the bubble. `onEdit` is offered on the user's own text bubbles only.
     var isEdited: Bool = false
     var onEdit: (() -> Void)? = nil
+    /// Delete for Everyone, on the user's own delivered messages.
+    var onDelete: (() -> Void)? = nil
     /// The parts of the long voice note this row stands for (it is the note's first part), or
     /// nil for any other message. The bubble plays them as one recording.
     var voiceNote: PublicChatVoiceNoteInput? = nil
@@ -1596,6 +1622,7 @@ private struct PublicChatMessageRow: View, Equatable {
             && lhs.isEdited == rhs.isEdited
             && lhs.voiceNote == rhs.voiceNote
             && (lhs.onEdit == nil) == (rhs.onEdit == nil)
+            && (lhs.onDelete == nil) == (rhs.onDelete == nil)
             && (lhs.onJumpToReply == nil) == (rhs.onJumpToReply == nil)
             && (lhs.onShowReactions == nil) == (rhs.onShowReactions == nil)
             && (lhs.onReact == nil) == (rhs.onReact == nil)
@@ -2064,6 +2091,9 @@ private struct PublicChatMessageRow: View, Equatable {
         }
         if !isOwnMessage {
             actions.append(.report { onReport() })
+        }
+        if let onDelete, voicePayload == nil {
+            actions.append(.deleteForEveryone(onDelete))
         }
         switch translation.state(for: translationKey) {
         case .translated:

@@ -3378,3 +3378,10 @@
 "Delete 1 Public Chat?" = "パブリックチャットを1件削除しますか？";
 "Delete %lld Public Chats?" = "パブリックチャットを%lld件削除しますか？";
 "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "デフォルトのパブリックチャットはオフになります（「デフォルトの公開チャットを編集」で再びオンにできます）。自分で追加したルームは、メッセージごとこのデバイスから削除されます。";
+
+/* Room Delete for Everyone (2026-11-25) */
+"Delete for Everyone" = "全員から削除";
+"Removes it from this room for everyone using K." = "K を使う全員について、このルームから削除します。";
+"Delete for Everyone?" = "全員から削除しますか？";
+"It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "K を使う全員について、このルームから消えます。Kaspa ネットワーク上には残り、チェーンを読む人は誰でも見つけられます。削除には少額のネットワーク手数料がかかります。";
+"Couldn't delete the message. Try again." = "メッセージを削除できませんでした。もう一度お試しください。";

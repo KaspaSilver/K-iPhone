@@ -1179,6 +1179,34 @@ enum MessageEditCodec {
     }
 }
 
+/// A public chat message's sender deleting it for everyone (owner, 2026-11-25): sent in the room
+/// as `{"type":"delete","targetTxId":"<txid>"}`, like an edit. Honoured only from the address that
+/// sent the message it names. The KaChat indexer removes the message (ROOM_MESSAGE_DELETES.md in
+/// the indexer repo); every K drops it from its cache, and remembers the delete so a page that
+/// still carries the message can't bring it back.
+struct MessageDeleteContent: Codable, Equatable {
+    var type: String = "delete"
+    let targetTxId: String
+}
+
+enum MessageDeleteCodec {
+    static func encode(targetTxId: String) -> String {
+        guard let data = try? JSONEncoder().encode(MessageDeleteContent(targetTxId: targetTxId)),
+              let json = String(data: data, encoding: .utf8) else { return "" }
+        return json
+    }
+
+    /// Same {-prefix + size guard as `MessageEditCodec.parse`.
+    static func parse(_ text: String?) -> MessageDeleteContent? {
+        guard let text, text.utf8.count < 2_000 else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.first == "{", trimmed.contains("\"delete\""), let data = trimmed.data(using: .utf8),
+              let parsed = try? JSONDecoder().decode(MessageDeleteContent.self, from: data),
+              parsed.type == "delete", !parsed.targetTxId.isEmpty else { return nil }
+        return parsed
+    }
+}
+
 /// The newest edit on one message, as the stores hand it to the views. `deliveryStatus` is
 /// the local user's own edit's send state (`.sent` for everyone else's / delivered).
 struct MessageEditSnapshot: Equatable {
