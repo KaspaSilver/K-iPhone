@@ -47,6 +47,9 @@ class NotificationService: UNNotificationServiceExtension {
     /// How long the chain reads keep trying, from the push's arrival. The extension has about 30
     /// seconds in all.
     private static let chainReadDeadline: TimeInterval = 20
+    /// A payment push's tip check reads the chain only this long after the push came: one or two
+    /// tries, not the 20 s a message preview may wait.
+    private static let tipCheckDeadline: TimeInterval = 4
 
     // App Group identifier for shared data
     private let appGroupIdentifier = "group.com.kachat.app"
@@ -496,7 +499,20 @@ class NotificationService: UNNotificationServiceExtension {
                 finish()
                 return
             }
-            fetchTransactionPayload(txId: txId) { [weak self] payloadHex in
+            // The push's own payload, when it carries one, answers without a request
+            // (audit 2026-11-25 B18).
+            if let pushed = userInfo["payload"] as? String, !pushed.isEmpty {
+                if let postId = Self.tipPostId(payloadHex: pushed) {
+                    Self.recordTip(txId: txId, postId: postId)
+                    applyTipWording(content, userInfo: userInfo)
+                }
+                finish()
+                return
+            }
+            // Else a short look at the chain (payload only): most payments aren't tips, and the
+            // tip's own KaPost push words it too, so this no longer holds a payment banner for up
+            // to 20 s while the API catches up.
+            fetchTransactionPayload(txId: txId, deadline: Self.tipCheckDeadline) { [weak self] payloadHex in
                 guard let self else { return }
                 if let payloadHex, let postId = Self.tipPostId(payloadHex: payloadHex) {
                     Self.recordTip(txId: txId, postId: postId)
@@ -2224,8 +2240,10 @@ class NotificationService: UNNotificationServiceExtension {
     /// parts back to back (a 429 or a slow answer). With one try, every part of a High photo or
     /// long voice note could come back unreadable and ring as its own "New message". nil when it
     /// still isn't there by the deadline, or the transaction has no payload.
-    private func fetchTransactionPayload(txId: String, attempt: Int = 0, completion: @escaping (String?) -> Void) {
-        let remaining = Self.chainReadDeadline - Date().timeIntervalSince(receivedAt)
+    private func fetchTransactionPayload(txId: String, attempt: Int = 0,
+                                         deadline: TimeInterval = NotificationService.chainReadDeadline,
+                                         completion: @escaping (String?) -> Void) {
+        let remaining = deadline - Date().timeIntervalSince(receivedAt)
         guard let url = kaspaTransactionURL(txId: txId), remaining > 1 else {
             completion(nil)
             return
@@ -2248,13 +2266,13 @@ class NotificationService: UNNotificationServiceExtension {
             }
             // Not on the API yet, busy, or no answer: try again shortly, while there's time.
             let delay = min(1.0 + Double(attempt) * 0.75, 3.0)
-            let left = Self.chainReadDeadline - Date().timeIntervalSince(self.receivedAt)
+            let left = deadline - Date().timeIntervalSince(self.receivedAt)
             guard left > delay + 1 else {
                 completion(nil)
                 return
             }
             DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + delay) {
-                self.fetchTransactionPayload(txId: txId, attempt: attempt + 1, completion: completion)
+                self.fetchTransactionPayload(txId: txId, attempt: attempt + 1, deadline: deadline, completion: completion)
             }
         }.resume()
     }
@@ -2271,7 +2289,10 @@ class NotificationService: UNNotificationServiceExtension {
         let base = configured.isEmpty
             ? (onTestnet ? "https://api-tn10.kaspa.org" : "https://api.kaspa.org")
             : configured
-        return URL(string: base.hasSuffix("/") ? "\(base)transactions/\(txId)" : "\(base)/transactions/\(txId)")
+        // Only the payload is read: no inputs or outputs (a txId-only photo part was downloading
+        // both with it, audit 2026-11-25 B18).
+        let light = "?inputs=false&outputs=false&resolve_previous_outpoints=no"
+        return URL(string: base.hasSuffix("/") ? "\(base)transactions/\(txId)\(light)" : "\(base)/transactions/\(txId)\(light)")
     }
 
     /// What reading a contextual payload came to.

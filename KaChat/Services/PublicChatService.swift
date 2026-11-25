@@ -16,7 +16,13 @@ final class PublicChatService: ObservableObject {
     /// 2026-11-24 (owner) every room starts silenced: the bell is yours to turn on.
     /// nonisolated: read from PublicChatStore's background prune (retention rule) as well as
     /// main-actor UI - immutable Sendable value, safe from anywhere.
-    nonisolated static let featuredChannels = ["kaspa", "kachat-bugs"]
+    nonisolated static let featuredChannels = ["kaspa", "report-bugs"]
+
+    /// Default rooms retired for a new name, old -> new (owner, 2026-11-25: #kachat-bugs is now
+    /// #report-bugs). An account that had the old room is moved over once its store opens
+    /// (`moveRetiredChannels`: bell, pin and switched-off state), and the old room is left.
+    /// Joining the old name (a link, the New Public Chat sheet) opens the new room.
+    nonisolated static let retiredChannels: [String: String] = ["kachat-bugs": "report-bugs"]
 
     /// Curated per-language rooms, listed straight in Public Chats under the two featured rooms
     /// (KaPosts lists every default room; the customize button switches off the unwanted ones).
@@ -41,10 +47,32 @@ final class PublicChatService: ObservableObject {
         "kaspa-hebrew",
     ]
 
-    /// The rooms the app ships as defaults (Popular + the language rooms): always in the list,
-    /// switched off rather than left, "Popular" in Room Info. Only auto-join and the pinned
-    /// Popular list use `featuredChannels` alone.
-    nonisolated static let curatedChannels = featuredChannels + languageChannels
+    /// The rooms the app ships as defaults (Popular + the language rooms).
+    nonisolated static let builtInCuratedChannels = featuredChannels + languageChannels
+
+    /// The default rooms: the built-in ones plus every room the app-wide indexer reports it
+    /// tracks (`indexerDefaultChannels`). Always in the list, switched off rather than left,
+    /// "Popular" in Room Info. Only auto-join and the pinned Popular list use `featuredChannels`
+    /// alone.
+    nonisolated static var curatedChannels: [String] { builtInCuratedChannels + indexerDefaultChannels }
+
+    /// Rooms the indexer tracks that are machinery, never chats: chess, the bots, the arcade.
+    nonisolated static let hiddenIndexerRooms: Set<String> = [
+        ChessTournamentCodec.arenaChannel, ChessBotCodec.channel, ArcadeStamp.channel,
+    ]
+
+    /// Rooms the operator added on the indexer (owner, 2026-11-25): what its `/broadcast-channels`
+    /// reports beyond the built-in rooms, so a room added in the indexer's panel becomes a default
+    /// room in K - joined with its bell off, with a switch in Edit Default Public Chats - with no
+    /// app update. The machinery rooms and retired names are left out. A room the indexer drops
+    /// stops being a default: joined, it stays as an ordinary room; switched off, it's left.
+    nonisolated static var indexerDefaultChannels: [String] {
+        let builtIn = Set(builtInCuratedChannels)
+        return IndexerTrackedRooms.reportedRooms().filter {
+            PublicChatChannelName.isValid($0) && !builtIn.contains($0)
+                && !hiddenIndexerRooms.contains($0) && retiredChannels[$0] == nil
+        }
+    }
 
     /// Whether the indexer keeps this room's history: the curated rooms, and any other room the
     /// indexer tracks - one the operator adds on the indexer (it then keeps 30 days of it) needs
@@ -178,6 +206,8 @@ final class PublicChatService: ObservableObject {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.objectWillChange.send()
+                // a room the operator just added (or dropped) on the indexer joins (or leaves)
+                if self.store.isReady { self.ensureDefaultChannelsJoined() }
                 self.updateScanningStateIfNeeded()
                 Task { await PushNotificationManager.shared.updateWatchedAddresses() }
             }
@@ -292,10 +322,11 @@ final class PublicChatService: ObservableObject {
     /// Asks the app-wide public chat indexer which rooms it tracks (`/broadcast-channels`), at
     /// most once an hour per indexer - on app open and wallet switch. An indexer without the
     /// endpoint answers nothing and the set keeps what it learned from served rows.
-    func refreshIndexerTrackedRooms() {
+    /// `maxAge` is shorter where a new room is looked for (Edit Default Public Chats: a minute).
+    func refreshIndexerTrackedRooms(maxAge: TimeInterval = 3600) {
         let base = AppSettings.load().publicChatIndexerURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty else { return }
-        if let last = trackedRoomsCheckedAt, last.base == base, Date().timeIntervalSince(last.at) < 3600 { return }
+        if let last = trackedRoomsCheckedAt, last.base == base, Date().timeIntervalSince(last.at) < maxAge { return }
         trackedRoomsCheckedAt = (base, Date())
         Task {
             guard let channels = await PublicChatIndexerClient.fetchTrackedChannels(baseURL: base) else { return }
@@ -384,7 +415,7 @@ final class PublicChatService: ObservableObject {
                 // store is open again, so their Retry is offered.
                 self.applyAbortedSends(walletAddress: targetWallet)
                 // Joins the default rooms (and refreshes the list) as soon as the wallet's
-                // store is open, so #kaspa and #kachat-bugs notify without Public Chats having
+                // store is open, so #kaspa and #report-bugs notify without Public Chats having
                 // been opened first.
                 self.ensureDefaultChannelsJoined()
                 // Every room's last message and unread count for the Chats list, in one publish.
@@ -419,16 +450,17 @@ final class PublicChatService: ObservableObject {
     /// Rooms the sweep has asked about at least once this session: only rows found after that
     /// first pass get an in-app banner; the first pass is history catching up.
     private var sweptChannels: Set<String> = []
-    private static let foregroundSweepIntervalNanos: UInt64 = 20 * 1_000_000_000
 
     /// While the app is on screen, a room the user is NOT looking at used to be refreshed only
     /// by the live block scan - which misses blocks whenever the stream reconnects, and is off
     /// altogether for indexed rooms that aren't open (`scanWantedChannels`, on every connection
     /// since 2026-11-22) where the remote push that covers them is dropped in the foreground. So
     /// a message in #kaspa showed up only once the room was opened. This is the fix, the same shape as 1:1 chat's foreground
-    /// contact sweep: every 20 s, each joined room with its bell on that is not open asks the
-    /// indexer for its newest rows (one small request per room, sequential). The open room
-    /// keeps its own 8 s poll; the block scan stays as the fast path.
+    /// contact sweep: on every foreground beat (`ForegroundBeat`: 30 s on Wi-Fi, 60 s on
+    /// cellular, shared with KaPost's and kUSDT's polls so the radio wakes once per beat; audit
+    /// 2026-11-25 B4; 20 s of its own before), each joined room with its bell on that is not open
+    /// asks the indexer for its newest rows (one small request per room, sequential). The open
+    /// room keeps its own 8 s poll; the block scan stays as the fast path.
     func startForegroundSweep() {
         guard foregroundSweepTask == nil, walletAddress != nil else { return }
         foregroundSweepTask = Task { [weak self] in
@@ -437,7 +469,7 @@ final class PublicChatService: ObservableObject {
                 if UIApplication.shared.applicationState == .active {
                     await self.sweepClosedRooms()
                 }
-                try? await Task.sleep(nanoseconds: Self.foregroundSweepIntervalNanos)
+                await ForegroundBeat.sleepUntilNextBeat(offset: 0)
             }
         }
     }
@@ -471,6 +503,68 @@ final class PublicChatService: ObservableObject {
         let channel = PublicChatChannelName.normalize(rawChannel)
         guard !Self.indexerBaseURL(forChannel: channel).isEmpty else { return false }
         return await fetchNewestAndMerge(channel: channel)
+    }
+
+    /// A room push that came while K is open: its message is fetched before the banner shows,
+    /// so the banner never announces a message the Chats list and the room don't have yet (the
+    /// next 20 s sweep used to bring it, 2026-11-25). Asks again until the push's transaction
+    /// is in the store (the indexer can push a moment before it serves the row), giving up
+    /// after `timeout` so the banner is never held long. Each fetch races the time left (one can
+    /// take 20 s; it keeps running and merges when it answers, the banner doesn't wait), and an
+    /// indexer marked down isn't asked at all (audit 2026-11-25 C9).
+    func fetchBeforePushBanner(channel rawChannel: String, txId: String?, timeout: TimeInterval = 4) async {
+        let channel = PublicChatChannelName.normalize(rawChannel)
+        guard store.isReady, channels.contains(where: { $0.channelName == channel }) else { return }
+        let base = Self.indexerBaseURL(forChannel: channel)
+        guard !base.isEmpty, unreachableIndexers[base] == nil else { return }
+        if channel == ChessTournamentCodec.arenaChannel, arenaIndexerDown { return }
+        let deadline = Date().addingTimeInterval(timeout)
+        let wanted = txId?.lowercased()
+        while true {
+            let left = deadline.timeIntervalSinceNow
+            guard left > 0 else { return }
+            let ok = await Self.answer(within: left) { [weak self] in
+                await self?.refreshFromIndexerNow(channel: channel) ?? false
+            } ?? false
+            guard ok, let wanted, Self.isTxIdShaped(wanted) else { return }
+            if await store.messageIds(forChannel: channel).contains(where: { $0.lowercased() == wanted }) { return }
+            guard Date().addingTimeInterval(0.8) < deadline else { return }
+            try? await Task.sleep(nanoseconds: 800_000_000)
+        }
+    }
+
+    /// `work`'s answer if it comes within `seconds`, else nil. The work isn't cancelled: it keeps
+    /// running and finishes on its own; only the caller stops waiting for it.
+    private static func answer<T: Sendable>(within seconds: TimeInterval,
+                                            _ work: @escaping @MainActor () async -> T) async -> T? {
+        let job = Task { @MainActor in await work() }
+        let gate = ResumeOnce()
+        return await withCheckedContinuation { (continuation: CheckedContinuation<T?, Never>) in
+            let timer = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
+                if gate.take() { continuation.resume(returning: nil) }
+            }
+            Task { @MainActor in
+                let value = await job.value
+                timer.cancel()
+                if gate.take() { continuation.resume(returning: value) }
+            }
+        }
+    }
+
+    /// Resumes a continuation once, whichever side answers first.
+    @MainActor
+    private final class ResumeOnce {
+        private var done = false
+        func take() -> Bool {
+            guard !done else { return false }
+            done = true
+            return true
+        }
+    }
+
+    private static func isTxIdShaped(_ value: String) -> Bool {
+        value.count == 64 && value.allSatisfy(\.isHexDigit)
     }
 
     @discardableResult
@@ -790,6 +884,26 @@ final class PublicChatService: ObservableObject {
             changed = true
         }
         if changed { messagesByChannel = messages }
+        await loadLastMessageEdits(rooms: rooms, walletAtStart: walletAtStart)
+    }
+
+    /// The edit of each room's last message, for the Chats list's previews: a room's edits were
+    /// read only once it was opened, so an edited last message previewed its old text until then
+    /// (audit 2026-11-25 C10). Fills in only what isn't known: a room read in full keeps its read.
+    private func loadLastMessageEdits(rooms: [String], walletAtStart: Int) async {
+        var lastIds: [String: String] = [:]
+        for name in rooms {
+            if let last = messagesByChannel[name]?.last { lastIds[name] = last.id }
+        }
+        guard !lastIds.isEmpty else { return }
+        let loaded = await store.fetchEditsAsync(targetTxIds: Array(lastIds.values))
+        guard isCurrentWallet(walletAtStart), !loaded.isEmpty else { return }
+        var edits = editsByChannel
+        for (name, id) in lastIds {
+            guard let edit = loaded[name]?[id], edits[name]?[id] == nil else { continue }
+            edits[name, default: [:]][id] = edit
+        }
+        if edits != editsByChannel { editsByChannel = edits }
     }
 
     /// A room's stored rows as the room shows them: no reaction or edit envelopes (rows scanned
@@ -850,14 +964,92 @@ final class PublicChatService: ObservableObject {
     /// then #kaspa and #kachat-bugs had their bell switched on once per wallet, and accounts that
     /// already got that keep the bells they have).
     func ensureDefaultChannelsJoined() {
-        for name in Self.curatedChannels where isCuratedChannelShown(name) {
+        moveRetiredChannels()
+        let curated = Self.curatedChannels
+        // A room the indexer no longer reports and that was switched off: nothing would ever show
+        // it again (no switch for it any more), so it's left. One still on stays, as your own room.
+        // Only once it's been missing for `droppedRoomGrace`: one short `/broadcast-channels`
+        // answer forgot it was switched off, and it came back on (audit 2026-11-25 C10).
+        if store.isReady, let missingKey = hiddenMissingSinceKey {
+            let defaults = UserDefaults.standard
+            let now = Date().timeIntervalSince1970
+            let saved = defaults.dictionary(forKey: missingKey) as? [String: Double] ?? [:]
+            let absent = savedHiddenCuratedChannels().subtracting(curated)
+            // back on the indexer's list, or switched on again: its clock stops
+            var missingSince = saved.filter { absent.contains($0.key) }
+            for name in absent where missingSince[name] == nil { missingSince[name] = now }
+            let dropped = Set(missingSince.filter { now - $0.value >= Self.droppedRoomGrace }.keys)
+            for name in dropped { missingSince.removeValue(forKey: name) }
+            if missingSince != saved {
+                if missingSince.isEmpty { defaults.removeObject(forKey: missingKey) } else { defaults.set(missingSince, forKey: missingKey) }
+            }
+            if !dropped.isEmpty {
+                updateSavedHiddenCuratedChannels { $0.subtract(dropped) }
+                let joined = Set(store.joinedChannels().map(\.channelName))
+                for name in dropped where joined.contains(name) {
+                    leaveChannel(name)
+                }
+            }
+        }
+        for name in curated where isCuratedChannelShown(name) {
             _ = store.joinChannel(name)
         }
         refreshChannels()
     }
 
+    /// How long a switched-off room may be missing from the indexer's list before it's forgotten.
+    private static let droppedRoomGrace: TimeInterval = 7 * 86_400
+
+    /// Since when each switched-off room has been missing from the default rooms (seconds since
+    /// 1970), per account.
+    private var hiddenMissingSinceKey: String? { walletAddress.map { "kachat_broadcast_hidden_missing_\($0)" } }
+
+    /// This account's switched-off rooms as saved. Read from the store, not `hiddenCuratedChannels`:
+    /// these run as the account's room store opens, which can be before the read state (and so the
+    /// in-memory set) is this account's.
+    private func savedHiddenCuratedChannels() -> Set<String> {
+        Set(hiddenCuratedKey.flatMap { UserDefaults.standard.stringArray(forKey: $0) } ?? [])
+    }
+
+    private func updateSavedHiddenCuratedChannels(_ change: (inout Set<String>) -> Void) {
+        guard let key = hiddenCuratedKey else { return }
+        var saved = savedHiddenCuratedChannels()
+        change(&saved)
+        UserDefaults.standard.set(Array(saved), forKey: key)
+        hiddenCuratedChannels = saved
+    }
+
+    /// Moves an account off each retired default room: the new room gets the old one's bell, its
+    /// pin in the Chats list's circles and its switched-off state, then the old room is left
+    /// (its messages go from this phone; they stay on chain). Nothing to do once it's gone.
+    private func moveRetiredChannels() {
+        guard store.isReady else { return }
+        let joined = store.joinedChannels()
+        for (old, new) in Self.retiredChannels {
+            guard let oldRoom = joined.first(where: { $0.channelName == old }) else { continue }
+            if savedHiddenCuratedChannels().contains(old) {
+                updateSavedHiddenCuratedChannels { $0.remove(old); $0.insert(new) }
+            } else if store.joinChannel(new), oldRoom.notifyEnabled,
+                      !joined.contains(where: { $0.channelName == new }) {
+                store.setNotifyEnabled(true, forChannel: new)
+            }
+            if let wallet = walletAddress {
+                // the Chats list's room circles (ChatListView's `roomPinsKey`)
+                let pinsKey = "kachat_room_pins_\(wallet)"
+                if var pins = UserDefaults.standard.stringArray(forKey: pinsKey), let index = pins.firstIndex(of: old) {
+                    if pins.contains(new) { pins.remove(at: index) } else { pins[index] = new }
+                    UserDefaults.standard.set(pins, forKey: pinsKey)
+                    NotificationCenter.default.post(name: .publicRoomPinsChanged, object: nil)
+                }
+            }
+            refreshChannels()
+            leaveChannel(old)
+        }
+    }
+
     @discardableResult
     func joinChannel(_ rawName: String) -> Bool {
+        let rawName = Self.retiredChannels[PublicChatChannelName.normalize(rawName)] ?? rawName
         guard store.joinChannel(rawName) else { return false }
         refreshChannels()
         return true
@@ -3001,9 +3193,9 @@ final class PublicChatService: ObservableObject {
 
     private func stopScanning() {
         Task { await NodePoolService.shared.unsubscribeBlockAdded(client: "broadcast-scan") }
-        // A connection that already registered for blocks keeps pushing them until it
-        // reconnects (see NodePoolService.unsubscribeBlockAdded), and other clients (groups, the
-        // inbox scan) can still want them. The handler goes, so no room's scan parses them.
+        // Other clients (groups, the inbox scan, the Explorer) can still want blocks; the node is
+        // told to stop only when none is left (NodePoolService.unsubscribeBlockAdded). The handler
+        // goes, so no room's scan parses them.
         if let id = blockNotificationHandlerId {
             BlockScanRegistry.shared.remove(id)
             blockNotificationHandlerId = nil
@@ -3279,11 +3471,13 @@ final class PublicChatRoomSummaries: ObservableObject {
         let next = service.listedChannels.map { channel -> PublicChatRoomSummary in
             let name = channel.channelName
             let last = service.messages(forChannel: name).last
+            // an edited message previews with its newest text, as in the room
+            let edit = last.flatMap { service.edits(forChannel: name)[$0.id] }
             return PublicChatRoomSummary(
                 channel: channel,
                 lastMessageId: last?.id,
                 lastSender: last?.senderAddress,
-                lastPreview: last.map { preview(of: $0, in: name) },
+                lastPreview: last.map { preview(of: $0, edited: edit, in: name) },
                 lastBlockTime: last?.blockTime,
                 unreadCount: service.unreadCount(forChannel: name)
             )
@@ -3295,14 +3489,15 @@ final class PublicChatRoomSummaries: ObservableObject {
         if next != rooms { rooms = next }
     }
 
-    private func preview(of message: PublicChatMessage, in channel: String) -> String {
-        if let memo = previewMemo[channel], memo.id == message.id, memo.content == message.content {
+    private func preview(of message: PublicChatMessage, edited edit: MessageEditSnapshot?, in channel: String) -> String {
+        let content = edit.map { MessageEditCodec.apply($0.text, to: message.content) } ?? message.content
+        if let memo = previewMemo[channel], memo.id == message.id, memo.content == content {
             return memo.preview
         }
         let preview = KaPostsMarkdown.strippingBidiControls(
-            LinkSafePreview.apply(to: MessageReplyCodec.previewText(for: message.content))
+            LinkSafePreview.apply(to: MessageReplyCodec.previewText(for: content))
         )
-        previewMemo[channel] = (message.id, message.content, preview)
+        previewMemo[channel] = (message.id, content, preview)
         return preview
     }
 }
@@ -3310,7 +3505,7 @@ final class PublicChatRoomSummaries: ObservableObject {
 // MARK: - Public Chat indexer client
 
 /// Minimal read client for the KaChat-owned public chat indexer (see PUBLIC_CHATS_INDEXER.md - the
-/// server tracks #kaspa and #kachat-bugs history so clients aren't limited to what they catch
+/// server tracks #kaspa and #report-bugs history so clients aren't limited to what they catch
 /// live). The API contract this client expects is the source of truth for the server build.
 enum PublicChatIndexerClient {
     struct IndexedPublicChat: Decodable {
@@ -3514,6 +3709,9 @@ extension Notification.Name {
     /// Its own name: `.indexerAvailabilityChanged` is the message indexer's, which chats and
     /// groups follow.
     static let arenaIndexerAvailabilityChanged = Notification.Name("arenaIndexerAvailabilityChanged")
+    /// A retired room's pin moved to its new room (`moveRetiredChannels`): the Chats list reads its
+    /// room pins again, or it would write its old copy back over the move (audit 2026-11-25 C10).
+    static let publicRoomPinsChanged = Notification.Name("publicRoomPinsChanged")
 }
 
 /// Whether the chess arena's indexer is answering (like `KasiaAPIClient`'s message-indexer health). It only counts as down after several
@@ -3707,6 +3905,13 @@ enum IndexerTrackedRooms {
         loadIfNeeded()
         let now = Date().timeIntervalSince1970
         return reported.union(served.filter { now - $0.value < servedWindow }.keys)
+    }
+
+    /// The app-wide indexer's own list (not rooms learned from served rows), sorted.
+    static func reportedRooms() -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        loadIfNeeded()
+        return reported.sorted()
     }
 
     /// The app-wide indexer's list, as `/broadcast-channels` answered.

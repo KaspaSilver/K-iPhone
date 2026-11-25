@@ -40,18 +40,20 @@ struct ChessGameView: View {
     // time at the board, not wall time. The opponent's chip just shows the last-known value from
     // their most recent move's `clockMs`; their actual thinking happens on their device.
 
-    /// Accumulated open-board thinking milliseconds for my current turn - mirrored to
-    /// `ChessClockStore` on every tick so a force-quit mid-think doesn't refund the time.
-    @State private var turnElapsedMs: Int64 = 0
-    /// Timestamp of the previous clock tick; nil whenever the clock isn't running, so the first
-    /// tick after a pause/background gap never counts the gap itself.
-    @State private var lastClockTick: Date?
+    /// Open-board thinking milliseconds for my current turn banked before the stretch now
+    /// running (`clockRunStart`). Saved to `ChessClockStore` when the clock stops and every 5 s
+    /// while it runs, so a force-quit mid-think refunds at most a few seconds.
+    @State private var turnBankedMs: Int64 = 0
+    /// When the clock's current running stretch began; nil whenever it isn't running. The
+    /// elapsed time is worked out from this date, so nothing ticks to keep it: the chips draw
+    /// themselves on their own timeline (`ChessClockChip`). It was a 5x/s timer writing state
+    /// (the whole board redrew) and UserDefaults, in untimed games too (audit 2026-11-25 B14).
+    @State private var clockRunStart: Date?
+    /// The board is on screen: closing it pauses my clock.
+    @State private var isBoardVisible = false
     /// Guards the automatic timeout resignation so flagging only ever sends one `chess_resign`.
     @State private var didSendTimeoutResign = false
-
-    /// Drives the clock display while the board is open. 200ms so the tenths shown under 10
-    /// seconds stay smooth; every handler invocation is a cheap guard + integer math.
-    private let clockTimer = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
+    @Environment(\.scenePhase) private var scenePhase
 
     private var myAddress: String? {
         walletManager.currentWallet?.publicAddress
@@ -138,20 +140,25 @@ struct ChessGameView: View {
             chatMessages = []
             return
         }
+        // A running stretch is saved against the turn it belongs to before the summary moves on.
+        if clockRunStart != nil {
+            persistClock()
+            clockRunStart = nil
+        }
         summary = ChessGameService.summarize(gameId: gameId, in: messages, myAddress: myAddress, contactAddress: contact.address)
         if let summary, summary.timeControl != nil {
             if summary.status.isGameOver {
                 // Finished timed games leave no clock record behind.
                 ChessClockStore.clear(gameId: gameId)
-                turnElapsedMs = 0
+                turnBankedMs = 0
             } else {
                 // (Re)load the persisted thinking time for the turn identified by the current
                 // move count - a stale record from an earlier turn reads back as 0, which is
                 // exactly the reset-on-new-move behavior the clock needs.
-                turnElapsedMs = ChessClockStore.elapsedMs(gameId: gameId, moveCount: summary.moveHistory.count)
+                turnBankedMs = ChessClockStore.elapsedMs(gameId: gameId, moveCount: summary.moveHistory.count)
             }
-            lastClockTick = nil
         }
+        syncClock()
         // Cross-device "Sent via another device" placeholders are hidden from every display
         // surface (see `ChatMessage.isSentPlaceholder`) - the dedup in `messages` only drops a
         // placeholder when its real twin (same txId) is present, so an unresolved one would
@@ -228,10 +235,16 @@ struct ChessGameView: View {
         return opponentColor == .white ? summary.whiteClockMs : summary.blackClockMs
     }
 
-    /// What my clock chip shows: base minus the accumulated open-board thinking time this turn.
-    private var myDisplayClockMs: Int64? {
+    /// My open-board thinking time this turn as of `date`: what's banked plus the stretch running.
+    private func turnElapsedMs(at date: Date) -> Int64 {
+        guard let start = clockRunStart else { return turnBankedMs }
+        return turnBankedMs + max(0, Int64(date.timeIntervalSince(start) * 1000))
+    }
+
+    /// What my clock shows at `date`: base minus the open-board thinking time this turn.
+    private func myRemainingMs(at date: Date) -> Int64? {
         guard let base = myBaseClockMs else { return nil }
-        return max(base - turnElapsedMs, 0)
+        return max(base - turnElapsedMs(at: date), 0)
     }
 
     /// True while my clock should actually be counting down.
@@ -239,33 +252,55 @@ struct ChessGameView: View {
         timeControl != nil && isMyTurn && !isSending && !didSendTimeoutResign
     }
 
-    private func tickClock() {
-        guard let summary, timeControl != nil, !summary.status.isGameOver else { return }
-        guard isMyClockRunning else {
-            lastClockTick = nil
-            return
+    /// Runs only with the board on screen and the app in front: away-from-the-board time (the
+    /// board closed, the app in the background) isn't thinking time.
+    private var shouldClockRun: Bool {
+        guard let summary, !summary.status.isGameOver else { return false }
+        return isMyClockRunning && isBoardVisible && scenePhase == .active
+    }
+
+    /// Starts or stops the running stretch to match `shouldClockRun`; stopping banks and saves it.
+    private func syncClock() {
+        if shouldClockRun {
+            if clockRunStart == nil { clockRunStart = Date() }
+        } else if clockRunStart != nil {
+            bankClock()
         }
-        let now = Date()
-        if let last = lastClockTick {
-            let delta = Int64(now.timeIntervalSince(last) * 1000)
-            // A delta far beyond the 200ms cadence means the runloop was paused (app
-            // backgrounded, sheet covering us) - that gap is away-from-the-board time and must
-            // NOT count as thinking time, so it's dropped rather than accumulated.
-            if delta > 0 && delta < 2_000 {
-                turnElapsedMs += delta
-                ChessClockStore.setElapsedMs(turnElapsedMs, gameId: gameId, moveCount: summary.moveHistory.count)
+    }
+
+    private func bankClock() {
+        turnBankedMs = turnElapsedMs(at: Date())
+        clockRunStart = nil
+        persistClock()
+    }
+
+    private func persistClock() {
+        guard let summary, summary.timeControl != nil, !summary.status.isGameOver else { return }
+        ChessClockStore.setElapsedMs(turnElapsedMs(at: Date()), gameId: gameId, moveCount: summary.moveHistory.count)
+    }
+
+    /// While my clock runs: saves the thinking time every 5 s and flags when it reaches zero,
+    /// sleeping until then rather than ticking. Returns at once while the clock is stopped, so an
+    /// untimed game never has one running.
+    private func watchClock() async {
+        guard clockRunStart != nil else { return }
+        while !Task.isCancelled {
+            guard let remaining = myRemainingMs(at: Date()) else { return }
+            if remaining <= 0 {
+                bankClock()
+                sendTimeoutResign()
+                return
             }
-        }
-        lastClockTick = now
-        if let remaining = myDisplayClockMs, remaining <= 0 {
-            sendTimeoutResign()
+            try? await Task.sleep(nanoseconds: UInt64(min(remaining, 5_000)) * 1_000_000)
+            guard !Task.isCancelled, clockRunStart != nil else { return }
+            persistClock()
         }
     }
 
     /// Flagging: my clock hit zero on my turn. Sends a resign with reason "timeout"; the result
     /// then renders through the normal derived-state pipeline ("You lost on time"). A send that
     /// fails is tried again, a little later each time: dropped once, the opponent waited on a
-    /// move that could never come. If every try fails, the next clock tick starts over.
+    /// move that could never come. If every try fails, the clock starts again and flags anew.
     private func sendTimeoutResign() {
         guard !didSendTimeoutResign else { return }
         didSendTimeoutResign = true
@@ -285,17 +320,6 @@ struct ChessGameView: View {
         }
     }
 
-    /// mm:ss, switching to tenths (0:09.4) under 10 seconds.
-    private static func formatClock(_ ms: Int64) -> String {
-        let clamped = max(ms, 0)
-        if clamped < 10_000 {
-            let tenths = clamped / 100
-            return String(format: "0:%02d.%d", tenths / 10, tenths % 10)
-        }
-        let totalSeconds = clamped / 1000
-        return String(format: "%d:%02d", totalSeconds / 60, totalSeconds % 60)
-    }
-
     var body: some View {
         NavigationStack {
             VStack(spacing: 10) {
@@ -304,10 +328,11 @@ struct ChessGameView: View {
                     capturedPiecesBar(summary)
                         .padding(.horizontal)
                     if summary.timeControl != nil {
-                        clockRow(
-                            ms: opponentClockMs ?? 0,
+                        ChessClockChip(
+                            label: "Them",
                             isActive: summary.status == .inProgress && !isMyTurn,
-                            label: "Them"
+                            startMs: opponentClockMs ?? 0,
+                            runningSince: nil
                         )
                         .padding(.horizontal)
                     }
@@ -318,10 +343,11 @@ struct ChessGameView: View {
                         // section (pinned to its `minHeight`) taking only what's left over.
                         .layoutPriority(1)
                     if summary.timeControl != nil {
-                        clockRow(
-                            ms: myDisplayClockMs ?? 0,
+                        ChessClockChip(
+                            label: "You",
                             isActive: summary.status == .inProgress && isMyTurn,
-                            label: "You"
+                            startMs: myBaseClockMs.map { max($0 - turnBankedMs, 0) } ?? 0,
+                            runningSince: clockRunStart
                         )
                         .padding(.horizontal)
                     }
@@ -342,15 +368,25 @@ struct ChessGameView: View {
             // for Android's separate chess nav destination.
             .onAppear {
                 chatService.enterConversation(for: contact.address)
+                isBoardVisible = true
+                syncClock()
             }
             .onDisappear {
                 chatService.enterConversation(for: contact.address)
+                isBoardVisible = false
+                syncClock()
             }
             .task(id: messagesDigest) {
                 refreshCache()
             }
-            .onReceive(clockTimer) { _ in
-                tickClock()
+            .onChange(of: scenePhase) { _ in
+                syncClock()
+            }
+            .onChange(of: isMyClockRunning) { _ in
+                syncClock()
+            }
+            .task(id: clockRunStart) {
+                await watchClock()
             }
             // Tapping anywhere outside the text field (board, header, captured-pieces bar) drops
             // focus - doesn't interfere with square-selection taps, which fire independently; it
@@ -739,41 +775,6 @@ struct ChessGameView: View {
         .frame(width: Self.coordinateLabelSize)
     }
 
-    /// One clock chip row for a timed game - opponent's sits just above the board, mine just
-    /// below it, both trailing-aligned. The side to move gets the accent-emphasized chip; under
-    /// 20 seconds the chip tints red. Styled on the app's glassBackground idiom (regularMaterial
-    /// + hairline stroke + soft shadow) rather than a flat filled pill.
-    private func clockRow(ms: Int64, isActive: Bool, label: String) -> some View {
-        HStack {
-            Spacer()
-            HStack(spacing: 6) {
-                Text(label)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(.secondary)
-                Image(systemName: "timer")
-                    .font(.caption)
-                Text(Self.formatClock(ms))
-                    .font(.system(.callout, design: .monospaced).weight(isActive ? .bold : .semibold))
-                    .monospacedDigit()
-            }
-            .foregroundColor(ms < 20_000 ? .red : (isActive ? .primary : .secondary))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(clockChipBackground(isActive: isActive, isLow: ms < 20_000))
-        }
-    }
-
-    private func clockChipBackground(isActive: Bool, isLow: Bool) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        let tint: Color = isLow ? Color.red.opacity(0.14) : (isActive ? Color.accentColor.opacity(0.12) : Color.clear)
-        let stroke: Color = isLow ? Color.red.opacity(0.55) : (isActive ? Color.accentColor.opacity(0.6) : Color.white.opacity(0.18))
-        return shape
-            .fill(.regularMaterial)
-            .overlay(shape.fill(tint))
-            .overlay(shape.stroke(stroke, lineWidth: isActive ? 1.2 : 0.8))
-            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
-    }
-
     /// Captured-pieces tray: pieces the opponent has taken from me on the leading edge, pieces
     /// I've taken from them on the trailing edge - mirrors how online chess UIs show each side's
     /// haul next to their own info.
@@ -894,10 +895,11 @@ struct ChessGameView: View {
         // added - the opponent's device (and my other devices) read their view of my clock
         // straight off this field. Untimed games send no clockMs, exactly the legacy shape.
         var clockMs: Int64?
-        if let timeControl, let remaining = myDisplayClockMs {
+        if let timeControl, let remaining = myRemainingMs(at: Date()) {
             clockMs = timeControl.clockMs(afterMoveWith: remaining)
         }
-        lastClockTick = nil
+        // The move is made: my clock stops here (isSending keeps it stopped until it's out).
+        if clockRunStart != nil { bankClock() }
         Task {
             do {
                 try await ChessGameService.sendMove(move, gameId: gameId, clockMs: clockMs, to: contact)
@@ -1013,5 +1015,87 @@ struct WaitingOnOpponentOverlay: View {
                     dotCount = dotCount % 3 + 1
                 }
             }
+    }
+}
+
+/// One clock chip row for a timed game - opponent's sits just above the board, mine just
+/// below it, both trailing-aligned. The side to move gets the accent-emphasized chip; under
+/// 20 seconds the chip tints red. Styled on the app's glassBackground idiom (regularMaterial
+/// + hairline stroke + soft shadow) rather than a flat filled pill.
+///
+/// Its own view on its own timeline, so the running clock redraws this chip and nothing else:
+/// once a second, just after the shown second changes, and every tenth under 10 seconds,
+/// where the chip shows tenths.
+private struct ChessClockChip: View {
+    let label: String
+    let isActive: Bool
+    /// What the chip shows when `runningSince` began (or always, when it's nil).
+    let startMs: Int64
+    /// When the clock started running down from `startMs`; nil while it's stopped.
+    let runningSince: Date?
+
+    var body: some View {
+        if let runningSince {
+            // Lined up so each tick lands just after a whole second runs out.
+            let anchor = runningSince.addingTimeInterval(Double(startMs % 1000) / 1000 - 0.999)
+            TimelineView(.periodic(from: anchor, by: 1)) { context in
+                let ms = remaining(at: context.date, since: runningSince)
+                if ms > 0 && ms < 10_000 {
+                    TimelineView(.periodic(from: context.date, by: 0.1)) { fine in
+                        chip(ms: remaining(at: fine.date, since: runningSince))
+                    }
+                } else {
+                    chip(ms: ms)
+                }
+            }
+        } else {
+            chip(ms: startMs)
+        }
+    }
+
+    private func remaining(at date: Date, since start: Date) -> Int64 {
+        max(startMs - max(0, Int64(date.timeIntervalSince(start) * 1000)), 0)
+    }
+
+    /// mm:ss, switching to tenths (0:09.4) under 10 seconds.
+    private static func formatClock(_ ms: Int64) -> String {
+        let clamped = max(ms, 0)
+        if clamped < 10_000 {
+            let tenths = clamped / 100
+            return String(format: "0:%02d.%d", tenths / 10, tenths % 10)
+        }
+        let totalSeconds = clamped / 1000
+        return String(format: "%d:%02d", totalSeconds / 60, totalSeconds % 60)
+    }
+
+    private func chip(ms: Int64) -> some View {
+        HStack {
+            Spacer()
+            HStack(spacing: 6) {
+                Text(label)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.secondary)
+                Image(systemName: "timer")
+                    .font(.caption)
+                Text(Self.formatClock(ms))
+                    .font(.system(.callout, design: .monospaced).weight(isActive ? .bold : .semibold))
+                    .monospacedDigit()
+            }
+            .foregroundColor(ms < 20_000 ? .red : (isActive ? .primary : .secondary))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(clockChipBackground(isActive: isActive, isLow: ms < 20_000))
+        }
+    }
+
+    private func clockChipBackground(isActive: Bool, isLow: Bool) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let tint: Color = isLow ? Color.red.opacity(0.14) : (isActive ? Color.accentColor.opacity(0.12) : Color.clear)
+        let stroke: Color = isLow ? Color.red.opacity(0.55) : (isActive ? Color.accentColor.opacity(0.6) : Color.white.opacity(0.18))
+        return shape
+            .fill(.regularMaterial)
+            .overlay(shape.fill(tint))
+            .overlay(shape.stroke(stroke, lineWidth: isActive ? 1.2 : 0.8))
+            .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
     }
 }

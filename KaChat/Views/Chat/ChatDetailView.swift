@@ -406,11 +406,13 @@ struct ChatDetailView: View {
     @State private var nextcloudOriginalRecordingURL: URL?
     @State private var recordingFeeTask: Task<Void, Never>?
     @State private var previewPlayer: AVAudioPlayer?
-    @State private var previewTimer: Timer?
     @State private var previewIsPlaying = false
+    /// The note's length; while the preview plays, `VoicePreviewReadyLabel` draws the running
+    /// clock itself, so the whole chat doesn't redraw for it.
     @State private var previewLabel = "--:--"
     @State private var isEncodingAudio = false
     @State private var recorderDelegate = AudioRecorderDelegate()
+    @State private var composerAudio = ComposerAudioSession()
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var showPhotoPickerFromMenu = false
     /// The photo / voice note in the composer was sent "via Nextcloud" from the "+" sheet.
@@ -1533,9 +1535,15 @@ struct ChatDetailView: View {
 
     /// A call or Siri pauses the recorder (the clock reads currentTime, so it pauses too).
     /// Resume when iOS says so; otherwise Stop keeps what was captured.
+    /// A call or Siri also stops the preview: the player was paused under it, and the button
+    /// still showed it playing (audit 2026-11-25 M5).
     private func handleRecordingInterruption(_ note: Notification) {
-        guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-              AVAudioSession.InterruptionType(rawValue: raw) == .ended,
+        guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt else { return }
+        if AVAudioSession.InterruptionType(rawValue: raw) == .began {
+            if previewIsPlaying { stopPreview() }
+            return
+        }
+        guard AVAudioSession.InterruptionType(rawValue: raw) == .ended,
               let optionsRaw = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt,
               AVAudioSession.InterruptionOptions(rawValue: optionsRaw).contains(.shouldResume),
               isRecording, let recorder, !recorder.isRecording else { return }
@@ -3051,7 +3059,7 @@ struct ChatDetailView: View {
                             Image(systemName: previewIsPlaying ? "pause.circle.fill" : "play.circle.fill")
                                 .foregroundColor(.accentColor)
                         }
-                        Text(verbatim: "\(AppLocalization.string("Audio ready")) • \(previewLabel)")
+                        VoicePreviewReadyLabel(player: previewIsPlaying ? previewPlayer : nil, idleLabel: previewLabel)
                         Spacer()
                         Button {
                             // Back to texting: switching modes throws the recording away.
@@ -4705,6 +4713,10 @@ struct ChatDetailView: View {
             let session = AVAudioSession.sharedInstance()
             do {
                 try await MainActor.run {
+                    // Any voice note playing stops, and none starts until the session is given
+                    // back (`releaseRecordingSession`).
+                    VoicePlaybackCoordinator.shared.recordingWillStart()
+                    composerAudio.holdsRecordingSession = true
                     try session.setPreferredSampleRate(opusSampleRate)
                     try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
                     try session.setActive(true)
@@ -4725,6 +4737,11 @@ struct ChatDetailView: View {
                 recorder.delegate = recorderDelegate
                 recorderDelegate.onFinish = { recorder, success in
                     Task { @MainActor in
+                        // However the recorder stopped, the microphone is done with the session
+                        // (unless a newer recording already holds it).
+                        if self.recorder == nil || self.recorder === recorder {
+                            self.releaseRecordingSession()
+                        }
                         if !success {
                             self.isEncodingAudio = false
                             self.error = "Recording failed. Please try again."
@@ -4785,6 +4802,7 @@ struct ChatDetailView: View {
                 }
             } catch {
                 await MainActor.run {
+                    releaseRecordingSession()
                     self.error = String(format: AppLocalization.string("Failed to start recording: %@"), error.localizedDescription)
                 }
             }
@@ -4795,6 +4813,7 @@ struct ChatDetailView: View {
         // read before stop(): a stopped recorder's currentTime is 0
         let captured = recorder?.isRecording == true ? recorder?.currentTime : nil
         recorder?.stop()
+        releaseRecordingSession()
         recordingTimer?.invalidate()
         recordingTimer = nil
         if let captured, captured > 0 {
@@ -4810,6 +4829,7 @@ struct ChatDetailView: View {
         recordingEncodeTask?.cancel()
         recordingEncodeTask = nil
         recorder?.stop()
+        releaseRecordingSession()
         recordingTimer?.invalidate()
         recordingTimer = nil
         if let url = recorder?.url {
@@ -5058,7 +5078,6 @@ struct ChatDetailView: View {
                     secureDeleteTempFile(oldPreview)
                 }
                 recordedAudioPreviewURL = originalURL
-                try setPlaybackSession()
                 let player = try AVAudioPlayer(contentsOf: originalURL, fileTypeHint: AVFileType.caf.rawValue)
                 previewPlayer = player
                 previewLabel = formatDuration(player.duration)
@@ -5089,7 +5108,6 @@ struct ChatDetailView: View {
             }
             recordedAudioPreviewURL = decoded.url
 
-            try setPlaybackSession()
             let player = try AVAudioPlayer(contentsOf: decoded.url, fileTypeHint: AVFileType.caf.rawValue)
             previewPlayer = player
             previewLabel = formatDuration(decoded.duration)
@@ -5108,16 +5126,23 @@ struct ChatDetailView: View {
 
         do {
             if previewPlayer?.url != url {
-                try setPlaybackSession()
                 previewPlayer = try AVAudioPlayer(contentsOf: url, fileTypeHint: AVFileType.caf.rawValue)
             }
-            previewPlayer?.prepareToPlay()
-            if previewPlayer?.play() != true {
+            guard let player = previewPlayer else { return }
+            // The delegate says when it ends; the coordinator stops any other note and gives the
+            // session back when the preview stops.
+            player.delegate = composerAudio
+            player.prepareToPlay()
+            guard VoicePlaybackCoordinator.shared.willStart(composerAudio, stop: { stopPreview() }) else { return }
+            // Set only once it plays; `stopPreview` clears it again (M4).
+            composerAudio.onPreviewFinished = { stopPreview() }
+            if !player.play() {
+                composerAudio.onPreviewFinished = nil
+                VoicePlaybackCoordinator.shared.didStop(composerAudio)
                 self.error = "Failed to play audio."
                 return
             }
             previewIsPlaying = true
-            startPreviewTimer()
         } catch {
             self.error = String(format: AppLocalization.string("Failed to play audio: %@"), error.localizedDescription)
         }
@@ -5218,29 +5243,25 @@ struct ChatDetailView: View {
         return outputURL
     }
 
-    private func startPreviewTimer() {
-        previewTimer?.invalidate()
-        previewTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
-            guard let player = previewPlayer else { return }
-            previewLabel = "\(formatDuration(player.currentTime))/\(formatDuration(player.duration))"
-            if !player.isPlaying {
-                stopPreview()
-            }
-        }
-    }
-
     private func stopPreview() {
-        previewTimer?.invalidate()
-        previewTimer = nil
+        // The finish callback captures this view, whose state holds `composerAudio`: dropped
+        // here so the two don't keep each other alive after the chat closes (audit 2026-11-25 M4).
+        composerAudio.onPreviewFinished = nil
         previewPlayer?.stop()
         previewPlayer = nil
+        if previewIsPlaying { VoicePlaybackCoordinator.shared.didStop(composerAudio) }
         previewIsPlaying = false
     }
 
-    private func setPlaybackSession() throws {
+    /// Gives the session back once the microphone is done, so music another app was playing
+    /// resumes (audit 2026-11-25 B8). Once per recording, however it ended.
+    private func releaseRecordingSession() {
+        guard composerAudio.holdsRecordingSession else { return }
+        composerAudio.holdsRecordingSession = false
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default)
-        try session.setActive(true)
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        try? session.setCategory(.soloAmbient)
+        VoicePlaybackCoordinator.shared.recordingDidEnd()
     }
 
     /// Reads the recorder's own clock (`currentTime`: what was captured, so a call or Siri
@@ -6440,6 +6461,45 @@ struct WebMOpusEncoder {
     }
 }
 #endif
+
+/// The 1:1 composer's audio handle. `VoicePlaybackCoordinator` needs an object to own the
+/// preview's playback, and the preview player needs a delegate to say it ended; the view is a
+/// struct, so it can be neither. It also remembers whether the recorder holds the session, so
+/// every way a recording ends gives it back exactly once.
+private final class ComposerAudioSession: NSObject, AVAudioPlayerDelegate, @unchecked Sendable {
+    var onPreviewFinished: (() -> Void)?
+    var holdsRecordingSession = false
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        DispatchQueue.main.async { [weak self] in self?.onPreviewFinished?() }
+    }
+}
+
+/// "Audio ready • 00:12", and "00:04/00:12" while the preview plays: its own small view on a
+/// half-second timeline, so the running clock redraws only this label, not the whole chat
+/// (it was a 3x/s `@State` write on ChatDetailView).
+private struct VoicePreviewReadyLabel: View {
+    /// The preview's player while it plays; nil when stopped.
+    let player: AVAudioPlayer?
+    let idleLabel: String
+
+    var body: some View {
+        if let player {
+            TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                Text(verbatim: "\(AppLocalization.string("Audio ready")) • \(Self.clock(player.currentTime))/\(Self.clock(player.duration))")
+            }
+        } else {
+            Text(verbatim: "\(AppLocalization.string("Audio ready")) • \(idleLabel)")
+        }
+    }
+
+    /// As ChatDetailView's `formatDuration`.
+    private static func clock(_ duration: TimeInterval) -> String {
+        guard duration.isFinite else { return "--:--" }
+        let totalSeconds = Int(duration.rounded())
+        return String(format: "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+    }
+}
 
 private final class AudioRecorderDelegate: NSObject, AVAudioRecorderDelegate {
     var onFinish: ((AVAudioRecorder, Bool) -> Void)?

@@ -8,6 +8,7 @@ Every link the apps hand out is `https://kachat.app/...`:
 | `https://kachat.app/broadcast/<room>` | broadcast room invite | the room |
 | `https://kachat.app/u/<address>` | the share button beside the Profile title, and Share in User Info | that person's User Info screen (name, avatar, profile, Open Chat) |
 | `https://kachat.app/pay/<address>?amount=<KAS>&memo=<text>[&chat=1]&by=<address>&sig=<hex>` | Chats > + > Request Payment (Copy / Share) | Send Kaspa with the address (locked), amount and memo filled in, and who asked |
+| `https://kachat.app/hub/<card>` | a hold on a Kaspa Hub card > Copy Link (`contacts`, `portfolio`, `cold-storage`, `usernames`, `kapost`, `kaplay`, `websites`, `explorer`: `AppTab.linkSlug`) | that card, opened in Kaspa Hub. Chats and KaPost draw it as a card (`KaspaHubLinkCard` in KaPost) |
 
 One link, three behaviours:
 
@@ -93,13 +94,13 @@ Environment (`server/.env`):
   for the rest). Each account's answer is cached 24 h (1 min when it couldn't be reached) and a
   lookup never holds a page more than 7 s. The name is `<label>.kachat`, else the shortened
   address. No avatar shows the app's empty-avatar glyph.
-- `GET /.well-known/apple-app-site-association` - `applinks` for `/post/*`, `/broadcast/*`, `/u/*` and `/pay/*`
+- `GET /.well-known/apple-app-site-association` - `applinks` for `/post/*`, `/broadcast/*`, `/u/*`, `/pay/*` and `/hub/*`
   for every `IOS_APP_IDS` entry. Served as `application/json`, no redirect - exactly what Apple
   requires. The iOS app carries `applinks:kachat.app` only (the old `kachat.duckdns.org` links
   were dropped 2026-10-28).
 - `GET /.well-known/assetlinks.json` - the Android equivalent, from `ANDROID_PACKAGE` and
   `ANDROID_SHA256`. The Android app must declare an `autoVerify` intent filter for
-  `https://kachat.app/post/*`, `/broadcast/*`, `/u/*` and `/pay/*` (and keep the `kachat://` scheme filter).
+  `https://kachat.app/post/*`, `/broadcast/*`, `/u/*`, `/pay/*` and `/hub/*` (and keep the `kachat://` scheme filter).
 - `GET /download` - 302 to the App Store on iPhone/iPad, Google Play on Android, `DESKTOP_URL`
   elsewhere. Use it anywhere a single "Get KaChat" link is wanted.
 - `GET /`, `/eula.html`, `/og-default.png` - the static site. The preview image for invites

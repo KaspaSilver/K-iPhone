@@ -147,9 +147,17 @@ struct KaChatApp: App {
             SharedDataManager.syncContactsForExtension()
             SharedDataManager.syncWalletAddressForExtension()
             SharedDataManager.syncNotificationSettingsForExtension()
-            if settingsViewModel.settings.notificationMode == .remotePush {
+            let pushMode = settingsViewModel.settings.notificationMode == .remotePush
+            if pushMode {
                 ChatService.shared.pauseUtxoSubscriptionForRemotePush()
             }
+            // The node pool too (audit 2026-11-25 B3): discovery and probing pause, the block
+            // stream is stopped on the wire, and in push mode the idle connections close. After
+            // the UTXO pause above, so the primary it unsubscribed is one of the idle ones.
+            // Called in line, not in a Task: it marks the phase before anything awaits and runs
+            // its steps after the last phase change's, so a quick return to the foreground can't
+            // be undone by a late background step (audit 2026-11-25 N2).
+            NodePoolService.shared.enterBackground(pushMode: pushMode)
             // Flush any pending read status updates to the store before backgrounding
             appDelegate.beginBackgroundFlushIfNeeded()
             ReadStatusSyncManager.shared.flushPendingUpdates()
@@ -170,6 +178,10 @@ struct KaChatApp: App {
             LaunchTrace.mark("scene active")
             // Cancel background fetch when app becomes active (we'll poll normally)
             BackgroundTaskManager.shared.cancelBackgroundFetch()
+            // The node pool's discovery and block stream, paused in the background (audit
+            // 2026-11-25 B3); the subscription comes back through the usual reconnect path.
+            // In line, as `enterBackground` above (audit 2026-11-25 N2).
+            NodePoolService.shared.enterForeground()
             // Foreground 1:1 indexer sweep (defense-in-depth next to the utxosChanged push and the
             // app-active catch-up sync below). No-op when no wallet is loaded yet - startPolling()
             // starts it once the wallet/store are ready.
@@ -472,9 +484,10 @@ struct KaChatApp: App {
 
     /// Pre-initialize heavy components to avoid lag on first user interaction
     private static func warmUp() async {
-        // Warm up audio session
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
+        // No audio category at launch (audit 2026-11-25 B8): `VoicePlaybackCoordinator` sets
+        // `.playback` right before each play and every recorder `.playAndRecord` right before
+        // recording, each handing the session back afterwards. A launch-time playAndRecord + HFP
+        // category held the route for the whole session.
 
         // Warm up crypto library with dummy operation
         let dummyKey = Data(repeating: 0x01, count: 32)
@@ -694,6 +707,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
             // KaPosts and Public Chats (back since 2026-11-21, as in KaPost).
             if threadId.hasPrefix("kaposts") || threadId.hasPrefix("broadcast:") {
+                // A room push while open: the message lands in the room and the Chats list
+                // first, then the banner (at most 4 s later), never the other way round.
+                if threadId.hasPrefix("broadcast:"),
+                   UIApplication.shared.applicationState == .active,
+                   let room = KaChatInternalLink.normalizeAndValidateChannel(String(threadId.dropFirst("broadcast:".count))) {
+                    await PublicChatService.shared.fetchBeforePushBanner(
+                        channel: room,
+                        // a room push's collapse id is its message's txid (no `tx_id` key)
+                        txId: InAppBanner.txId(of: notification)
+                    )
+                }
                 completionHandler(Self.kaPostsOrRoomPresentation(notification, settings: settings))
                 return
             }
@@ -1387,6 +1411,10 @@ enum KaChatLinkRouter {
             NotificationCenter.default.post(name: .openKaPost, object: nil, userInfo: ["txId": txId])
         case .publicChatRoom(let channel):
             openPublicChatRoom(channel: channel)
+        case .hubSection(let tab):
+            // Pending first, so a cold start (no MainTabView yet) opens it once the tabs mount.
+            PendingTabRoute.pending = tab
+            NotificationCenter.default.post(name: .openHubSection, object: nil)
         }
     }
 

@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "ファイルをインポート";
 "Export File" = "ファイルにエクスポート";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "Nextcloud の KaChat フォルダに保存し、どのデバイスでもインポートできます。";
+"Save it to the K folder in your Nextcloud, to import on any device." = "Nextcloud の K フォルダに保存し、どのデバイスでもインポートできます。";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "設定 > ストレージで Nextcloud を接続すると、そこにも保存して別のデバイスでインポートできます。";
 "Couldn't read that file." = "そのファイルを読み込めませんでした。";
 "Nothing to export yet. Add a contact first." = "まだ書き出すものがありません。先に連絡先を追加してください。";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "オファーを送信";
 "Offers open when .kachat names launch." = ".kachat 名が始まるとオファーできるようになります。";
 "Pick a CSV file from your Nextcloud." = "Nextcloud から CSV ファイルを選びます。";
-"Save the CSV to the KaChat folder in your Nextcloud." = "CSV を Nextcloud の KaChat フォルダに保存します。";
+"Save the CSV to the K folder in your Nextcloud." = "CSV を Nextcloud の K フォルダに保存します。";
 "Names this address claims or buys show here once .kachat names launch." = "このアドレスで取得・購入した名前は、.kachat 名の開始後にここに表示されます。";
 "Move to Portfolio" = "ポートフォリオへ移動";
 "Create another portfolio first, then you can move transactions into it." = "先に別のポートフォリオを作成すると、取引をそこへ移動できます。";
@@ -3299,3 +3299,82 @@
 "Degraded" = "低下";
 "Disconnected" = "切断";
 "Checking…" = "確認中…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "現在 gRPC ノードに接続できないため、K は wss 経由で公開ノードを使用しています。";
+"Search public chats" = "パブリックチャットを検索";
+"No Public Chats" = "パブリックチャットはありません";
+"Tap + to join or create a public room." = "+ をタップして公開ルームに参加するか作成します。";
+"Switches between your chats and public chats" = "チャットとパブリックチャットを切り替えます";
+"More Rooms" = "その他のルーム";
+"Rooms added on the indexer K reads public chats from." = "K がパブリックチャットを読み込むインデクサーに追加されたルームです。";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "リンクをコピーしました";
+"A link that opens this card in K." = "このカードを K で開くリンク。";
+"Open" = "開く";
+"Opens this card." = "このカードを開きます。";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "タップして K で開く。";
+"Opens it in K." = "K で開きます。";
+"Your saved Kaspa addresses." = "保存した Kaspa アドレス。";
+"Track your coins and their value." = "コインとその価値を追跡。";
+"Watch and sign for your cold wallets." = "コールドウォレットを監視し、署名します。";
+"Claim, buy and sell .kachat usernames." = ".kachat ユーザー名の取得・購入・販売。";
+"Posts and replies on Kaspa." = "Kaspa の投稿と返信。";
+"Chess, Snake and 2048, scores on chain." = "チェス、スネーク、2048。スコアはチェーンに記録。";
+"Websites built on Kaspa." = "Kaspa で作られたウェブサイト。";
+"Blocks, transactions and addresses, live." = "ブロック、取引、アドレスをライブで。";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "耐量子アドレスではありません。KasSigner に表示される KCC-3 アドレスをスキャンしてください。";
+"That address is already in this account." = "このアドレスはすでにこのアカウントにあります。";
+"Quantum-resistant address added." = "耐量子アドレスを追加しました。";
+"Add Quantum-Resistant Address" = "耐量子アドレスを追加";
+"Scan a KCC-3 address from KasSigner's address screen." = "KasSigner のアドレス画面から KCC-3 アドレスをスキャンしてください。";
+"Stop Watching" = "ウォッチを停止";
+"Removes this quantum address from the account. Scan it again to add it back." = "この量子アドレスをアカウントから削除します。もう一度スキャンすると追加し直せます。";
+"Quantum-Resistant Address" = "耐量子アドレス";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "KasSigner で使いたい KCC-3 アドレスを開き、その QR コードをスキャンしてください。このアドレスから送金するまで、鍵はデバイスに残ります。";
+"Address Number on KasSigner" = "KasSigner のアドレス番号";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "KasSigner がこのアドレスに表示する番号です。あれば署名時にデバイスがすぐ鍵を見つけ、なければデバイスが鍵を探します。";
+"Add Quantum Address" = "量子アドレスを追加";
+"The address number must be a whole number." = "アドレス番号は整数で入力してください。";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "耐量子（KCC-3）アドレスに署名できる KasSigner v1.1 以降が必要です。";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "お釣りはこのアドレスに戻ります。この送金でこのアドレスの鍵がチェーン上に公開されます。お釣りを量子耐性に保つには、KasSigner から別の量子アドレスを追加してください。";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "この送金でこのアドレスの鍵がチェーン上に公開されるため、お釣りはこのアカウントの未使用の量子アドレスに送られます。";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner がこの耐量子アドレスの鍵スクリプトを返さなかったため、ブロードキャストしません。デバイスで KasSigner v1.1 以降が動作し、このアドレスを保持しているか確認してください。";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "署名済みトランザクションに、この送金が求めていないコベナント条件が追加されているため、ブロードキャストしません。";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "量子アドレス";
+"Quantum Change Address" = "量子お釣りアドレス";
+"Quantum Address #%lld" = "量子アドレス #%lld";
+"Quantum Change Address #%lld" = "量子お釣りアドレス #%lld";
+"That address is already in your Cold Storage account “%@”." = "このアドレスはすでに Cold Storage アカウント「%@」にあります。";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "この送金でこのアドレスの鍵がチェーン上に公開されるため、お釣りをここに戻せません。先に KasSigner から未使用の耐量子アドレスを追加する（お釣りアドレス #0〜#4 が最適）か、残高をすべて送ってください。";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "統合するとこのアドレスの鍵がチェーン上に公開されるため、コインはこのアカウントの未使用の耐量子アドレスに移ります。先に KasSigner から追加してください（お釣りアドレス #0〜#4 が最適）。";
+"Stop Watching This Address?" = "このアドレスのウォッチを停止しますか？";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "%@ KAS はこのアドレスのチェーン上、あなたの KasSigner にそのまま残ります。K が表示をやめるだけです。もう一度ウォッチするには、KasSigner からアドレスを再スキャンしてください。";
+"Edit Address Number" = "アドレス番号を編集";
+"The number and chain KasSigner shows for this address." = "KasSigner がこのアドレスに表示する番号とチェーン。";
+"Chain" = "チェーン";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "KasSigner がこのアドレスに表示する番号と、受取アドレスかお釣りアドレスか。あれば署名時にデバイスがすぐ鍵を見つけ、なければデバイスが鍵を探します。KasSigner は自身のお釣りアドレス #0〜#4 への送金をお釣りとして表示し、それ以外のアドレスは支払いとして表示します。";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "番号が大きすぎます。KasSigner のアドレス番号は 2147483648 未満です。";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "このアドレスのコインをすべて 1 つにまとめ、このアカウントの未使用の耐量子アドレスに移します。このトランザクションでこのアドレスの鍵がチェーン上に公開されます。";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "このアドレスには 1 回のトランザクションで使える以上のコインがあります。%lld 個は、この送金でチェーン上に公開される鍵の後ろに残ります。すぐ後に別のトランザクションで送ってください。";
+"The coins move to your quantum address:" = "コインの移動先の量子アドレス：";
+"The change goes to your quantum address:" = "お釣りの送り先の量子アドレス：";
+"KasSigner shows this output as change." = "KasSigner はこの出力をお釣りとして表示します。";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner はこの出力をお釣りではなく通常の支払いとして表示します。署名する前にこのアドレスであることを確認してください。";
+"Sign Without the Address Number" = "アドレス番号なしで署名";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "KasSigner がこのリクエストを拒否した場合、アドレス番号が間違っている可能性があります。番号なしでは、デバイスが自分でアドレスを探します。「アドレス番号を編集」で次回のために修正できます。";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "この操作でこのアドレスの鍵がチェーン上に公開されるため、このアドレスの UTXO をすべて、このアカウントの未使用の耐量子アドレスで 1 つにまとめます。";
+"Quantum-Resistant Addresses" = "耐量子アドレス";
+"Addresses" = "アドレス";
+"Receive Address" = "受取アドレス";
+"Change Address" = "お釣りアドレス";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "パブリックチャットを1件削除しますか？";
+"Delete %lld Public Chats?" = "パブリックチャットを%lld件削除しますか？";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "デフォルトのパブリックチャットはオフになります（「デフォルトの公開チャットを編集」で再びオンにできます）。自分で追加したルームは、メッセージごとこのデバイスから削除されます。";

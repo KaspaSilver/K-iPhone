@@ -9,17 +9,24 @@ enum AppTabBadge {
         switch tab {
         // Every notification, KaPosts and the wallet's: behind Profile's bell (since 2026-11-21).
         case .profile: return AllNotificationsBadge.count
-        // Unread messages across the chats the list shows (not Message Requests or blocked).
-        // Public rooms sit in that list too (since 2026-11-21): the ones with their bell on count.
+        // Unread messages across the chats and groups the list shows (not Message Requests or
+        // blocked). Public rooms aren't in it (owner, 2026-11-25): their count is on the Chats /
+        // Public Chats button beside KaChat's title.
         case .chats:
-            let rooms = PublicChatService.shared
-            let roomUnread = rooms.listedChannels.filter(\.notifyEnabled)
-                .reduce(0) { $0 + rooms.unreadCount(forChannel: $1.channelName) }
-            return ChatService.shared.chatListUnreadCount + GroupChatService.shared.totalGroupUnreadCount + roomUnread
+            return ChatService.shared.chatListUnreadCount + GroupChatService.shared.totalGroupUnreadCount
         // what the tabs inside it hold, so moving one there never hides its badge
         case .hub: return DockLayout.shared.hub.reduce(0) { $0 + unreadCount(for: $1) }
         default: return 0
         }
+    }
+
+    /// Unread messages in the public rooms with their bell on: the KaChat title's cycle button
+    /// shows it, and the app icon adds it in.
+    static var publicRoomUnreadCount: Int { PublicChatUnreadBadge.shared.count }
+
+    /// What the app icon shows: chats and groups, bell-on rooms and KaPosts' unseen activity.
+    static var appIconCount: Int {
+        unreadCount(for: .chats) + publicRoomUnreadCount + max(0, KaPostsNotificationCenter.shared.unseenCount)
     }
 
     /// Capped in the LABEL, not in the stored count: the real number survives a long absence and

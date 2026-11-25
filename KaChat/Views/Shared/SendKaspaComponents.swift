@@ -1678,6 +1678,12 @@ private struct SendProgressScreen: View {
 /// column's index, so the picture is stable as it moves.
 struct BlockDAGAnimationView: View {
     var highlight = true
+    /// Stops drawing new frames (audit 2026-11-25 B2): the Explorer's card sets it while its Hub
+    /// section is hidden, the app isn't active or the card is off screen.
+    var paused = false
+    /// The shortest time between frames; nil draws at the display's rate (the send screens, where
+    /// it fills the screen while sending). The Explorer's small card asks for 30 fps.
+    var minimumInterval: Double? = nil
 
     @State private var start = Date()
     /// When `highlight` turned on: the block entering on the right then is the transaction's.
@@ -1714,7 +1720,7 @@ struct BlockDAGAnimationView: View {
     }
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(minimumInterval: minimumInterval, paused: paused)) { timeline in
             Canvas { context, size in
                 let elapsed = timeline.date.timeIntervalSince(start)
                 let scroll = CGFloat(elapsed) * Self.speed

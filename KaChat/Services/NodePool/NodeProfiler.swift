@@ -184,6 +184,11 @@ actor NodeProfiler {
     /// Network type for filtering
     private var networkType: NetworkType = .mainnet
 
+    /// The last walk of the public node resolvers for wss seeds, and how long the next must wait
+    /// (`refreshWssSeeds`).
+    private var lastWssSeedWalkAt: Date?
+    private var wssSeedWalkCooldown: TimeInterval = 0
+
     /// Tracks successful discovery calls (for TCP ping prerequisite)
     private var successfulDiscoveryCount: Int = 0
 
@@ -234,11 +239,34 @@ actor NodeProfiler {
 
     private var maintenanceTask: Task<Void, Never>?
 
-    /// Start the profiler
-    func start(network: NetworkType) {
+    /// Between `start` and `stop`.
+    private var isRunning = false
+    /// Bumped by every `start` and `stop`. The actor is re-entered at each await, so a `start`
+    /// that resumed after a `stop` (or after a newer `start`) used to start its loops anyway, and
+    /// they outlived the stop (audit 2026-11-25 N8): each await re-checks it.
+    private var runGeneration = 0
+    private func stillStarting(_ generation: Int) -> Bool {
+        isRunning && runGeneration == generation
+    }
+
+    /// Start the profiler. While a node is pinned (the default node included) only maintenance
+    /// runs: probing, peer discovery and the DNS refresh would only find nodes the registry
+    /// refuses, and the subscription's keepalive already tells whether the pinned node answers.
+    func start(network: NetworkType) async {
         self.networkType = network
-        startProbeLoop()
-        startDiscoveryLoop()
+        isRunning = true
+        runGeneration += 1
+        let generation = runGeneration
+        let pinned = await registry.hasTrustedNode
+        // stopped (or started again) while that was asked
+        guard stillStarting(generation) else { return }
+        if !pinned {
+            startProbeLoop()
+            startDiscoveryLoop()
+            // `stop()` cancelled it, and a resume no longer always runs a quickBoot to restart it.
+            if dnsRefreshTask == nil { await startDNSRefreshLoop() }
+            guard stillStarting(generation) else { return }
+        }
         startMaintenanceLoop()
         AppLog.log(
             "[NodeProfiler] Started for %@ (tcp-screen=%@, explore=%.2f, stageA=%.2fs)",
@@ -249,8 +277,33 @@ actor NodeProfiler {
         )
     }
 
+    /// A node was pinned or unpinned (`NodePoolService.setTrustedNodeAddress`): starts or stops
+    /// the probe, discovery and DNS loops to match, if the profiler is running.
+    func applyTrustedMode() async {
+        guard isRunning else { return }
+        let generation = runGeneration
+        let pinned = await registry.hasTrustedNode
+        guard stillStarting(generation) else { return }
+        if pinned {
+            probeLoopTask?.cancel()
+            probeLoopTask = nil
+            discoveryTask?.cancel()
+            discoveryTask = nil
+            dnsRefreshTask?.cancel()
+            dnsRefreshTask = nil
+            tcpPingTask?.cancel()
+            tcpPingTask = nil
+        } else {
+            if probeLoopTask == nil { startProbeLoop() }
+            if discoveryTask == nil { startDiscoveryLoop() }
+            if dnsRefreshTask == nil { await startDNSRefreshLoop() }
+        }
+    }
+
     /// Stop the profiler
     func stop() {
+        isRunning = false
+        runGeneration += 1
         probeLoopTask?.cancel()
         probeLoopTask = nil
         discoveryTask?.cancel()
@@ -321,6 +374,10 @@ actor NodeProfiler {
         probeLoopTask?.cancel()
         probeLoopTask = Task {
             while !Task.isCancelled {
+                // Offline every probe fails (and used to count against the node): wait for the
+                // network instead.
+                await epochMonitor.waitUntilOnline()
+                if Task.isCancelled { break }
                 await runProbeCycle()
 
                 // Wait before next cycle
@@ -333,8 +390,9 @@ actor NodeProfiler {
 #else
                 baseInterval = mode.isConservative ? 60.0 : 10.0
 #endif
+                // A failing pool waits longer, never less than 10 s.
                 let poolHealth = await registry.poolHealth()
-                let interval = baseInterval / poolHealth.probeFrequencyMultiplier
+                let interval = max(10, baseInterval * poolHealth.probeIntervalMultiplier)
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
             }
         }
@@ -393,18 +451,19 @@ actor NodeProfiler {
         guard let primaryEndpoint = await getPrimary() else { return }
 
         // Get current primary's latency
+        // Ranked latencies (`rankingLatencyMs`): a wss node must beat a gRPC primary by more.
         guard let primaryRecord = await registry.get(primaryEndpoint),
-              let primaryLatency = primaryRecord.health.latencyMs.value ?? primaryRecord.health.globalLatencyMs.value else {
+              primaryRecord.rankingLatencyMs.isFinite else {
             return
         }
+        let primaryLatency = primaryRecord.rankingLatencyMs
 
         // Find best active node by latency
         let activeRecords = await registry.records(inState: .active)
         let sortedByLatency = activeRecords
             .compactMap { record -> (NodeRecord, Double)? in
-                guard let latency = record.health.latencyMs.value ?? record.health.globalLatencyMs.value else {
-                    return nil
-                }
+                let latency = record.rankingLatencyMs
+                guard latency.isFinite else { return nil }
                 return (record, latency)
             }
             .sorted { $0.1 < $1.1 }
@@ -1173,6 +1232,8 @@ actor NodeProfiler {
         discoveryTask?.cancel()
         discoveryTask = Task {
             while !Task.isCancelled {
+                await epochMonitor.waitUntilOnline()
+                if Task.isCancelled { break }
                 await runDiscoveryCycle()
 
                 // Run discovery less often on macCatalyst to reduce background load.
@@ -2143,7 +2204,55 @@ actor NodeProfiler {
     }
 
     /// Refresh DNS seeds and populate registry with resolved IPs
+    /// Automatic Scan keeps up to three public wRPC nodes (`wss://` on 443, from the Kaspa
+    /// resolvers, `PublicNodeResolver`) among its seed candidates (owner, 2026-11-25), so a network
+    /// that blocks gRPC (DPI, firewalls refusing HTTP/2) still finds nodes: they're raced with the
+    /// gRPC seeds at boot, ranked by the same rules, and saved like any other node, so the next
+    /// launch dials a known one at once. Run with every DNS seed refresh; nothing while a node is
+    /// pinned.
+    ///
+    /// A wss seed with no answer in 24 hours is dropped, and only the live ones count toward the
+    /// three: three dead ones used to fill the cap for good. A walk of the resolvers that finds
+    /// nothing new waits longer before the next (2 minutes, doubling to 15).
+    private func refreshWssSeeds() async {
+        guard await !registry.hasTrustedNode else { return }
+        let pruned = await registry.pruneWssSeeds(staleAfter: 24 * 3600)
+        for endpoint in pruned.removed { await connectionPool.removeConnection(for: endpoint) }
+        if !pruned.removed.isEmpty {
+            AppLog.log("[NodeProfiler] Dropped %d wss seed(s) with no answer in 24 hours", pruned.removed.count)
+        }
+        let known = pruned.live
+        let wanted = 3 - known.count
+        guard wanted > 0 else { return }
+        if let last = lastWssSeedWalkAt, Date().timeIntervalSince(last) < wssSeedWalkCooldown { return }
+        lastWssSeedWalkAt = Date()
+        let found = await PublicNodeResolver.resolve(network: networkType, count: wanted, avoiding: Set(known))
+        var added: [Endpoint] = []
+        for endpoint in found {
+            if await registry.get(endpoint) == nil {
+                await registry.upsert(endpoint: endpoint, origin: .seed)
+                added.append(endpoint)
+            }
+        }
+        guard !added.isEmpty else {
+            wssSeedWalkCooldown = min(15 * 60, max(2 * 60, wssSeedWalkCooldown * 2))
+            return
+        }
+        wssSeedWalkCooldown = 0
+        AppLog.log("[NodeProfiler] Added %d public wss node(s) as seed candidates", added.count)
+        // Dialed now rather than left for the candidate probing: where gRPC is blocked these are
+        // the only nodes that answer, and they'd otherwise wait out the boot race.
+        _ = await bootstrapProbe(added, stopAtFirstActive: false)
+        await rebalanceActivePool(reason: "wss-seeds")
+    }
+
     private func refreshDNSSeeds() async {
+        guard await !registry.hasTrustedNode else {
+            dnsResolveComplete = true
+            return
+        }
+        // the public wss nodes are looked up beside the DNS seeds (`refreshWssSeeds`)
+        async let wssSeeds: Void = refreshWssSeeds()
         let seeds = networkType == .mainnet ? mainnetDNSSeeds : testnetDNSSeeds
 
         AppLog.log("[NodeProfiler] Resolving %d DNS seeds...", seeds.count)
@@ -2200,6 +2309,9 @@ actor NodeProfiler {
             }
         }
 
+        // awaited, not left to the scope's end (which would cancel it)
+        await wssSeeds
+
         if totalResolved > 0 {
             AppLog.log("[NodeProfiler] Added %d new nodes from DNS resolution", totalResolved)
             // Force immediate save after DNS discovery
@@ -2215,10 +2327,17 @@ actor NodeProfiler {
     /// Start periodic DNS refresh (every 1 hour)
     private func startDNSRefreshLoop() async {
         dnsRefreshTask?.cancel()
+        dnsRefreshTask = nil
+        let generation = runGeneration
+        // Pinned: every resolved node would be refused (`NodeRegistry.upsert`).
+        guard await !registry.hasTrustedNode else { return }
+        // Stopped while that was asked: no loop after a stop (audit 2026-11-25 N8).
+        guard stillStarting(generation) else { return }
         dnsRefreshTask = Task {
             while !Task.isCancelled {
                 // Wait 1 hour between refreshes
                 try? await Task.sleep(nanoseconds: 60 * 60 * 1_000_000_000)
+                await self.epochMonitor.waitUntilOnline()
 
                 if !Task.isCancelled {
                     await self.refreshDNSSeeds()
@@ -2239,6 +2358,14 @@ actor NodeProfiler {
         // cancel-before-reassign rule the long-lived loops follow.
         cancelQuickBootChildTasks()
 
+        // Pinned: only the pinned node can serve, and peer discovery and DNS would find nodes
+        // the registry refuses. Dialing it is the whole boot.
+        if await registry.hasTrustedNode {
+            let pinned = await registry.allRecords().filter { $0.origin == .userAdded }.map(\.endpoint)
+            _ = await bootstrapProbe(pinned)
+            return
+        }
+
         // Step 1: Check if we already have active nodes from persistence
         let persistedActive = await registry.records(inState: .active)
         let persistedVerified = await registry.records(inState: .verified)
@@ -2250,7 +2377,7 @@ actor NodeProfiler {
             // just the first one sequentially - a single dead first entry used to cost a full
             // probe timeout before falling back to DNS.
             let dialFirst = persistedActive
-                .sorted { $0.effectiveLatencyMs < $1.effectiveLatencyMs }
+                .sorted { $0.rankingLatencyMs < $1.rankingLatencyMs }
                 .prefix(5)
                 .map(\.endpoint)
             let responders = await bootstrapProbe(Array(dialFirst))
@@ -2277,7 +2404,7 @@ actor NodeProfiler {
             // Race the best persisted verified nodes in parallel; bootstrapProbe's double-probe
             // promotes the first responder straight to active.
             let dialFirst = persistedVerified
-                .sorted { $0.effectiveLatencyMs < $1.effectiveLatencyMs }
+                .sorted { $0.rankingLatencyMs < $1.rankingLatencyMs }
                 .prefix(5)
                 .map(\.endpoint)
             let responders = await bootstrapProbe(Array(dialFirst))

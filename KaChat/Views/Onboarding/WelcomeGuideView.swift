@@ -466,7 +466,7 @@ struct WelcomeGuideView: View {
                             subtitle: "Enter a node address you trust"
                         )
                         if nodeChoice == .ownNode {
-                            TextField("host:port or grpcs://host", text: $ownNodeInput)
+                            TextField("host:port, grpcs:// or wss://", text: $ownNodeInput)
                                 .font(.system(.footnote, design: .monospaced))
                                 .autocapitalization(.none)
                                 .autocorrectionDisabled()

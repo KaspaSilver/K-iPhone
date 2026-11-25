@@ -131,14 +131,38 @@ final class GroupChatService: ObservableObject {
                     }
                     if Task.isCancelled { return }
                 }
-                try? await Task.sleep(nanoseconds: UInt64(Self.livePollOpenGroupSeconds * (expensive ? 3 : 1) * 1_000_000_000))
+                if self.activeGroupId == nil {
+                    // No group open: nothing to do until the next full pass, which runs on the
+                    // shared foreground beat (audit 2026-11-25 B4, B16; it used to tick every 5 s
+                    // for nothing). Opening a group wakes the sleep (`wakeLivePoll`).
+                    let beat = Task { @MainActor in await ForegroundBeat.sleepUntilNextBeat(offset: 3) }
+                    self.livePollSleepTask = beat
+                    await beat.value
+                    self.livePollSleepTask = nil
+                    // Only a beat that came round is due a full pass. Opening a group cancels the
+                    // sleep for the open group's fast poll; forcing a pass over every group then
+                    // made each open cost a full sweep (audit 2026-11-25 M7).
+                    if !beat.isCancelled { lastFullPass = .distantPast }
+                } else {
+                    try? await Task.sleep(nanoseconds: UInt64(Self.livePollOpenGroupSeconds * (expensive ? 3 : 1) * 1_000_000_000))
+                }
             }
         }
     }
 
     func stopLivePolling() {
+        livePollSleepTask?.cancel()
+        livePollSleepTask = nil
         livePollTask?.cancel()
         livePollTask = nil
+    }
+
+    /// The beat sleep of a loop with no group open, so opening one can end it at once.
+    private var livePollSleepTask: Task<Void, Never>?
+
+    /// A group opened: the open group's fast poll starts now rather than at the next beat.
+    private func wakeLivePoll() {
+        livePollSleepTask?.cancel()
     }
 
     /// One pass: the given groups' messages since the cursor, and control since it when asked.
@@ -820,6 +844,7 @@ final class GroupChatService: ObservableObject {
     /// Mirrors `ChatService.enterConversation(for:)` - call from the group thread's `.onAppear`.
     func enterGroup(_ groupId: String) {
         activeGroupId = groupId
+        wakeLivePoll()
         loadGroupReactions(for: groupId)
         // What arrived while the app was away, now - a thread opened from a tapped
         // notification used to show its stored history and wait for the next app-active
@@ -2641,9 +2666,9 @@ final class GroupChatService: ObservableObject {
         if shouldScan {
             if blockNotificationHandlerId == nil {
                 blockNotificationHandlerId = NodePoolService.shared.addBlockHandler { [weak self] block in
-                    // Cheap gate FIRST: unsubscribeBlockAdded only flips a wanted-flag - blocks
-                    // keep arriving forever once anyone subscribed - so without this the scan
-                    // below would run ~10x/sec even with scanning off.
+                    // Cheap gate FIRST: other clients (rooms, the Explorer, the inbox scan) can keep
+                    // the block stream on after this scan stops, so without this the scan below
+                    // would run ~10x/sec even with scanning off.
                     guard self?.isScanningActiveMirror == true else { return }
                     // Blocks arrive ~10x/sec continuously. The stream parses each once into a
                     // `ScannedBlock`; this is a prefix scan over its payloads on a single SERIAL

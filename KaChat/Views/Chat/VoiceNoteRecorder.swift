@@ -92,6 +92,8 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
 
     private func beginRecording() {
         do {
+            // Any voice note playing stops, and none starts until the session is given back.
+            VoicePlaybackCoordinator.shared.recordingWillStart()
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playAndRecord, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try session.setActive(true)
@@ -116,8 +118,18 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
             self.state = .recording
             startTimer()
         } catch {
+            releaseAudioSession()
             state = .failed(error.localizedDescription)
         }
+    }
+
+    /// Gives the audio session back once the microphone is done (other apps' audio may resume),
+    /// as the room recorder does. The preview sets its own category through the coordinator.
+    private func releaseAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        try? session.setCategory(.soloAmbient)
+        VoicePlaybackCoordinator.shared.recordingDidEnd()
     }
 
     /// The clock reads what was actually captured (`currentTime`), in whole seconds: a call or
@@ -153,6 +165,7 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
 
     /// Throws the recording away, whatever stage it's at: the trash.
     func cancel() {
+        let wasRecording = recorder != nil
         encodeTask?.cancel()
         encodeTask = nil
         encodeToken = nil
@@ -161,6 +174,7 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
         recorder?.stop()
         recorder?.delegate = nil
         recorder = nil
+        if wasRecording { releaseAudioSession() }
         stopPreview()
         previewPlayer = nil
         if let previewURL, previewURL != pcmURL {
@@ -190,6 +204,7 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
         recorder.stop()
         recorder.delegate = nil
         self.recorder = nil
+        releaseAudioSession()
         state = .encoding
         let token = UUID()
         encodeToken = token
@@ -277,21 +292,26 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
         }
         guard state == .ready, let previewURL else { return }
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default)
-            try session.setActive(true)
             if previewPlayer?.url != previewURL {
                 previewPlayer = try AVAudioPlayer(contentsOf: previewURL)
             }
             previewPlayer?.delegate = self
             previewPlayer?.prepareToPlay()
-            guard previewPlayer?.play() == true else { return }
+            // One note at a time, and the session goes back when the preview stops.
+            guard VoicePlaybackCoordinator.shared.willStart(self, stop: { [weak self] in self?.stopPreview() }) else { return }
+            guard previewPlayer?.play() == true else {
+                VoicePlaybackCoordinator.shared.didStop(self)
+                return
+            }
             previewIsPlaying = true
             previewTimer?.invalidate()
             previewTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
                 Task { @MainActor in
                     guard let self, let player = self.previewPlayer, self.previewIsPlaying else { return }
-                    self.previewLabel = "\(Self.clock(player.currentTime))/\(Self.clock(self.previewDuration))"
+                    // Published only when the shown second changes: each publish redraws the
+                    // whole group thread that observes this recorder.
+                    let label = "\(Self.clock(player.currentTime))/\(Self.clock(self.previewDuration))"
+                    if label != self.previewLabel { self.previewLabel = label }
                 }
             }
         } catch {
@@ -304,6 +324,7 @@ final class VoiceNoteRecorder: NSObject, ObservableObject, AVAudioRecorderDelega
         previewTimer = nil
         previewPlayer?.stop()
         previewPlayer?.currentTime = 0
+        if previewIsPlaying { VoicePlaybackCoordinator.shared.didStop(self) }
         previewIsPlaying = false
         if previewURL != nil {
             previewLabel = Self.clock(previewDuration)

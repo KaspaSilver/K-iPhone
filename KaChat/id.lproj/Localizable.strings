@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "Impor File";
 "Export File" = "Ekspor File";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "Simpan ke folder KaChat di Nextcloud Anda, untuk diimpor di perangkat mana pun.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "Simpan ke folder K di Nextcloud Anda, untuk diimpor di perangkat mana pun.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "Hubungkan Nextcloud di Pengaturan > Penyimpanan agar bisa disimpan di sana dan diimpor di perangkat lain.";
 "Couldn't read that file." = "File itu tidak bisa dibaca.";
 "Nothing to export yet. Add a contact first." = "Belum ada yang bisa diekspor. Tambahkan kontak dulu.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "Kirim Penawaran";
 "Offers open when .kachat names launch." = "Penawaran dibuka saat nama .kachat diluncurkan.";
 "Pick a CSV file from your Nextcloud." = "Pilih file CSV dari Nextcloud-mu.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "Simpan CSV ke folder KaChat di Nextcloud-mu.";
+"Save the CSV to the K folder in your Nextcloud." = "Simpan CSV ke folder K di Nextcloud-mu.";
 "Names this address claims or buys show here once .kachat names launch." = "Nama yang diklaim atau dibeli alamat ini muncul di sini setelah nama .kachat diluncurkan.";
 "Move to Portfolio" = "Pindahkan ke Portofolio";
 "Create another portfolio first, then you can move transactions into it." = "Buat portofolio lain dulu, lalu kamu bisa memindahkan transaksi ke sana.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "Terganggu";
 "Disconnected" = "Terputus";
 "Checking…" = "Memeriksa…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "Node gRPC tidak dapat dijangkau saat ini, jadi K menggunakan node publik melalui wss.";
+"Search public chats" = "Cari obrolan publik";
+"No Public Chats" = "Tidak Ada Obrolan Publik";
+"Tap + to join or create a public room." = "Ketuk + untuk bergabung atau membuat ruang publik.";
+"Switches between your chats and public chats" = "Beralih antara obrolan Anda dan obrolan publik";
+"More Rooms" = "Ruang Lainnya";
+"Rooms added on the indexer K reads public chats from." = "Ruang yang ditambahkan di indexer tempat K membaca obrolan publik.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "Tautan disalin";
+"A link that opens this card in K." = "Tautan yang membuka kartu ini di K.";
+"Open" = "Buka";
+"Opens this card." = "Membuka kartu ini.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "Ketuk untuk membukanya di K.";
+"Opens it in K." = "Membukanya di K.";
+"Your saved Kaspa addresses." = "Alamat Kaspa yang kamu simpan.";
+"Track your coins and their value." = "Pantau koin dan nilainya.";
+"Watch and sign for your cold wallets." = "Pantau dompet dingin dan tanda tangani untuknya.";
+"Claim, buy and sell .kachat usernames." = "Klaim, beli, dan jual nama pengguna .kachat.";
+"Posts and replies on Kaspa." = "Postingan dan balasan di Kaspa.";
+"Chess, Snake and 2048, scores on chain." = "Catur, Snake, dan 2048, skor di chain.";
+"Websites built on Kaspa." = "Situs web yang dibangun di Kaspa.";
+"Blocks, transactions and addresses, live." = "Blok, transaksi, dan alamat, langsung.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "Itu bukan alamat tahan kuantum. Pindai alamat KCC-3 yang ditampilkan KasSigner.";
+"That address is already in this account." = "Alamat itu sudah ada di akun ini.";
+"Quantum-resistant address added." = "Alamat tahan kuantum ditambahkan.";
+"Add Quantum-Resistant Address" = "Tambah Alamat Tahan Kuantum";
+"Scan a KCC-3 address from KasSigner's address screen." = "Pindai alamat KCC-3 dari layar alamat KasSigner.";
+"Stop Watching" = "Berhenti Memantau";
+"Removes this quantum address from the account. Scan it again to add it back." = "Menghapus alamat kuantum ini dari akun. Pindai lagi untuk menambahkannya kembali.";
+"Quantum-Resistant Address" = "Alamat Tahan Kuantum";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "Di KasSigner, buka alamat KCC-3 yang kamu inginkan dan pindai kode QR-nya. Kuncinya tetap di perangkat sampai alamat itu membelanjakan dana.";
+"Address Number on KasSigner" = "Nomor Alamat di KasSigner";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "Nomor yang ditampilkan KasSigner untuk alamat ini. Dengan nomor ini, perangkat langsung menemukan kuncinya saat menandatangani; tanpa nomor ini, perangkat mencarinya.";
+"Add Quantum Address" = "Tambah Alamat Kuantum";
+"The address number must be a whole number." = "Nomor alamat harus berupa bilangan bulat.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "Membutuhkan KasSigner v1.1 atau lebih baru, yang menandatangani alamat tahan kuantum (KCC-3).";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "Kembalian kembali ke alamat ini, yang kuncinya dibuka di chain oleh pengiriman ini. Tambahkan alamat kuantum lain dari KasSigner agar kembalian tetap aman kuantum.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "Kembalian masuk ke alamat kuantum yang belum dipakai di akun ini, karena pengiriman ini membuka kunci alamat ini di chain.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner tidak mengembalikan skrip kunci untuk alamat tahan kuantum ini, jadi transaksi tidak akan disiarkan. Pastikan perangkat menjalankan KasSigner v1.1 atau lebih baru dan menyimpan alamat ini.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "Transaksi yang ditandatangani menambahkan syarat covenant yang tidak pernah diminta pengiriman ini, jadi tidak akan disiarkan.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "Alamat Kuantum";
+"Quantum Change Address" = "Alamat Kembalian Kuantum";
+"Quantum Address #%lld" = "Alamat Kuantum #%lld";
+"Quantum Change Address #%lld" = "Alamat Kembalian Kuantum #%lld";
+"That address is already in your Cold Storage account “%@”." = "Alamat itu sudah ada di akun Cold Storage-mu “%@”.";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "Pengiriman ini membuka kunci alamat ini di chain, jadi kembaliannya tidak bisa kembali ke sini. Tambahkan dulu alamat tahan kuantum yang belum dipakai dari KasSigner (paling baik alamat kembalian, #0 sampai #4), atau kirim seluruh saldo.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "Menggabungkan membuka kunci alamat ini di chain, jadi koinnya pindah ke alamat tahan kuantum yang belum dipakai di akun ini. Tambahkan satu dari KasSigner dulu (paling baik alamat kembalian, #0 sampai #4).";
+"Stop Watching This Address?" = "Berhenti Memantau Alamat Ini?";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "%@ KAS-nya tetap di chain di alamat ini, di KasSigner-mu; K hanya berhenti menampilkannya. Pindai alamat ini lagi dari KasSigner untuk memantaunya lagi.";
+"Edit Address Number" = "Ubah Nomor Alamat";
+"The number and chain KasSigner shows for this address." = "Nomor dan rantai yang ditampilkan KasSigner untuk alamat ini.";
+"Chain" = "Rantai";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "Nomor yang ditampilkan KasSigner untuk alamat ini, dan apakah ini alamat penerimaan atau alamat kembalian. Dengan nomor ini, perangkat langsung menemukan kuncinya saat menandatangani; tanpa nomor ini, perangkat mencarinya. KasSigner menandai kembalian yang dikirim ke alamat kembaliannya #0 sampai #4 sebagai kembalian; alamat lain ditampilkannya sebagai pembayaran.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "Nomor itu terlalu besar: nomor alamat KasSigner di bawah 2147483648.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "Memindahkan semua koin alamat ini menjadi satu, di alamat tahan kuantum yang belum dipakai di akun ini: transaksi ini membuka kunci alamat ini di chain.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "Alamat ini menyimpan lebih banyak koin daripada yang bisa dibelanjakan satu transaksi: %lld tertinggal di balik kunci yang dibuka pengiriman ini di chain. Kirimkan dalam transaksi lain segera setelahnya.";
+"The coins move to your quantum address:" = "Koin pindah ke alamat kuantummu:";
+"The change goes to your quantum address:" = "Kembalian masuk ke alamat kuantummu:";
+"KasSigner shows this output as change." = "KasSigner menampilkan output ini sebagai kembalian.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner akan menampilkan output ini sebagai pembayaran biasa, bukan kembalian: pastikan ini alamat ini sebelum menandatangani.";
+"Sign Without the Address Number" = "Tandatangani Tanpa Nomor Alamat";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "Jika KasSigner menolak permintaan ini, nomor alamatnya mungkin salah. Tanpa nomor itu, perangkat mencari alamatnya sendiri. Ubah Nomor Alamat memperbaikinya untuk lain kali.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "Menggabungkan semua UTXO di alamat ini menjadi satu di alamat tahan kuantum yang belum dipakai di akun ini, karena ini membuka kunci alamat ini di chain.";
+"Quantum-Resistant Addresses" = "Alamat Tahan Kuantum";
+"Addresses" = "Alamat";
+"Receive Address" = "Alamat Penerimaan";
+"Change Address" = "Alamat Kembalian";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "Hapus 1 obrolan publik?";
+"Delete %lld Public Chats?" = "Hapus %lld obrolan publik?";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Obrolan publik bawaan dimatikan (nyalakan lagi di Edit Obrolan Publik Bawaan). Ruang yang kamu tambahkan dihapus beserta pesannya dari perangkat ini.";

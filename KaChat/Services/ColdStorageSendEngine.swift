@@ -25,6 +25,19 @@ final class ColdStorageSendEngine {
         let inputUtxos: [UTXO]
         let feeSompi: UInt64
         let changeSompi: UInt64
+        /// Spends from a KasSigner quantum-resistant (KCC-3) address: the request goes as KSPT
+        /// 0x06 with a KCC-3 hint on every input and no redeem script, which the unit supplies.
+        var isQuantumSource: Bool = false
+        /// The unit's number for that address, sent as the hint; nil lets the unit search.
+        var quantumUnitIndex: UInt32? = nil
+        /// The KCC-3 chain of that number (0 receive, 1 change), sent with it in the hint.
+        var quantumUnitChain: UInt32 = 0
+        /// Where the change went: a fresh quantum address of the account for a quantum source
+        /// (never the source), else the source.
+        var changeAddress: String? = nil
+        /// A quantum source's spendable coins this transaction couldn't take (past
+        /// `KsptCodec.maxInputs`): they stay behind the key this spend reveals.
+        var coinsLeftBehind: Int = 0
     }
 
     enum ColdSendError: LocalizedError {
@@ -39,6 +52,18 @@ final class ColdStorageSendEngine {
         case inputNotSigned(Int)
         case badSignatureLength(Int)
         case unsupportedSighash(Int)
+        /// A quantum (KCC-3) input came back without the unit's `<P> OP_CHECKSIG`, or with one
+        /// that isn't the script the address is the hash of.
+        case quantumScriptMismatch(Int)
+        /// The reply binds covenants, which this send never asked for.
+        case unexpectedCovenant
+        /// A quantum source's send has change and the account has no unused quantum address to
+        /// take it: change back to the source would sit behind the key the spend reveals, which
+        /// the hot wallet refuses too (IOS-104).
+        case quantumChangeNeedsFreshAddress
+        /// Compound on a quantum address moves its coins to an unused quantum address of the
+        /// account, and there is none.
+        case quantumCompoundNeedsFreshAddress
 
         var errorDescription: String? {
             switch self {
@@ -64,6 +89,14 @@ final class ColdStorageSendEngine {
                 return "Unexpected signature length (\(n) bytes, expected 64)"
             case .unsupportedSighash(let i):
                 return "Input \(i) was signed with a signature type that doesn't cover the whole transaction, so it won't be broadcast"
+            case .quantumScriptMismatch(let i):
+                return AppLocalization.string("KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address.") + " (#\(i))"
+            case .unexpectedCovenant:
+                return AppLocalization.string("The signed transaction adds covenant terms this send never asked for, so it won't be broadcast.")
+            case .quantumChangeNeedsFreshAddress:
+                return AppLocalization.string("This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance.")
+            case .quantumCompoundNeedsFreshAddress:
+                return AppLocalization.string("Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best).")
             }
         }
     }
@@ -72,13 +105,22 @@ final class ColdStorageSendEngine {
     /// price the eventual *signed* transaction even though the unsigned one built here carries no
     /// real signature bytes yet. Matches Android's SCHNORR_SIG_SCRIPT_LEN.
     private nonisolated static let schnorrSigScriptLen: UInt64 = 66
+    /// A KCC-3 (quantum-resistant) input's signature script: the signature as above, then the
+    /// 34-byte redeem `<P> OP_CHECKSIG` pushed (1 + 34).
+    private nonisolated static let kcc3SigScriptLen: UInt64 = 66 + 1 + 34
+
+    /// The signature script one input from `address` will carry, for pricing.
+    nonisolated static func signatureScriptLength(spending address: String?) -> UInt64 {
+        guard let address, ColdStorageManager.isScriptHashAddress(address) else { return schnorrSigScriptLen }
+        return kcc3SigScriptLen
+    }
 
     // MARK: - Mass / fee (KaspaMass.kt port)
 
     /// Verified against Android's own cited real-world result: 1 input, two 34-byte outputs, no
     /// payload -> mass 2036 (a real mainnet rejection Android hit and reproduced exactly).
-    nonisolated static func calculateMass(numInputs: Int, outputScriptLens: [Int], payloadSize: Int, sigOpCountPerInput: Int = 1) -> UInt64 {
-        let totalSigScriptBytes = UInt64(numInputs) * schnorrSigScriptLen
+    nonisolated static func calculateMass(numInputs: Int, outputScriptLens: [Int], payloadSize: Int, sigOpCountPerInput: Int = 1, sigScriptLenPerInput: UInt64 = 66) -> UInt64 {
+        let totalSigScriptBytes = UInt64(numInputs) * sigScriptLenPerInput
 
         var byteSize: UInt64 = 2 // version (u16)
         byteSize += 8 // input count
@@ -137,7 +179,8 @@ final class ColdStorageSendEngine {
         feeRateSompiPerGram: UInt64,
         recipientScriptLen: Int,
         changeScriptLen: Int,
-        leadingOutpoint: String? = nil
+        leadingOutpoint: String? = nil,
+        sigScriptLen: UInt64 = 66
     ) -> Selection? {
         var sorted = utxos.sorted { $0.amount > $1.amount }
         // A coin a "Not confirmed" send spent goes first, so this send and that one can't both
@@ -157,7 +200,7 @@ final class ColdStorageSendEngine {
             if overflow { return nil }
             totalSelected = nextTotal
 
-            let mass = calculateMass(numInputs: selected.count, outputScriptLens: outputScriptLens, payloadSize: 0)
+            let mass = calculateMass(numInputs: selected.count, outputScriptLens: outputScriptLens, payloadSize: 0, sigScriptLenPerInput: sigScriptLen)
             estimatedFee = calculateFee(mass: mass, rateSompiPerGram: feeRateSompiPerGram)
 
             if totalSelected >= amountSompi + estimatedFee { break }
@@ -189,11 +232,12 @@ final class ColdStorageSendEngine {
         amountSompi: UInt64,
         feeRateSompiPerGram: UInt64,
         recipientScriptLen: Int,
-        changeScriptLen: Int
+        changeScriptLen: Int,
+        sigScriptLen: UInt64 = 66
     ) -> Selection? {
         guard !utxos.isEmpty else { return nil }
         guard let totalSelected = utxos.checkedTotalAmount else { return nil }
-        let mass = calculateMass(numInputs: utxos.count, outputScriptLens: [recipientScriptLen, changeScriptLen], payloadSize: 0)
+        let mass = calculateMass(numInputs: utxos.count, outputScriptLens: [recipientScriptLen, changeScriptLen], payloadSize: 0, sigScriptLenPerInput: sigScriptLen)
         let estimatedFee = calculateFee(mass: mass, rateSompiPerGram: feeRateSompiPerGram)
 
         var finalAmount = amountSompi
@@ -226,7 +270,10 @@ final class ColdStorageSendEngine {
         amountSompi: UInt64,
         feeRateOverride: UInt64? = nil,
         manualUtxos: [UTXO]? = nil,
-        previewed: Bool = false
+        previewed: Bool = false,
+        changeAddress: String? = nil,
+        quantumUnitIndex: UInt32? = nil,
+        quantumUnitChain: ColdQuantumAddress.Chain = .receive
     ) async throws -> UnsignedColdTx {
         guard amountSompi > 0 else {
             throw KasiaError.networkError("Amount must be greater than zero")
@@ -235,12 +282,13 @@ final class ColdStorageSendEngine {
         // whatever handed it over (a name service, a scan), only a valid address of this network
         guard KaspaAddress.isValidOnActiveNetwork(toAddress),
               let recipientScript = KaspaAddress.scriptPublicKey(from: toAddress),
-              let changeScript = KaspaAddress.scriptPublicKey(from: fromAddress) else {
+              let changeScript = KaspaAddress.scriptPublicKey(from: changeAddress ?? fromAddress) else {
             throw KasiaError.invalidAddress
         }
 
         let spendable = try await spendableCoins(at: fromAddress)
         guard !spendable.isEmpty else { throw ColdSendError.noSpendableUtxos }
+        let sigScriptLen = Self.signatureScriptLength(spending: fromAddress)
 
         let feeRate: UInt64
         if let feeRateOverride {
@@ -254,6 +302,7 @@ final class ColdStorageSendEngine {
         // pick is the person's own and is left as it is.
         let leadingOutpoint = ChatService.shared.conflictingOutpoint(in: spendable)
         let selectionResult: Selection?
+        let isQuantumSource = ColdStorageManager.isScriptHashAddress(fromAddress)
         let resolvedManual: [UTXO]? = manualUtxos.flatMap { manual -> [UTXO]? in
             guard !manual.isEmpty else { return nil }
             let freshByOutpoint = Dictionary(
@@ -267,13 +316,29 @@ final class ColdStorageSendEngine {
         let previewMissesLead = previewed && leadingOutpoint.map { lead in
             !(resolvedManual ?? []).contains { "\($0.outpoint.transactionId):\($0.outpoint.index)" == lead }
         } == true
-        if let resolvedManual, !previewMissesLead {
+        var coinsLeftBehind = 0
+        if isQuantumSource {
+            // A quantum source spends every coin it can: this spend puts its key on chain, and
+            // any coin left at the address would sit behind that key. Coin control has no say;
+            // only past one transaction's input cap do coins stay, and the review says so.
+            let all = Self.quantumSourceCoins(spendable, leadingOutpoint: leadingOutpoint)
+            coinsLeftBehind = spendable.count - all.count
+            selectionResult = Self.buildManualSelection(
+                utxos: all,
+                amountSompi: amountSompi,
+                feeRateSompiPerGram: feeRate,
+                recipientScriptLen: recipientScript.count,
+                changeScriptLen: changeScript.count,
+                sigScriptLen: sigScriptLen
+            )
+        } else if let resolvedManual, !previewMissesLead {
             selectionResult = Self.buildManualSelection(
                 utxos: resolvedManual,
                 amountSompi: amountSompi,
                 feeRateSompiPerGram: feeRate,
                 recipientScriptLen: recipientScript.count,
-                changeScriptLen: changeScript.count
+                changeScriptLen: changeScript.count,
+                sigScriptLen: sigScriptLen
             )
         } else {
             selectionResult = Self.selectUtxos(
@@ -282,7 +347,8 @@ final class ColdStorageSendEngine {
                 feeRateSompiPerGram: feeRate,
                 recipientScriptLen: recipientScript.count,
                 changeScriptLen: changeScript.count,
-                leadingOutpoint: leadingOutpoint
+                leadingOutpoint: leadingOutpoint,
+                sigScriptLen: sigScriptLen
             )
         }
         guard var selection = selectionResult else {
@@ -290,7 +356,7 @@ final class ColdStorageSendEngine {
         }
         // Change the storage mass won't take: one more coin first (the largest left), as the hot
         // wallet's selector does, so it can stay rather than go to the fee or be refused.
-        let isAutomatic = previewed || (manualUtxos?.isEmpty ?? true)
+        let isAutomatic = !isQuantumSource && (previewed || (manualUtxos?.isEmpty ?? true))
         if isAutomatic, selection.changeSompi > 0, selection.utxos.count < KsptCodec.maxInputs,
            !KasiaTransactionBuilder.fitsStorageMass(
                inputAmounts: selection.utxos.map(\.amount),
@@ -303,7 +369,8 @@ final class ColdStorageSendEngine {
                    amountSompi: amountSompi,
                    feeRateSompiPerGram: feeRate,
                    recipientScriptLen: recipientScript.count,
-                   changeScriptLen: changeScript.count
+                   changeScriptLen: changeScript.count,
+                   sigScriptLen: sigScriptLen
                ),
                KasiaTransactionBuilder.fitsStorageMass(
                    inputAmounts: wider.utxos.map(\.amount),
@@ -330,6 +397,10 @@ final class ColdStorageSendEngine {
                 inputAmounts: selection.utxos.map(\.amount),
                 outputAmounts: [selection.finalAmount, selection.changeSompi]
             ) {
+                // Never change back onto the key this spend reveals (IOS-104, as the hot wallet).
+                if isQuantumSource, (changeAddress ?? fromAddress).lowercased() == fromAddress.lowercased() {
+                    throw ColdSendError.quantumChangeNeedsFreshAddress
+                }
                 changeSompi = selection.changeSompi
                 outputs.append(KaspaRpcTransactionOutput(value: selection.changeSompi, scriptPublicKey: KaspaScriptPublicKey(version: 0, script: changeScript)))
             } else if selection.changeSompi > KasiaTransactionBuilder.maxFoldedChangeSompi {
@@ -362,7 +433,13 @@ final class ColdStorageSendEngine {
         let inputTotal = try selection.utxos.totalAmount()
         let outputTotal = outputs.reduce(UInt64(0)) { $0 + $1.value }
         let paidFee = inputTotal >= outputTotal ? inputTotal - outputTotal : selection.feeSompi
-        return UnsignedColdTx(transaction: transaction, inputUtxos: selection.utxos, feeSompi: paidFee, changeSompi: changeSompi)
+        var unsigned = UnsignedColdTx(transaction: transaction, inputUtxos: selection.utxos, feeSompi: paidFee, changeSompi: changeSompi)
+        unsigned.isQuantumSource = isQuantumSource
+        unsigned.quantumUnitIndex = quantumUnitIndex
+        unsigned.quantumUnitChain = quantumUnitChain.rawValue
+        unsigned.changeAddress = changeSompi > 0 ? (changeAddress ?? fromAddress) : nil
+        unsigned.coinsLeftBehind = coinsLeftBehind
+        return unsigned
     }
 
     struct AutomaticSelectionPreview {
@@ -382,6 +459,19 @@ final class ColdStorageSendEngine {
         guard amountSompi > 0, let spendable = try? await spendableCoins(at: fromAddress), !spendable.isEmpty else {
             return nil
         }
+        // A quantum source spends all its coins (see the build), so that is what's priced.
+        if ColdStorageManager.isScriptHashAddress(fromAddress) {
+            let all = Self.quantumSourceCoins(spendable, leadingOutpoint: ChatService.shared.conflictingOutpoint(in: spendable))
+            guard let selection = Self.buildManualSelection(
+                utxos: all,
+                amountSompi: amountSompi,
+                feeRateSompiPerGram: feeRateSompiPerGram,
+                recipientScriptLen: Self.scriptLength(of: toAddress),
+                changeScriptLen: Self.scriptLength(of: fromAddress),
+                sigScriptLen: Self.signatureScriptLength(spending: fromAddress)
+            ) else { return nil }
+            return AutomaticSelectionPreview(utxos: selection.utxos, feeSompi: selection.feeSompi)
+        }
         guard let selection = Self.selectUtxos(
             from: spendable,
             amountSompi: amountSompi,
@@ -389,7 +479,8 @@ final class ColdStorageSendEngine {
             recipientScriptLen: Self.scriptLength(of: toAddress),
             changeScriptLen: Self.scriptLength(of: fromAddress),
             // the same lead the build takes, so the review shows the coins it will spend
-            leadingOutpoint: ChatService.shared.conflictingOutpoint(in: spendable)
+            leadingOutpoint: ChatService.shared.conflictingOutpoint(in: spendable),
+            sigScriptLen: Self.signatureScriptLength(spending: fromAddress)
         ) else {
             return nil
         }
@@ -438,7 +529,8 @@ final class ColdStorageSendEngine {
         let mass = Self.calculateMass(
             numInputs: max(utxosToUse.count, 1),
             outputScriptLens: [Self.scriptLength(of: toAddress), Self.scriptLength(of: fromAddress)],
-            payloadSize: 0
+            payloadSize: 0,
+            sigScriptLenPerInput: Self.signatureScriptLength(spending: fromAddress)
         )
         let fee = Self.calculateFee(mass: mass, rateSompiPerGram: feeRate)
 
@@ -459,6 +551,77 @@ final class ColdStorageSendEngine {
         let sorted = spendable.sorted { $0.amount > $1.amount }
         let capped = Array(sorted.prefix(KsptCodec.maxInputs))
         return (capped, sorted.count > KsptCodec.maxInputs)
+    }
+
+    /// The coins a quantum source's transaction takes: all of them up to the input cap, the
+    /// largest first, a coin a "Not confirmed" send spent leading (as the automatic selector).
+    private static func quantumSourceCoins(_ spendable: [UTXO], leadingOutpoint: String?) -> [UTXO] {
+        var sorted = spendable.sorted { $0.amount > $1.amount }
+        if let leadingOutpoint,
+           let index = sorted.firstIndex(where: { "\($0.outpoint.transactionId):\($0.outpoint.index)" == leadingOutpoint }) {
+            sorted.insert(sorted.remove(at: index), at: 0)
+        }
+        return Array(sorted.prefix(KsptCodec.maxInputs))
+    }
+
+    /// Change addresses handed to a request built this session and not released: a second send
+    /// built before the first one's change shows on chain must not pick the same address.
+    private var reservedQuantumChange: Set<String> = []
+
+    /// Where a send from a quantum address puts its change (and where Compound moves a quantum
+    /// address's coins): another quantum address of the same account that holds nothing, has
+    /// never been used and has never spent, as the hot wallet sends a quantum source's change to
+    /// a fresh slot - the spend makes the source's key public. Change-chain #0-4 first, the ones
+    /// KasSigner itself marks as CHANGE when it shows the outputs; then other change-chain
+    /// addresses; receive addresses last. Used-ness is probed fresh (the session's "unused"
+    /// cache can be stale), and the pick is reserved until `releaseQuantumChange`, or for good
+    /// once the send goes out (`noteQuantumChangeSent`). Nil when there is none or `fromAddress`
+    /// isn't a quantum address.
+    func freshQuantumChangeAddress(for fromAddress: String) async -> String? {
+        let manager = ColdStorageManager.shared
+        guard let account = manager.quantumAddressRecord(fromAddress)?.account else { return nil }
+        let source = fromAddress.lowercased()
+        let ranked = manager.currentQuantumAddresses(of: account).enumerated()
+            .filter { $0.element.address != source && !reservedQuantumChange.contains($0.element.address) }
+            .sorted { lhs, rhs in
+                let l = Self.changeRank(lhs.element), r = Self.changeRank(rhs.element)
+                return l != r ? l < r : lhs.offset < rhs.offset
+            }
+            .map(\.element.address)
+        guard !ranked.isEmpty,
+              let utxos = try? await NodePoolService.shared.getUtxosByAddresses(ranked) else { return nil }
+        let funded = Set(utxos.map { $0.address.lowercased() })
+        for candidate in ranked where !funded.contains(candidate) {
+            // never used: no transaction in its history, read now; a read that failed counts as
+            // used. A spend would have shown as use, but a revealed key is never change.
+            guard await ChatService.shared.spendingAddressUsedState(candidate, skipSessionCache: true) == false,
+                  await ChatService.shared.quantumAddressSpentState(candidate) != true else { continue }
+            // another build may have taken it while this one was reading
+            guard !reservedQuantumChange.contains(candidate) else { continue }
+            reservedQuantumChange.insert(candidate)
+            return candidate
+        }
+        return nil
+    }
+
+    /// Hands back a change address `freshQuantumChangeAddress` reserved, for a request that was
+    /// rebuilt, failed or abandoned before it went out.
+    func releaseQuantumChange(_ address: String?) {
+        guard let address else { return }
+        reservedQuantumChange.remove(address.lowercased())
+    }
+
+    /// The send went out: its change address is used from now on, whatever the history API
+    /// says until it indexes the transaction.
+    func noteQuantumChangeSent(_ address: String?) {
+        guard let address else { return }
+        ChatService.shared.markSpendingAddressUsed(address.lowercased())
+    }
+
+    /// 0: change chain #0-4 (the unit marks them CHANGE), 1: other change-chain, 2: the rest.
+    private static func changeRank(_ entry: ColdQuantumAddress) -> Int {
+        if entry.unitMarksAsChange { return 0 }
+        return entry.chain == .change ? 1 : 2
     }
 
     /// What a send from this address may spend, as for a hot-wallet spending address: a mining
@@ -539,6 +702,23 @@ final class ColdStorageSendEngine {
                 spkScriptHex: output.scriptPublicKey.script.hexString
             )
         }
+        // A quantum (KCC-3) source goes as KSPT 0x06 - only KasSigner v1.1 and later read it - with
+        // a KCC-3 hint per input when the address's number is known and no redeem script: the
+        // unit supplies `<P> OP_CHECKSIG` when it signs. Everything else stays 0x01, which every
+        // KasSigner reads.
+        if tx.isQuantumSource {
+            let hint: KsptCodec.InputHint? = tx.quantumUnitIndex.map { .kcc3(chain: tx.quantumUnitChain, addrIndex: $0) }
+            return try KsptCodec.encodeUnsignedV6(
+                txVersion: tx.transaction.version,
+                lockTime: tx.transaction.lockTime,
+                subnetworkIdHex: tx.transaction.subnetworkId.hexString,
+                gas: tx.transaction.gas,
+                payloadHex: tx.transaction.payload.isEmpty ? nil : tx.transaction.payload.hexString,
+                inputs: inputs,
+                inputHints: Array(repeating: hint, count: inputs.count),
+                outputs: outputs
+            )
+        }
         return try KsptCodec.encodeUnsigned(
             txVersion: tx.transaction.version,
             lockTime: tx.transaction.lockTime,
@@ -557,6 +737,12 @@ final class ColdStorageSendEngine {
     /// here, not get silently broadcast.
     func broadcastSigned(unsignedTx: UnsignedColdTx, decoded: KsptCodec.Decoded) async throws -> String {
         guard decoded.signed else { throw ColdSendError.notSigned }
+        // Nothing this app builds binds a covenant: a reply that does is not what was signed for.
+        guard !decoded.records.contains(where: {
+            if case .covenant = $0 { return true }
+            if case .coinCovenant = $0 { return true }
+            return false
+        }) else { throw ColdSendError.unexpectedCovenant }
         guard decoded.inputs.count == unsignedTx.transaction.inputs.count else { throw ColdSendError.inputCountMismatch }
         guard decoded.outputs.count == unsignedTx.transaction.outputs.count else { throw ColdSendError.outputCountMismatch }
 
@@ -590,6 +776,23 @@ final class ColdStorageSendEngine {
             sigScript.append(0x41)
             sigScript.append(sigBytes)
             sigScript.append(sighashType)
+
+            // A quantum (KCC-3) input: then the redeem the unit supplied, `<P> OP_CHECKSIG`, pushed.
+            // It must be exactly the script this input's address is the hash of - checked here,
+            // since a wrong one would only fail at the node, and the codec doesn't hash.
+            if unsignedTx.isQuantumSource {
+                guard let redeemHex = decodedInput.redeemScriptHex,
+                      let redeem = Data(hexString: redeemHex),
+                      KsptCodec.isKcc3Redeem(redeem),
+                      KachatNames.Codec.p2shScript(redeem) == unsignedTx.inputUtxos[index].scriptPublicKey else {
+                    throw ColdSendError.quantumScriptMismatch(index)
+                }
+                sigScript.append(UInt8(redeem.count))
+                sigScript.append(redeem)
+            } else if decodedInput.redeemScriptHex != nil {
+                // a plain single-key input never carries one
+                throw ColdSendError.inputMismatch(index)
+            }
 
             signedInputs.append(KaspaRpcTransactionInput(
                 previousOutpoint: input.previousOutpoint,

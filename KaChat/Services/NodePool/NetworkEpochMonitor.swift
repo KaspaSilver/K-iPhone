@@ -28,6 +28,9 @@ final class NetworkEpochMonitor: ObservableObject {
     // Callbacks for epoch changes
     private var epochChangeCallbacks: [(Int) -> Void] = []
 
+    /// Loops that wait out an offline spell (`waitUntilOnline`), resumed when the path is back.
+    private var onlineWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
+
     // MARK: - Initialization
 
     private init() {}
@@ -55,7 +58,8 @@ final class NetworkEpochMonitor: ObservableObject {
         let oldQuality = networkQuality
 
         // Update basic status
-        isOnline = path.status == .satisfied
+        isOnline = Self.isUsable(path)
+        if isOnline { resumeOnlineWaiters() }
         isExpensive = path.isExpensive
         isConstrained = path.isConstrained
 
@@ -102,10 +106,11 @@ final class NetworkEpochMonitor: ObservableObject {
             return true
         }
 
-        // Interface type change (WiFi <-> Cellular)
-        let oldInterfaces = Set(old.availableInterfaces.map { $0.type })
-        let newInterfaces = Set(newPath.availableInterfaces.map { $0.type })
-        if oldInterfaces != newInterfaces {
+        // The interface traffic actually goes out on changed (WiFi <-> cellular, a VPN taking
+        // over). Only the first, preferred interface counts: the whole set changes whenever
+        // cellular comes up beside WiFi or a hotspot appears, and that used to tear down the
+        // subscription and force a full catch-up for a path every socket was still using.
+        if old.availableInterfaces.first?.type != newPath.availableInterfaces.first?.type {
             return true
         }
 
@@ -122,10 +127,22 @@ final class NetworkEpochMonitor: ObservableObject {
         return false
     }
 
+    /// Whether traffic can go out on `path`. `.requiresConnection` counts: an on-demand VPN
+    /// reports it until a connection is attempted, which is what brings the tunnel up. Read as
+    /// offline, every loop waiting for the network (`waitUntilOnline`) waited until something
+    /// else happened to connect (audit 2026-11-25 N9).
+    private static func isUsable(_ path: NWPath) -> Bool {
+        path.status == .satisfied || path.status == .requiresConnection
+    }
+
     /// Determine network quality tier from path
     private func determineQuality(path: NWPath) -> NetworkQuality {
-        guard path.status == .satisfied else {
+        guard Self.isUsable(path) else {
             return .offline
+        }
+        // An on-demand tunnel not up yet has no interface to judge by.
+        if path.status == .requiresConnection {
+            return .good
         }
 
         let interfaces = path.availableInterfaces
@@ -171,6 +188,35 @@ final class NetworkEpochMonitor: ObservableObject {
         let base = networkQuality.hedgeDelayMs
         guard isExpensivePath else { return base }
         return max(base, NetworkQuality.excellent.hedgeDelayMs)
+    }
+
+    /// Returns once the device is online (at once if it is, or the task is cancelled). The probe,
+    /// discovery and resubscribe loops wait here instead of retrying against a dead network.
+    func waitUntilOnline() async {
+        if isOnline || Task.isCancelled { return }
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                if isOnline || Task.isCancelled {
+                    continuation.resume()
+                } else {
+                    onlineWaiters[id] = continuation
+                }
+            }
+        } onCancel: {
+            Task { @MainActor in self.resumeOnlineWaiter(id) }
+        }
+    }
+
+    private func resumeOnlineWaiter(_ id: UUID) {
+        onlineWaiters.removeValue(forKey: id)?.resume()
+    }
+
+    private func resumeOnlineWaiters() {
+        guard !onlineWaiters.isEmpty else { return }
+        let waiters = onlineWaiters
+        onlineWaiters.removeAll()
+        for continuation in waiters.values { continuation.resume() }
     }
 
     /// Register a callback for epoch changes

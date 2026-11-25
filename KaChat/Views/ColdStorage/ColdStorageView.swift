@@ -393,6 +393,11 @@ struct ColdStorageDetailView: View {
     /// Address Visibility was picked there: opened once that sheet has finished closing, since
     /// a sheet opened while another is still going away is dropped.
     @State private var openVisibilityAfterActions = false
+    /// Add Quantum-Resistant Address was picked: its sheet opens once Address Actions has closed.
+    @State private var openAddQuantumAfterActions = false
+    @State private var showAddQuantum = false
+    /// Quantum addresses whose key a spend has put on chain (the slashed shield).
+    @State private var quantumSpentAddresses: Set<String> = []
     /// Address whose own actions half sheet is open.
     @State private var addressActionsTarget: ColdStorageAddressEntry?
     /// Live scan position while discovering, so the sheet can show progress rather than a spinner.
@@ -403,6 +408,10 @@ struct ColdStorageDetailView: View {
     @State private var sendTarget: ColdStorageAddressEntry?
     @State private var renameTarget: ColdStorageAddressEntry?
     @State private var renameText = ""
+    /// The quantum address whose number and chain on the unit are being edited.
+    @State private var editNumberTarget: ColdStorageAddressEntry?
+    /// A funded quantum address the person asked to stop watching, while the confirmation is up.
+    @State private var stopWatchingTarget: ColdStorageAddressEntry?
     @State private var renamingAccount = false
     @State private var renameAccountText = ""
     @State private var showDeleteConfirm = false
@@ -537,7 +546,7 @@ struct ColdStorageDetailView: View {
         }
         .sheet(item: $addressActionsTarget) { entry in
             addressRowActionsSheet(entry)
-                .fittedSheetDetents(entry.balanceSompi == 0 ? 380 : 300)
+                .fittedSheetDetents(addressRowActionsHeight(entry))
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showAddressActions, onDismiss: {
@@ -545,11 +554,43 @@ struct ColdStorageDetailView: View {
                 openVisibilityAfterActions = false
                 showVisibilityManager = true
             }
+            if openAddQuantumAfterActions {
+                openAddQuantumAfterActions = false
+                showAddQuantum = true
+            }
         }) {
             addressActionsSheet
-                // Four rows: Generate, Discover, Address Visibility, Copy kpub.
-                .fittedSheetDetents(490)
+                // Five rows: Generate, Add Quantum-Resistant, Discover, Address Visibility, Copy kpub.
+                .fittedSheetDetents(580)
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showAddQuantum) {
+            ColdQuantumAddressAddSheet(account: currentAccount) { added in
+                showToast(AppLocalization.string("Quantum-resistant address added."))
+                _ = added
+                Task { await loadEntries() }
+            }
+        }
+        .sheet(item: $editNumberTarget) { entry in
+            ColdQuantumAddressNumberSheet(entry: entry, account: currentAccount) {
+                Task { await loadEntries() }
+            }
+        }
+        .alert(
+            "Stop Watching This Address?",
+            isPresented: Binding(
+                get: { stopWatchingTarget != nil },
+                set: { if !$0 { stopWatchingTarget = nil } }
+            ),
+            presenting: stopWatchingTarget
+        ) { entry in
+            Button("Stop Watching", role: .destructive) {
+                stopWatching(entry)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { entry in
+            Text(KaspaUnit.label(String(format: AppLocalization.string("Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again."),
+                                        locale: AppLocalization.locale, KaspaUnit.plain(entry.balanceSompi))))
         }
         .sheet(item: $qrTarget) { entry in
             ColdStorageAddressQRView(entry: entry)
@@ -569,8 +610,8 @@ struct ColdStorageDetailView: View {
         ) {
             TextField("Label", text: $renameText)
             Button("Save") {
-                if let renameTarget {
-                    manager.setAddressLabel(accountId: currentAccount.id, index: renameTarget.index, label: renameText)
+                if let renameTarget, let index = currentIndex(of: renameTarget) {
+                    manager.setAddressLabel(accountId: currentAccount.id, index: index, label: renameText)
                 }
                 renameTarget = nil
                 Task { await loadEntries() }
@@ -719,6 +760,35 @@ struct ColdStorageDetailView: View {
                     hideAddress(entry)
                 }
             }
+            if entry.isQuantum {
+                // A wrong number (or a change address given as a receive one) makes the unit
+                // refuse the request: the person can put it right, or clear it to let the unit
+                // search.
+                ActionSheetRow(
+                    title: "Edit Address Number",
+                    subtitle: "The number and chain KasSigner shows for this address.",
+                    systemImage: "number"
+                ) {
+                    addressActionsTarget = nil
+                    DispatchQueue.main.async { editNumberTarget = entry }
+                }
+                // A quantum address added by mistake (or no longer wanted) goes from the account;
+                // its coins stay on chain and it can be added again. With coins on it, only after
+                // saying so.
+                ActionSheetRow(
+                    title: "Stop Watching",
+                    subtitle: "Removes this quantum address from the account. Scan it again to add it back.",
+                    systemImage: "minus.circle",
+                    tint: .red
+                ) {
+                    addressActionsTarget = nil
+                    if entry.balanceSompi > 0 {
+                        DispatchQueue.main.async { stopWatchingTarget = entry }
+                    } else {
+                        stopWatching(entry)
+                    }
+                }
+            }
 
             Spacer(minLength: 0)
         }
@@ -785,6 +855,17 @@ struct ColdStorageDetailView: View {
                         isDisabled: isDiscovering
                     ) {
                         generateMore()
+                        showAddressActions = false
+                    }
+                    // KasSigner never exports its quantum (22') kpub - it would show every key those
+                    // addresses hide - so each is scanned from the unit, one at a time.
+                    ActionSheetRow(
+                        title: "Add Quantum-Resistant Address",
+                        subtitle: "Scan a KCC-3 address from KasSigner's address screen.",
+                        systemImage: "shield",
+                        isDisabled: isDiscovering
+                    ) {
+                        openAddQuantumAfterActions = true
                         showAddressActions = false
                     }
                     ActionSheetRow(
@@ -854,10 +935,15 @@ struct ColdStorageDetailView: View {
 
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(entry.displayLabel)
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.accentColor)
+                    HStack(spacing: 5) {
+                        Text(entry.displayLabel)
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.accentColor)
+                        if entry.isQuantum {
+                            quantumShield(for: entry)
+                        }
+                    }
                     Text(entry.shortAddress)
                         .font(.system(.subheadline, design: .monospaced))
                         .foregroundColor(.primary)
@@ -895,13 +981,52 @@ struct ColdStorageDetailView: View {
         .background(glassBackground(cornerRadius: 18))
     }
 
+    /// The quantum state of a row, as Manage Addresses tells it: a shield while the key has never
+    /// been on chain, slashed once the address has spent (orange while it holds Kaspa again).
+    @ViewBuilder
+    private func quantumShield(for entry: ColdStorageAddressEntry) -> some View {
+        if quantumSpentAddresses.contains(entry.address.lowercased()) {
+            Image(systemName: "shield.slash.fill")
+                .font(.caption2)
+                .foregroundColor(entry.balanceSompi > 0 ? .orange : .secondary)
+                .accessibilityLabel(Text("Key revealed by a spend"))
+        } else {
+            Image(systemName: "shield.fill")
+                .font(.caption2)
+                .foregroundColor(.green)
+                .accessibilityLabel(Text("Quantum-safe"))
+        }
+    }
+
+    /// One row-action half sheet's height: Rename, Copy and Show QR, then Hide (empty
+    /// addresses), Edit Address Number and Stop Watching (quantum addresses).
+    private func addressRowActionsHeight(_ entry: ColdStorageAddressEntry) -> CGFloat {
+        var rows = 3
+        if entry.balanceSompi == 0 { rows += 1 }
+        if entry.isQuantum { rows += 2 }
+        return CGFloat(60 + 80 * rows)
+    }
+
+    /// The index an edit of this row files under now. A quantum entry's index moves when an
+    /// earlier quantum address stops being watched, and the row may be from before that.
+    private func currentIndex(of entry: ColdStorageAddressEntry) -> Int? {
+        entry.isQuantum ? manager.currentQuantumIndex(of: entry.address, in: currentAccount) : entry.index
+    }
+
+    private func stopWatching(_ entry: ColdStorageAddressEntry) {
+        manager.removeQuantumAddress(entry.address, from: currentAccount)
+        entries.removeAll { $0.address == entry.address }
+        Task { await loadEntries() }
+    }
+
     /// Row-menu "Hide Address": flips the same per-account hidden flag the Address Visibility
     /// checklist edits (so it shows unchecked there) and updates the row in place.
     /// setAddressHidden re-verifies the live balance server-side and returns false if the
     /// address can't be hidden. Mirrors Manage Addresses' hideAddress.
     private func hideAddress(_ entry: ColdStorageAddressEntry) {
         Task {
-            let ok = await manager.setAddressHidden(account: currentAccount, index: entry.index, hidden: true)
+            guard let index = currentIndex(of: entry) else { return }
+            let ok = await manager.setAddressHidden(account: currentAccount, index: index, hidden: true)
             guard ok else {
                 showToast("This address can't be hidden.")
                 return
@@ -930,6 +1055,18 @@ struct ColdStorageDetailView: View {
         guard loadToken == token else { return }
         entries = baseEntries.sorted { $0.index < $1.index }
         isLoading = false
+
+        // Which quantum addresses have spent, putting their key on chain (the slashed shield).
+        let quantum = baseEntries.filter(\.isQuantum).map(\.address)
+        if !quantum.isEmpty {
+            Task {
+                var spent = Set<String>()
+                for address in quantum where await ChatService.shared.quantumAddressSpentState(address) == true {
+                    spent.insert(address.lowercased())
+                }
+                if loadToken == token { quantumSpentAddresses = spent }
+            }
+        }
 
         // Backfills the "Used"/"Unused" badge for zero-balance addresses in the background.
         // Sequential, not concurrent — same rate-limit reasoning as Manage Addresses'
@@ -1175,6 +1312,16 @@ private struct ColdSendFlowView: View {
     /// cleared immediately on any change so a stale preview never gets shown or built with.
     @State private var previewSelection: ColdStorageSendEngine.AutomaticSelectionPreview?
     @State private var previewTask: Task<Void, Never>?
+    /// The quantum address this flow reserved for its change (or, compounding a quantum address,
+    /// as the destination), handed back if the send never goes out.
+    @State private var reservedChange: String?
+
+    /// Sending from a KasSigner quantum-resistant (KCC-3) address: every coin goes, the change
+    /// (or a compound) goes to another quantum address, and the request is KSPT 0x06.
+    private var isQuantumSource: Bool { ColdStorageManager.isScriptHashAddress(fromAddress) }
+
+    /// Compound into the address itself; a quantum address compounds into a fresh one instead.
+    private var compoundsIntoItself: Bool { isCompoundMode && !isQuantumSource }
 
     /// The send's steps, as in Send Kaspa: who to, how much (on the app's keypad), and the
     /// review, where only the fee and coin control change before Build. Compound opens on the
@@ -1284,9 +1431,26 @@ private struct ColdSendFlowView: View {
             .task {
                 liveFeeRateSompiPerGram = await ColdStorageSendEngine.fetchQuotedFeeRateSompiPerGram()
                 if isCompoundMode {
-                    toAddress = fromAddress
+                    if isQuantumSource {
+                        // Compounding reveals the key, so the merged coin must not stay here.
+                        guard let fresh = await ColdStorageSendEngine.shared.freshQuantumChangeAddress(for: fromAddress) else {
+                            step = .failed(ColdStorageSendEngine.ColdSendError.quantumCompoundNeedsFreshAddress.localizedDescription)
+                            return
+                        }
+                        reservedChange = fresh
+                        toAddress = fresh
+                    } else {
+                        toAddress = fromAddress
+                    }
                     isValidAddress = true
                     await setupCompoundInputs()
+                }
+            }
+            // Closed before the send went out: the change address goes back to the pool.
+            .onDisappear {
+                if sentTransaction == nil {
+                    ColdStorageSendEngine.shared.releaseQuantumChange(reservedChange)
+                    reservedChange = nil
                 }
             }
             .sheet(isPresented: $showRecipientScanner) {
@@ -1438,7 +1602,7 @@ private struct ColdSendFlowView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
                         reviewRow("To") {
-                            if isCompoundMode {
+                            if compoundsIntoItself {
                                 Text("This address (consolidating)")
                             } else {
                                 VStack(alignment: .trailing, spacing: 2) {
@@ -1479,7 +1643,9 @@ private struct ColdSendFlowView: View {
 
                     if isCompoundMode {
                         Group {
-                            if compoundHasMoreRounds {
+                            if isQuantumSource {
+                                Text("Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain.")
+                            } else if compoundHasMoreRounds {
                                 Text("This address has more than \(KsptCodec.maxInputs) UTXOs. KasSigner can sign at most \(KsptCodec.maxInputs) inputs per transaction, so this merges the largest \(KsptCodec.maxInputs) into one. Run Compound again afterward to keep combining the rest.")
                             } else {
                                 Text("Merges all of this address's UTXOs into a single one, so future sends need fewer inputs.")
@@ -1500,7 +1666,9 @@ private struct ColdSendFlowView: View {
                         feeText: "~\(KaspaUnit.plain(effectiveFeeSompi)) \(KaspaUnit.symbol)",
                         onStartEditing: {},
                         onCommit: {},
-                        showsCoinControl: !isCompoundMode,
+                        // A quantum source spends every coin (none may stay behind its revealed key),
+                        // so there is nothing to pick there either.
+                        showsCoinControl: !isCompoundMode && !isQuantumSource,
                         coinControlSummary: coinControlSummary(manualUtxos),
                         onCoinControl: { showCoinControl = true },
                         onEditFee: {
@@ -1563,11 +1731,98 @@ private struct ColdSendFlowView: View {
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                     summaryCard(amountSompi: builtAmount(unsignedTx), feeSompi: unsignedTx.feeSompi)
+                    if unsignedTx.isQuantumSource {
+                        quantumSendNote(unsignedTx)
+                        if unsignedTx.quantumUnitIndex != nil {
+                            signWithoutNumberButton(unsignedTx)
+                        }
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
                 .padding(.bottom, 24)
             }
+        }
+    }
+
+    /// What is different about a send from a quantum-resistant address: the unit must know KCC-3,
+    /// every coin goes (this spend puts the address's key on chain), and where the change goes -
+    /// named here, since KasSigner marks it as change only for its change addresses #0-4.
+    private func quantumSendNote(_ unsignedTx: ColdStorageSendEngine.UnsignedColdTx) -> some View {
+        // A quantum compound's only output is the fresh address it moves to.
+        let ownOutput: String? = isCompoundMode ? effectiveAddress : unsignedTx.changeAddress
+        return VStack(alignment: .leading, spacing: 10) {
+            Label {
+                Text("Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses.")
+            } icon: {
+                Image(systemName: "shield")
+            }
+            if unsignedTx.coinsLeftBehind > 0 {
+                Label {
+                    Text(String(format: AppLocalization.string("This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after."),
+                                locale: AppLocalization.locale, Int64(unsignedTx.coinsLeftBehind)))
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                }
+            }
+            if let ownOutput {
+                let record = ColdStorageManager.shared.quantumAddressRecord(ownOutput)?.entry
+                let marked = record?.unitMarksAsChange ?? false
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(isCompoundMode ? "The coins move to your quantum address:" : "The change goes to your quantum address:")
+                        Text(verbatim: ColdStorageManager.shared.quantumDisplayLabel(of: ownOutput) ?? AppLocalization.string("Quantum Address"))
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        Text(verbatim: "\(ownOutput.prefix(14))...\(ownOutput.suffix(8))")
+                            .font(.caption.monospaced())
+                        if marked {
+                            Text("KasSigner shows this output as change.")
+                        } else {
+                            Text("KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign.")
+                                .foregroundColor(.orange)
+                        }
+                    }
+                } icon: {
+                    Image(systemName: "arrow.uturn.down")
+                }
+            }
+        }
+        .font(.footnote)
+        .foregroundColor(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(glassBackground(cornerRadius: 14))
+    }
+
+    /// The request names the address's number on the unit. A wrong one (or the wrong chain)
+    /// makes the unit refuse it; this shows the same transaction again with no number, and the
+    /// unit searches its quantum addresses itself.
+    private func signWithoutNumberButton(_ unsignedTx: ColdStorageSendEngine.UnsignedColdTx) -> some View {
+        VStack(spacing: 6) {
+            Button {
+                var withoutHint = unsignedTx
+                withoutHint.quantumUnitIndex = nil
+                do {
+                    let frames = try QrFrameChunker.chunk(ColdStorageSendEngine.shared.toKspt(withoutHint))
+                    step = .showingQR(withoutHint, frames)
+                } catch {
+                    step = .failed(error.localizedDescription)
+                }
+            } label: {
+                Text("Sign Without the Address Number")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .foregroundColor(.accentColor)
+                    .background(glassBackground(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+            Text("If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
     }
 
@@ -1634,7 +1889,7 @@ private struct ColdSendFlowView: View {
     private func summaryCard(amountSompi: UInt64?, feeSompi: UInt64) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             reviewRow("To") {
-                if isCompoundMode {
+                if compoundsIntoItself {
                     Text("This address (consolidating)")
                 } else {
                     VStack(alignment: .trailing, spacing: 2) {
@@ -1859,22 +2114,47 @@ private struct ColdSendFlowView: View {
         // fresh fetch inside buildUnsignedTransaction either way, so this is never stale-unsafe.
         let utxos = manualUtxos ?? previewSelection?.utxos
         let previewed = manualUtxos == nil && previewSelection != nil
+        let quantumRecord = ColdStorageManager.shared.quantumAddressRecord(fromAddress)
+        let compound = isCompoundMode
+        let engine = ColdStorageSendEngine.shared
         Task {
             do {
-                let unsignedTx = try await ColdStorageSendEngine.shared.buildUnsignedTransaction(
+                // A quantum source's change goes to a fresh quantum address of the account: this
+                // spend makes the source's key public, and the build refuses change back to it.
+                // A rebuild hands the earlier pick back and chooses again. (A quantum compound's
+                // destination was reserved when the flow opened and stays.)
+                var changeAddress: String?
+                if quantumRecord != nil && !compound {
+                    engine.releaseQuantumChange(reservedChange)
+                    changeAddress = await engine.freshQuantumChangeAddress(for: fromAddress)
+                    reservedChange = changeAddress
+                }
+                let unsignedTx = try await engine.buildUnsignedTransaction(
                     fromAddress: fromAddress,
                     toAddress: recipient,
                     amountSompi: amountSompi,
                     feeRateOverride: overrideRate,
                     manualUtxos: utxos,
-                    previewed: previewed
+                    previewed: previewed,
+                    changeAddress: changeAddress,
+                    quantumUnitIndex: quantumRecord?.entry.unitIndex,
+                    quantumUnitChain: quantumRecord?.entry.chain ?? .receive
                 )
-                let kspt = try ColdStorageSendEngine.shared.toKspt(unsignedTx)
+                // No change after all (a Max send): the address isn't taken.
+                if !compound, let changeAddress, unsignedTx.changeAddress == nil {
+                    engine.releaseQuantumChange(changeAddress)
+                    reservedChange = nil
+                }
+                let kspt = try engine.toKspt(unsignedTx)
                 let frames = try QrFrameChunker.chunk(kspt)
                 await MainActor.run {
                     step = .showingQR(unsignedTx, frames)
                 }
             } catch {
+                if !compound {
+                    engine.releaseQuantumChange(reservedChange)
+                    reservedChange = nil
+                }
                 await MainActor.run {
                     step = .failed(error.localizedDescription)
                 }
@@ -1904,6 +2184,10 @@ private struct ColdSendFlowView: View {
             do {
                 try await SendFailureSimulation.failIfEnabled()
                 let txId = try await ColdStorageSendEngine.shared.broadcastSigned(unsignedTx: unsignedTx, decoded: decoded)
+                // The quantum address that took the change (or the compound) is used now.
+                if unsignedTx.isQuantumSource {
+                    ColdStorageSendEngine.shared.noteQuantumChangeSent(isCompoundMode ? reservedChange : unsignedTx.changeAddress)
+                }
                 await MainActor.run {
                     isBroadcasting = false
                     sentTransaction = SentTransaction(
@@ -2152,9 +2436,19 @@ struct ColdStorageAddressTransactionHistoryView: View {
     @State private var utxoLabels: [String: String] = [:]
     @State private var renamingUtxo: UTXO?
     @State private var renameUtxoText = ""
+    /// This account's addresses (lowercased), for telling change to its own addresses apart
+    /// from what was sent; loaded once, not per row.
+    @State private var accountAddresses: Set<String> = []
 
     private func outpointKey(_ utxo: UTXO) -> String {
         "\(utxo.outpoint.transactionId):\(utxo.outpoint.index)"
+    }
+
+    /// Compound on a quantum address moves its coins to another quantum address of the account
+    /// (the merge puts its key on chain), so it's offered only when the account has another.
+    private var canCompound: Bool {
+        guard entry.isQuantum else { return true }
+        return (ColdStorageManager.shared.quantumAddressRecord(entry.address)?.account.quantumAddresses.count ?? 0) > 1
     }
 
     /// Plain names - History, UTXOs, Domains - the way the user asked for them.
@@ -2283,6 +2577,7 @@ struct ColdStorageAddressTransactionHistoryView: View {
         .onScreenPresence(appear: {
             Task {
                 utxoLabels = ColdStorageManager.shared.loadUtxoLabels(address: entry.address)
+                accountAddresses = await ColdStorageManager.shared.accountAddresses(containing: entry.address)
                 await loadTransactions()
                 await loadUtxos()
             }
@@ -2370,7 +2665,7 @@ struct ColdStorageAddressTransactionHistoryView: View {
 
     private var utxosList: some View {
         List {
-            if utxos.count > 1 {
+            if utxos.count > 1, canCompound {
                 Section {
                     Button {
                         showCompoundSheet = true
@@ -2383,7 +2678,11 @@ struct ColdStorageAddressTransactionHistoryView: View {
                         }
                     }
                 } footer: {
-                    Text("Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs.")
+                    if entry.isQuantum {
+                        Text("Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain.")
+                    } else {
+                        Text("Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs.")
+                    }
                 }
             }
             if isLoadingUtxos && utxos.isEmpty {
@@ -2456,17 +2755,42 @@ struct ColdStorageAddressTransactionHistoryView: View {
     }
 
     private func transactionRow(_ tx: KaspaFullTransactionResponse) -> some View {
-        let info = tx.direction(for: entry.address)
+        var info = tx.direction(for: entry.address)
+        // What left the account, not every output to others: change to another of the account's
+        // addresses (a quantum send's change goes to a fresh quantum address) is its own, and a
+        // swap also spends a pool's coins. All of it to the account's own addresses is Moved.
+        var moved = false
+        if info?.isOutgoing == true {
+            let this = entry.address.lowercased()
+            let own = accountAddresses
+            var toOthers: UInt64 = 0
+            var ownChange: UInt64 = 0
+            for output in tx.outputs {
+                let to = output.scriptPublicKeyAddress?.lowercased() ?? this
+                if to == this { continue }
+                if own.contains(to) { ownChange &+= output.amount } else { toOthers &+= output.amount }
+            }
+            if let result = tx.ownHistoryAmount(for: entry.address, toOthers: toOthers, ownChange: ownChange,
+                                                isOwnAddress: { own.contains($0) }) {
+                info = (result.isOutgoing, result.amountSompi)
+            }
+            if info?.isOutgoing == true, toOthers == 0, ownChange > 0 {
+                moved = true
+                info = (true, ownChange)
+            }
+        }
+        let tint: Color = info == nil || moved ? .secondary : (info!.isOutgoing ? .red : .green)
         return HStack(spacing: 12) {
-            Image(systemName: info?.isOutgoing == true ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+            Image(systemName: moved ? "arrow.left.arrow.right.circle.fill"
+                  : (info?.isOutgoing == true ? "arrow.up.circle.fill" : "arrow.down.circle.fill"))
                 .font(.title2)
-                .foregroundColor(info == nil ? .secondary : (info!.isOutgoing ? .red : .green))
+                .foregroundColor(tint)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(info == nil ? "Transaction" : (info!.isOutgoing ? "Sent" : "Received"))
+                Text(info == nil ? "Transaction" : (moved ? "Moved" : (info!.isOutgoing ? "Sent" : "Received")))
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(info == nil ? .secondary : (info!.isOutgoing ? .red : .green))
+                    .foregroundColor(tint)
                 Text(tx.transactionId)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundColor(.secondary)
@@ -2481,10 +2805,10 @@ struct ColdStorageAddressTransactionHistoryView: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 if let info {
-                    Text(verbatim: "\(info.isOutgoing ? "-" : "+")\(KaspaUnit.groupedExact(info.amountSompi)) \(KaspaUnit.symbol)")
+                    Text(verbatim: "\(moved ? "" : (info.isOutgoing ? "-" : "+"))\(KaspaUnit.groupedExact(info.amountSompi)) \(KaspaUnit.symbol)")
                         .font(.subheadline)
                         .fontWeight(.semibold)
-                        .foregroundColor(info.isOutgoing ? .red : .green)
+                        .foregroundColor(tint)
                 }
                 // The network fee this transaction paid (inputs minus outputs). Every
                 // transaction has one, whoever sent it; on a received one it is what the
@@ -2555,10 +2879,16 @@ private struct ColdStorageAddressVisibilityView: View {
         manager.accounts.first { $0.id == account.id } ?? account
     }
 
+    /// The account's scanned quantum-resistant addresses, listed apart from the pager.
+    private var quantumEntries: [ColdStorageAddressEntry] {
+        entries.filter(\.isQuantum)
+    }
+
     /// The rows for the current page, by raw index order. Derived indices come from the
     /// loaded entries; anything beyond derives its address fresh (underived = unchecked).
     private var pageEntries: [ColdStorageAddressEntry] {
-        let byIndex = Dictionary(uniqueKeysWithValues: entries.map { ($0.index, $0) })
+        // The kpub's chain only: quantum entries sit at 1,000,000+ and have their own section.
+        let byIndex = Dictionary(uniqueKeysWithValues: entries.filter { !$0.isQuantum }.map { ($0.index, $0) })
         let start = page * pageSize
         return (start..<(start + pageSize)).compactMap { index in
             if let existing = byIndex[index] { return existing }
@@ -2584,8 +2914,25 @@ private struct ColdStorageAddressVisibilityView: View {
                                 .listRowInsets(EdgeInsets())
                                 .listRowSeparator(.hidden)
                                 .id(Self.topAnchorID)
-                            ForEach(pageEntries) { entry in
-                                row(entry)
+                            if page == 0, !quantumEntries.isEmpty {
+                                Section {
+                                    ForEach(quantumEntries) { entry in
+                                        row(entry)
+                                    }
+                                } header: {
+                                    Text("Quantum-Resistant Addresses")
+                                }
+                                Section {
+                                    ForEach(pageEntries) { entry in
+                                        row(entry)
+                                    }
+                                } header: {
+                                    Text("Addresses")
+                                }
+                            } else {
+                                ForEach(pageEntries) { entry in
+                                    row(entry)
+                                }
                             }
                         }
                         .listStyle(.plain)
@@ -2653,9 +3000,18 @@ private struct ColdStorageAddressVisibilityView: View {
                 .opacity(funded ? 0.45 : 1)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text("#\(entry.index)")
-                        .font(.subheadline.weight(.bold))
-                        .monospacedDigit()
+                    if entry.isQuantum {
+                        Image(systemName: "shield.fill")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                        Text(verbatim: ColdQuantumAddress.defaultLabel(chain: entry.quantumChain, unitIndex: entry.unitIndex))
+                            .font(.subheadline.weight(.bold))
+                            .lineLimit(1)
+                    } else {
+                        Text("#\(entry.index)")
+                            .font(.subheadline.weight(.bold))
+                            .monospacedDigit()
+                    }
                     if let label = entry.label, !label.trimmingCharacters(in: .whitespaces).isEmpty {
                         Text(label)
                             .font(.caption)
@@ -2713,8 +3069,16 @@ private struct ColdStorageAddressVisibilityView: View {
         // Funded rows don't toggle - mirrors the manager-side guard.
         guard entry.balanceSompi == 0 else { return }
         Task {
-            let derivedMax = entries.map(\.index).max() ?? -1
-            if entry.index > derivedMax {
+            // The kpub chain's highest derived index; quantum entries (1,000,000+) aren't on it.
+            let derivedMax = entries.filter { !$0.isQuantum }.map(\.index).max() ?? -1
+            if entry.isQuantum {
+                guard let index = manager.currentQuantumIndex(of: entry.address, in: currentAccount) else { return }
+                let ok = await manager.setAddressHidden(account: currentAccount, index: index, hidden: !entry.hidden)
+                guard ok else { return }
+                if let position = entries.firstIndex(where: { $0.id == entry.id }) {
+                    entries[position].hidden.toggle()
+                }
+            } else if entry.index > derivedMax {
                 // A derived future index from the endless pager: reveal exactly this one
                 // (indices in between stay hidden so the main list doesn't flood).
                 manager.revealAddress(for: currentAccount, at: entry.index)
@@ -2967,5 +3331,204 @@ private struct ColdStorageKpubQRView: View {
         let context = CIContext()
         guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return }
         qrImage = UIImage(cgImage: cgImage)
+    }
+}
+
+
+/// Adds one of a KasSigner's quantum-resistant (KCC-3) addresses to a Cold Storage account: scanned
+/// from the unit's address screen or pasted, with the address's number on the unit when known.
+/// The unit never hands over a kpub for these (it would show the keys the addresses hide), so
+/// K watches each address it is given and the unit supplies the key's script when it signs.
+private struct ColdQuantumAddressAddSheet: View {
+    let account: ColdStorageAccount
+    let onAdded: (ColdQuantumAddress) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var addressText = ""
+    @State private var numberText = ""
+    @State private var chain: ColdQuantumAddress.Chain = .receive
+    @State private var showScanner = false
+    @State private var errorText: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        TextField(AppLocalization.string("kaspa:pq..."), text: $addressText, axis: .vertical)
+                            .font(.system(.footnote, design: .monospaced))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        Button {
+                            showScanner = true
+                        } label: {
+                            Image(systemName: "qrcode.viewfinder")
+                                .font(.title3)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(.accentColor)
+                        .accessibilityLabel(Text("Scan QR"))
+                    }
+                    Button("Paste") {
+                        if let text = UIPasteboard.general.string { addressText = text }
+                    }
+                } header: {
+                    Text("Quantum-Resistant Address")
+                } footer: {
+                    Text("On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends.")
+                }
+                ColdQuantumNumberFields(numberText: $numberText, chain: $chain)
+                if let errorText {
+                    Section {
+                        Text(errorText)
+                            .foregroundColor(.red)
+                            .font(.footnote)
+                    }
+                }
+            }
+            .navigationTitle(Text("Add Quantum Address"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") { add() }
+                        .fontWeight(.semibold)
+                        .disabled(addressText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .sheet(isPresented: $showScanner) {
+                QRScannerView { code in
+                    addressText = code
+                    showScanner = false
+                }
+            }
+        }
+    }
+
+    private func add() {
+        let number: UInt32?
+        switch ColdQuantumNumberFields.parse(numberText) {
+        case .success(let value): number = value
+        case .failure(let message):
+            errorText = message.text
+            return
+        }
+        switch ColdStorageManager.shared.addQuantumAddress(addressText, unitIndex: number, chain: chain, to: account) {
+        case .success(let added):
+            Haptics.success()
+            onAdded(added)
+            dismiss()
+        case .failure(let error):
+            errorText = error.localizedDescription
+        }
+    }
+}
+
+/// The unit's number for a quantum address and which of its KCC-3 chains it is on, shared by the
+/// add and edit sheets.
+private struct ColdQuantumNumberFields: View {
+    @Binding var numberText: String
+    @Binding var chain: ColdQuantumAddress.Chain
+
+    struct Message: Error { let text: String }
+
+    var body: some View {
+        Section {
+            Picker(selection: $chain) {
+                Text("Receive Address").tag(ColdQuantumAddress.Chain.receive)
+                Text("Change Address").tag(ColdQuantumAddress.Chain.change)
+            } label: {
+                Text("Chain")
+            }
+            .pickerStyle(.segmented)
+            TextField(AppLocalization.string("Optional"), text: $numberText)
+                .keyboardType(.numberPad)
+        } header: {
+            Text("Address Number on KasSigner")
+        } footer: {
+            Text("The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment.")
+        }
+    }
+
+    /// The typed number: nil when empty, a message when it isn't one the unit can have (a KCC-3
+    /// address number is below 2^31, since higher ones are hardened).
+    static func parse(_ text: String) -> Result<UInt32?, Message> {
+        let digits = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if digits.isEmpty { return .success(nil) }
+        guard digits.allSatisfy({ $0.isASCII && $0.isNumber }) else {
+            return .failure(Message(text: AppLocalization.string("The address number must be a whole number.")))
+        }
+        guard let value = UInt32(digits), value < 0x8000_0000 else {
+            return .failure(Message(text: AppLocalization.string("That number is too large: KasSigner's address numbers are below 2147483648.")))
+        }
+        return .success(value)
+    }
+}
+
+/// Edit Address Number: sets, changes or clears a quantum address's number and chain on the unit.
+private struct ColdQuantumAddressNumberSheet: View {
+    let entry: ColdStorageAddressEntry
+    let account: ColdStorageAccount
+    let onSaved: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var numberText: String
+    @State private var chain: ColdQuantumAddress.Chain
+    @State private var errorText: String?
+
+    init(entry: ColdStorageAddressEntry, account: ColdStorageAccount, onSaved: @escaping () -> Void) {
+        self.entry = entry
+        self.account = account
+        self.onSaved = onSaved
+        // the stored record, not the row, which may be from before an earlier edit
+        let stored = ColdStorageManager.shared.quantumAddressRecord(entry.address)?.entry
+        _numberText = State(initialValue: (stored?.unitIndex ?? entry.unitIndex).map { String($0) } ?? "")
+        _chain = State(initialValue: stored?.chain ?? entry.quantumChain)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(verbatim: entry.address)
+                        .font(.system(.footnote, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .textSelection(.enabled)
+                }
+                ColdQuantumNumberFields(numberText: $numberText, chain: $chain)
+                if let errorText {
+                    Section {
+                        Text(errorText)
+                            .foregroundColor(.red)
+                            .font(.footnote)
+                    }
+                }
+            }
+            .navigationTitle(Text("Edit Address Number"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private func save() {
+        switch ColdQuantumNumberFields.parse(numberText) {
+        case .success(let number):
+            ColdStorageManager.shared.updateQuantumAddress(entry.address, unitIndex: number, chain: chain, in: account)
+            Haptics.success()
+            onSaved()
+            dismiss()
+        case .failure(let message):
+            errorText = message.text
+        }
     }
 }

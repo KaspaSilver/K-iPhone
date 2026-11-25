@@ -21,6 +21,28 @@ also goes there as its own `docs/<TOPIC>.md` ("For / From / Status", what to bui
 
 ## Open
 
+- **2026-11-25 - One Received push per block found.** `emit_funds_received` pushes every
+  transaction of every block on sighting, coinbase included; each block merging a miner's block
+  carries its own coinbase paying them, so one block found pings once per merging block. Push
+  coinbase only on acceptance (better: every tx on acceptance). App side done (catch-up skips
+  `is_accepted == false`). In the indexer repo as `docs/RECEIVED_PUSH_COINBASE.md`.
+
+- **2026-11-25 - K Explorer: K Activity and network fees.** Not yet committed here;
+  `Views/Explorer/ExplorerAPI.swift` (`ExplorerKStats`). The Explorer's K Activity card (24 Hours, 7 Days
+  and All Time only, owner) reads `/stats` today and leaves out what isn't served. Asked for:
+  `GET /stats/activity?period=day|week|all` with `categories`, `previous` (the window before) and
+  `series` (hourly/daily/monthly), read as soon as it's served. Trimmed the same day (owner: the
+  indexer tracks only what nobody else serves): fees come from Kaspalytics, so `/network/fees`,
+  the fee ingest changes, `last30d`, `activeAddresses`, `feesSompi` and new categories to index
+  are no longer asked for. In the indexer repo as `docs/EXPLORER_STATS.md` (98207df).
+
+- **2026-11-25 - #kachat-bugs is now #report-bugs.** Not yet committed here;
+  `PublicChatService.featuredChannels` / `retiredChannels`. K lists `report-bugs` as a default
+  room and moves accounts off `kachat-bugs` (bell, pin, on/off carried over). The indexer: add
+  `report-bugs` to `k_vars['broadcast_channels']` in the panel now (re-read every 15 s), and to the
+  three `DEFAULT_BROADCAST_CHANNELS` copies; keep `kachat-bugs` tracked until the other clients
+  move. In the indexer repo as `docs/REPORT_BUGS_ROOM.md`.
+
 - **2026-11-23 - KaPlay arcade boards (Snake, 2048).** Committed (518fdc8c);
   spec ARCADE.md. The app stamps every finished game as a plaintext broadcast in the hidden room
   `#kplay-arcade` (ARCADE.md §1) and reads the boards from

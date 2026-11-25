@@ -2550,11 +2550,10 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
     /// Games (back 2026-11-21, from KaPlay): a card per game; Chess is online 1v1, tournaments
     /// and the bots.
     case games
-    /// KaChat Stats (back 2026-11-21, phase 5): how many transactions KaChat has put on Kaspa,
-    /// by kind, as the indexers count them (STATS_INDEXER.md).
-    case kachatStats
     /// Kaspa Websites (back 2026-11-21, phase 5): Kaspa sites opened in the in-app browser.
     case apps
+    /// K's own block explorer (2026-11-25): blocks, transactions and addresses in the app.
+    case explorer
 
     var id: String { rawValue }
 
@@ -2574,8 +2573,8 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .kachatNames: return "Usernames"
         case .kaposts: return "KaPost"
         case .games: return "KaPlay"
-        case .kachatStats: return "Stats"
         case .apps: return "Websites"
+        case .explorer: return "Explorer"
         }
     }
 
@@ -2597,8 +2596,8 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .kaposts: return "square.text.square"
         // KaPlay's Play tab (its leaderboards are inside Chess since 2026-11-22)
         case .games: return "gamecontroller"
-        case .kachatStats: return "chart.bar.xaxis"
         case .apps: return "globe"
+        case .explorer: return "cube.transparent"
         }
     }
 
@@ -2615,9 +2614,9 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .kachatNames: return 12
         case .kaposts: return 5
         case .games: return 22
-        // their tags from before they left (2026-10-24)
-        case .kachatStats: return 13
+        // its tag from before it left (2026-10-24)
         case .apps: return 9
+        case .explorer: return 24
         }
     }
 

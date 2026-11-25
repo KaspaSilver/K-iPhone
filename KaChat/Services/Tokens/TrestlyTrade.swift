@@ -134,10 +134,13 @@ enum TrestlyTrade {
             }
             if let txid = result["txid"] as? String {
                 AddressActivityNotifier.shared.markOwnTransaction(txid)
-            }
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                await TokenWallet.shared.refresh()
+                // looked up again until the swap's coins show (`TokenWallet.followTrade`)
+                TokenWallet.shared.followTrade(txid: txid, address: target.address)
+            } else {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 4_000_000_000)
+                    await TokenWallet.shared.refresh()
+                }
             }
             return Done(result: result, prepared: prepared, fee: done["fee"])
         }

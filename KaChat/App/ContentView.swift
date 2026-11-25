@@ -20,6 +20,27 @@ struct ContentView: View {
 
     private var accountContent: some View {
         Group {
+            if walletManager.isSwitchingAccount && walletManager.currentWallet == nil {
+                // Between one account's Log Out and the next one's sign-in: the globe, never
+                // the sign-in screen (a failed switch ends here and shows that screen with why).
+                LoadingView()
+            } else {
+                routedContent
+            }
+        }
+        .animation(
+            .easeInOut,
+            value: walletManager.currentWallet != nil && !walletManager.isAwaitingSeedPhraseConfirmation
+        )
+        .onChange(of: walletManager.currentWallet == nil) { signedOut in
+            if signedOut { signInSession += 1 }
+        }
+        .onAppear { LaunchTrace.mark("first screen on") }
+    }
+
+    @ViewBuilder
+    private var routedContent: some View {
+        Group {
             switch LaunchRouter.route(
                 isWalletMetadataLoading: walletManager.isLoading,
                 hasCurrentWallet: walletManager.currentWallet != nil,
@@ -41,14 +62,6 @@ struct ContentView: View {
                 }
             }
         }
-        .animation(
-            .easeInOut,
-            value: walletManager.currentWallet != nil && !walletManager.isAwaitingSeedPhraseConfirmation
-        )
-        .onChange(of: walletManager.currentWallet == nil) { signedOut in
-            if signedOut { signInSession += 1 }
-        }
-        .onAppear { LaunchTrace.mark("first screen on") }
     }
 }
 

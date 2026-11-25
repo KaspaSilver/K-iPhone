@@ -139,6 +139,10 @@ final class WalletManager: ObservableObject {
 
     @Published var currentWallet: Wallet?
     @Published var isLoading = true
+    /// True while `switchToSavedAccount` runs: it logs out, then signs in, and between the two
+    /// the sign-in screen flashed up for a moment (owner, 2026-11-25: "it should be a seamless
+    /// transfer to another profile"). `ContentView` shows the loading globe for that gap instead.
+    @Published private(set) var isSwitchingAccount = false
     @Published var error: KasiaError?
     /// When `refreshBalance` last finished for which address, so the half-dozen callers that
     /// fire together on a tab switch share one network round trip.
@@ -740,6 +744,8 @@ final class WalletManager: ObservableObject {
     @discardableResult
     func switchToSavedAccount(_ account: SavedAccountSummary) async -> Bool {
         if isCurrentAccount(account) { return true }
+        isSwitchingAccount = true
+        defer { isSwitchingAccount = false }
         await logout()
         return await signInToSavedAccount(account)
     }
@@ -946,6 +952,7 @@ final class WalletManager: ObservableObject {
                     // Public rooms (`PublicChatService`, lowercased address): hidden curated
                     // rooms, read marks, rooms marked unread, default bells
                     "kachat_broadcast_hidden_curated_\(lowered)",
+                    "kachat_broadcast_hidden_missing_\(lowered)",
                     "kachat_broadcast_last_read_\(lowered)",
                     "kachat_broadcast_manual_unread_\(lowered)",
                     "kaposts_broadcast_default_bells_\(lowered)"

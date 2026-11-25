@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "وارد کردن فایل";
 "Export File" = "صادر کردن فایل";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "آن را در پوشه KaChat در Nextcloud ذخیره کنید تا روی هر دستگاهی وارد شود.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "آن را در پوشه K در Nextcloud ذخیره کنید تا روی هر دستگاهی وارد شود.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "Nextcloud را در تنظیمات > فضای ذخیره‌سازی وصل کنید تا آنجا هم ذخیره و روی دستگاه دیگری وارد شود.";
 "Couldn't read that file." = "خواندن آن فایل ممکن نشد.";
 "Nothing to export yet. Add a contact first." = "هنوز چیزی برای خروجی گرفتن نیست. اول یک مخاطب اضافه کنید.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "ارسال پیشنهاد";
 "Offers open when .kachat names launch." = "پیشنهادها با راه‌اندازی نام‌های ‎.kachat باز می‌شوند.";
 "Pick a CSV file from your Nextcloud." = "یک فایل CSV از Nextcloud خود انتخاب کنید.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "فایل CSV را در پوشه KaChat در Nextcloud شما ذخیره می‌کند.";
+"Save the CSV to the K folder in your Nextcloud." = "فایل CSV را در پوشه K در Nextcloud شما ذخیره می‌کند.";
 "Names this address claims or buys show here once .kachat names launch." = "نام‌هایی که این نشانی می‌گیرد یا می‌خرد، پس از راه‌اندازی نام‌های ‎.kachat اینجا نمایش داده می‌شوند.";
 "Move to Portfolio" = "انتقال به سبد";
 "Create another portfolio first, then you can move transactions into it." = "اول یک سبد دیگر بسازید، بعد می‌توانید تراکنش‌ها را به آن منتقل کنید.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "ضعیف";
 "Disconnected" = "قطع";
 "Checking…" = "در حال بررسی…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "در حال حاضر دسترسی به نودهای gRPC ممکن نیست، بنابراین K از یک نود عمومی از طریق wss استفاده می‌کند.";
+"Search public chats" = "جستجوی گفتگوهای عمومی";
+"No Public Chats" = "گفتگوی عمومی‌ای نیست";
+"Tap + to join or create a public room." = "برای پیوستن به یک اتاق عمومی یا ساختن آن، + را بزنید.";
+"Switches between your chats and public chats" = "بین گفتگوهای شما و گفتگوهای عمومی جابه‌جا می‌شود";
+"More Rooms" = "اتاق‌های بیشتر";
+"Rooms added on the indexer K reads public chats from." = "اتاق‌هایی که روی ایندکسری اضافه شده‌اند که K گفتگوهای عمومی را از آن می‌خواند.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "پیوند کپی شد";
+"A link that opens this card in K." = "پیوندی که این کارت را در K باز می‌کند.";
+"Open" = "باز کردن";
+"Opens this card." = "این کارت را باز می‌کند.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "برای باز کردن در K ضربه بزنید.";
+"Opens it in K." = "آن را در K باز می‌کند.";
+"Your saved Kaspa addresses." = "نشانی‌های Kaspa ذخیره‌شدهٔ شما.";
+"Track your coins and their value." = "سکه‌ها و ارزششان را دنبال کنید.";
+"Watch and sign for your cold wallets." = "کیف پول‌های سرد را زیر نظر بگیرید و برایشان امضا کنید.";
+"Claim, buy and sell .kachat usernames." = "نام‌های کاربری ‎.kachat را ثبت کنید، بخرید و بفروشید.";
+"Posts and replies on Kaspa." = "پست‌ها و پاسخ‌ها در Kaspa.";
+"Chess, Snake and 2048, scores on chain." = "شطرنج، اسنیک و ۲۰۴۸، امتیازها روی زنجیره.";
+"Websites built on Kaspa." = "وب‌سایت‌های ساخته‌شده روی Kaspa.";
+"Blocks, transactions and addresses, live." = "بلوک‌ها، تراکنش‌ها و نشانی‌ها، زنده.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "این آدرس مقاوم در برابر کوانتوم نیست. آدرس KCC-3 را که KasSigner نشان می‌دهد اسکن کنید.";
+"That address is already in this account." = "این آدرس از قبل در این حساب هست.";
+"Quantum-resistant address added." = "آدرس مقاوم در برابر کوانتوم اضافه شد.";
+"Add Quantum-Resistant Address" = "افزودن آدرس مقاوم در برابر کوانتوم";
+"Scan a KCC-3 address from KasSigner's address screen." = "یک آدرس KCC-3 را از صفحهٔ آدرس KasSigner اسکن کنید.";
+"Stop Watching" = "توقف نظارت";
+"Removes this quantum address from the account. Scan it again to add it back." = "این آدرس کوانتومی را از حساب حذف می‌کند. برای افزودن دوباره، آن را دوباره اسکن کنید.";
+"Quantum-Resistant Address" = "آدرس مقاوم در برابر کوانتوم";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "در KasSigner، آدرس KCC-3 مورد نظرتان را باز کنید و کد QR آن را اسکن کنید. کلیدش تا وقتی از این آدرس خرج نشود روی دستگاه می‌ماند.";
+"Address Number on KasSigner" = "شمارهٔ آدرس در KasSigner";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "شماره‌ای که KasSigner برای این آدرس نشان می‌دهد. با آن، دستگاه هنگام امضا کلید را فوراً پیدا می‌کند؛ بدون آن، دنبالش می‌گردد.";
+"Add Quantum Address" = "افزودن آدرس کوانتومی";
+"The address number must be a whole number." = "شمارهٔ آدرس باید یک عدد صحیح باشد.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "به KasSigner نسخهٔ 1.1 یا جدیدتر نیاز دارد که آدرس‌های مقاوم در برابر کوانتوم (KCC-3) را امضا می‌کند.";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "باقی‌مانده به همین آدرس برمی‌گردد که این ارسال کلیدش را روی زنجیره می‌گذارد. برای اینکه باقی‌مانده ایمن در برابر کوانتوم بماند، یک آدرس کوانتومی دیگر از KasSigner اضافه کنید.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "باقی‌مانده به یک آدرس کوانتومی استفاده‌نشده از این حساب می‌رود، چون این ارسال کلید این آدرس را روی زنجیره می‌گذارد.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner اسکریپت کلید این آدرس مقاوم در برابر کوانتوم را برنگرداند، پس منتشر نمی‌شود. بررسی کنید دستگاه KasSigner نسخهٔ 1.1 یا جدیدتر را اجرا می‌کند و این آدرس را دارد.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "تراکنش امضاشده شرایط قراردادی اضافه می‌کند که این ارسال هرگز نخواسته بود، پس منتشر نمی‌شود.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "آدرس کوانتومی";
+"Quantum Change Address" = "آدرس باقی‌ماندهٔ کوانتومی";
+"Quantum Address #%lld" = "آدرس کوانتومی #%lld";
+"Quantum Change Address #%lld" = "آدرس باقی‌ماندهٔ کوانتومی #%lld";
+"That address is already in your Cold Storage account “%@”." = "این آدرس از قبل در حساب Cold Storage «%@» شما هست.";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "این ارسال کلید این آدرس را روی زنجیره می‌گذارد، پس باقی‌مانده‌اش نمی‌تواند به اینجا برگردد. اول یک آدرس مقاوم در برابر کوانتوم استفاده‌نشده از KasSigner اضافه کنید (بهتر است آدرس باقی‌مانده، #0 تا #4)، یا کل موجودی را بفرستید.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "ادغام کلید این آدرس را روی زنجیره می‌گذارد، پس سکه‌هایش به یک آدرس مقاوم در برابر کوانتوم استفاده‌نشده از این حساب می‌روند. اول یکی از KasSigner اضافه کنید (بهتر است آدرس باقی‌مانده، #0 تا #4).";
+"Stop Watching This Address?" = "نظارت بر این آدرس متوقف شود؟";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "%@ KAS آن روی زنجیره در همین آدرس، روی KasSigner شما می‌ماند؛ K فقط دیگر آن را نشان نمی‌دهد. برای نظارت دوباره، آدرس را دوباره از KasSigner اسکن کنید.";
+"Edit Address Number" = "ویرایش شمارهٔ آدرس";
+"The number and chain KasSigner shows for this address." = "شماره و زنجیره‌ای که KasSigner برای این آدرس نشان می‌دهد.";
+"Chain" = "زنجیره";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "شماره‌ای که KasSigner برای این آدرس نشان می‌دهد، و اینکه آدرس دریافت است یا آدرس باقی‌مانده. با آن، دستگاه هنگام امضا کلید را فوراً پیدا می‌کند؛ بدون آن، دنبالش می‌گردد. KasSigner باقی‌مانده‌ای را که به آدرس‌های باقی‌ماندهٔ #0 تا #4 خودش می‌رود باقی‌مانده نشان می‌دهد و هر آدرس دیگری را پرداخت.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "این شماره خیلی بزرگ است: شماره‌های آدرس KasSigner کمتر از 2147483648 هستند.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "همهٔ سکه‌های این آدرس را در یک سکه، در یک آدرس مقاوم در برابر کوانتوم استفاده‌نشده از این حساب جمع می‌کند: این تراکنش کلید این آدرس را روی زنجیره می‌گذارد.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "این آدرس بیش از آنچه یک تراکنش می‌تواند خرج کند سکه دارد: %lld سکه پشت کلیدی می‌ماند که این ارسال روی زنجیره می‌گذارد. بلافاصله بعد، آن‌ها را در تراکنش دیگری بفرستید.";
+"The coins move to your quantum address:" = "سکه‌ها به آدرس کوانتومی شما می‌روند:";
+"The change goes to your quantum address:" = "باقی‌مانده به آدرس کوانتومی شما می‌رود:";
+"KasSigner shows this output as change." = "KasSigner این خروجی را باقی‌مانده نشان می‌دهد.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner این خروجی را پرداختی عادی نشان می‌دهد، نه باقی‌مانده: پیش از امضا مطمئن شوید همین آدرس است.";
+"Sign Without the Address Number" = "امضا بدون شمارهٔ آدرس";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "اگر KasSigner این درخواست را رد کند، ممکن است شمارهٔ آدرس اشتباه باشد. بدون آن، دستگاه خودش دنبال آدرس می‌گردد. «ویرایش شمارهٔ آدرس» آن را برای دفعهٔ بعد درست می‌کند.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "همهٔ UTXOهای این آدرس را در یکی، در یک آدرس مقاوم در برابر کوانتوم استفاده‌نشده از این حساب ادغام می‌کند، چون این کار کلید این آدرس را روی زنجیره می‌گذارد.";
+"Quantum-Resistant Addresses" = "آدرس‌های مقاوم در برابر کوانتوم";
+"Addresses" = "آدرس‌ها";
+"Receive Address" = "آدرس دریافت";
+"Change Address" = "آدرس باقی‌مانده";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "۱ گفتگوی عمومی حذف شود؟";
+"Delete %lld Public Chats?" = "%lld گفتگوی عمومی حذف شود؟";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "گفتگوهای عمومی پیش‌فرض خاموش می‌شوند (در ویرایش گفتگوهای عمومی پیش‌فرض دوباره روشنشان کنید). اتاق‌هایی که خودتان افزوده‌اید همراه پیام‌هایشان از این دستگاه حذف می‌شوند.";

@@ -35,11 +35,44 @@ extension ChatService {
     /// Puts an edit into the live index - newest by block time wins, except that the local
     /// user's own in-flight edit is replaced by its own outcome.
     func applyLocalEdit(_ edit: MessageEditSnapshot) {
-        if let current = editsByTxId[edit.targetTxId], current.deliveryStatus == .sent,
-           current.blockTime > edit.blockTime, current.editTxId != edit.editTxId {
-            return
-        }
+        if Self.isSupersededEdit(edit, by: editsByTxId[edit.targetTxId]) { return }
         editsByTxId[edit.targetTxId] = edit
+        // The chat list's preview line too, whichever chat it's in, by the same rule: the thread's
+        // index holds only opened chats, so an older edit arriving for a closed chat replaced a
+        // newer preview (audit 2026-11-25 C10).
+        guard !Self.isSupersededEdit(edit, by: previewEditsByTxId[edit.targetTxId]) else { return }
+        if previewEditsByTxId[edit.targetTxId] != edit { previewEditsByTxId[edit.targetTxId] = edit }
+    }
+
+    /// Whether `current` (a sent edit of the same message, from a later block, and not this
+    /// edit's own outcome) wins over `edit`.
+    private static func isSupersededEdit(_ edit: MessageEditSnapshot, by current: MessageEditSnapshot?) -> Bool {
+        guard let current else { return false }
+        return current.deliveryStatus == .sent && current.blockTime > edit.blockTime
+            && current.editTxId != edit.editTxId
+    }
+
+    /// Reads the newest edit of every chat's last message into `previewEditsByTxId`, once the
+    /// chat list is loaded: an edit made before this launch is otherwise only read when its chat
+    /// is opened. Later edits arrive through `applyLocalEdit`.
+    func loadPreviewEdits() {
+        guard let key = messageEncryptionKey() else { return }
+        let targets = conversations.compactMap { $0.lastMessage?.txId }.filter { !$0.isEmpty }
+        guard !targets.isEmpty else { return }
+        let owner = WalletManager.shared.currentWallet?.publicAddress
+        Task { @MainActor in
+            let loaded = await messageStore.fetchEdits(targetTxIds: targets, decryptionKey: key)
+            guard WalletManager.shared.currentWallet?.publicAddress == owner, !loaded.isEmpty else { return }
+            var merged = previewEditsByTxId
+            for (targetTxId, edit) in loaded where merged[targetTxId] == nil { merged[targetTxId] = edit }
+            if merged != previewEditsByTxId { previewEditsByTxId = merged }
+        }
+    }
+
+    /// `message` as the chat list shows it: with its newest edit applied.
+    func messageForPreview(_ message: ChatMessage) -> ChatMessage {
+        guard let edit = previewEditsByTxId[message.txId] ?? editsByTxId[message.txId] else { return message }
+        return message.replacingContent(MessageEditCodec.apply(edit.text, to: message.content))
     }
 
     /// An edit envelope that arrived as a message (the contact's, or our own echoed back). It

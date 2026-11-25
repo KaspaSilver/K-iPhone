@@ -85,7 +85,6 @@ struct MessageBubbleView: View {
     var voiceParts: VoiceNotePartsInput? = nil
     /// Set on the row that stands for a whole multi-part photo (its earliest part).
     var photoParts: PhotoPartsInput? = nil
-    @State private var shimmerPhase: CGFloat = -1
     @State private var showFullText = false
     /// Long-pressing a link surfaces this instead of the bubble's message sheet:
     /// `LinkifiedMessageTextView`'s own long-press recognizer fires first on a link and marks
@@ -394,12 +393,6 @@ struct MessageBubbleView: View {
                         .onTapGesture { onRetryReaction?(localReaction) }
                 }
             }
-            .onAppear {
-                startShimmerIfNeeded()
-            }
-            .onChange(of: shouldShowResolvingOverlay) { _ in
-                startShimmerIfNeeded()
-            }
 
             if message.isOutgoing {
                 avatarView
@@ -492,17 +485,6 @@ struct MessageBubbleView: View {
         return !domainPart.isEmpty
     }
 
-    private func startShimmerIfNeeded() {
-        guard shouldShowResolvingOverlay else {
-            shimmerPhase = -1
-            return
-        }
-        shimmerPhase = -1
-        withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) {
-            shimmerPhase = 1
-        }
-    }
-
     private var shouldShowRetry: Bool {
         guard message.isOutgoing, message.deliveryStatus == .failed else { return false }
         if let chessEnvelope, !chessRetryStillFits(chessEnvelope) { return false }
@@ -560,7 +542,7 @@ struct MessageBubbleView: View {
             .clipShape(RoundedRectangle(cornerRadius: isSingleEmojiOnly ? 0 : 16))
             .overlay {
                 if !isSingleEmojiOnly && shouldShowResolvingOverlay {
-                    ShimmerOverlay(phase: shimmerPhase)
+                    ShimmerOverlay()
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .allowsHitTesting(false)
                 }
@@ -1019,7 +1001,7 @@ struct MessageBubbleView: View {
         .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
         .overlay {
             if shouldShowResolvingOverlay {
-                ShimmerOverlay(phase: shimmerPhase)
+                ShimmerOverlay()
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .allowsHitTesting(false)
             }
@@ -1181,6 +1163,7 @@ struct KaChatInternalLinkCardView: View {
         case .paymentRequest: return "arrow.up.circle"
         case .kaPost: return "text.bubble"
         case .publicChatRoom: return "number"
+        case .hubSection(let tab): return tab.icon
         }
     }
 
@@ -1190,6 +1173,7 @@ struct KaChatInternalLinkCardView: View {
         case .paymentRequest: return "Payment Request"
         case .kaPost: return "KaPost"
         case .publicChatRoom: return "Public Chat Room"
+        case .hubSection: return "Kaspa Hub"
         }
     }
 
@@ -1207,6 +1191,8 @@ struct KaChatInternalLinkCardView: View {
             return AppLocalization.string("A post on KaPost")
         case .publicChatRoom(let channel):
             return "#\(channel)"
+        case .hubSection(let tab):
+            return AppLocalization.string(tab.label)
         }
     }
 
@@ -1236,6 +1222,8 @@ struct KaChatInternalLinkCardView: View {
             return AppLocalization.string(known
                 ? "Tap to open this public chat room."
                 : "Tap to join this public chat room.")
+        case .hubSection(let tab):
+            return AppLocalization.string(tab.hubBlurb) + "\n" + AppLocalization.string("Tap to open it in K.")
         }
     }
 
@@ -1244,9 +1232,14 @@ struct KaChatInternalLinkCardView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color.accentColor.opacity(0.18))
-                Image(systemName: iconName)
-                    .font(.scaled(size: 18, weight: .semibold))
-                    .foregroundColor(.accentColor)
+                if case .hubSection(let tab) = match.link {
+                    // the card's own icon, as the Hub grid draws it (the .kachat wordmark too)
+                    AppTabIcon(tab: tab, size: 18)
+                } else {
+                    Image(systemName: iconName)
+                        .font(.scaled(size: 18, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                }
             }
             .frame(width: 40, height: 40)
 
@@ -1631,27 +1624,40 @@ struct FullMessageTextView: View {
     }
 }
 
+/// The pending sweep over a message or payment that isn't on chain yet. Driven by a
+/// `TimelineView`, as `FeeShimmerOverlay` is: it draws only while on screen and stops with the
+/// overlay. The old `withAnimation(.repeatForever)` kept a transaction running on the bubble
+/// after it was hidden (audit 2026-11-25 B20). At most 30 frames a second, which a soft sweep
+/// doesn't need more than (uncapped it redrew the bubble at 120 Hz on ProMotion), and paused
+/// while the bubble is off screen (audit 2026-11-25 M8).
 private struct ShimmerOverlay: View {
-    let phase: CGFloat
+    private static let sweepSeconds: TimeInterval = 1.4
+    @State private var isVisible = false
 
     var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.0),
-                            Color.white.opacity(0.25),
-                            Color.white.opacity(0.0)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isVisible)) { context in
+            let elapsed = context.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: Self.sweepSeconds)
+            let phase = CGFloat(elapsed / Self.sweepSeconds) * 2 - 1
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.0),
+                                Color.white.opacity(0.25),
+                                Color.white.opacity(0.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .rotationEffect(.degrees(20))
-                .offset(x: phase * width * 1.5)
+                    .rotationEffect(.degrees(20))
+                    .offset(x: phase * geo.size.width * 1.5)
+            }
         }
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
     }
 }
 
@@ -2204,6 +2210,48 @@ struct MediaFile: Codable {
     }
 }
 
+/// A voice note's length and waveform, worked out once per process. Each bubble used to decode
+/// the whole note to a temporary file for these every time it appeared (audit 2026-11-25 B9);
+/// now a bubble scrolling back in, or the same note in a new view, reads them from here.
+/// Keyed by the message's txId and the audio's size (a long note: its anchor txId and the parts
+/// present), so a note never reads another's entry.
+enum VoiceNoteInfoCache {
+    final class Info: Sendable {
+        let duration: TimeInterval
+        let waveform: [Float]
+        init(duration: TimeInterval, waveform: [Float]) {
+            self.duration = duration
+            self.waveform = waveform
+        }
+    }
+
+    private static let cache: NSCache<NSString, Info> = {
+        let cache = NSCache<NSString, Info>()
+        cache.countLimit = 500
+        return cache
+    }()
+
+    static func info(forKey key: String) -> Info? {
+        cache.object(forKey: key as NSString)
+    }
+
+    static func store(_ info: Info, forKey key: String) {
+        cache.setObject(info, forKey: key as NSString)
+    }
+
+    /// A one-part note's key; nil without a txId (nothing to tell two notes apart by).
+    static func key(txId: String, data: Data) -> String? {
+        guard !txId.isEmpty else { return nil }
+        return "\(txId):\(data.count)"
+    }
+
+    /// A long note's key: its anchor txId and which parts (and sizes) are here.
+    static func key(txId: String, input: VoiceNotePartsInput) -> String? {
+        guard !txId.isEmpty else { return nil }
+        return "\(txId)#\(input.count):\(input.signature)"
+    }
+}
+
 private final class AudioPlaybackHelper: NSObject, ObservableObject, AVAudioPlayerDelegate, @unchecked Sendable {
     @Published var isPlaying = false
     @Published var durationText: String = "--:--"
@@ -2213,9 +2261,14 @@ private final class AudioPlaybackHelper: NSObject, ObservableObject, AVAudioPlay
 
     private var player: AVAudioPlayer?
     private var tempPlaybackURL: URL?
+    /// The note `player` was decoded from. A finished player stays for a replay, so a replay
+    /// first checks the bubble still holds this note (audit 2026-11-25 M6).
+    private var playerSource: (data: Data, mimeType: String)?
     private var cachedDuration: TimeInterval?
-    private var dataHash: Int?
+    private var loadedKey: String?
     private var progressTimer: Timer?
+    /// Bumped by every stop: a decode still running for an older Play doesn't start playing.
+    private var playGeneration = 0
 
     /// Every helper that has started playback, weakly. Each bubble owns its own helper (a per-row
     /// `@StateObject`), so the thread view has no handle on the one that is playing; it stops
@@ -2233,49 +2286,83 @@ private final class AudioPlaybackHelper: NSObject, ObservableObject, AVAudioPlay
         MultipartAudioPlaybackHelper.stopAllPlayback()
     }
 
-    func preloadDuration(data: Data, mimeType: String) {
-        let newHash = data.hashValue
-        if dataHash == newHash, cachedDuration != nil {
-            return // Already loaded for this data
+    deinit {
+        // A bubble dropped while playing: its audio stops with it, so give the session back.
+        progressTimer?.invalidate()
+        player?.stop()
+        VoicePlaybackCoordinator.shared.didStop(self)
+        if let url = tempPlaybackURL { try? FileManager.default.removeItem(at: url) }
+    }
+
+    /// Length and waveform for the bubble: from `VoiceNoteInfoCache` when this note was read
+    /// before, otherwise decoded once off the main thread and cached.
+    func preloadDuration(data: Data, mimeType: String, txId: String) {
+        let key = VoiceNoteInfoCache.key(txId: txId, data: data) ?? "hash:\(data.count):\(data.hashValue)"
+        if loadedKey == key, cachedDuration != nil { return }
+        loadedKey = key
+        if let info = VoiceNoteInfoCache.info(forKey: key) {
+            apply(info)
+            return
         }
-        dataHash = newHash
 
         isLoading = true
-        Task { @MainActor [weak self] in
-            do {
-                let (duration, samples) = try await Self.loadAudioInfo(data: data, mimeType: mimeType)
-                self?.cachedDuration = duration
-                self?.durationText = self?.formattedDuration(duration) ?? "--:--"
-                self?.waveformSamples = samples
-                self?.isLoading = false
-            } catch {
-                self?.durationText = "--:--"
-                self?.waveformSamples = Array(repeating: 0.3, count: 40)
-                self?.isLoading = false
+        let cacheable = !txId.isEmpty
+        Task.detached(priority: .utility) { [weak self] in
+            let info = try? Self.loadAudioInfo(data: data, mimeType: mimeType)
+            if let info, cacheable { VoiceNoteInfoCache.store(info, forKey: key) }
+            await MainActor.run {
+                guard let self, self.loadedKey == key else { return }
+                if let info {
+                    self.apply(info)
+                } else {
+                    self.durationText = "--:--"
+                    self.waveformSamples = Array(repeating: 0.3, count: 40)
+                    self.isLoading = false
+                }
             }
         }
     }
 
-    private static func loadAudioInfo(data: Data, mimeType: String) async throws -> (TimeInterval, [Float]) {
-        if mimeType.lowercased().contains("webm") {
+    private func apply(_ info: VoiceNoteInfoCache.Info) {
+        cachedDuration = info.duration
+        if !isPlaying { durationText = formattedDuration(info.duration) }
+        waveformSamples = info.waveform
+        isLoading = false
+    }
+
+    private static func loadAudioInfo(data: Data, mimeType: String) throws -> VoiceNoteInfoCache.Info {
+        let decoded = try decodeForPlayback(data: data, mimeType: mimeType)
+        defer { if decoded.isTemporary { try? FileManager.default.removeItem(at: decoded.url) } }
+        let samples = extractWaveformSamples(from: decoded.url, sampleCount: 40)
+        let duration = try decoded.duration ?? AVAudioPlayer(contentsOf: decoded.url).duration
+        return VoiceNoteInfoCache.Info(duration: duration, waveform: samples)
+    }
+
+    /// The note as a file AVAudioPlayer can open: Opus decoded to PCM, anything else written as
+    /// it is. Off the main thread: a long note takes a moment.
+    private struct PlayableFile: Sendable {
+        let url: URL
+        let duration: TimeInterval?
+        let isTemporary: Bool
+        let fileTypeHint: String?
+    }
+
+    private static func decodeForPlayback(data: Data, mimeType: String) throws -> PlayableFile {
+        let lowered = mimeType.lowercased()
+        if lowered.contains("webm") {
             let decoded = try WebMOpusDecoder.decodeToPCMFile(data: data)
-            let samples = extractWaveformSamples(from: decoded.url, sampleCount: 40)
-            try? FileManager.default.removeItem(at: decoded.url)
-            return (decoded.duration, samples)
+            return PlayableFile(url: decoded.url, duration: decoded.duration, isTemporary: true,
+                                fileTypeHint: AVFileType.caf.rawValue)
         }
-        if mimeType.lowercased().contains("ogg") || mimeType.lowercased().contains("opus") {
+        if lowered.contains("ogg") || lowered.contains("opus") {
             let decoded = try OggOpusDecoder.decodeToPCMFile(data: data)
-            let samples = extractWaveformSamples(from: decoded.url, sampleCount: 40)
-            try? FileManager.default.removeItem(at: decoded.url)
-            return (decoded.duration, samples)
+            return PlayableFile(url: decoded.url, duration: decoded.duration, isTemporary: true,
+                                fileTypeHint: AVFileType.caf.rawValue)
         }
-        // For other formats
+        // Other formats play as they are.
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".audio")
         try data.write(to: tempURL)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-        let player = try AVAudioPlayer(contentsOf: tempURL)
-        let samples = extractWaveformSamples(from: tempURL, sampleCount: 40)
-        return (player.duration, samples)
+        return PlayableFile(url: tempURL, duration: nil, isTemporary: true, fileTypeHint: nil)
     }
 
     private static func extractWaveformSamples(from url: URL, sampleCount: Int) -> [Float] {
@@ -2317,40 +2404,88 @@ private final class AudioPlaybackHelper: NSObject, ObservableObject, AVAudioPlay
         return samples
     }
 
+    /// Play decodes the note off the main thread (the bubble shows its spinner meanwhile), then
+    /// plays through `VoicePlaybackCoordinator`, which stops any other note and gives the audio
+    /// session back when this one stops.
     func togglePlayback(data: Data, mimeType: String) {
         if isPlaying {
             stop()
             return
         }
-
-        do {
-            try setPlaybackSession()
-            player = try makePlayer(data: data, mimeType: mimeType)
-            player?.delegate = self
-            player?.prepareToPlay()
-            if player?.play() != true {
-                stop()
+        // Played to the end before: the decoded file is still here, so play it again - unless
+        // the bubble's note changed since, when the old player and its file go first.
+        if let player {
+            if let source = playerSource, source.mimeType == mimeType, source.data == data {
+                play(player)
                 return
             }
-            isPlaying = true
-            progress = 0
-            Self.playingHelpers.add(self)
-            startProgressTimer()
-            if let duration = cachedDuration {
-                durationText = formattedDuration(duration)
-            } else {
-                durationText = formattedDuration(player?.duration ?? 0)
+            stop()
+        }
+        guard !isLoading else { return }
+        isLoading = true
+        playGeneration += 1
+        let generation = playGeneration
+        // Listed while decoding too, so leaving the thread cancels a Play still loading.
+        Self.playingHelpers.add(self)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let file: PlayableFile?
+            do {
+                file = try Self.decodeForPlayback(data: data, mimeType: mimeType)
+            } catch {
+                AppLog.log("[AudioPlayback] Couldn't decode a voice note: %@", error.localizedDescription)
+                file = nil
             }
+            await MainActor.run {
+                guard let self, self.playGeneration == generation else {
+                    if let file, file.isTemporary { try? FileManager.default.removeItem(at: file.url) }
+                    return
+                }
+                self.isLoading = false
+                guard let file else { return }
+                self.startPlaying(file, source: (data: data, mimeType: mimeType))
+            }
+        }
+    }
+
+    private func startPlaying(_ file: PlayableFile, source: (data: Data, mimeType: String)) {
+        do {
+            let player = try AVAudioPlayer(contentsOf: file.url, fileTypeHint: file.fileTypeHint)
+            player.delegate = self
+            player.prepareToPlay()
+            if let url = tempPlaybackURL, url != file.url { try? FileManager.default.removeItem(at: url) }
+            self.player = player
+            playerSource = source
+            tempPlaybackURL = file.isTemporary ? file.url : nil
+            if cachedDuration == nil { cachedDuration = file.duration ?? player.duration }
+            play(player)
         } catch {
+            if file.isTemporary { try? FileManager.default.removeItem(at: file.url) }
             isPlaying = false
         }
     }
 
+    private func play(_ player: AVAudioPlayer) {
+        guard VoicePlaybackCoordinator.shared.willStart(self, stop: { [weak self] in self?.stop() }) else { return }
+        player.currentTime = 0
+        guard player.play() else {
+            stop()
+            return
+        }
+        isPlaying = true
+        progress = 0
+        Self.playingHelpers.add(self)
+        startProgressTimer()
+        durationText = formattedDuration(cachedDuration ?? player.duration)
+    }
+
     func stop() {
+        playGeneration += 1
+        isLoading = false
         progressTimer?.invalidate()
         progressTimer = nil
         player?.stop()
         player = nil
+        playerSource = nil
         if let url = tempPlaybackURL {
             try? FileManager.default.removeItem(at: url)
             tempPlaybackURL = nil
@@ -2360,11 +2495,13 @@ private final class AudioPlaybackHelper: NSObject, ObservableObject, AVAudioPlay
         if let duration = cachedDuration {
             durationText = formattedDuration(duration)
         }
+        VoicePlaybackCoordinator.shared.didStop(self)
     }
 
+    /// 10 Hz: smooth enough for a 40-bar waveform, half the redraws of the old 20 Hz.
     private func startProgressTimer() {
         progressTimer?.invalidate()
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self, let player = self.player else { return }
             let duration = player.duration
             if duration > 0 {
@@ -2373,19 +2510,19 @@ private final class AudioPlaybackHelper: NSObject, ObservableObject, AVAudioPlay
         }
     }
 
+    /// Played to the end: the session goes back, and the player and its file stay for a replay
+    /// (the bubble going away, or the thread closing, removes them).
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         DispatchQueue.main.async {
+            guard self.player === player else { return }
             self.progressTimer?.invalidate()
             self.progressTimer = nil
             self.isPlaying = false
             self.progress = 0
-            if let url = self.tempPlaybackURL {
-                try? FileManager.default.removeItem(at: url)
-                self.tempPlaybackURL = nil
-            }
             if let duration = self.cachedDuration {
                 self.durationText = self.formattedDuration(duration)
             }
+            VoicePlaybackCoordinator.shared.didStop(self)
         }
     }
 
@@ -2395,30 +2532,6 @@ private final class AudioPlaybackHelper: NSObject, ObservableObject, AVAudioPlay
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, seconds)
-    }
-
-    private func setPlaybackSession() throws {
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default)
-        try session.setActive(true)
-    }
-
-    private func makePlayer(data: Data, mimeType: String) throws -> AVAudioPlayer {
-        if mimeType.lowercased().contains("webm") {
-            let decoded = try WebMOpusDecoder.decodeToPCMFile(data: data)
-            tempPlaybackURL = decoded.url
-            cachedDuration = decoded.duration
-            durationText = formattedDuration(decoded.duration)
-            return try AVAudioPlayer(contentsOf: decoded.url, fileTypeHint: AVFileType.caf.rawValue)
-        }
-        if mimeType.lowercased().contains("ogg") || mimeType.lowercased().contains("opus") {
-            let decoded = try OggOpusDecoder.decodeToPCMFile(data: data)
-            tempPlaybackURL = decoded.url
-            cachedDuration = decoded.duration
-            durationText = formattedDuration(decoded.duration)
-            return try AVAudioPlayer(contentsOf: decoded.url, fileTypeHint: AVFileType.caf.rawValue)
-        }
-        return try AVAudioPlayer(data: data)
     }
 }
 
@@ -2525,7 +2638,7 @@ private struct AudioBubble: View {
             AudioShareSheet(data: data, fileName: fileName, mimeType: mimeType)
         }
         .onAppear {
-            helper.preloadDuration(data: data, mimeType: mimeType)
+            helper.preloadDuration(data: data, mimeType: mimeType, txId: txId)
         }
         // No `onDisappear { helper.stop() }` here: inside the thread's `LazyVStack` that fires
         // whenever the bubble scrolls out of view, which killed the voice note mid-play the moment
@@ -2653,6 +2766,8 @@ private final class MultipartAudioPlaybackHelper: NSObject, ObservableObject, AV
     private var progressTimer: Timer?
     /// A seek made before playback started: where the next Play begins.
     private var pendingSeekFraction: Double?
+    /// Bumped by every stop: a decode still running for an older Play doesn't start playing.
+    private var playGeneration = 0
 
     private static let activeHelpers = NSHashTable<MultipartAudioPlaybackHelper>.weakObjects()
 
@@ -2665,26 +2780,40 @@ private final class MultipartAudioPlaybackHelper: NSObject, ObservableObject, AV
 
     deinit {
         progressTimer?.invalidate()
+        player?.stop()
+        // A bubble dropped while playing: give the session back.
+        VoicePlaybackCoordinator.shared.didStop(self)
         if let url = playbackURL { try? FileManager.default.removeItem(at: url) }
     }
 
     /// Length and waveform of the parts present; again whenever a part arrives (unless playing,
-    /// which picks the new parts up on the next Play).
-    func preload(_ input: VoiceNotePartsInput) {
+    /// which picks the new parts up on the next Play). From `VoiceNoteInfoCache` when these parts
+    /// were read before, otherwise decoded once off the main thread and cached.
+    func preload(_ input: VoiceNotePartsInput, txId: String) {
         let signature = input.signature
         guard loadedSignature != signature, !isPlaying else { return }
         loadedSignature = signature
+        let key = VoiceNoteInfoCache.key(txId: txId, input: input)
+        if let key, let info = VoiceNoteInfoCache.info(forKey: key) {
+            cachedDuration = info.duration
+            durationText = Self.formatted(info.duration)
+            waveformSamples = info.waveform
+            isLoading = false
+            return
+        }
         isLoading = cachedDuration == nil
         let datas = input.parts.map(\.data)
-        Task.detached(priority: .userInitiated) { [weak self] in
+        Task.detached(priority: .utility) { [weak self] in
             let decoded = try? WebMOpusDecoder.decodePartsToPCMFile(parts: datas)
             if let url = decoded?.url { try? FileManager.default.removeItem(at: url) }
+            let info = decoded.map { VoiceNoteInfoCache.Info(duration: $0.duration, waveform: $0.waveform) }
+            if let info, let key { VoiceNoteInfoCache.store(info, forKey: key) }
             await MainActor.run {
                 guard let self, self.loadedSignature == signature else { return }
-                if let decoded {
-                    self.cachedDuration = decoded.duration
-                    self.durationText = Self.formatted(decoded.duration)
-                    self.waveformSamples = decoded.waveform
+                if let info {
+                    self.cachedDuration = info.duration
+                    self.durationText = Self.formatted(info.duration)
+                    self.waveformSamples = info.waveform
                 } else {
                     self.durationText = "--:--"
                     self.waveformSamples = Array(repeating: 0.3, count: 40)
@@ -2712,21 +2841,22 @@ private final class MultipartAudioPlaybackHelper: NSObject, ObservableObject, AV
         stop()
         pendingSeekFraction = seek
         isLoading = true
+        // Listed while decoding too, so leaving the thread cancels a Play still loading.
+        Self.activeHelpers.add(self)
+        let generation = playGeneration
         let signature = input.signature
         let datas = input.parts.map(\.data)
         Task.detached(priority: .userInitiated) { [weak self] in
             let decoded = try? WebMOpusDecoder.decodePartsToPCMFile(parts: datas)
             await MainActor.run {
-                guard let self else {
+                // Stopped meanwhile (the thread closed): don't start playing behind it.
+                guard let self, self.playGeneration == generation else {
                     if let url = decoded?.url { try? FileManager.default.removeItem(at: url) }
                     return
                 }
                 self.isLoading = false
                 guard let decoded else { return }
                 do {
-                    let session = AVAudioSession.sharedInstance()
-                    try session.setCategory(.playback, mode: .default)
-                    try session.setActive(true)
                     let player = try AVAudioPlayer(contentsOf: decoded.url, fileTypeHint: AVFileType.caf.rawValue)
                     player.delegate = self
                     player.prepareToPlay()
@@ -2760,7 +2890,10 @@ private final class MultipartAudioPlaybackHelper: NSObject, ObservableObject, AV
         }
     }
 
+    /// Plays through `VoicePlaybackCoordinator`: any other note stops, and the session is given
+    /// back when this one pauses, stops or ends.
     private func start(_ player: AVAudioPlayer) {
+        guard VoicePlaybackCoordinator.shared.willStart(self, stop: { [weak self] in self?.pause() }) else { return }
         guard player.play() else {
             stop()
             return
@@ -2775,9 +2908,12 @@ private final class MultipartAudioPlaybackHelper: NSObject, ObservableObject, AV
         progressTimer?.invalidate()
         progressTimer = nil
         isPlaying = false
+        VoicePlaybackCoordinator.shared.didStop(self)
     }
 
     func stop() {
+        playGeneration += 1
+        isLoading = false
         progressTimer?.invalidate()
         progressTimer = nil
         player?.stop()
@@ -2793,11 +2929,13 @@ private final class MultipartAudioPlaybackHelper: NSObject, ObservableObject, AV
         if let duration = cachedDuration {
             durationText = Self.formatted(duration)
         }
+        VoicePlaybackCoordinator.shared.didStop(self)
     }
 
+    /// 10 Hz, as the one-part bubble.
     private func startProgressTimer() {
         progressTimer?.invalidate()
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self, let player = self.player else { return }
             if player.duration > 0 {
                 self.progress = player.currentTime / player.duration
@@ -2927,10 +3065,10 @@ private struct MultipartAudioBubble: View {
             MultipartAudioShareSheet(pieces: input.parts, count: input.count)
         }
         .onAppear {
-            helper.preload(input)
+            helper.preload(input, txId: txId)
         }
         .onChange(of: input.signature) { _ in
-            helper.preload(input)
+            helper.preload(input, txId: txId)
         }
     }
 }
@@ -3909,7 +4047,8 @@ struct ZoomableImageView: UIViewRepresentable {
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.backgroundColor = .black
 
-        let imageView = UIImageView(image: image)
+        // Plays a GIF only while in a window, as the bubble's does.
+        let imageView = AnimatedGIFImageView(image: image)
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(imageView)
@@ -3925,7 +4064,7 @@ struct ZoomableImageView: UIViewRepresentable {
 
         context.coordinator.imageView = imageView
         if let animatedData {
-            context.coordinator.player.play(animatedData, in: imageView)
+            imageView.animate(animatedData)
         }
         return scrollView
     }
@@ -3933,7 +4072,7 @@ struct ZoomableImageView: UIViewRepresentable {
     func updateUIView(_ uiView: UIScrollView, context: Context) {}
 
     static func dismantleUIView(_ uiView: UIScrollView, coordinator: Coordinator) {
-        coordinator.player.stop()
+        coordinator.imageView?.stopGIF(forget: true)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -3941,8 +4080,7 @@ struct ZoomableImageView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, UIScrollViewDelegate {
-        weak var imageView: UIImageView?
-        let player = ImageAnimationPlayer()
+        weak var imageView: AnimatedGIFImageView?
         @Binding var isZoomed: Bool
 
         init(isZoomed: Binding<Bool>) {

@@ -10,6 +10,11 @@ struct ColdStorageAccount: Codable, Identifiable, Equatable {
     /// (AddressActivityNotifier). Per account, so one busy account can be quiet while the
     /// others still tell you. Stored per wallet with the account; older records decode as on.
     var notifyOnReceive: Bool = true
+    /// The KasSigner's quantum-resistant (KCC-3, `m/22'`) addresses watched in this account,
+    /// in the order added. A unit never exports a `22'` kpub - it would show every key the
+    /// addresses hide - so each is scanned from the unit's address screen, one at a time
+    /// (owner, 2026-11-25: Cold Storage matches the hot wallet's quantum addresses).
+    var quantumAddresses: [ColdQuantumAddress] = []
 
     init(id: UUID = UUID(), label: String, kpubString: String, maxAddressIndex: Int = 0, importedAt: Date = Date(), notifyOnReceive: Bool = true) {
         self.id = id
@@ -20,7 +25,7 @@ struct ColdStorageAccount: Codable, Identifiable, Equatable {
         self.notifyOnReceive = notifyOnReceive
     }
 
-    private enum CodingKeys: String, CodingKey { case id, label, kpubString, maxAddressIndex, importedAt, notifyOnReceive }
+    private enum CodingKeys: String, CodingKey { case id, label, kpubString, maxAddressIndex, importedAt, notifyOnReceive, quantumAddresses }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -30,6 +35,74 @@ struct ColdStorageAccount: Codable, Identifiable, Equatable {
         maxAddressIndex = try container.decode(Int.self, forKey: .maxAddressIndex)
         importedAt = try container.decode(Date.self, forKey: .importedAt)
         notifyOnReceive = try container.decodeIfPresent(Bool.self, forKey: .notifyOnReceive) ?? true
+        quantumAddresses = try container.decodeIfPresent([ColdQuantumAddress].self, forKey: .quantumAddresses) ?? []
+    }
+}
+
+/// One KasSigner quantum-resistant (KCC-3) address: P2SH of `<P> OP_CHECKSIG`, P at
+/// `m/22'/111111'/0'/0/<unitIndex>` on the unit. Known only by its text: the key stays on the
+/// unit until the address spends, and the unit supplies the script when it signs.
+struct ColdQuantumAddress: Codable, Equatable, Hashable {
+    /// Which of the unit's two KCC-3 chains the address is on (`m/22'/111111'/0'/<chain>/n`).
+    /// It matters for change: KasSigner marks a script-hash output as CHANGE only when it is one
+    /// of its KCC-3 change-chain keys #0-4 (firmware `Keyring::kcc3_change_index`, its bank);
+    /// any other, a receive address included, shows on the unit as an ordinary payment.
+    enum Chain: UInt32, Codable, CaseIterable {
+        case receive = 0
+        case change = 1
+    }
+
+    /// The change-chain numbers KasSigner recognises as its own change when reviewing outputs
+    /// (`CHANGE_DEPTH` keys of its bank).
+    static let unitMarkedChangeRange: ClosedRange<UInt32> = 0...4
+
+    let address: String
+    /// The address's number on the unit's KCC-3 chain, when the person gave it: sent as the
+    /// request's KCC-3 hint so the unit finds the key at once. Without it the unit searches its
+    /// KCC-3 chains itself.
+    var unitIndex: UInt32?
+    var chain: Chain
+    var addedAt: Date
+
+    init(address: String, unitIndex: UInt32?, chain: Chain = .receive, addedAt: Date = Date()) {
+        self.address = address
+        self.unitIndex = unitIndex
+        self.chain = chain
+        self.addedAt = addedAt
+    }
+
+    private enum CodingKeys: String, CodingKey { case address, unitIndex, chain, addedAt }
+
+    // Records saved before the chain was asked for decode as receive, which is what they were
+    // sent as.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        address = try container.decode(String.self, forKey: .address)
+        unitIndex = try container.decodeIfPresent(UInt32.self, forKey: .unitIndex)
+        chain = (try? container.decodeIfPresent(Chain.self, forKey: .chain)) ?? .receive
+        addedAt = (try? container.decodeIfPresent(Date.self, forKey: .addedAt)) ?? Date()
+    }
+
+    /// The unit will show change sent here as CHANGE, not as a payment to someone.
+    var unitMarksAsChange: Bool {
+        guard chain == .change, let unitIndex else { return false }
+        return Self.unitMarkedChangeRange.contains(unitIndex)
+    }
+
+    /// The default name, by chain and number ("Quantum Address #3", "Quantum Change Address #0").
+    static func defaultLabel(chain: Chain, unitIndex: UInt32?) -> String {
+        switch (chain, unitIndex) {
+        case (.receive, nil):
+            return AppLocalization.string("Quantum Address")
+        case (.change, nil):
+            return AppLocalization.string("Quantum Change Address")
+        case (.receive, let number?):
+            return String(format: AppLocalization.string("Quantum Address #%lld"),
+                          locale: AppLocalization.locale, Int64(number))
+        case (.change, let number?):
+            return String(format: AppLocalization.string("Quantum Change Address #%lld"),
+                          locale: AppLocalization.locale, Int64(number))
+        }
     }
 }
 
@@ -40,9 +113,22 @@ struct ColdStorageAddressEntry: Identifiable {
     var everUsed: Bool = false
     var label: String?
     var hidden: Bool = false
+    /// A KasSigner quantum-resistant (KCC-3) address, added by scan (`ColdQuantumAddress`). Its
+    /// `index` is `ColdStorageManager.quantumIndexBase` + its place in the account's list.
+    var isQuantum: Bool = false
+    /// The unit's number for a quantum address, when known.
+    var unitIndex: UInt32? = nil
+    /// The unit's KCC-3 chain for a quantum address.
+    var quantumChain: ColdQuantumAddress.Chain = .receive
 
     var id: String { address }
-    var displayLabel: String { label?.isEmpty == false ? label! : "Address #\(index)" }
+    var displayLabel: String {
+        if label?.isEmpty == false { return label! }
+        if isQuantum {
+            return ColdQuantumAddress.defaultLabel(chain: quantumChain, unitIndex: unitIndex)
+        }
+        return "Address #\(index)"
+    }
     var shortAddress: String {
         guard address.count > 20 else { return address }
         return address.prefix(14) + "..." + address.suffix(6)
@@ -51,11 +137,22 @@ struct ColdStorageAddressEntry: Identifiable {
 
 enum ColdStorageError: LocalizedError {
     case invalidKpub
+    case notQuantumAddress
+    case alreadyAdded
+    /// The address is already watched by another Cold Storage account (its name).
+    case inOtherAccount(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidKpub:
             return "That doesn't look like a valid Kaspa extended public key (kpub)."
+        case .notQuantumAddress:
+            return AppLocalization.string("That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows.")
+        case .alreadyAdded:
+            return AppLocalization.string("That address is already in this account.")
+        case .inOtherAccount(let name):
+            return String(format: AppLocalization.string("That address is already in your Cold Storage account “%@”."),
+                          locale: AppLocalization.locale, name)
         }
     }
 }
@@ -238,6 +335,146 @@ final class ColdStorageManager: ObservableObject {
         saveAccounts()
     }
 
+    // MARK: - Quantum-resistant (KCC-3) addresses
+
+    /// Where quantum addresses start in an account's index space (labels, hidden flags), clear
+    /// of any receive index a kpub could reach. The hot wallet uses the same base.
+    nonisolated static let quantumIndexBase = 1_000_000
+
+    nonisolated static func isQuantumIndex(_ index: Int) -> Bool { index >= quantumIndexBase }
+
+    /// Adds a KasSigner KCC-3 address scanned (or pasted) from the unit's address screen. Only a
+    /// pay-to-script-hash address of this network reads: the text can't say what is behind the
+    /// hash, so the unit is the one that checks it holds the key, when it signs.
+    func addQuantumAddress(_ text: String, unitIndex: UInt32?, chain: ColdQuantumAddress.Chain = .receive, to account: ColdStorageAccount) -> Result<ColdQuantumAddress, ColdStorageError> {
+        var raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // a QR may carry a payment URI ("kaspa:...?amount=")
+        if let query = raw.firstIndex(of: "?") { raw = String(raw[..<query]) }
+        let address = raw.lowercased()
+        guard KaspaAddress.isValidOnActiveNetwork(address), Self.isScriptHashAddress(address) else {
+            return .failure(.notQuantumAddress)
+        }
+        guard let idx = accounts.firstIndex(where: { $0.id == account.id }) else { return .failure(.notQuantumAddress) }
+        guard !accounts[idx].quantumAddresses.contains(where: { $0.address == address }) else {
+            return .failure(.alreadyAdded)
+        }
+        // One address, one account: watched twice, its coins would count in both totals and a
+        // send from one could pick it as the other's change.
+        if let other = accounts.first(where: { $0.id != account.id && $0.quantumAddresses.contains { $0.address == address } }) {
+            return .failure(.inOtherAccount(other.label))
+        }
+        let entry = ColdQuantumAddress(address: address, unitIndex: unitIndex, chain: chain)
+        accounts[idx].quantumAddresses.append(entry)
+        saveAccounts()
+        AddressActivityNotifier.shared.coldStorageAccountsChanged()
+        return .success(entry)
+    }
+
+    /// Stops watching a quantum address (its coins stay where they are on chain).
+    func removeQuantumAddress(_ address: String, from account: ColdStorageAccount) {
+        guard let idx = accounts.firstIndex(where: { $0.id == account.id }),
+              let position = accounts[idx].quantumAddresses.firstIndex(where: { $0.address == address.lowercased() }) else { return }
+        accounts[idx].quantumAddresses.remove(at: position)
+        saveAccounts()
+        // Labels and hidden flags are kept by index: the ones after it move up a place with
+        // their addresses.
+        let removedIndex = Self.quantumIndexBase + position
+        func shifted(_ index: Int) -> Int? {
+            guard Self.isQuantumIndex(index), index >= removedIndex else { return index }
+            return index == removedIndex ? nil : index - 1
+        }
+        let labels = loadAddressLabels(accountId: account.id)
+        var newLabels: [Int: String] = [:]
+        for (index, label) in labels { if let moved = shifted(index) { newLabels[moved] = label } }
+        saveAddressLabels(newLabels, accountId: account.id)
+        saveHiddenIndices(Set(loadHiddenIndices(accountId: account.id).compactMap(shifted)), accountId: account.id)
+        AddressActivityNotifier.shared.coldStorageAccountsChanged()
+    }
+
+    /// Sets or clears a quantum address's number and chain on the unit (Edit Address Number): a
+    /// wrong one makes the unit refuse the request, which only the person can put right.
+    func updateQuantumAddress(_ address: String, unitIndex: UInt32?, chain: ColdQuantumAddress.Chain, in account: ColdStorageAccount) {
+        guard let idx = accounts.firstIndex(where: { $0.id == account.id }),
+              let position = accounts[idx].quantumAddresses.firstIndex(where: { $0.address == address.lowercased() }) else { return }
+        accounts[idx].quantumAddresses[position].unitIndex = unitIndex
+        accounts[idx].quantumAddresses[position].chain = chain
+        saveAccounts()
+    }
+
+    /// Where a quantum address sits in its account's index space now, nil once it's no longer
+    /// watched. Labels and hidden flags of quantum entries are filed by this index, which moves
+    /// when an earlier one is removed, so an edit made from a row loaded before that resolves
+    /// its index here, by address, at the moment it saves.
+    func currentQuantumIndex(of address: String, in account: ColdStorageAccount) -> Int? {
+        currentQuantumAddresses(of: account)
+            .firstIndex(where: { $0.address == address.lowercased() })
+            .map { Self.quantumIndexBase + $0 }
+    }
+
+    /// The name a quantum address shows: the person's label, else its default by chain and number.
+    func quantumDisplayLabel(of address: String) -> String? {
+        guard let record = quantumAddressRecord(address),
+              let index = currentQuantumIndex(of: address, in: record.account) else { return nil }
+        let (account, entry) = record
+        if let label = loadAddressLabels(accountId: account.id)[index], !label.isEmpty { return label }
+        return ColdQuantumAddress.defaultLabel(chain: entry.chain, unitIndex: entry.unitIndex)
+    }
+
+    /// Every address of the Cold Storage account holding `address`, lowercased: its derived
+    /// receive addresses up to the highest shown, and its quantum ones. What a history row counts
+    /// as the account's own, so change sent to another of them (a quantum source's change goes
+    /// to a fresh quantum address) isn't shown as Sent. Just `address` when no account holds it.
+    func accountAddresses(containing address: String) async -> Set<String> {
+        let lowered = address.lowercased()
+        let network = AppSettings.load().networkType
+        for account in accounts {
+            let quantum = account.quantumAddresses.map(\.address)
+            let regular = await ColdStorageAddressCache.shared.addressesInBackground(
+                kpub: account.kpubString,
+                network: network,
+                indices: 0..<UInt32(max(account.maxAddressIndex, 0) + 1),
+                stopOnFailure: true
+            ).map { $0.1.lowercased() }
+            let all = Set(quantum + regular)
+            if all.contains(lowered) { return all }
+        }
+        return [lowered]
+    }
+
+    /// The unit's number for one of this account's quantum addresses, nil when not given.
+    func quantumUnitIndex(of address: String, in account: ColdStorageAccount) -> UInt32? {
+        accounts.first(where: { $0.id == account.id })?
+            .quantumAddresses.first(where: { $0.address == address.lowercased() })?.unitIndex
+    }
+
+    /// The account's quantum addresses as stored now (the value passed in may be an older copy).
+    func currentQuantumAddresses(of account: ColdStorageAccount) -> [ColdQuantumAddress] {
+        accounts.first(where: { $0.id == account.id })?.quantumAddresses ?? account.quantumAddresses
+    }
+
+    /// The account and record holding quantum address `address`, if any.
+    func quantumAddressRecord(_ address: String) -> (account: ColdStorageAccount, entry: ColdQuantumAddress)? {
+        let lowered = address.lowercased()
+        for account in accounts {
+            if let entry = account.quantumAddresses.first(where: { $0.address == lowered }) {
+                return (account, entry)
+            }
+        }
+        return nil
+    }
+
+    /// Whether `address` is one of any account's quantum addresses.
+    func isQuantumAddress(_ address: String) -> Bool {
+        let lowered = address.lowercased()
+        return accounts.contains { $0.quantumAddresses.contains { $0.address == lowered } }
+    }
+
+    /// A pay-to-script-hash address: its script is `OP_BLAKE2B <32> OP_EQUAL`.
+    nonisolated static func isScriptHashAddress(_ address: String) -> Bool {
+        guard let script = KaspaAddress.scriptPublicKey(from: address) else { return false }
+        return script.count == 35 && script.first == 0xAA && script.last == 0x87
+    }
+
     func renameAccount(_ account: ColdStorageAccount, to newLabel: String) {
         let trimmed = newLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let idx = accounts.firstIndex(where: { $0.id == account.id }) else { return }
@@ -271,7 +508,7 @@ final class ColdStorageManager: ObservableObject {
             addressesByIndex[Int(index)] = address
         }
 
-        let allAddresses = Array(addressesByIndex.values)
+        let allAddresses = Array(addressesByIndex.values) + currentQuantumAddresses(of: account).map(\.address)
         var balanceByAddress: [String: UInt64] = [:]
         let balancesKey = addressBalancesKey(for: account.id)
         if let utxos = try? await NodePoolService.shared.getUtxosByAddresses(allAddresses) {
@@ -285,7 +522,7 @@ final class ColdStorageManager: ObservableObject {
             balanceByAddress = known
         }
 
-        return addressesByIndex.map { index, address in
+        let regular = addressesByIndex.map { index, address in
             ColdStorageAddressEntry(
                 index: index,
                 address: address,
@@ -294,6 +531,21 @@ final class ColdStorageManager: ObservableObject {
                 hidden: hidden.contains(index)
             )
         }.sorted { $0.index < $1.index }
+        // The quantum addresses added by scan, after the regular ones, in the order added.
+        let quantum = currentQuantumAddresses(of: account).enumerated().map { position, entry in
+            let index = Self.quantumIndexBase + position
+            return ColdStorageAddressEntry(
+                index: index,
+                address: entry.address,
+                balanceSompi: balanceByAddress[entry.address] ?? 0,
+                label: labels[index],
+                hidden: hidden.contains(index),
+                isQuantum: true,
+                unitIndex: entry.unitIndex,
+                quantumChain: entry.chain
+            )
+        }
+        return regular + quantum
     }
 
     /// Scans forward from index 0, stopping after `gapLimit` consecutive never-used
@@ -527,7 +779,9 @@ final class ColdStorageManager: ObservableObject {
     /// chosen index.
     func lowestUnusedAddress(for account: ColdStorageAccount) async -> Int {
         let entries = await getAddressList(for: account)
-        for entry in entries {
+        // Only the kpub's chain: a quantum entry (index 1,000,000+) is a scanned address, not the
+        // next one to hand out, and Generate More must never un-hide one.
+        for entry in entries where !entry.isQuantum {
             guard entry.hidden else { continue } // already visible - the user has it; move on
             if entry.balanceSompi > 0 { continue }
             // Recycle only on a CONFIRMED-unused probe; nil (probe failed) skips the index -
@@ -574,6 +828,11 @@ final class ColdStorageManager: ObservableObject {
     /// rows beyond the derived chain). Returns nil on kpub/derivation failure.
     func address(for account: ColdStorageAccount, at index: Int) -> String? {
         guard index >= 0 else { return nil }
+        if Self.isQuantumIndex(index) {
+            let list = currentQuantumAddresses(of: account)
+            let position = index - Self.quantumIndexBase
+            return list.indices.contains(position) ? list[position].address : nil
+        }
         let network = AppSettings.load().networkType
         return ColdStorageAddressCache.shared.address(kpub: account.kpubString, network: network, index: UInt32(index))
     }
@@ -767,11 +1026,21 @@ final class ColdStorageManager: ObservableObject {
         let stored = defaults.dictionaryRepresentation()
         var labelled = Set(stored.keys.filter { $0.hasPrefix(utxoPrefix) }.map { String($0.dropFirst(utxoPrefix.count)) })
         guard !labelled.isEmpty else { return }
-        let keptKpubs = Set(stored.flatMap { key, value -> [String] in
+        let keptAccounts = stored.flatMap { key, value -> [ColdStorageAccount] in
             guard key.hasPrefix(storageKeyPrefix), let data = value as? Data,
                   let others = try? JSONDecoder().decode([ColdStorageAccount].self, from: data) else { return [] }
-            return others.map(\.kpubString)
-        })
+            return others
+        }
+        let keptKpubs = Set(keptAccounts.map(\.kpubString))
+        // A quantum address's coin labels go with the last account watching it.
+        let keptQuantum = Set(keptAccounts.flatMap { $0.quantumAddresses.map(\.address) })
+        for account in removed {
+            for quantum in account.quantumAddresses where !keptQuantum.contains(quantum.address) {
+                if labelled.remove(quantum.address) != nil {
+                    defaults.removeObject(forKey: utxoLabelsKey(for: quantum.address))
+                }
+            }
+        }
         for account in removed where !keptKpubs.contains(account.kpubString) {
             guard let extendedKey = KaspaExtendedPublicKey(kpubString: account.kpubString) else { continue }
             for network in NetworkType.allCases {

@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "استيراد ملف";
 "Export File" = "تصدير ملف";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "احفظه في مجلد KaChat على Nextcloud لاستيراده على أي جهاز.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "احفظه في مجلد K على Nextcloud لاستيراده على أي جهاز.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "اربط Nextcloud من الإعدادات > التخزين لحفظه هناك أيضًا واستيراده على جهاز آخر.";
 "Couldn't read that file." = "تعذّرت قراءة هذا الملف.";
 "Nothing to export yet. Add a contact first." = "لا يوجد ما يُصدَّر بعد. أضف جهة اتصال أولاً.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "إرسال العرض";
 "Offers open when .kachat names launch." = "تُفتح العروض عند إطلاق أسماء ‎.kachat.";
 "Pick a CSV file from your Nextcloud." = "اختر ملف CSV من Nextcloud الخاص بك.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "يحفظ ملف CSV في مجلد KaChat على Nextcloud الخاص بك.";
+"Save the CSV to the K folder in your Nextcloud." = "يحفظ ملف CSV في مجلد K على Nextcloud الخاص بك.";
 "Names this address claims or buys show here once .kachat names launch." = "تظهر هنا الأسماء التي يحصل عليها هذا العنوان أو يشتريها عند إطلاق أسماء ‎.kachat.";
 "Move to Portfolio" = "نقل إلى محفظة";
 "Create another portfolio first, then you can move transactions into it." = "أنشئ محفظة أخرى أولًا، ثم يمكنك نقل المعاملات إليها.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "متدهور";
 "Disconnected" = "غير متصل";
 "Checking…" = "جارٍ التحقق…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "تعذّر الوصول إلى عقد gRPC الآن، لذا يستخدم K عقدة عامة عبر wss.";
+"Search public chats" = "البحث في المحادثات العامة";
+"No Public Chats" = "لا توجد محادثات عامة";
+"Tap + to join or create a public room." = "اضغط + للانضمام إلى غرفة عامة أو إنشاء واحدة.";
+"Switches between your chats and public chats" = "يبدّل بين محادثاتك والمحادثات العامة";
+"More Rooms" = "غرف أخرى";
+"Rooms added on the indexer K reads public chats from." = "غرف أُضيفت على المفهرس الذي يقرأ منه K المحادثات العامة.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "تم نسخ الرابط";
+"A link that opens this card in K." = "رابط يفتح هذه البطاقة في K.";
+"Open" = "فتح";
+"Opens this card." = "يفتح هذه البطاقة.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "اضغط لفتحه في K.";
+"Opens it in K." = "يفتحه في K.";
+"Your saved Kaspa addresses." = "عناوين Kaspa المحفوظة لديك.";
+"Track your coins and their value." = "تتبّع عملاتك وقيمتها.";
+"Watch and sign for your cold wallets." = "راقب محافظك الباردة ووقّع لها.";
+"Claim, buy and sell .kachat usernames." = "احجز واشترِ وبِع أسماء مستخدمين ‎.kachat.";
+"Posts and replies on Kaspa." = "منشورات وردود على Kaspa.";
+"Chess, Snake and 2048, scores on chain." = "شطرنج وسنيك و2048، النتائج على السلسلة.";
+"Websites built on Kaspa." = "مواقع مبنية على Kaspa.";
+"Blocks, transactions and addresses, live." = "الكتل والمعاملات والعناوين، مباشرةً.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "هذا ليس عنوانًا مقاومًا للحوسبة الكمّية. امسح عنوان KCC-3 الذي يعرضه KasSigner.";
+"That address is already in this account." = "هذا العنوان موجود بالفعل في هذا الحساب.";
+"Quantum-resistant address added." = "تمت إضافة العنوان المقاوم للحوسبة الكمّية.";
+"Add Quantum-Resistant Address" = "إضافة عنوان مقاوم للحوسبة الكمّية";
+"Scan a KCC-3 address from KasSigner's address screen." = "امسح عنوان KCC-3 من شاشة العناوين في KasSigner.";
+"Stop Watching" = "إيقاف المراقبة";
+"Removes this quantum address from the account. Scan it again to add it back." = "يزيل هذا العنوان الكمّي من الحساب. امسحه مرة أخرى لإعادة إضافته.";
+"Quantum-Resistant Address" = "عنوان مقاوم للحوسبة الكمّية";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "على KasSigner، افتح عنوان KCC-3 الذي تريده وامسح رمز QR الخاص به. يبقى مفتاحه على الجهاز حتى يُنفَق من العنوان.";
+"Address Number on KasSigner" = "رقم العنوان على KasSigner";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "الرقم الذي يعرضه KasSigner لهذا العنوان. به يجد الجهاز المفتاح فورًا عند التوقيع، ومن دونه يبحث عنه.";
+"Add Quantum Address" = "إضافة عنوان كمّي";
+"The address number must be a whole number." = "يجب أن يكون رقم العنوان عددًا صحيحًا.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "يتطلب KasSigner الإصدار 1.1 أو أحدث، الذي يوقّع العناوين المقاومة للحوسبة الكمّية (KCC-3).";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "يعود الباقي إلى هذا العنوان، الذي يضع هذا الإرسال مفتاحه على السلسلة. أضف عنوانًا كمّيًا آخر من KasSigner ليبقى الباقي آمنًا كموميًا.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "يذهب الباقي إلى عنوان كمّي غير مستخدم في هذا الحساب، لأن هذا الإرسال يضع مفتاح هذا العنوان على السلسلة.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "لم يُرجع KasSigner سكربت المفتاح لهذا العنوان المقاوم للحوسبة الكمّية، لذا لن تُبث المعاملة. تأكد أن الجهاز يعمل بـ KasSigner الإصدار 1.1 أو أحدث وأنه يحمل هذا العنوان.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "المعاملة الموقّعة تضيف شروط عقد لم يطلبها هذا الإرسال، لذا لن تُبث.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "عنوان كمّي";
+"Quantum Change Address" = "عنوان باقي كمّي";
+"Quantum Address #%lld" = "عنوان كمّي #%lld";
+"Quantum Change Address #%lld" = "عنوان باقي كمّي #%lld";
+"That address is already in your Cold Storage account “%@”." = "هذا العنوان موجود بالفعل في حساب Cold Storage «%@».";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "هذا الإرسال يضع مفتاح هذا العنوان على السلسلة، لذا لا يمكن أن يعود الباقي إليه. أضف أولًا عنوانًا مقاومًا للحوسبة الكمّية غير مستخدم من KasSigner (والأفضل عنوان باقي، من #0 إلى #4)، أو أرسل الرصيد كله.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "الدمج يضع مفتاح هذا العنوان على السلسلة، لذا تنتقل عملاته إلى عنوان مقاوم للحوسبة الكمّية غير مستخدم في هذا الحساب. أضف واحدًا من KasSigner أولًا (والأفضل عنوان باقي، من #0 إلى #4).";
+"Stop Watching This Address?" = "إيقاف مراقبة هذا العنوان؟";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "تبقى %@ KAS على السلسلة في هذا العنوان، على KasSigner الخاص بك؛ K يتوقف فقط عن عرضها. امسح العنوان مرة أخرى من KasSigner لمراقبته من جديد.";
+"Edit Address Number" = "تعديل رقم العنوان";
+"The number and chain KasSigner shows for this address." = "الرقم والسلسلة اللذان يعرضهما KasSigner لهذا العنوان.";
+"Chain" = "السلسلة";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "الرقم الذي يعرضه KasSigner لهذا العنوان، وهل هو عنوان استلام أم عنوان باقي. به يجد الجهاز المفتاح فورًا عند التوقيع، ومن دونه يبحث عنه. يعرض KasSigner الباقي المرسل إلى عناوين الباقي من #0 إلى #4 على أنه باقٍ، وأي عنوان آخر على أنه دفعة.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "هذا الرقم كبير جدًا: أرقام عناوين KasSigner أقل من 2147483648.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "ينقل كل عملات هذا العنوان إلى عملة واحدة في عنوان مقاوم للحوسبة الكمّية غير مستخدم في هذا الحساب: هذه المعاملة تضع مفتاح هذا العنوان على السلسلة.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "يحمل هذا العنوان عملات أكثر مما تستطيع معاملة واحدة إنفاقه: يبقى %lld خلف المفتاح الذي يضعه هذا الإرسال على السلسلة. أرسلها في معاملة أخرى مباشرة بعد ذلك.";
+"The coins move to your quantum address:" = "تنتقل العملات إلى عنوانك الكمّي:";
+"The change goes to your quantum address:" = "يذهب الباقي إلى عنوانك الكمّي:";
+"KasSigner shows this output as change." = "يعرض KasSigner هذا المُخرَج على أنه باقٍ.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "سيعرض KasSigner هذا المُخرَج كدفعة عادية، لا كباقٍ: تأكد أنه هذا العنوان قبل التوقيع.";
+"Sign Without the Address Number" = "التوقيع دون رقم العنوان";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "إذا رفض KasSigner هذا الطلب، فقد يكون رقم العنوان خاطئًا. من دونه يبحث الجهاز عن العنوان بنفسه. «تعديل رقم العنوان» يصححه للمرة القادمة.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "يدمج كل UTXOs في هذا العنوان في واحدة في عنوان مقاوم للحوسبة الكمّية غير مستخدم في هذا الحساب، لأن هذا يضع مفتاح هذا العنوان على السلسلة.";
+"Quantum-Resistant Addresses" = "عناوين مقاومة للحوسبة الكمّية";
+"Addresses" = "العناوين";
+"Receive Address" = "عنوان استلام";
+"Change Address" = "عنوان باقي";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "حذف محادثة عامة واحدة؟";
+"Delete %lld Public Chats?" = "حذف %lld من المحادثات العامة؟";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "يتم إيقاف المحادثات العامة الافتراضية (أعد تشغيلها من تعديل المحادثات العامة الافتراضية). أما الغرف التي أضفتها فتُحذف مع رسائلها من هذا الجهاز.";

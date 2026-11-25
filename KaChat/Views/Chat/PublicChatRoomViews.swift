@@ -87,7 +87,20 @@ struct PublicChatsSettingsView: View {
                 } footer: {
                     Text("Off takes every language room out of Public Chats. On, switch off the ones you don't want.")
                 }
+                // Rooms added on the indexer (`indexerDefaultChannels`): they come and go with it.
+                let more = PublicChatService.indexerDefaultChannels
+                if !more.isEmpty {
+                    Section {
+                        ForEach(more, id: \.self) { row($0) }
+                    } header: {
+                        Text("More Rooms")
+                    } footer: {
+                        Text("Rooms added on the indexer K reads public chats from.")
+                    }
+                }
             }
+            // a room just added on the indexer shows here within a minute
+            .onAppear { publicChatService.refreshIndexerTrackedRooms(maxAge: 60) }
             .navigationTitle("Public Chats")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

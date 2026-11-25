@@ -6,6 +6,17 @@ import Foundation
 protocol NodeStore: Sendable {
     func loadAll(network: NetworkType) throws -> [NodeRecord]
     func saveAll(_ records: [NodeRecord], network: NetworkType) throws
+    /// The pool as it was before a node was pinned (`NodeRegistry.setTrustedNode`), kept apart
+    /// from the live list until the pin is cleared.
+    func loadPrePinStash(network: NetworkType) -> [NodeRecord]?
+    func savePrePinStash(_ records: [NodeRecord], network: NetworkType) throws
+    func removePrePinStash(network: NetworkType)
+}
+
+extension NodeStore {
+    func loadPrePinStash(network: NetworkType) -> [NodeRecord]? { nil }
+    func savePrePinStash(_ records: [NodeRecord], network: NetworkType) throws {}
+    func removePrePinStash(network: NetworkType) {}
 }
 
 struct ActivePoolRebalanceResult: Sendable {
@@ -22,32 +33,109 @@ struct PrefixPerformanceStats: Sendable {
     let averageTcpRttMs: Double?
 }
 
-// MARK: - UserDefaults Node Store
+// MARK: - File Node Store
 
-/// Simple UserDefaults-based storage for node records, one list per network: a mainnet node
+/// The node records, one JSON file per network in Application Support/NodePool: a mainnet node
 /// answers a `kaspatest:` address with the mainnet chain's coins, so the two pools must never
-/// mix. Mainnet keeps the original key, so an existing pool carries over.
-final class UserDefaultsNodeStore: NodeStore, @unchecked Sendable {
+/// mix. Up to 3,000 records used to be one UserDefaults blob, which iOS rewrites whole (and keeps
+/// in memory) on every save; the first load moves an existing list over and removes the key.
+final class FileNodeStore: NodeStore, @unchecked Sendable {
     private let defaults: UserDefaults
+    private let directory: URL?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        self.directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("NodePool", isDirectory: true)
     }
 
-    static func key(for network: NetworkType) -> String {
+    /// The UserDefaults key an older build saved the list under.
+    static func legacyKey(for network: NetworkType) -> String {
         network == .mainnet ? "com.kachat.nodepool.records" : "com.kachat.nodepool.records.testnet"
     }
 
-    func loadAll(network: NetworkType) throws -> [NodeRecord] {
-        guard let data = defaults.data(forKey: Self.key(for: network)) else {
-            return []
+    private func fileURL(for network: NetworkType) -> URL? {
+        directory?.appendingPathComponent(network == .mainnet ? "records-mainnet.json" : "records-testnet.json")
+    }
+
+    /// The UserDefaults key an older build kept the pre-pin stash under.
+    static func legacyPrePinKey(for network: NetworkType) -> String {
+        network == .mainnet ? "com.kachat.nodepool.records.prepin" : "com.kachat.nodepool.records.prepin.testnet"
+    }
+
+    private func prePinURL(for network: NetworkType) -> URL? {
+        directory?.appendingPathComponent(network == .mainnet ? "prepin-mainnet.json" : "prepin-testnet.json")
+    }
+
+    /// The pre-pin stash moves to a file beside the records, once: up to 3,000 records in
+    /// UserDefaults were read into memory at every launch and rewritten whole (audit 2026-11-25
+    /// N11). A file already there wins over a blob left behind.
+    private func moveLegacyPrePinStashIfNeeded(network: NetworkType) {
+        let key = Self.legacyPrePinKey(for: network)
+        guard let legacy = defaults.data(forKey: key) else { return }
+        if let url = prePinURL(for: network), FileManager.default.fileExists(atPath: url.path) {
+            defaults.removeObject(forKey: key)
+            return
         }
-        return try JSONDecoder().decode([NodeRecord].self, from: data)
+        do {
+            try write(legacy, to: prePinURL(for: network))
+            defaults.removeObject(forKey: key)
+            AppLog.log("[NodeRegistry] Moved the pre-pin node stash from UserDefaults to a file")
+        } catch {
+            AppLog.log("[NodeRegistry] Moving the pre-pin node stash to a file failed: %@", error.localizedDescription)
+        }
+    }
+
+    func loadPrePinStash(network: NetworkType) -> [NodeRecord]? {
+        moveLegacyPrePinStashIfNeeded(network: network)
+        guard let url = prePinURL(for: network), let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode([NodeRecord].self, from: data)
+    }
+
+    func savePrePinStash(_ records: [NodeRecord], network: NetworkType) throws {
+        try write(try JSONEncoder().encode(records), to: prePinURL(for: network))
+        defaults.removeObject(forKey: Self.legacyPrePinKey(for: network))
+    }
+
+    func removePrePinStash(network: NetworkType) {
+        defaults.removeObject(forKey: Self.legacyPrePinKey(for: network))
+        if let url = prePinURL(for: network) { try? FileManager.default.removeItem(at: url) }
+    }
+
+    func loadAll(network: NetworkType) throws -> [NodeRecord] {
+        moveLegacyPrePinStashIfNeeded(network: network)
+        let key = Self.legacyKey(for: network)
+        if let url = fileURL(for: network), let data = try? Data(contentsOf: url) {
+            // A file written, then an old blob left behind (a crash between the two): the file wins.
+            if defaults.object(forKey: key) != nil { defaults.removeObject(forKey: key) }
+            return try JSONDecoder().decode([NodeRecord].self, from: data)
+        }
+        guard let legacy = defaults.data(forKey: key) else { return [] }
+        let records = try JSONDecoder().decode([NodeRecord].self, from: legacy)
+        do {
+            try write(legacy, network: network)
+            defaults.removeObject(forKey: key)
+            AppLog.log("[NodeRegistry] Moved %d node records from UserDefaults to a file", records.count)
+        } catch {
+            AppLog.log("[NodeRegistry] Moving node records to a file failed: %@", error.localizedDescription)
+        }
+        return records
     }
 
     func saveAll(_ records: [NodeRecord], network: NetworkType) throws {
-        let data = try JSONEncoder().encode(records)
-        defaults.set(data, forKey: Self.key(for: network))
+        try write(try JSONEncoder().encode(records), network: network)
+    }
+
+    private func write(_ data: Data, network: NetworkType) throws {
+        try write(data, to: fileURL(for: network))
+    }
+
+    private func write(_ data: Data, to url: URL?) throws {
+        guard let directory, let url else {
+            throw KasiaError.networkError("No Application Support directory")
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try data.write(to: url, options: [.atomic])
     }
 }
 
@@ -64,17 +152,21 @@ actor NodeRegistry {
     private var saveTask: Task<Void, Never>?
     /// When set (Kaspium-style fixed-node mode), `upsert` refuses every endpoint except this one.
     private var trustedNodeKey: String?
+    /// A node is pinned: nothing else joins the registry (but `addPublicFallback`).
+    var hasTrustedNode: Bool { trustedNodeKey != nil }
     /// The network this registry's records belong to - set by `load(network:)`, and the list
     /// every save writes to.
     private(set) var network: NetworkType = .mainnet
 
     // Configuration
     private let maxNodes = 3000
-    private let autoSaveInterval: TimeInterval = 30
+    /// The longest a change waits to be saved. Counted from the first unsaved change, never
+    /// restarted: every keepalive ping records a result, and a restarting debounce never fired.
+    private let autoSaveInterval: TimeInterval = 60
 
     // MARK: - Initialization
 
-    init(store: NodeStore? = UserDefaultsNodeStore()) {
+    init(store: NodeStore? = FileNodeStore()) {
         self.store = store
     }
 
@@ -223,18 +315,16 @@ actor NodeRegistry {
         return previousEndpoint
     }
 
-    /// UserDefaults key holding the pre-pin snapshot of the registry (see setTrustedNode).
-    private var prePinStashKey: String {
-        network == .mainnet ? "com.kachat.nodepool.records.prepin" : "com.kachat.nodepool.records.prepin.testnet"
-    }
-
-    /// Snapshot every non-pinned record so the discovered pool survives the pinned period.
+    /// Snapshot every non-pinned record so the discovered pool survives the pinned period. In a
+    /// file beside the records (`FileNodeStore.savePrePinStash`), not UserDefaults.
     private func stashRecordsBeforePinning(excluding pinnedKey: String) {
         let toStash = records.values.filter { $0.endpoint.key != pinnedKey }
-        guard !toStash.isEmpty else { return }
-        if let data = try? JSONEncoder().encode(Array(toStash)) {
-            UserDefaults.standard.set(data, forKey: prePinStashKey)
+        guard !toStash.isEmpty, let store else { return }
+        do {
+            try store.savePrePinStash(Array(toStash), network: network)
             AppLog.log("[NodeRegistry] Stashed %d node records before pinning", toStash.count)
+        } catch {
+            AppLog.log("[NodeRegistry] Stashing node records before pinning failed: %@", error.localizedDescription)
         }
     }
 
@@ -242,11 +332,8 @@ actor NodeRegistry {
     /// consumed: records rejoin the normal lifecycle and are re-persisted with everything else.
     /// Stale entries are harmless - they fail their probes like any other node and get pruned.
     private func restoreStashedRecords() -> Int {
-        guard let data = UserDefaults.standard.data(forKey: prePinStashKey),
-              let stashed = try? JSONDecoder().decode([NodeRecord].self, from: data) else {
-            return 0
-        }
-        UserDefaults.standard.removeObject(forKey: prePinStashKey)
+        guard let store, let stashed = store.loadPrePinStash(network: network) else { return 0 }
+        store.removePrePinStash(network: network)
         var restored = 0
         for record in stashed where records[record.endpoint.key] == nil && Self.belongs(record, to: network) {
             // Same sanitize as load(): quarantine/circuit verdicts from the stash era are not
@@ -266,6 +353,8 @@ actor NodeRegistry {
     /// Insert or update a node record
     func upsert(endpoint: Endpoint, origin: NodeOrigin = .discovered) {
         if let trustedNodeKey, endpoint.key != trustedNodeKey { return }
+        // Public wss nodes come only through `addPublicFallback`.
+        if origin == .publicFallback { return }
         if var existing = records[endpoint.key] {
             existing.lastSeenAt = Date()
             records[endpoint.key] = existing
@@ -317,9 +406,18 @@ actor NodeRegistry {
             record.health.recordSuccess(latencyMs: latencyMs, epochId: epochId)
         }
 
+        let stateBefore = record.state
         record.updateState()
         records[endpoint.key] = record
-        scheduleSave()
+        if isError || isTimeout || record.state != stateBefore {
+            scheduleSave()
+        } else {
+            // A latency sample on a node whose standing didn't change: worth keeping, not worth
+            // a write of its own. Every keepalive ping lands here, so scheduling a save made the
+            // registry write itself every minute the app was open (audit 2026-11-25 N7). Saved
+            // with the next real change, and on background (`NodePoolService.enterBackground`).
+            isDirty = true
+        }
     }
 
     /// Reset epoch-local stats for all nodes (called on network change)
@@ -532,8 +630,9 @@ actor NodeRegistry {
         }
 
         let compareBetter: (NodeRecord, NodeRecord) -> Bool = { lhs, rhs in
-            if lhs.effectiveLatencyMs != rhs.effectiveLatencyMs {
-                return lhs.effectiveLatencyMs < rhs.effectiveLatencyMs
+            // `rankingLatencyMs`: a WebSocket node is ranked as slower than it is (B10).
+            if lhs.rankingLatencyMs != rhs.rankingLatencyMs {
+                return lhs.rankingLatencyMs < rhs.rankingLatencyMs
             }
 
             let lhsErr = lhs.health.errorRate.value ?? lhs.health.globalErrorRate.value ?? 0
@@ -627,10 +726,10 @@ actor NodeRegistry {
             }
 
             guard let candidate = bestInactive else { break }
-            guard worstActive.effectiveLatencyMs.isFinite, candidate.effectiveLatencyMs.isFinite else { break }
-            guard worstActive.effectiveLatencyMs > 0 else { break }
+            guard worstActive.rankingLatencyMs.isFinite, candidate.rankingLatencyMs.isFinite else { break }
+            guard worstActive.rankingLatencyMs > 0 else { break }
 
-            let improvement = (worstActive.effectiveLatencyMs - candidate.effectiveLatencyMs) / worstActive.effectiveLatencyMs
+            let improvement = (worstActive.rankingLatencyMs - candidate.rankingLatencyMs) / worstActive.rankingLatencyMs
             guard improvement >= minImprovementRatio else { break }
 
             if var demotedRecord = records[worstActive.endpoint.key] {
@@ -732,10 +831,11 @@ actor NodeRegistry {
 
     // MARK: - Persistence
 
-    /// Schedule a save operation (debounced)
+    /// Schedule a save operation: at most `autoSaveInterval` after the first unsaved change. A
+    /// save already scheduled is left alone, so a steady stream of changes still gets saved.
     private func scheduleSave() {
         isDirty = true
-        saveTask?.cancel()
+        guard saveTask == nil else { return }
         saveTask = Task {
             try? await Task.sleep(nanoseconds: UInt64(autoSaveInterval * 1_000_000_000))
             if !Task.isCancelled {
@@ -746,14 +846,102 @@ actor NodeRegistry {
 
     /// Force immediate save
     func persistNow() {
+        saveTask?.cancel()
+        saveTask = nil
         guard isDirty, let store = store else { return }
         do {
-            try store.saveAll(Array(records.values), network: network)
+            // Public fallback nodes are for this session's outage only.
+            let kept = records.values.filter { $0.origin != .publicFallback }
+            try store.saveAll(kept, network: network)
             isDirty = false
-            AppLog.log("[NodeRegistry] Persisted %d node records", records.count)
+            AppLog.log("[NodeRegistry] Persisted %d node records", kept.count)
         } catch {
             AppLog.log("[NodeRegistry] Failed to persist records: %@", error.localizedDescription)
         }
+    }
+
+    // MARK: - Public wss fallback (NodePoolService.evaluatePublicFallback)
+
+    /// Adds a public wRPC node found through the Kaspa resolver. Allowed while a node is pinned:
+    /// it is the pinned node that can't be reached. False when it was already known.
+    @discardableResult
+    func addPublicFallback(_ endpoint: Endpoint) -> Bool {
+        guard records[endpoint.key] == nil else { return false }
+        records[endpoint.key] = NodeRecord(endpoint: endpoint, origin: .publicFallback)
+        return true
+    }
+
+    func publicFallbackEndpoints() -> [Endpoint] {
+        records.values.filter { $0.origin == .publicFallback }.map(\.endpoint)
+    }
+
+    /// Public stand-ins that turned out dead: added over `grace` ago and never answered, or failing
+    /// since their last answer, which is over `grace` old. An idle stand-in that answered and
+    /// hasn't failed since is kept. Removed here; returned so their connections can be closed.
+    func removeDeadPublicFallbacks(grace: TimeInterval) -> [Endpoint] {
+        let now = Date()
+        var gone: [Endpoint] = []
+        for record in records.values where record.origin == .publicFallback {
+            let health = record.health
+            let dead: Bool
+            if let success = health.lastSuccessAt {
+                dead = now.timeIntervalSince(success) > grace && (health.lastFailureAt ?? .distantPast) > success
+            } else {
+                dead = now.timeIntervalSince(record.firstSeenAt) > grace
+            }
+            if dead { gone.append(record.endpoint) }
+        }
+        for endpoint in gone { records.removeValue(forKey: endpoint.key) }
+        return gone
+    }
+
+    /// Automatic Scan's wss seeds (`NodeProfiler.refreshWssSeeds`): drops those known for over
+    /// `staleAfter` with no answer in that time (removed and returned, so their connections can be
+    /// closed), and returns the keys of the ones left, which count toward the cap.
+    func pruneWssSeeds(staleAfter: TimeInterval) -> (removed: [Endpoint], live: [String]) {
+        let cutoff = Date().addingTimeInterval(-staleAfter)
+        var removed: [Endpoint] = []
+        var live: [String] = []
+        for record in records.values where record.endpoint.isWebSocket && record.origin == .seed {
+            if record.firstSeenAt < cutoff, (record.health.lastSuccessAt ?? .distantPast) < cutoff {
+                removed.append(record.endpoint)
+            } else {
+                live.append(record.endpoint.key)
+            }
+        }
+        for endpoint in removed { records.removeValue(forKey: endpoint.key) }
+        if !removed.isEmpty { scheduleSave() }
+        return (removed, live)
+    }
+
+    /// The node answered on its own (a notification on the subscription), with no request to
+    /// time: a success for the connectivity checks, without a latency sample.
+    func recordAlive(endpoint: Endpoint) {
+        guard var record = records[endpoint.key] else { return }
+        record.health.lastSuccessAt = Date()
+        record.lastSeenAt = Date()
+        records[endpoint.key] = record
+    }
+
+    /// Removes every public fallback node; returns them so their connections can be closed.
+    @discardableResult
+    func removePublicFallbacks() -> [Endpoint] {
+        let gone = publicFallbackEndpoints()
+        for endpoint in gone { records.removeValue(forKey: endpoint.key) }
+        return gone
+    }
+
+    /// When a node the pool found itself last answered - a gRPC node, or a wss node Automatic Scan
+    /// keeps among its seeds; anything but a public fallback - and how many failed within `window`.
+    func grpcConnectivity(window: TimeInterval) -> (lastSuccess: Date?, recentFailures: Int) {
+        let cutoff = Date().addingTimeInterval(-window)
+        var lastSuccess: Date?
+        var failures = 0
+        for record in records.values where record.origin != .publicFallback {
+            if let at = record.health.lastSuccessAt, at > (lastSuccess ?? .distantPast) { lastSuccess = at }
+            if let at = record.health.lastFailureAt, at >= cutoff { failures += 1 }
+        }
+        return (lastSuccess, failures)
     }
 
     /// Snapshot of all records (for export/debugging)

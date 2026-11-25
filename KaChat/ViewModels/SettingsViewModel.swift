@@ -200,7 +200,7 @@ final class SettingsViewModel: ObservableObject {
     func applyTrustedNode(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty || Endpoint(url: trimmed) != nil else {
-            return "Enter as host:port or grpcs://host"
+            return "Enter as host:port, grpcs://host or wss://host"
         }
         guard trimmed != settings.trustedNodeAddress else { return nil }
         settings.trustedNodeAddress = trimmed

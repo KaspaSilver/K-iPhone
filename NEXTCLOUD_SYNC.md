@@ -72,6 +72,12 @@ from sync:
 
 ## 2. Which folder
 
+> **iOS, 2026-11-25:** the default folder is `K` (it was `KaChat`; media in `K/Media`). iOS moves an
+> existing root `KaChat` folder to `K` with one WebDAV `MOVE` the first time it touches Nextcloud
+> after updating, unless the user picked another folder. When `K` already exists, only a contacts
+> file `K` lacks is moved in. Discovery (below) takes a folder named `K` or `KaChat`. Other clients
+> should accept both names and create `K` from now on.
+
 1. **On connect, discover an existing backup before creating anything.** Walk the user's files
    breadth-first, at most 40 folders and 3 levels deep:
    1. a folder that already holds `kachat-backup.json` is the backup folder, so stop there;

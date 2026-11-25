@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "파일 가져오기";
 "Export File" = "파일로 내보내기";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "Nextcloud의 KaChat 폴더에 저장해 어느 기기에서든 가져올 수 있습니다.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "Nextcloud의 K 폴더에 저장해 어느 기기에서든 가져올 수 있습니다.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "설정 > 저장 공간에서 Nextcloud를 연결하면 그곳에도 저장하고 다른 기기에서 가져올 수 있습니다.";
 "Couldn't read that file." = "그 파일을 읽을 수 없습니다.";
 "Nothing to export yet. Add a contact first." = "아직 내보낼 항목이 없습니다. 먼저 연락처를 추가하세요.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "제안 보내기";
 "Offers open when .kachat names launch." = ".kachat 이름이 출시되면 제안할 수 있습니다.";
 "Pick a CSV file from your Nextcloud." = "Nextcloud에서 CSV 파일을 선택하세요.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "CSV를 Nextcloud의 KaChat 폴더에 저장합니다.";
+"Save the CSV to the K folder in your Nextcloud." = "CSV를 Nextcloud의 K 폴더에 저장합니다.";
 "Names this address claims or buys show here once .kachat names launch." = "이 주소가 받거나 구매한 이름은 .kachat 이름이 출시되면 여기에 표시됩니다.";
 "Move to Portfolio" = "포트폴리오로 이동";
 "Create another portfolio first, then you can move transactions into it." = "먼저 다른 포트폴리오를 만들면 거래를 그곳으로 옮길 수 있습니다.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "저하됨";
 "Disconnected" = "연결 끊김";
 "Checking…" = "확인 중…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "지금은 gRPC 노드에 연결할 수 없어 K가 wss를 통해 공개 노드를 사용하고 있습니다.";
+"Search public chats" = "공개 채팅 검색";
+"No Public Chats" = "공개 채팅 없음";
+"Tap + to join or create a public room." = "+를 탭해 공개 방에 참여하거나 새로 만드세요.";
+"Switches between your chats and public chats" = "내 채팅과 공개 채팅을 전환합니다";
+"More Rooms" = "더 많은 방";
+"Rooms added on the indexer K reads public chats from." = "K가 공개 채팅을 읽어 오는 인덱서에 추가된 방입니다.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "링크를 복사했습니다";
+"A link that opens this card in K." = "이 카드를 K에서 여는 링크입니다.";
+"Open" = "열기";
+"Opens this card." = "이 카드를 엽니다.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "탭하여 K에서 엽니다.";
+"Opens it in K." = "K에서 엽니다.";
+"Your saved Kaspa addresses." = "저장한 Kaspa 주소.";
+"Track your coins and their value." = "코인과 그 가치를 추적하세요.";
+"Watch and sign for your cold wallets." = "콜드 월렛을 지켜보고 서명하세요.";
+"Claim, buy and sell .kachat usernames." = ".kachat 사용자 이름을 받고, 사고, 파세요.";
+"Posts and replies on Kaspa." = "Kaspa의 게시물과 답글.";
+"Chess, Snake and 2048, scores on chain." = "체스, 스네이크, 2048. 점수는 체인에 기록.";
+"Websites built on Kaspa." = "Kaspa로 만든 웹사이트.";
+"Blocks, transactions and addresses, live." = "블록, 거래, 주소를 실시간으로.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "양자 내성 주소가 아닙니다. KasSigner에 표시된 KCC-3 주소를 스캔하세요.";
+"That address is already in this account." = "이 주소는 이미 이 계정에 있습니다.";
+"Quantum-resistant address added." = "양자 내성 주소를 추가했습니다.";
+"Add Quantum-Resistant Address" = "양자 내성 주소 추가";
+"Scan a KCC-3 address from KasSigner's address screen." = "KasSigner의 주소 화면에서 KCC-3 주소를 스캔하세요.";
+"Stop Watching" = "감시 중지";
+"Removes this quantum address from the account. Scan it again to add it back." = "이 양자 주소를 계정에서 제거합니다. 다시 추가하려면 다시 스캔하세요.";
+"Quantum-Resistant Address" = "양자 내성 주소";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "KasSigner에서 원하는 KCC-3 주소를 열고 QR 코드를 스캔하세요. 이 주소에서 지출하기 전까지 키는 기기에 남아 있습니다.";
+"Address Number on KasSigner" = "KasSigner의 주소 번호";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "KasSigner가 이 주소에 표시하는 번호입니다. 번호가 있으면 서명할 때 기기가 키를 바로 찾고, 없으면 기기가 키를 검색합니다.";
+"Add Quantum Address" = "양자 주소 추가";
+"The address number must be a whole number." = "주소 번호는 정수여야 합니다.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "양자 내성(KCC-3) 주소에 서명하는 KasSigner v1.1 이상이 필요합니다.";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "잔돈은 이 주소로 돌아옵니다. 이번 전송으로 이 주소의 키가 체인에 공개됩니다. 잔돈을 양자 안전하게 유지하려면 KasSigner에서 다른 양자 주소를 추가하세요.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "이번 전송으로 이 주소의 키가 체인에 공개되므로, 잔돈은 이 계정의 미사용 양자 주소로 갑니다.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner가 이 양자 내성 주소의 키 스크립트를 반환하지 않아 브로드캐스트하지 않습니다. 기기에서 KasSigner v1.1 이상이 실행 중이고 이 주소를 보유하고 있는지 확인하세요.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "서명된 트랜잭션에 이번 전송이 요청하지 않은 코버넌트 조건이 추가되어 브로드캐스트하지 않습니다.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "양자 주소";
+"Quantum Change Address" = "양자 잔돈 주소";
+"Quantum Address #%lld" = "양자 주소 #%lld";
+"Quantum Change Address #%lld" = "양자 잔돈 주소 #%lld";
+"That address is already in your Cold Storage account “%@”." = "이 주소는 이미 Cold Storage 계정 ‘%@’에 있습니다.";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "이번 전송으로 이 주소의 키가 체인에 공개되므로 잔돈이 이 주소로 돌아올 수 없습니다. 먼저 KasSigner에서 미사용 양자 내성 주소를 추가하거나(잔돈 주소 #0~#4가 가장 좋음) 잔액 전체를 보내세요.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "통합하면 이 주소의 키가 체인에 공개되므로 코인은 이 계정의 미사용 양자 내성 주소로 옮겨집니다. 먼저 KasSigner에서 하나를 추가하세요(잔돈 주소 #0~#4가 가장 좋음).";
+"Stop Watching This Address?" = "이 주소 감시를 중지할까요?";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "%@ KAS는 이 주소의 체인에, 내 KasSigner에 그대로 남습니다. K는 표시만 중지합니다. 다시 감시하려면 KasSigner에서 주소를 다시 스캔하세요.";
+"Edit Address Number" = "주소 번호 편집";
+"The number and chain KasSigner shows for this address." = "KasSigner가 이 주소에 표시하는 번호와 체인입니다.";
+"Chain" = "체인";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "KasSigner가 이 주소에 표시하는 번호와, 수신 주소인지 잔돈 주소인지입니다. 번호가 있으면 서명할 때 기기가 키를 바로 찾고, 없으면 기기가 키를 검색합니다. KasSigner는 자신의 잔돈 주소 #0~#4로 보내는 잔돈을 잔돈으로 표시하고, 다른 주소는 결제로 표시합니다.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "번호가 너무 큽니다. KasSigner의 주소 번호는 2147483648보다 작습니다.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "이 주소의 모든 코인을 이 계정의 미사용 양자 내성 주소에 하나로 옮깁니다. 이 트랜잭션은 이 주소의 키를 체인에 공개합니다.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "이 주소에는 트랜잭션 하나로 쓸 수 있는 것보다 많은 코인이 있습니다. %lld개는 이번 전송이 체인에 공개하는 키 뒤에 남습니다. 바로 이어서 다른 트랜잭션으로 보내세요.";
+"The coins move to your quantum address:" = "코인이 옮겨질 양자 주소:";
+"The change goes to your quantum address:" = "잔돈이 갈 양자 주소:";
+"KasSigner shows this output as change." = "KasSigner는 이 출력을 잔돈으로 표시합니다.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner는 이 출력을 잔돈이 아닌 일반 결제로 표시합니다. 서명하기 전에 이 주소가 맞는지 확인하세요.";
+"Sign Without the Address Number" = "주소 번호 없이 서명";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "KasSigner가 이 요청을 거부하면 주소 번호가 틀렸을 수 있습니다. 번호가 없으면 기기가 직접 주소를 찾습니다. 주소 번호 편집으로 다음을 위해 고칠 수 있습니다.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "이 작업은 이 주소의 키를 체인에 공개하므로, 이 주소의 모든 UTXO를 이 계정의 미사용 양자 내성 주소에 하나로 합칩니다.";
+"Quantum-Resistant Addresses" = "양자 내성 주소";
+"Addresses" = "주소";
+"Receive Address" = "수신 주소";
+"Change Address" = "잔돈 주소";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "공개 채팅 1개를 삭제할까요?";
+"Delete %lld Public Chats?" = "공개 채팅 %lld개를 삭제할까요?";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "기본 공개 채팅은 꺼집니다(기본 공개 채팅 편집에서 다시 켤 수 있습니다). 직접 추가한 방은 메시지와 함께 이 기기에서 삭제됩니다.";

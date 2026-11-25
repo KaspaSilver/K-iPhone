@@ -179,6 +179,10 @@ private struct NextcloudFolderListView: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        // "KaChat" -> "K" settled before anything is listed, so the picker never shows (or
+        // starts in) the old folder a move is about to rename (audit 2026-11-25 M3). Returns at
+        // once when already settled.
+        await NextcloudService.shared.migrateLegacyFolderIfNeeded()
         do {
             files = try await NextcloudService.shared.listFolder(path)
         } catch {
@@ -372,6 +376,8 @@ private struct NextcloudFolderSelectList: View {
         .task(id: path) {
             isLoading = true
             errorMessage = nil
+            // settled before listing, as the pickers' `load` (M3)
+            await NextcloudService.shared.migrateLegacyFolderIfNeeded()
             do {
                 // Newest-first comes from listFolder; this only drops the non-folder entries.
                 folders = try await NextcloudService.shared.listFolder(path)
@@ -387,7 +393,7 @@ private struct NextcloudFolderSelectList: View {
 // MARK: - File selection (Addresses > Import from Nextcloud)
 
 /// Browses the connected account's files and hands back the file the user taps - no share
-/// link, unlike `NextcloudPickerView`. Starts in the KaChat folder (where Export to Nextcloud
+/// link, unlike `NextcloudPickerView`. Starts in the K folder (where Export to Nextcloud
 /// puts files) with "All Files" to go to the root. Only files whose extension is in
 /// `allowedExtensions` can be picked; the rest show dimmed so a folder still reads as it is.
 struct NextcloudFileSelectView: View {
@@ -504,10 +510,14 @@ private struct NextcloudFileSelectList: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        // "KaChat" -> "K" settled before anything is listed, so the picker never shows (or
+        // starts in) the old folder a move is about to rename (audit 2026-11-25 M3). Returns at
+        // once when already settled.
+        await NextcloudService.shared.migrateLegacyFolderIfNeeded()
         do {
             files = try await NextcloudService.shared.listFolder(path)
         } catch NextcloudError.httpError(404) {
-            // The KaChat folder doesn't exist until something is first saved to it.
+            // The K folder doesn't exist until something is first saved to it.
             files = []
         } catch {
             errorMessage = UserFacingError.message(for: error)

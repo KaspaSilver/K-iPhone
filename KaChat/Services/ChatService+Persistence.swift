@@ -78,6 +78,7 @@ extension ChatService {
         guard !cached.isEmpty else { return }
         conversations = cached
         dropOtherNetworkConversations()
+        loadPreviewEdits()
     }
 
     /// Removes conversations whose contact is on the other network - mainnet chats that pushes
@@ -297,6 +298,7 @@ extension ChatService {
             .sorted { $0.key < $1.key }
             .map(\.value)
         dropOtherNetworkConversations()
+        loadPreviewEdits()
         rebuildPendingOutgoingQueue()
         cleanupSuppressedPaymentMessages()
     }
@@ -1192,7 +1194,7 @@ extension ChatService {
     /// as KaPost's icon did (since 2026-11-21, with KaPosts and rooms back).
     func updateAppBadge() {
         AppTabBadge.syncDockBadges(dockTabs: DockLayout.shared.dock)
-        let totalUnread = AppTabBadge.unreadCount(for: .chats) + max(0, KaPostsNotificationCenter.shared.unseenCount)
+        let totalUnread = AppTabBadge.appIconCount
         SharedDataManager.setUnreadCount(totalUnread)
         if #available(iOS 16.0, *) {
             UNUserNotificationCenter.current().setBadgeCount(totalUnread)

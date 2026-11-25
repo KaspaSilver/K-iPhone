@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import UIKit
 import UserNotifications
 
@@ -1074,6 +1075,10 @@ final class KachatNamesRegistry: ObservableObject {
 
     private var unnamedSweepStarted = false
     private var unnamedSweepRunning = false
+    /// The once-a-minute loop, only while an account is signed in (audit 2026-11-25 B19: it used
+    /// to run on the sign-in screen forever, a `while let self` on a singleton).
+    private var unnamedSweepTask: Task<Void, Never>?
+    private var unnamedSweepWalletObserver: AnyCancellable?
 
     /// While the app is open, once a minute: everyone the app is showing as an address - a contact
     /// with no name you gave them (chat or Address Book) and no .kachat name known - may be asked
@@ -1082,14 +1087,32 @@ final class KachatNamesRegistry: ObservableObject {
     /// then 5, 15 and 60 minutes - and sooner (after a minute) only once the registry has seen
     /// new transactions (`revision`), since a name only appears through one (IOS-087). On the
     /// chain it also keeps the walk current and goes back to the indexer once it recovers.
-    /// Started once, at launch.
+    /// Started once, at launch; from then on it follows the signed-in account: Log Out, Delete
+    /// Account and a switch stop the loop, and the next account starts it again.
     func startUnnamedIdentitySweep() {
         guard !unnamedSweepStarted else { return }
         unnamedSweepStarted = true
-        Task { @MainActor [weak self] in
-            // the first pass once the app has settled after launch
+        unnamedSweepWalletObserver = WalletManager.shared.$currentWallet
+            .map { $0?.publicAddress }
+            .removeDuplicates()
+            // after the assignment lands: `@Published` sends before the property changes
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] address in
+                guard let self else { return }
+                if address == nil {
+                    self.unnamedSweepTask?.cancel()
+                    self.unnamedSweepTask = nil
+                } else if self.unnamedSweepTask == nil {
+                    self.runUnnamedIdentitySweep()
+                }
+            }
+    }
+
+    private func runUnnamedIdentitySweep() {
+        unnamedSweepTask = Task { @MainActor [weak self] in
+            // the first pass once the app has settled after launch or sign-in
             try? await Task.sleep(nanoseconds: 8_000_000_000)
-            while let self {
+            while !Task.isCancelled, let self {
                 if UIApplication.shared.applicationState == .active {
                     if self.source == .chain { await self.refreshIfStale(maxAge: 55) }
                     await self.refreshUnnamedIdentities()

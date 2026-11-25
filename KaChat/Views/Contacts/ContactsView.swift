@@ -672,7 +672,20 @@ struct ChattingAddressManageView: View {
                 }
             }
         }
-        let changeTotal = change.reduce(UInt64(0)) { $0 + $1.sompi }
+        var changeTotal = change.reduce(UInt64(0)) { $0 + $1.sompi }
+        // A swap also spends the pool's coins: count only what left this wallet (several of its
+        // addresses funding one send each show the whole send).
+        if info?.isOutgoing == true,
+           let own = tx.ownHistoryAmount(for: address, toOthers: toOthers, ownChange: changeTotal,
+                                         isOwnAddress: { WalletManager.shared.ownAddressLabel(for: $0) != nil }) {
+            if own.isOutgoing {
+                toOthers = own.amountSompi
+            } else {
+                info = (isOutgoing: false, amountSompi: own.amountSompi)
+                change = []
+                changeTotal = 0
+            }
+        }
         let moved = info?.isOutgoing == true && toOthers == 0 && changeTotal > 0
         if info?.isOutgoing == true {
             info!.amountSompi = moved ? changeTotal : toOthers

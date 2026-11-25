@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "Import File";
 "Export File" = "Export File";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "Save it to the KaChat folder in your Nextcloud, to import on any device.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "Save it to the K folder in your Nextcloud, to import on any device.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "Connect Nextcloud in Settings > Storage to also save it there and import it on another device.";
 "Couldn't read that file." = "Couldn't read that file.";
 "Nothing to export yet. Add a contact first." = "Nothing to export yet. Add a contact first.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "Send Offer";
 "Offers open when .kachat names launch." = "Offers open when .kachat names launch.";
 "Pick a CSV file from your Nextcloud." = "Pick a CSV file from your Nextcloud.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "Save the CSV to the KaChat folder in your Nextcloud.";
+"Save the CSV to the K folder in your Nextcloud." = "Save the CSV to the K folder in your Nextcloud.";
 "Names this address claims or buys show here once .kachat names launch." = "Names this address claims or buys show here once .kachat names launch.";
 "Move to Portfolio" = "Move to Portfolio";
 "Create another portfolio first, then you can move transactions into it." = "Create another portfolio first, then you can move transactions into it.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "Degraded";
 "Disconnected" = "Disconnected";
 "Checking…" = "Checking…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "gRPC nodes can't be reached right now, so K is using a public node over wss.";
+"Search public chats" = "Search public chats";
+"No Public Chats" = "No Public Chats";
+"Tap + to join or create a public room." = "Tap + to join or create a public room.";
+"Switches between your chats and public chats" = "Switches between your chats and public chats";
+"More Rooms" = "More Rooms";
+"Rooms added on the indexer K reads public chats from." = "Rooms added on the indexer K reads public chats from.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "Link copied";
+"A link that opens this card in K." = "A link that opens this card in K.";
+"Open" = "Open";
+"Opens this card." = "Opens this card.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "Tap to open it in K.";
+"Opens it in K." = "Opens it in K.";
+"Your saved Kaspa addresses." = "Your saved Kaspa addresses.";
+"Track your coins and their value." = "Track your coins and their value.";
+"Watch and sign for your cold wallets." = "Watch and sign for your cold wallets.";
+"Claim, buy and sell .kachat usernames." = "Claim, buy and sell .kachat usernames.";
+"Posts and replies on Kaspa." = "Posts and replies on Kaspa.";
+"Chess, Snake and 2048, scores on chain." = "Chess, Snake and 2048, scores on chain.";
+"Websites built on Kaspa." = "Websites built on Kaspa.";
+"Blocks, transactions and addresses, live." = "Blocks, transactions and addresses, live.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows.";
+"That address is already in this account." = "That address is already in this account.";
+"Quantum-resistant address added." = "Quantum-resistant address added.";
+"Add Quantum-Resistant Address" = "Add Quantum-Resistant Address";
+"Scan a KCC-3 address from KasSigner's address screen." = "Scan a KCC-3 address from KasSigner's address screen.";
+"Stop Watching" = "Stop Watching";
+"Removes this quantum address from the account. Scan it again to add it back." = "Removes this quantum address from the account. Scan it again to add it back.";
+"Quantum-Resistant Address" = "Quantum-Resistant Address";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends.";
+"Address Number on KasSigner" = "Address Number on KasSigner";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it.";
+"Add Quantum Address" = "Add Quantum Address";
+"The address number must be a whole number." = "The address number must be a whole number.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses.";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "The change goes to an unused quantum address of this account, since this send puts this address's key on chain.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "The signed transaction adds covenant terms this send never asked for, so it won't be broadcast.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "Quantum Address";
+"Quantum Change Address" = "Quantum Change Address";
+"Quantum Address #%lld" = "Quantum Address #%lld";
+"Quantum Change Address #%lld" = "Quantum Change Address #%lld";
+"That address is already in your Cold Storage account “%@”." = "That address is already in your Cold Storage account “%@”.";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best).";
+"Stop Watching This Address?" = "Stop Watching This Address?";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again.";
+"Edit Address Number" = "Edit Address Number";
+"The number and chain KasSigner shows for this address." = "The number and chain KasSigner shows for this address.";
+"Chain" = "Chain";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "That number is too large: KasSigner's address numbers are below 2147483648.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after.";
+"The coins move to your quantum address:" = "The coins move to your quantum address:";
+"The change goes to your quantum address:" = "The change goes to your quantum address:";
+"KasSigner shows this output as change." = "KasSigner shows this output as change.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign.";
+"Sign Without the Address Number" = "Sign Without the Address Number";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain.";
+"Quantum-Resistant Addresses" = "Quantum-Resistant Addresses";
+"Addresses" = "Addresses";
+"Receive Address" = "Receive Address";
+"Change Address" = "Change Address";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "Delete 1 Public Chat?";
+"Delete %lld Public Chats?" = "Delete %lld Public Chats?";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device.";

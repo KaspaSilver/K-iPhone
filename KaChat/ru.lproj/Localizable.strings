@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "Импорт из файла";
 "Export File" = "Экспорт в файл";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "Сохранить в папку KaChat в Nextcloud, чтобы импортировать на любом устройстве.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "Сохранить в папку K в Nextcloud, чтобы импортировать на любом устройстве.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "Подключите Nextcloud в Настройки > Хранилище, чтобы сохранять туда и импортировать на другом устройстве.";
 "Couldn't read that file." = "Не удалось прочитать этот файл.";
 "Nothing to export yet. Add a contact first." = "Пока нечего экспортировать. Сначала добавьте контакт.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "Отправить предложение";
 "Offers open when .kachat names launch." = "Предложения откроются с запуском имён .kachat.";
 "Pick a CSV file from your Nextcloud." = "Выберите CSV-файл в вашем Nextcloud.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "Сохраняет CSV в папку KaChat вашего Nextcloud.";
+"Save the CSV to the K folder in your Nextcloud." = "Сохраняет CSV в папку K вашего Nextcloud.";
 "Names this address claims or buys show here once .kachat names launch." = "Имена, которые этот адрес получит или купит, появятся здесь после запуска имён .kachat.";
 "Move to Portfolio" = "Переместить в портфель";
 "Create another portfolio first, then you can move transactions into it." = "Сначала создайте ещё один портфель, затем сможете перемещать в него транзакции.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "Работает с перебоями";
 "Disconnected" = "Отключено";
 "Checking…" = "Проверка…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "Узлы gRPC сейчас недоступны, поэтому K использует публичный узел через wss.";
+"Search public chats" = "Поиск публичных чатов";
+"No Public Chats" = "Нет публичных чатов";
+"Tap + to join or create a public room." = "Нажмите +, чтобы войти в публичную комнату или создать её.";
+"Switches between your chats and public chats" = "Переключает между вашими чатами и публичными";
+"More Rooms" = "Другие комнаты";
+"Rooms added on the indexer K reads public chats from." = "Комнаты, добавленные на индексаторе, из которого K читает публичные чаты.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "Ссылка скопирована";
+"A link that opens this card in K." = "Ссылка, которая открывает эту карточку в K.";
+"Open" = "Открыть";
+"Opens this card." = "Открывает эту карточку.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "Нажмите, чтобы открыть в K.";
+"Opens it in K." = "Открывает в K.";
+"Your saved Kaspa addresses." = "Ваши сохранённые адреса Kaspa.";
+"Track your coins and their value." = "Следите за монетами и их стоимостью.";
+"Watch and sign for your cold wallets." = "Следите за холодными кошельками и подписывайте за них.";
+"Claim, buy and sell .kachat usernames." = "Занимайте, покупайте и продавайте имена .kachat.";
+"Posts and replies on Kaspa." = "Посты и ответы в Kaspa.";
+"Chess, Snake and 2048, scores on chain." = "Шахматы, Змейка и 2048, счёт в блокчейне.";
+"Websites built on Kaspa." = "Сайты на Kaspa.";
+"Blocks, transactions and addresses, live." = "Блоки, транзакции и адреса в реальном времени.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "Это не квантово-устойчивый адрес. Отсканируйте адрес KCC-3, который показывает KasSigner.";
+"That address is already in this account." = "Этот адрес уже есть в этом аккаунте.";
+"Quantum-resistant address added." = "Квантово-устойчивый адрес добавлен.";
+"Add Quantum-Resistant Address" = "Добавить квантово-устойчивый адрес";
+"Scan a KCC-3 address from KasSigner's address screen." = "Отсканируйте адрес KCC-3 с экрана адреса KasSigner.";
+"Stop Watching" = "Перестать отслеживать";
+"Removes this quantum address from the account. Scan it again to add it back." = "Удаляет этот квантовый адрес из аккаунта. Отсканируйте его снова, чтобы вернуть.";
+"Quantum-Resistant Address" = "Квантово-устойчивый адрес";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "Откройте на KasSigner нужный адрес KCC-3 и отсканируйте его QR-код. Его ключ остаётся на устройстве, пока с адреса не будет трата.";
+"Address Number on KasSigner" = "Номер адреса на KasSigner";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "Номер, который KasSigner показывает для этого адреса. С ним устройство сразу находит ключ при подписи, без него ищет его.";
+"Add Quantum Address" = "Добавить квантовый адрес";
+"The address number must be a whole number." = "Номер адреса должен быть целым числом.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "Нужен KasSigner v1.1 или новее, который подписывает квантово-устойчивые (KCC-3) адреса.";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "Сдача возвращается на этот адрес, ключ которого эта отправка раскрывает в блокчейне. Добавьте ещё один квантовый адрес из KasSigner, чтобы сдача оставалась квантово-устойчивой.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "Сдача уходит на неиспользованный квантовый адрес этого аккаунта, так как эта отправка раскрывает ключ этого адреса в блокчейне.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner не вернул скрипт ключа для этого квантово-устойчивого адреса, поэтому транзакция не будет отправлена в сеть. Проверьте, что на устройстве KasSigner v1.1 или новее и на нём есть этот адрес.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "Подписанная транзакция добавляет условия ковенанта, которые эта отправка не запрашивала, поэтому она не будет отправлена в сеть.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "Квантовый адрес";
+"Quantum Change Address" = "Квантовый адрес сдачи";
+"Quantum Address #%lld" = "Квантовый адрес #%lld";
+"Quantum Change Address #%lld" = "Квантовый адрес сдачи #%lld";
+"That address is already in your Cold Storage account “%@”." = "Этот адрес уже есть в вашем аккаунте Cold Storage «%@».";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "Эта отправка раскрывает ключ этого адреса в блокчейне, поэтому сдача не может вернуться сюда. Сначала добавьте неиспользованный квантово-устойчивый адрес из KasSigner (лучше адрес сдачи, от #0 до #4) или отправьте весь баланс.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "Объединение раскрывает ключ этого адреса в блокчейне, поэтому его монеты переходят на неиспользованный квантово-устойчивый адрес этого аккаунта. Сначала добавьте такой из KasSigner (лучше адрес сдачи, от #0 до #4).";
+"Stop Watching This Address?" = "Перестать отслеживать этот адрес?";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "Его %@ KAS остаются в блокчейне на этом адресе, в вашем KasSigner; K только перестаёт их показывать. Отсканируйте адрес из KasSigner снова, чтобы снова отслеживать его.";
+"Edit Address Number" = "Изменить номер адреса";
+"The number and chain KasSigner shows for this address." = "Номер и цепочка, которые KasSigner показывает для этого адреса.";
+"Chain" = "Цепочка";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "Номер, который KasSigner показывает для этого адреса, и то, адрес это получения или сдачи. С ним устройство сразу находит ключ при подписи, без него ищет его. KasSigner отмечает как сдачу то, что уходит на его адреса сдачи от #0 до #4; любой другой адрес он показывает как платёж.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "Слишком большой номер: номера адресов KasSigner меньше 2147483648.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "Переводит все монеты этого адреса в одну, на неиспользованный квантово-устойчивый адрес этого аккаунта: эта транзакция раскрывает ключ этого адреса в блокчейне.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "На этом адресе больше монет, чем может потратить одна транзакция: %lld остаются за ключом, который эта отправка раскрывает в блокчейне. Отправьте их другой транзакцией сразу после.";
+"The coins move to your quantum address:" = "Монеты переходят на ваш квантовый адрес:";
+"The change goes to your quantum address:" = "Сдача уходит на ваш квантовый адрес:";
+"KasSigner shows this output as change." = "KasSigner показывает этот выход как сдачу.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner покажет этот выход как обычный платёж, а не как сдачу: перед подписью проверьте, что это этот адрес.";
+"Sign Without the Address Number" = "Подписать без номера адреса";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "Если KasSigner отклоняет этот запрос, номер адреса может быть неверным. Без него устройство само ищет адрес. «Изменить номер адреса» исправит его на следующий раз.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "Объединяет все UTXO этого адреса в один на неиспользованном квантово-устойчивом адресе этого аккаунта, так как это раскрывает ключ этого адреса в блокчейне.";
+"Quantum-Resistant Addresses" = "Квантово-устойчивые адреса";
+"Addresses" = "Адреса";
+"Receive Address" = "Адрес получения";
+"Change Address" = "Адрес сдачи";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "Удалить 1 публичный чат?";
+"Delete %lld Public Chats?" = "Удалить публичные чаты (%lld)?";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Публичные чаты по умолчанию выключаются (включить их снова можно в разделе «Изменить общие чаты по умолчанию»). Добавленные вами комнаты удаляются вместе с сообщениями с этого устройства.";

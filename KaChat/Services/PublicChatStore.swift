@@ -55,7 +55,7 @@ final class PublicChatStore {
     /// of the per-channel setting - matches Android's `PublicChatRetention.MAX_MILLIS`.
     static let maxRetentionMillis: Int64 = 3 * 24 * 60 * 60 * 1000
 
-    /// Retention for the FEATURED, indexer-tracked rooms (#kaspa / #kachat-bugs): the KaChat
+    /// Retention for the FEATURED, indexer-tracked rooms (#kaspa / #report-bugs): the KaChat
     /// indexer holds 30 days of history for them, and the room should always show everything
     /// the indexer holds — the old 3-day cap silently pruned days 4-30 locally even though the
     /// backfill had fetched them.
@@ -932,6 +932,25 @@ final class PublicChatStore {
         }
     }
 
+    /// The edits of just these messages, by room, then by the message they change: the Chats
+    /// list's room previews read each room's last message's edit as the store opens, before any
+    /// room is opened (audit 2026-11-25 C10). One background fetch for every room.
+    func fetchEditsAsync(targetTxIds: [String]) async -> [String: [String: MessageEditSnapshot]] {
+        guard isLoaded, !targetTxIds.isEmpty else { return [:] }
+        return await withCheckedContinuation { continuation in
+            container.performBackgroundTask { context in
+                let request = NSFetchRequest<CDPublicChatEdit>(entityName: CDPublicChatEdit.entityName)
+                request.predicate = NSPredicate(format: "targetTxId IN %@", targetTxIds)
+                var byChannel: [String: [String: MessageEditSnapshot]] = [:]
+                for record in (try? context.fetch(request)) ?? [] {
+                    guard let snapshot = Self.editSnapshot(record) else { continue }
+                    byChannel[record.channelName, default: [:]][record.targetTxId] = snapshot
+                }
+                continuation.resume(returning: byChannel)
+            }
+        }
+    }
+
     private static func editSnapshots(forChannel channel: String, in context: NSManagedObjectContext) -> [String: MessageEditSnapshot] {
         let normalized = PublicChatChannelName.normalize(channel)
         var edits: [String: MessageEditSnapshot] = [:]
@@ -939,18 +958,23 @@ final class PublicChatStore {
         request.predicate = NSPredicate(format: "channelName == %@", normalized)
         guard let results = try? context.fetch(request) else { return edits }
         for record in results {
-            guard let text = record.text else { continue }
-            let status: ChatMessage.DeliveryStatus
-            switch record.deliveryStatus {
-            case "failed": status = .failed
-            case "pending": status = .pending
-            // An edit whose outcome is unknown: the view shows "Not confirmed".
-            case "unconfirmed": status = .warning
-            default: status = .sent
-            }
-            edits[record.targetTxId] = MessageEditSnapshot(targetTxId: record.targetTxId, text: text, editTxId: record.editTxId, blockTime: record.blockTime, deliveryStatus: status)
+            guard let snapshot = editSnapshot(record) else { continue }
+            edits[record.targetTxId] = snapshot
         }
         return edits
+    }
+
+    private static func editSnapshot(_ record: CDPublicChatEdit) -> MessageEditSnapshot? {
+        guard let text = record.text else { return nil }
+        let status: ChatMessage.DeliveryStatus
+        switch record.deliveryStatus {
+        case "failed": status = .failed
+        case "pending": status = .pending
+        // An edit whose outcome is unknown: the view shows "Not confirmed".
+        case "unconfirmed": status = .warning
+        default: status = .sent
+        }
+        return MessageEditSnapshot(targetTxId: record.targetTxId, text: text, editTxId: record.editTxId, blockTime: record.blockTime, deliveryStatus: status)
     }
 
     private static func fetchReactionRow(targetTxId: String, reactorAddress: String, in context: NSManagedObjectContext) -> CDPublicChatReaction? {

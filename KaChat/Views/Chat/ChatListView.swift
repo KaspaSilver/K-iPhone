@@ -29,6 +29,19 @@ struct ChatListView: View {
     /// What the + sheet is showing: the choice, or the screen it led to.
     private enum CreateStep { case menu, chat, group, publicRoom }
 
+    /// The list's two pages, switched by the cycle button beside the title (owner, 2026-11-25):
+    /// your chats and groups, or the public rooms.
+    private enum ListPage: Hashable, CaseIterable {
+        case chats, publicChats
+        var title: String {
+            switch self {
+            case .chats: return "Chats"
+            case .publicChats: return "Public Chats"
+            }
+        }
+    }
+    @State private var listPage: ListPage = .chats
+
     /// The public rooms (Public Chats live in this list since 2026-11-21), as their summaries:
     /// last message, time and unread count, published only when one changes (audit #29). The
     /// service itself isn't observed: it publishes for every room event, chess moves included,
@@ -148,7 +161,9 @@ struct ChatListView: View {
         // expression - that combination is what triggered "unable to type-check in reasonable
         // time" once the third `.alert` (bulk delete) was added.
         let withToolbar = VStack(spacing: 0) {
-            PinnedListHeader(title: "KaChat", search: $searchText, prompt: "Search chats")
+            PinnedListHeader(title: "KaChat", search: $searchText,
+                             prompt: listPage == .chats ? "Search chats" : "Search public chats",
+                             accessory: AnyView(pageCycleButton))
             chatListContent
                 .scrollDismissesKeyboard(.immediately)
         }
@@ -158,7 +173,7 @@ struct ChatListView: View {
                 // Public Chats' settings (owner, 2026-11-24: here, not in the + sheet): the
                 // default rooms and the language rooms on or off.
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if editMode != .active {
+                    if editMode != .active && listPage == .publicChats {
                         Button {
                             showPublicChatsSettings = true
                         } label: {
@@ -178,6 +193,8 @@ struct ChatListView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    // On both pages (owner, 2026-11-25): rooms are marked read or unread, pinned
+                    // and deleted in bulk too.
                     Button(editMode == .active ? "Cancel" : "Select") {
                         withAnimation {
                             editMode = editMode == .active ? .inactive : .active
@@ -221,10 +238,14 @@ struct ChatListView: View {
                 isPresented: $showBulkDeleteConfirmation
             ) {
                 Button("Delete", role: .destructive) {
-                    let contacts = selectedChats.map { $0.contact }
-                    let groups = selectedGroups
-                    if !contacts.isEmpty { deleteConversations(contacts) }
-                    if !groups.isEmpty { deleteGroups(groups) }
+                    if listPage == .publicChats {
+                        deleteRooms(selectedRoomNames)
+                    } else {
+                        let contacts = selectedChats.map { $0.contact }
+                        let groups = selectedGroups
+                        if !contacts.isEmpty { deleteConversations(contacts) }
+                        if !groups.isEmpty { deleteGroups(groups) }
+                    }
                     selectedEntryIDs = []
                     editMode = .inactive
                 }
@@ -357,6 +378,17 @@ struct ChatListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openPublicChat)) { notification in
             guard let channel = notification.userInfo?["channel"] as? String else { return }
             openRoomFromHandoff(channel)
+        }
+        // A retired room's pin moved to its new room: read the pins again, or the next pin change
+        // here writes the old copy back and the pin is lost (audit 2026-11-25 C10).
+        .onReceive(NotificationCenter.default.publisher(for: .publicRoomPinsChanged)) { _ in
+            loadRoomPins()
+        }
+        // Select is the chats page's: any page change (a room handoff included) ends it, or the
+        // rooms page kept Select mode with no Cancel (audit 2026-11-25 C10).
+        .onChange(of: listPage) { _ in
+            if editMode == .active { editMode = .inactive }
+            if !selectedEntryIDs.isEmpty { selectedEntryIDs = [] }
         }
         .onChange(of: roomSummaries.pendingRoom) { newValue in
             guard let channel = newValue, publicChats.pendingPublicChatNavigation == channel else { return }
@@ -540,6 +572,13 @@ struct ChatListView: View {
     private var newButton: some View {
         Button {
             Haptics.impact(.light)
+            if listPage == .publicChats {
+                // the Public Chats page's + is New Public Chat itself
+                createRoomName = ""
+                createRoomError = nil
+                createStep = .publicRoom
+                createDetent = .large
+            }
             showCreateSheet = true
         } label: {
             Image(systemName: "plus")
@@ -713,7 +752,9 @@ struct ChatListView: View {
     /// The room list's own rules; errors show in place, and a joined room opens.
     private func joinRoomFromCreateSheet() {
         guard !createRoomNameIsEmpty else { return }
-        let normalized = PublicChatChannelName.normalize(createRoomName)
+        let typed = PublicChatChannelName.normalize(createRoomName)
+        // a retired room's name opens the room that replaced it (audit 2026-11-25 C2)
+        let normalized = PublicChatService.retiredChannels[typed] ?? typed
         guard PublicChatChannelName.isValid(normalized) else {
             createRoomError = String(format: AppLocalization.string("Channel names must be 1-%d characters with no spaces or colons."),
                                      locale: AppLocalization.locale, PublicChatChannelName.maxLength)
@@ -738,6 +779,7 @@ struct ChatListView: View {
     /// checked again (a link's is anyone's), and a room with no store row gets one first.
     private func openRoomFromHandoff(_ rawName: String) {
         guard let normalized = KaChatInternalLink.normalizeAndValidateChannel(rawName) else { return }
+        listPage = .publicChats
         if !publicChats.channels.contains(where: { $0.channelName == normalized }) {
             _ = publicChats.joinChannel(normalized)
         }
@@ -861,6 +903,10 @@ struct ChatListView: View {
     private func roomRow(_ room: PublicChatRoomSummary) -> some View {
         let channel = room.channel
         return Button {
+            if editMode == .active {
+                toggleSelection(Self.roomEntryID(channel.channelName))
+                return
+            }
             Haptics.impact(.light)
             openRoom(channel.channelName)
         } label: {
@@ -891,6 +937,7 @@ struct ChatListView: View {
             }
             .tint(.accentColor)
         }
+        .tag(Self.roomEntryID(channel.channelName))
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             if room.unreadCount > 0 {
                 Button {
@@ -970,6 +1017,53 @@ struct ChatListView: View {
     }
 
 
+    /// The Public Chats page with every room switched off or left.
+    private var emptyRoomsView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "number")
+                .font(.scaled(size: 60))
+                .foregroundColor(.secondary)
+            Text("No Public Chats")
+                .font(.title2)
+                .fontWeight(.semibold)
+            Text("Tap + to join or create a public room.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .padding()
+    }
+
+    /// Chats or Public Chats, beside the title; a tap fades to the other page. Its red count is
+    /// the public chats' unread on either page (rooms with their bell on); the dock's KaChat badge
+    /// counts the chats and groups (owner, 2026-11-25).
+    private var pageCycleButton: some View {
+        let roomUnread = roomSummaries.rooms.filter(\.channel.notifyEnabled).reduce(0) { $0 + $1.unreadCount }
+        return CycleCapsuleButton(options: ListPage.allCases, selection: Binding(
+            get: { listPage },
+            set: { page in
+                editMode = .inactive
+                selectedEntryIDs = []
+                listPage = page
+            }
+        ), title: { $0.title }, hint: "Switches between your chats and public chats")
+        .overlay(alignment: .topTrailing) {
+            if roomUnread > 0 {
+                Text(verbatim: AppTabBadge.label(roomUnread))
+                    .font(.caption2.weight(.bold))
+                    .monospacedDigit()
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 5)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .background(Capsule().fill(Color.red))
+                    .offset(x: 6, y: -7)
+                    .allowsHitTesting(false)
+            }
+        }
+        .padding(.top, 4)
+    }
+
     private var emptyStateView: some View {
         VStack(spacing: 20) {
             Image(systemName: "bubble.left.and.bubble.right")
@@ -1034,9 +1128,24 @@ struct ChatListView: View {
         "g:\(group.id)"
     }
 
+    fileprivate static func roomEntryID(_ channelName: String) -> String {
+        "r:\(channelName)"
+    }
+
+    /// The rooms picked in Select mode on the Public Chats page, by name.
+    private var selectedRoomNames: [String] {
+        selectedEntryIDs.compactMap { $0.hasPrefix("r:") ? String($0.dropFirst(2)) : nil }.sorted()
+    }
+
     /// The chats and groups matching the search, most recent message first. Pinned ones are in the
     /// circles row, not the list, except while searching.
     private var allEntries: [ChatListEntry] {
+        if listPage == .publicChats {
+            // rooms nobody has written in keep their order (see below)
+            return displayedRooms.enumerated()
+                .sorted { $0.element.activity != $1.element.activity ? $0.element.activity > $1.element.activity : $0.offset < $1.offset }
+                .map { ChatListEntry.room($0.element) }
+        }
         let pinnedChats = searchText.isEmpty ? pinnedChatConversations : [:]
         let chats = pinnedChats.isEmpty
             ? filteredConversationsCache
@@ -1045,7 +1154,6 @@ struct ChatListView: View {
         var dated: [(at: Date, entry: ChatListEntry)] = chats
             .map { ($0.lastMessage?.timestamp ?? Date.distantPast, ChatListEntry.chat($0)) }
         dated += displayedGroups.map { (groupMessages[$0.id]?.last?.timestamp ?? $0.createdAt, ChatListEntry.group($0)) }
-        dated += displayedRooms.map { ($0.activity, ChatListEntry.room($0)) }
         // ties (rooms nobody has written in) keep their order: `sorted` isn't stable, and they'd
         // swap places from one redraw to the next
         return dated.enumerated()
@@ -1122,9 +1230,11 @@ struct ChatListView: View {
     private var chatsTabContent: some View {
         // Pinned chats and groups live in the circles row, not the list - except while searching,
         // when the results are the whole match, pinned or not.
-        let pinnedChats = searchText.isEmpty ? pinnedChatConversations : [:]
-        let pinnedGroups = pinnedGroupChats
-        let pinnedRooms = pinnedRoomSummaries
+        // each page has its own circles: bots and pinned chats and groups, or pinned rooms
+        let onChats = listPage == .chats
+        let pinnedChats = searchText.isEmpty && onChats ? pinnedChatConversations : [:]
+        let pinnedGroups = onChats ? pinnedGroupChats : []
+        let pinnedRooms = onChats ? [] : pinnedRoomSummaries
         let entries = allEntries
         let totalCount = entries.count
         let displayed: [ChatListEntry]
@@ -1135,48 +1245,51 @@ struct ChatListView: View {
             displayed = entries
         }
 
-        let showsRequestsRow = searchText.isEmpty && editMode != .active
+        let showsRequestsRow = onChats && searchText.isEmpty && editMode != .active
         let requestCount = showsRequestsRow
             ? chatService.messageRequestCount + groupChatService.pendingGroupInvites.count
             : 0
         return List(selection: $selectedEntryIDs) {
             // The bot chats and the chats you pinned, as circles under the search bar - swipe
             // sideways for all of them. Tap opens, hold opens their half sheet.
-            ChatCirclesStrip(
-                searchText: searchText,
-                pins: circlePins,
-                bots: botCircles,
-                pinnedChats: pinnedChats,
-                pinnedGroups: pinnedGroups,
-                groupUnreadCount: { groupChatService.unreadCount(for: $0) },
-                onOpenGroup: { group in
-                    guard groupActionTarget == nil else { return }
-                    selectedGroup = group
-                },
-                onLongPressGroup: { groupActionTarget = $0 },
-                pinnedRooms: pinnedRooms,
-                onOpenRoom: { room in
-                    guard roomActionTarget == nil else { return }
-                    Haptics.impact(.light)
-                    openRoom(room.channelName)
-                },
-                onLongPressRoom: { roomActionTarget = $0 },
-                chatName: circleName(for:),
-                // The open is guarded on the hold's half sheet: the hold's touch-up still fires
-                // the circle's Button (simultaneousGesture), and opened the chat behind it.
-                onOpenBot: { guard circleActionTarget == nil else { return }; openBotFromCircle($0) },
-                onOpenChat: { conversation in
-                    guard conversationActionTarget == nil else { return }
-                    selectedContactStartInPaymentMode = false
-                    selectedContact = conversation.contact
-                },
-                onLongPress: { circleActionTarget = CircleActionTarget(id: $0) },
-                // A pinned chat holds to the chat row's own half sheet (with Unpin).
-                onLongPressChat: { conversationActionTarget = $0 }
-            )
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            // the Public Chats page has circles only for the rooms you pinned
+            if onChats || !pinnedRooms.isEmpty {
+                ChatCirclesStrip(
+                    searchText: searchText,
+                    pins: onChats ? circlePins : [],
+                    bots: onChats ? botCircles : [],
+                    pinnedChats: pinnedChats,
+                    pinnedGroups: pinnedGroups,
+                    groupUnreadCount: { groupChatService.unreadCount(for: $0) },
+                    onOpenGroup: { group in
+                        guard groupActionTarget == nil else { return }
+                        selectedGroup = group
+                    },
+                    onLongPressGroup: { groupActionTarget = $0 },
+                    pinnedRooms: pinnedRooms,
+                    onOpenRoom: { room in
+                        guard roomActionTarget == nil else { return }
+                        Haptics.impact(.light)
+                        openRoom(room.channelName)
+                    },
+                    onLongPressRoom: { roomActionTarget = $0 },
+                    chatName: circleName(for:),
+                    // The open is guarded on the hold's half sheet: the hold's touch-up still fires
+                    // the circle's Button (simultaneousGesture), and opened the chat behind it.
+                    onOpenBot: { guard circleActionTarget == nil else { return }; openBotFromCircle($0) },
+                    onOpenChat: { conversation in
+                        guard conversationActionTarget == nil else { return }
+                        selectedContactStartInPaymentMode = false
+                        selectedContact = conversation.contact
+                    },
+                    onLongPress: { circleActionTarget = CircleActionTarget(id: $0) },
+                    // A pinned chat holds to the chat row's own half sheet (with Unpin).
+                    onLongPressChat: { conversationActionTarget = $0 }
+                )
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
             // People who wrote first and haven't been accepted - one row, always there, right
             // above the chats (NO_HANDSHAKE_MESSAGING.md).
             if showsRequestsRow {
@@ -1207,21 +1320,25 @@ struct ChatListView: View {
                     }
                 }
 
-                Text("\(totalCount) chat\(pluralS(totalCount))")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                if onChats {
+                    Text("\(totalCount) chat\(pluralS(totalCount))")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
             }
         }
         .listStyle(.plain)
         .overlay(alignment: .center) {
             // Below the circles row rather than over it: only when there are no chats at all.
             if displayed.isEmpty && searchText.isEmpty && pinnedChats.isEmpty && pinnedGroups.isEmpty && pinnedRooms.isEmpty {
-                emptyStateView
-                    .padding(.top, 120)
-                    .allowsHitTesting(false)
+                Group {
+                    if onChats { emptyStateView } else { emptyRoomsView }
+                }
+                .padding(.top, 120)
+                .allowsHitTesting(false)
             }
         }
     }
@@ -1575,6 +1692,71 @@ struct ChatListView: View {
     private var selectionActionBar: some View {
         VStack(spacing: 0) {
             Divider()
+            if listPage == .publicChats {
+                roomSelectionButtons
+            } else {
+                chatSelectionButtons
+            }
+        }
+        .background(.bar)
+    }
+
+    /// Select mode on the Public Chats page: mark read, mark unread, pin or unpin (to the circles
+    /// above the rooms, on this page only), and delete.
+    private var roomSelectionButtons: some View {
+        let names = selectedRoomNames
+        let allPinned = !names.isEmpty && names.allSatisfy { roomPins.contains($0) }
+        return HStack(spacing: 12) {
+            Button {
+                for name in names { publicChats.markChannelRead(name) }
+                roomSummaries.recompute()
+                editMode = .inactive
+            } label: {
+                Image(systemName: "envelope.open")
+                    .frame(maxWidth: .infinity)
+            }
+            .accessibilityLabel(Text("Mark as Read"))
+            .disabled(names.isEmpty)
+
+            Button {
+                for name in names { publicChats.markChannelUnread(name) }
+                roomSummaries.recompute()
+                editMode = .inactive
+            } label: {
+                Image(systemName: "envelope.badge")
+                    .frame(maxWidth: .infinity)
+            }
+            .accessibilityLabel(Text("Mark as Unread"))
+            .disabled(names.isEmpty)
+
+            Button {
+                // all pinned: unpin them; otherwise pin the ones that aren't
+                for name in names where roomPins.contains(name) == allPinned { toggleRoomPin(name) }
+                editMode = .inactive
+            } label: {
+                Image(systemName: allPinned ? "pin.slash" : "pin")
+                    .frame(maxWidth: .infinity)
+            }
+            .accessibilityLabel(Text(allPinned ? "Unpin" : "Pin"))
+            .disabled(names.isEmpty)
+
+            Button(role: .destructive) {
+                showBulkDeleteConfirmation = true
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+            }
+            .accessibilityLabel(Text("Delete"))
+            .disabled(names.isEmpty)
+        }
+        .font(.scaled(size: 18))
+        .buttonStyle(.bordered)
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+    }
+
+    private var chatSelectionButtons: some View {
             HStack(spacing: 12) {
                 Button {
                     let chats = selectedChats
@@ -1611,8 +1793,6 @@ struct ChatListView: View {
             .buttonStyle(.bordered)
             .padding(.horizontal)
             .padding(.vertical, 10)
-        }
-        .background(.bar)
     }
 
     private var balanceToolbarView: some View {
@@ -1743,6 +1923,12 @@ struct ChatListView: View {
     /// nested inside string interpolation there was making the compiler unable to type-check the
     /// `.alert` expression in reasonable time.
     private var bulkDeleteAlertTitle: String {
+        if listPage == .publicChats {
+            let rooms = selectedRoomNames.count
+            return rooms == 1
+                ? AppLocalization.string("Delete 1 Public Chat?")
+                : String(format: AppLocalization.string("Delete %lld Public Chats?"), rooms)
+        }
         let chats = selectedEntryIDs.count
         // One key per form, not an English "s" glued on (audit 2026-11-24 #34).
         return chats == 1
@@ -1751,7 +1937,25 @@ struct ChatListView: View {
     }
 
     private var bulkDeleteAlertMessage: String {
-        AppLocalization.string("This permanently deletes every message in each selected chat from this device. This cannot be undone.")
+        if listPage == .publicChats {
+            return AppLocalization.string("Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device.")
+        }
+        return AppLocalization.string("This permanently deletes every message in each selected chat from this device. This cannot be undone.")
+    }
+
+    /// Select mode's Delete on the Public Chats page, already confirmed: a default room is
+    /// switched off, as its swipe does; a room you added is left and its cached messages go.
+    private func deleteRooms(_ names: [String]) {
+        for name in names {
+            if PublicChatService.curatedChannels.contains(name) {
+                publicChats.removeFromList(name)
+            } else {
+                publicChats.leaveChannel(name)
+                if selectedPublicRoom == name { selectedPublicRoom = nil }
+            }
+            dropRoomPin(name)
+        }
+        roomSummaries.recompute()
     }
 
     /// Long-press half sheet for a pinned 1:1 chat's circle. Read/Unread show contextually (the
@@ -2140,7 +2344,7 @@ struct ConversationRow: View {
                             )
                         }
 
-                        Text(reactionPreviewText ?? formatPreview(lastMessage.readableContent))
+                        Text(reactionPreviewText ?? formatPreview(chatService.messageForPreview(lastMessage).readableContent))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -2267,6 +2471,8 @@ struct ConversationRow: View {
                 result = AppLocalization.string("Shared a KaPost")
             case .publicChatRoom(let channel):
                 result = String(format: AppLocalization.string("Public chat room #%@"), channel)
+            case .hubSection(let tab):
+                result = String(format: AppLocalization.string("Kaspa Hub: %@"), AppLocalization.string(tab.label))
             }
             Self.previewCache.setObject(result as NSString, forKey: key)
             return result

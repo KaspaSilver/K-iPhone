@@ -3778,8 +3778,12 @@ extension ChatService {
     /// resolve_previous_outpoints=light`, which made the server assemble (and us download and
     /// decode) an entire transaction with resolved outpoints just to answer a yes/no question.
     /// A short per-request timeout keeps a hung host from pinning a sweep's concurrency slot.
-    func spendingAddressUsedState(_ address: String) async -> Bool? {
-        if let cached = cachedSpendingAddressUsedState(address) { return cached }
+    ///
+    /// `skipSessionCache`: ask the network even when this session saw the address unused, for a
+    /// decision that must not rest on a stale "unused" (a quantum change address that may have
+    /// been used since). A persisted "used" still answers at once: used never goes back.
+    func spendingAddressUsedState(_ address: String, skipSessionCache: Bool = false) async -> Bool? {
+        if let cached = cachedSpendingAddressUsedState(address), cached || !skipSessionCache { return cached }
         guard let url = kaspaRestURL(path: "/addresses/\(address)/transactions-count") else { return nil }
         var request = URLRequest(url: url)
         request.timeoutInterval = 8

@@ -236,9 +236,12 @@ final class TokenWallet: ObservableObject {
     private var lastDiscovered: Date?
     /// Addresses the last tolerant lookup couldn't read.
     private var lastLookupFailures = 0
-    /// Addresses a receive screen showed lately (`noteReceiveAddressShown`): the regular poll looks
-    /// at them too, so kUSDT sent there is noticed without asking about every address.
+    /// Addresses a receive screen showed lately or a swap paid to (`noteReceiveAddressShown`), by
+    /// account: the regular poll looks at them too, so kUSDT sent there is noticed without asking
+    /// about every address. Kept on the phone (`token_receivewatch_kusdt_<account>`), so a Receive
+    /// shown before a relaunch is still watched (audit 2026-11-25 B13).
     private var recentReceiveAddresses: [String: Date] = [:]
+    private var recentReceiveAccount: String?
 
     private init() {}
 
@@ -247,21 +250,23 @@ final class TokenWallet: ObservableObject {
     /// Refreshes unless the balances are under `maxAge` seconds old (and for this account).
     /// `everyAddress`: every revealed address (Manage kUSDT); otherwise only the ones that matter
     /// (`pollTargets`).
-    func refreshIfStale(maxAge: TimeInterval = 60, everyAddress: Bool = false) async {
+    /// `background`: the regular poll, which doesn't publish `isRefreshing` (nothing on screen
+    /// asked, and a dozen views observe it; audit 2026-11-25 B13).
+    func refreshIfStale(maxAge: TimeInterval = 60, everyAddress: Bool = false, background: Bool = false) async {
         let account = WalletManager.shared.currentWallet?.publicAddress
         if account == loadedAccount, let lastRefreshed, Date().timeIntervalSince(lastRefreshed) < maxAge { return }
-        await refresh(everyAddress: everyAddress)
+        await refresh(everyAddress: everyAddress, background: background)
     }
 
     /// Looks the balances up again. One at a time: a call while another lookup runs waits for it,
     /// then runs only if that one was for another account (or a narrower look than asked for).
-    func refresh(everyAddress: Bool = false) async {
+    func refresh(everyAddress: Bool = false, background: Bool = false) async {
         if let running = lookupTask {
             await running.value
             if loadedAccount == WalletManager.shared.currentWallet?.publicAddress, let lastRefreshed,
                Date().timeIntervalSince(lastRefreshed) < 5, !everyAddress { return }
         }
-        await runLookup { await self.performRefresh(everyAddress: everyAddress) }
+        await runLookup { await self.performRefresh(everyAddress: everyAddress, background: background) }
     }
 
     /// Runs `work` as the one lookup, after any other one finishes.
@@ -278,7 +283,7 @@ final class TokenWallet: ObservableObject {
         return value
     }
 
-    private func performRefresh(everyAddress: Bool) async {
+    private func performRefresh(everyAddress: Bool, background: Bool = false) async {
         guard let account = WalletManager.shared.currentWallet?.publicAddress else { return }
         if account != loadedAccount {
             holdings = [:]
@@ -287,8 +292,8 @@ final class TokenWallet: ObservableObject {
             loadedAccount = account
         }
         loadActivityIfNeeded(account: account)
-        isRefreshing = true
-        defer { isRefreshing = false }
+        if !background { isRefreshing = true }
+        defer { if isRefreshing { isRefreshing = false } }
         let targets = everyAddress || lastRefreshed == nil ? allRevealedTargets(account: account) : pollTargets(account: account)
         do {
             let results = try await lookUp(targets)
@@ -327,9 +332,11 @@ final class TokenWallet: ObservableObject {
     }
 
     /// What the regular refresh asks Trestly about: the Chatting Address, the addresses holding or
-    /// listed for kUSDT, ones with kUSDT history here, ones a send is waiting on, the newest few
-    /// revealed and any a receive screen showed lately. Not every address every time: Trestly would
-    /// see them all together, from one IP, every 30 seconds, and could link them.
+    /// listed for kUSDT, ones with kUSDT history here, ones a send is waiting on, and any a receive
+    /// screen showed or a swap paid to lately. Not every address every time: Trestly would see them
+    /// all together, from one IP, every 30 seconds, and could link them. No longer the newest few
+    /// revealed: for an account with no kUSDT that was three lookups a beat for nothing (audit
+    /// 2026-11-25 B13); the first lookup after a launch still asks about every revealed address.
     private func pollTargets(account: String) -> [(spendingIndex: Int?, address: String)] {
         let manager = WalletManager.shared
         let maxIndex = manager.maxSpendingAddressIndex
@@ -338,9 +345,9 @@ final class TokenWallet: ObservableObject {
         indices.formUnion((activity[WalletToken.kusdt.id] ?? []).compactMap { activity in
             activity.holdingID.hasPrefix("s") ? Int(activity.holdingID.dropFirst()) : nil
         })
-        if maxIndex >= 0 { indices.formUnion(max(0, maxIndex - 2)...maxIndex) }
+        loadReceiveWatchIfNeeded(account: account)
         let watched = Set(pendingCoins.map { $0.address.lowercased() })
-            .union(recentReceiveAddresses.filter { Date().timeIntervalSince($0.value) < 7 * 86_400 }.keys)
+            .union(recentReceiveAddresses.filter { Date().timeIntervalSince($0.value) < Self.receiveWatchAge }.keys)
         let revealed = manager.spendingAddresses(inRange: 0..<(max(0, maxIndex) + 1))
         var targets: [(spendingIndex: Int?, address: String)] = [(nil, account)]
         for index in revealed.keys.sorted() {
@@ -350,9 +357,52 @@ final class TokenWallet: ObservableObject {
         return targets
     }
 
-    /// A receive screen showed this address: the regular refresh watches it for a week.
+    /// A receive screen showed this address, or it was handed out another way (Manage Addresses'
+    /// Copy and Generate Non-Quantum Address, a regular address picked for Request Payment): the
+    /// regular refresh watches it for a week. Never called for quantum addresses, which can't hold
+    /// tokens.
     func noteReceiveAddressShown(_ address: String) {
+        guard let account = WalletManager.shared.currentWallet?.publicAddress else { return }
+        loadReceiveWatchIfNeeded(account: account)
         recentReceiveAddresses[address.lowercased()] = Date()
+        recentReceiveAddresses = recentReceiveAddresses.filter { Date().timeIntervalSince($0.value) < Self.receiveWatchAge }
+        UserDefaults.standard.set(recentReceiveAddresses.mapValues { $0.timeIntervalSince1970 },
+                                  forKey: receiveWatchKey(account: account))
+    }
+
+    private static let receiveWatchAge: TimeInterval = 7 * 86_400
+
+    private func receiveWatchKey(account: String) -> String { "token_receivewatch_\(WalletToken.kusdt.id)_\(account)" }
+
+    /// The account's watched receive addresses, read once per account.
+    private func loadReceiveWatchIfNeeded(account: String) {
+        guard recentReceiveAccount != account else { return }
+        recentReceiveAccount = account
+        let saved = UserDefaults.standard.dictionary(forKey: receiveWatchKey(account: account)) as? [String: Double] ?? [:]
+        recentReceiveAddresses = saved.mapValues { Date(timeIntervalSince1970: $0) }
+    }
+
+    private var tradeFollowTask: Task<Void, Never>?
+
+    /// A swap from this phone went out (`TrestlyTrade.run`). The coins it made for you (the kUSDT
+    /// bought, or a sell's kUSDT change) show only once Trestly lists them, which takes longer than
+    /// the one look 4 s later that used to be all a swap got: with Address Activity notifications
+    /// off nothing else looked again, so the balance stayed old until a pull to refresh. Looks
+    /// again on a widening schedule (3 s to about 1.5 minutes) until a coin from the swap shows.
+    func followTrade(txid: String, address: String) {
+        // the regular look covers this address from now on, whatever it held before
+        noteReceiveAddressShown(address)
+        tradeFollowTask?.cancel()
+        tradeFollowTask = Task { @MainActor [weak self] in
+            for delay: UInt64 in [3, 4, 6, 8, 10, 15, 20, 30] {
+                try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                await self.refresh()
+                if self.coins.values.contains(where: { list in list.contains { $0.transactionId == txid } }) {
+                    return
+                }
+            }
+        }
     }
 
     /// The lookups, four at a time. Any one failing fails the refresh, so a partial answer is never
@@ -418,7 +468,8 @@ final class TokenWallet: ObservableObject {
             byHolding[holding.id] = live
         }
         list.sort { ($0.spendingIndex ?? -1) < ($1.spendingIndex ?? -1) }
-        holdings[token.id] = list
+        // only a real change publishes (a dozen views observe it; audit 2026-11-25 B13)
+        if holdings[token.id] != list { holdings[token.id] = list }
         coins = byHolding
     }
 
@@ -674,15 +725,21 @@ final class TokenWallet: ObservableObject {
         let ownAddresses = Set(WalletManager.shared.allSpendingAddresses().map { $0.lowercased() } + [account.lowercased()])
 
         var received: [(holdingID: String, units: UInt64)] = []
-        var checked: [String: Bool] = [:]
+        var checked: [String: (own: Bool, at: Date?)] = [:]
+        // Whether any coin announced now came in the last few minutes: only those ring. Coins
+        // that came while K was closed or this account was signed out go to the bell quietly,
+        // dated when they came (owner, 2026-11-25: switching accounts pinged old receives).
+        var anyCurrent = false
+        var newest: Date?
         for (holdingID, list) in coins {
             for coin in list where fresh.contains(coin) {
                 let own: Bool
+                let at: Date?
                 if let cached = checked[coin.transactionId] {
-                    own = cached
+                    (own, at) = cached
                 } else {
-                    own = await Self.isOwnTransfer(coin.transactionId, known: known, ownAddresses: ownAddresses, fallback: ownCoinSpent)
-                    checked[coin.transactionId] = own
+                    (own, at) = await Self.isOwnTransfer(coin.transactionId, known: known, ownAddresses: ownAddresses, fallback: ownCoinSpent)
+                    checked[coin.transactionId] = (own, at)
                 }
                 if !own, coin.state.amount > 0 {
                     let key = Self.outpointKey(coin)
@@ -702,16 +759,25 @@ final class TokenWallet: ObservableObject {
                     // a contact's Send Dollars the chat already showed and announced: no second banner
                     if !filedByChat {
                         received.append((holdingID, coin.state.amount))
+                        // an unknown time counts as now, as the chats' `InAppBanner.isRecent` has
+                        // it (audit 2026-11-25 C10)
+                        if at.map({ Date().timeIntervalSince($0) <= Self.ringWindow }) ?? true { anyCurrent = true }
+                        if let at { newest = max(newest ?? at, at) }
                     }
                     record(TokenActivity(id: "\(coin.transactionId):\(holdingID):received", kind: .received,
-                                         units: coin.state.amount, counterparty: "", date: Date(), holdingID: holdingID),
+                                         units: coin.state.amount, counterparty: "", date: at ?? Date(), holdingID: holdingID),
                            token: token, account: account)
                 }
             }
         }
         guard !received.isEmpty, Self.notificationsEnabled else { return }
-        postReceived(received, token: token)
+        postReceived(received, token: token, ring: anyCurrent, happenedAt: newest)
     }
+
+    /// How old a received coin may be and still ring: Trestly lists new coins late, and a coin
+    /// on the Chatting Address waits up to `noticeWait` for its chat notice, so wider than the
+    /// chats' 3 minutes.
+    private static let ringWindow: TimeInterval = 6 * 60
 
     /// Coins on the Chatting Address waiting for a chat notice, by outpoint, with when first seen.
     private var awaitingNotice: [String: Date] = [:]
@@ -721,18 +787,21 @@ final class TokenWallet: ObservableObject {
 
     /// Whether the transaction that made a coin was your own: it spent a coin of yours, or
     /// an input came from one of your addresses. When the REST API can't say, `fallback`.
-    private static func isOwnTransfer(_ txid: String, known: Set<String>, ownAddresses: Set<String>, fallback: Bool) async -> Bool {
-        guard let tx = await ChatService.shared.fetchFullTransaction(txId: txid, resolvePrevious: true),
-              let inputs = tx.inputs, !inputs.isEmpty else { return fallback }
+    /// Also when it happened (its block time), nil when unknown.
+    private static func isOwnTransfer(_ txid: String, known: Set<String>, ownAddresses: Set<String>, fallback: Bool) async -> (own: Bool, at: Date?) {
+        guard let tx = await ChatService.shared.fetchFullTransaction(txId: txid, resolvePrevious: true) else { return (fallback, nil) }
+        let at = tx.blockTime.flatMap { $0 > 0 ? Date(timeIntervalSince1970: Double($0) / 1000) : nil }
+        guard let inputs = tx.inputs, !inputs.isEmpty else { return (fallback, at) }
         for input in inputs {
             if let hash = input.previousOutpointHash?.lowercased(), let index = input.previousOutpointIndex,
-               known.contains("\(hash):\(index)") { return true }
-            if let address = input.previousOutpointAddress?.lowercased(), ownAddresses.contains(address) { return true }
+               known.contains("\(hash):\(index)") { return (true, at) }
+            if let address = input.previousOutpointAddress?.lowercased(), ownAddresses.contains(address) { return (true, at) }
         }
-        return false
+        return (false, at)
     }
 
-    private func postReceived(_ received: [(holdingID: String, units: UInt64)], token: WalletToken) {
+    /// `ring` false: the bell only, no banner (none of the coins is from the last few minutes).
+    private func postReceived(_ received: [(holdingID: String, units: UInt64)], token: WalletToken, ring: Bool, happenedAt: Date?) {
         let total = received.reduce(UInt64(0)) { $0 + $1.units }
         let content = UNMutableNotificationContent()
         // Just "Received 1.00 kUSDT" (owner, 2026-11-22): no "On your Chatting Address" line.
@@ -742,9 +811,11 @@ final class TokenWallet: ObservableObject {
         let settings = AppSettings.load()
         content.sound = settings.incomingNotificationSoundEnabled ? .default : nil
         let id = "token-received-\(token.id)-\(UUID().uuidString)"
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+        if ring {
+            UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+        }
         GlobalNotificationCenter.shared.record(id: id, source: .token, title: content.title, body: content.body,
-                                               timestamp: Int64(Date().timeIntervalSince1970 * 1000), targetId: token.id)
+                                               timestamp: Int64((happenedAt ?? Date()).timeIntervalSince1970 * 1000), targetId: token.id)
     }
 
     /// A tapped token notification opens that token's Manage screen (`KaChatApp`).
@@ -777,19 +848,25 @@ final class TokenWallet: ObservableObject {
 
     private var pollTask: Task<Void, Never>?
 
-    /// While the app is open and signed in, the balances are checked every 30 seconds (90 until
-    /// 2026-11-22, when a Received kUSDT came minutes late), so a token that arrives is announced. Only with Address Activity notifications on; the screens refresh
-    /// themselves either way.
+    /// While the app is open and signed in, the balances are checked on every foreground beat
+    /// (`ForegroundBeat`: 30 s on Wi-Fi, 60 s on cellular, 1.5 s after the room sweep, so the
+    /// radio wakes once per beat; audit 2026-11-25 B4), so a token that arrives is announced. Only
+    /// with Address Activity notifications on; the screens refresh themselves either way.
     func startPolling() {
         guard pollTask == nil else { return }
         pollTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 30_000_000_000)
+                await ForegroundBeat.sleepUntilNextBeat(offset: 1.5)
                 guard let self, !Task.isCancelled else { return }
+                // Signed out: the loop ends rather than waking every beat for nothing; the next
+                // sign-in's MainTabView starts it again (audit 2026-11-25 B19).
+                guard WalletManager.shared.currentWallet != nil else {
+                    self.pollTask = nil
+                    return
+                }
                 guard UIApplication.shared.applicationState == .active,
-                      WalletManager.shared.currentWallet != nil,
                       Self.notificationsEnabled else { continue }
-                await self.refreshIfStale(maxAge: 25)
+                await self.refreshIfStale(maxAge: 25, background: true)
             }
         }
     }
@@ -868,7 +945,7 @@ final class TokenWallet: ObservableObject {
     func forgetLocalData(account: String) {
         let defaults = UserDefaults.standard
         for token in tokens {
-            for kind in ["activity", "seen", "hidden", "shown"] {
+            for kind in ["activity", "seen", "hidden", "shown", "receivewatch"] {
                 defaults.removeObject(forKey: "token_\(kind)_\(token.id)_\(account)")
             }
         }
@@ -882,6 +959,10 @@ final class TokenWallet: ObservableObject {
         if activityAccount == account {
             activity = [:]
             activityAccount = nil
+        }
+        if recentReceiveAccount == account {
+            recentReceiveAddresses = [:]
+            recentReceiveAccount = nil
         }
     }
 

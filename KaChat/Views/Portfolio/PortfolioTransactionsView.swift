@@ -251,7 +251,7 @@ struct PortfolioTransactionsView<Header: View>: View {
         String(format: AppLocalization.string(key), locale: AppLocalization.locale, arguments: args)
     }
 
-    /// Same CSV as Export CSV, uploaded into the KaChat folder of the connected Nextcloud
+    /// Same CSV as Export CSV, uploaded into the K folder of the connected Nextcloud
     /// instead of handed to a share sheet.
     private func exportToNextcloud() {
         guard !viewModel.scopedTransactions.isEmpty else {
@@ -587,7 +587,7 @@ struct PortfolioTransactionsView<Header: View>: View {
                     }
                     ActionSheetRow(
                         title: "Export to Nextcloud",
-                        subtitle: "Save the CSV to the KaChat folder in your Nextcloud.",
+                        subtitle: "Save the CSV to the K folder in your Nextcloud.",
                         systemImage: "icloud.and.arrow.up"
                     ) {
                         showActions = false

@@ -3,18 +3,42 @@ import Foundation
 // MARK: - Endpoint
 
 /// Represents a Kaspa node endpoint (host:port)
+/// How K talks to a node: gRPC (the default), or wRPC's JSON encoding over a WebSocket
+/// (`WRPCTransport.swift`), for `ws://` / `wss://` nodes.
+enum NodeTransport: String, Codable {
+    case grpc
+    case wrpcJSON
+}
+
 struct Endpoint: Hashable, Codable, Identifiable {
     let host: String
     let port: Int
-    /// Whether to connect over TLS (`grpcs://`/`https://`) rather than plaintext (`grpc://`) -
-    /// needed for nodes that terminate TLS at the gRPC port itself, e.g. Kaspium's own nodes
-    /// (see external/../kaspium_wallet's NodeConfig.isSecure and GrpcService.url's port
-    /// inference, which this mirrors: an explicit port is used if given, otherwise 443).
+    /// Whether to connect over TLS (`grpcs://`/`https://`/`wss://`) rather than plaintext
+    /// (`grpc://`/`ws://`) - needed for nodes that terminate TLS at the gRPC port itself, e.g.
+    /// Kaspium's own nodes (see external/../kaspium_wallet's NodeConfig.isSecure and
+    /// GrpcService.url's port inference, which this mirrors: an explicit port is used if given,
+    /// otherwise 443).
     var secure: Bool
+    /// gRPC, or wRPC JSON over a WebSocket.
+    var transport: NodeTransport = .grpc
+    /// A WebSocket node's path, e.g. "/kaspa/mainnet/wrpc/json" for the public nodes; "" for gRPC.
+    var path: String = ""
 
     var id: String { key }
-    var key: String { "\(host):\(port)" }
-    var url: String { secure ? "grpcs://\(host):\(port)" : "grpc://\(host):\(port)" }
+    /// gRPC nodes keep their "host:port" key (persisted records use it); a WebSocket node's key is
+    /// its whole URL, so it can never collide with a gRPC node on the same host and port.
+    var key: String { transport == .wrpcJSON ? url : "\(host):\(port)" }
+    var url: String {
+        switch transport {
+        case .grpc:
+            return secure ? "grpcs://\(host):\(port)" : "grpc://\(host):\(port)"
+        case .wrpcJSON:
+            let shownHost = host.contains(":") ? "[\(host)]" : host
+            return "\(secure ? "wss" : "ws")://\(shownHost):\(port)\(path)"
+        }
+    }
+    var isWebSocket: Bool { transport == .wrpcJSON }
+    var webSocketURL: URL? { transport == .wrpcJSON ? URL(string: url) : nil }
 
     init(host: String, port: Int, secure: Bool = false) {
         self.host = host
@@ -22,10 +46,33 @@ struct Endpoint: Hashable, Codable, Identifiable {
         self.secure = secure
     }
 
+    /// A wRPC JSON node over a WebSocket.
+    init(webSocketHost host: String, port: Int, secure: Bool, path: String) {
+        self.host = host
+        self.port = port
+        self.secure = secure
+        self.transport = .wrpcJSON
+        self.path = path
+    }
+
     init?(url: String) {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+        if lower.hasPrefix("wss://") || lower.hasPrefix("ws://") {
+            guard let parts = URLComponents(string: trimmed), let host = parts.host, !host.isEmpty else { return nil }
+            let secure = lower.hasPrefix("wss://")
+            var path = parts.percentEncodedPath
+            if path == "/" { path = "" }
+            // The public nodes' resolver hands out Borsh URLs; K speaks the JSON encoding, which
+            // the same node serves next to it (as Trestly's node code does).
+            if path.hasSuffix("/wrpc/borsh") { path = String(path.dropLast("/wrpc/borsh".count)) + "/wrpc/json" }
+            self.init(webSocketHost: host, port: parts.port ?? (secure ? 443 : 80), secure: secure, path: path)
+            return
+        }
+
         // Parse "grpcs://host[:port]", "https://host[:port]" (secure), "grpc://host:port", or
         // plain "host:port" (insecure).
-        var cleanUrl = url
+        var cleanUrl = trimmed
         var secure = false
         if cleanUrl.hasPrefix("grpcs://") {
             secure = true
@@ -39,21 +86,17 @@ struct Endpoint: Hashable, Codable, Identifiable {
 
         if let lastColon = cleanUrl.lastIndex(of: ":"),
            let port = Int(cleanUrl[cleanUrl.index(after: lastColon)...]) {
-            self.host = String(cleanUrl[..<lastColon])
-            self.port = port
-            self.secure = secure
+            self.init(host: String(cleanUrl[..<lastColon]), port: port, secure: secure)
         } else if secure, !cleanUrl.isEmpty {
             // Secure links may omit the port, matching Kaspium's own default-to-443 inference.
-            self.host = cleanUrl
-            self.port = 443
-            self.secure = true
+            self.init(host: cleanUrl, port: 443, secure: true)
         } else {
             return nil
         }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case host, port, secure
+        case host, port, secure, transport, path
     }
 
     init(from decoder: Decoder) throws {
@@ -63,6 +106,9 @@ struct Endpoint: Hashable, Codable, Identifiable {
         // Absent in records persisted before this field existed - default to the plaintext
         // behavior every existing endpoint (seeds, discovered, prior manual entries) used.
         secure = try container.decodeIfPresent(Bool.self, forKey: .secure) ?? false
+        // Absent before WebSocket nodes existed (2026-11-24): every older record is gRPC.
+        transport = (try? container.decodeIfPresent(NodeTransport.self, forKey: .transport)) ?? .grpc
+        path = try container.decodeIfPresent(String.self, forKey: .path) ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
@@ -70,6 +116,10 @@ struct Endpoint: Hashable, Codable, Identifiable {
         try container.encode(host, forKey: .host)
         try container.encode(port, forKey: .port)
         try container.encode(secure, forKey: .secure)
+        if transport != .grpc {
+            try container.encode(transport, forKey: .transport)
+            try container.encode(path, forKey: .path)
+        }
     }
 }
 
@@ -103,12 +153,16 @@ enum NodeOrigin: Int, Codable {
     case seed = 0           // Bundled seed node (Tier-0, discovery only)
     case discovered = 1     // Found via peer discovery
     case userAdded = 2      // Manually added by user
+    /// A public wRPC node (`wss://`) from the Kaspa resolver, added while no gRPC node answers
+    /// (`NodePoolService.evaluatePublicFallback`) and removed once one does. Never persisted.
+    case publicFallback = 3
 
     var displayName: String {
         switch self {
         case .seed: return "Seed"
         case .discovered: return "Discovered"
         case .userAdded: return "Manual"
+        case .publicFallback: return "Public"
         }
     }
 }
@@ -405,6 +459,15 @@ struct NodeRecord: Codable, Identifiable {
         health.latencyMs.value ?? health.globalLatencyMs.value ?? Double.infinity
     }
 
+    /// The latency a node is ranked by. A WebSocket node counts as half again slower plus 150 ms,
+    /// so gRPC wins whenever it answers: wss blocks arrive as JSON (more CPU and bytes), and the
+    /// public wss nodes learn your addresses. A wss node still wins when gRPC fails.
+    var rankingLatencyMs: Double {
+        let latency = effectiveLatencyMs
+        guard endpoint.isWebSocket, latency.isFinite else { return latency }
+        return latency * 1.5 + 150
+    }
+
     var isActiveEligible: Bool {
         profile.lastProfiledAt != nil &&
         profile.isSynced == true &&
@@ -591,12 +654,15 @@ enum PoolHealth: Int {
         self != .healthy
     }
 
-    var probeFrequencyMultiplier: Double {
+    /// How much longer the probe loop waits between cycles. A backoff: a pool that is failing
+    /// (usually offline, or a network that blocks the nodes) probes less often, not more. It
+    /// used to divide the interval, down to about 1.25 s with no node answering.
+    var probeIntervalMultiplier: Double {
         switch self {
         case .healthy: return 1.0
-        case .degraded: return 2.0
-        case .critical: return 4.0
-        case .failed: return 8.0
+        case .degraded: return 1.0
+        case .critical: return 1.5
+        case .failed: return 3.0
         }
     }
 }

@@ -182,6 +182,13 @@ final class ContactsManager: ObservableObject {
         if normalizedAddress == nil {
             SharedDataManager.syncContactsForExtension()
         }
+        // The hourly profile rescan belongs to the signed-in account (audit 2026-11-25 B19: it
+        // used to tick on the sign-in screen): it stops with the account and starts with the next
+        // one while the app is open. Foregrounding starts it as before (`KaChatApp`).
+        stopProfileRescans()
+        if normalizedAddress != nil, UIApplication.shared.applicationState == .active {
+            startProfileRescans()
+        }
     }
 
     func clearInMemoryContacts(syncShared: Bool = true, updatePush: Bool = false) {
@@ -547,12 +554,17 @@ final class ContactsManager: ObservableObject {
     /// While the app is open: everyone's profile looked up again once an hour, so a new name,
     /// avatar, banner or bio shows without anyone asking for it.
     func startProfileRescans() {
-        guard profileRescanTask == nil else { return }
+        guard profileRescanTask == nil, activeWalletAddress != nil else { return }
         profileRescanTask = Task { @MainActor [weak self] in
             // Launch and foregrounding have enough to do first.
             try? await Task.sleep(nanoseconds: 30_000_000_000)
             while !Task.isCancelled {
                 guard let self else { return }
+                // signed out meanwhile: nothing to rescan until the next account starts it again
+                guard WalletManager.shared.currentWallet != nil else {
+                    self.profileRescanTask = nil
+                    return
+                }
                 let wait = self.secondsUntilProfileRescan()
                 if wait > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
@@ -593,8 +605,9 @@ final class ContactsManager: ObservableObject {
     }
 
     /// The on-chain profile (which links it uses) asked for again, each link's avatar, banner and
-    /// bio looked up again, and both pictures downloaded again whatever the caches hold - so a
-    /// change shows everywhere this person appears.
+    /// bio looked up again, and both pictures checked - so a change shows everywhere this person
+    /// appears. A picture is downloaded again only when it changed (a new link downloads when it
+    /// next shows; the same link gets a conditional check), not every hour (audit 2026-11-25 B17).
     private func rescanProfile(address: String) async {
         var pictures: [String] = []
         if KachatNamesService.isEnabled {
@@ -604,7 +617,7 @@ final class ContactsManager: ObservableObject {
                 if let link = links.banner, let url = answers[link]?.banner { pictures.append(url) }
             }
         }
-        _ = await KNSProfileImageCacheControl.refetch(pictures)
+        await KNSProfileImageCacheControl.refreshIfChanged(pictures)
     }
 
     /// Marks that the user has sent at least one outgoing message to this contact, which

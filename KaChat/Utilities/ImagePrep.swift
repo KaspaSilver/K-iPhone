@@ -433,13 +433,14 @@ enum GIFPrep {
 /// decodes one frame at a time, at the file's own timing (`CGAnimateImageDataWithBlock`), so a
 /// long GIF costs one frame of memory, not all of them. Only what `GIFPrep.isSafeToAnimate`
 /// allows plays; anything else leaves the view empty, so callers check first and show the still.
-/// Stops when the view leaves the screen.
+/// Stops when the view leaves the screen, and while it's out of the window (another screen
+/// pushed over the chat, a full-screen cover), starting again when it's back.
 struct AnimatedImageView: UIViewRepresentable {
     let data: Data
     var contentMode: UIView.ContentMode = .scaleAspectFill
 
-    func makeUIView(context: Context) -> UIImageView {
-        let view = UIImageView()
+    func makeUIView(context: Context) -> AnimatedGIFImageView {
+        let view = AnimatedGIFImageView()
         view.clipsToBounds = true
         view.setContentHuggingPriority(.defaultLow, for: .horizontal)
         view.setContentHuggingPriority(.defaultLow, for: .vertical)
@@ -448,19 +449,42 @@ struct AnimatedImageView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ view: UIImageView, context: Context) {
+    func updateUIView(_ view: AnimatedGIFImageView, context: Context) {
         view.contentMode = contentMode
-        context.coordinator.player.play(data, in: view)
+        view.animate(data)
     }
 
-    static func dismantleUIView(_ view: UIImageView, coordinator: Coordinator) {
-        coordinator.player.stop()
+    static func dismantleUIView(_ view: AnimatedGIFImageView, coordinator: Coordinator) {
+        view.stopGIF(forget: true)
+    }
+}
+
+/// A `UIImageView` that plays GIF bytes only while it's in a window. ImageIO's animation block
+/// kept decoding and setting frames on a bubble covered by another screen (audit 2026-11-25
+/// B20); now leaving the window stops it, and coming back starts it again from the first frame.
+final class AnimatedGIFImageView: UIImageView {
+    private let player = ImageAnimationPlayer()
+    /// The bytes to play whenever the view is in a window.
+    private var wanted: Data?
+
+    func animate(_ data: Data) {
+        wanted = data
+        if window != nil { player.play(data, in: self) }
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    /// Stops the animation; `forget` also drops the bytes, so a later window doesn't start it.
+    func stopGIF(forget: Bool) {
+        if forget { wanted = nil }
+        player.stop()
+    }
 
-    final class Coordinator {
-        let player = ImageAnimationPlayer()
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            player.stop()
+        } else if let wanted {
+            player.play(wanted, in: self)
+        }
     }
 }
 

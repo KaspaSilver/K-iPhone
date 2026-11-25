@@ -198,6 +198,16 @@ struct MainTabView: View {
             PendingTabRoute.pending = nil
             show(.kachatNames)
         }
+        // a Kaspa Hub card's link (`kachat.app/hub/<slug>`): that section, wherever it lives
+        .onReceive(NotificationCenter.default.publisher(for: .openHubSection)) { _ in
+            guard let tab = PendingTabRoute.pending else { return }
+            PendingTabRoute.pending = nil
+            // A post or profile open over KaPost (where most card links are tapped) would sit on
+            // top of the section, so the tap seemed to do nothing: they close first, as for a
+            // room or a bot (audit 2026-11-25 L1).
+            NotificationCenter.default.post(name: .kaPostsCloseCovers, object: nil)
+            show(tab)
+        }
         // a notification naming no post: Profile, whose bell opens the Notifications screen
         .onReceive(NotificationCenter.default.publisher(for: .openAllNotifications)) { _ in
             show(.profile)
@@ -596,7 +606,7 @@ private struct DockBadgeSync: ViewModifier {
             // The app icon too, as `ChatService.updateAppBadge` counts it (KaPosts' and the rooms'
             // counts change without a chat sync), and only when the number changed: a tab switch
             // changes nothing (audit #35). The shared count is what was last put on the icon.
-            let total = AppTabBadge.unreadCount(for: .chats) + max(0, KaPostsNotificationCenter.shared.unseenCount)
+            let total = AppTabBadge.appIconCount
             guard total != SharedDataManager.getUnreadCount() else { return }
             SharedDataManager.setUnreadCount(total)
             UNUserNotificationCenter.current().setBadgeCount(total)

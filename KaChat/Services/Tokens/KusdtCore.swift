@@ -84,6 +84,57 @@ final class KusdtCore: NSObject {
     /// the end of its timeout.
     private var inFlight: [UUID: (Error) -> Void] = [:]
 
+    /// The page lives only while it's used: about two minutes after the last call it's closed
+    /// (the 8 MB WebAssembly, the web content process and the pool code's node WebSocket with
+    /// it), and the next call starts it again. It stayed up all session (audit 2026-11-25 B20).
+    private static let idleTeardownAfter: UInt64 = 120_000_000_000
+    /// `run` / `wallet` calls between their first line and their answer, loading included.
+    private var activeCallers = 0
+    /// Page scripts still running, counted until `callAsyncJavaScript` itself returns: a call
+    /// that timed out (an `execute` that may still send its trade) can run on in the page, and
+    /// the page must not be closed under it.
+    private var pageScripts = 0
+    private var idleTeardown: Task<Void, Never>?
+
+    private func callStarted() {
+        activeCallers += 1
+        idleTeardown?.cancel()
+        idleTeardown = nil
+    }
+
+    private func callEnded() {
+        activeCallers = max(0, activeCallers - 1)
+        scheduleIdleTeardown()
+    }
+
+    private func scheduleIdleTeardown() {
+        guard activeCallers == 0, pageScripts == 0 else { return }
+        idleTeardown?.cancel()
+        idleTeardown = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.idleTeardownAfter)
+            guard !Task.isCancelled else { return }
+            self?.tearDownIfIdle()
+        }
+    }
+
+    /// Closes the page when nothing uses it: no caller, no script still running in it, no start
+    /// under way. Anything later starts it again (`load`).
+    private func tearDownIfIdle() {
+        idleTeardown = nil
+        guard activeCallers == 0, pageScripts == 0, inFlight.isEmpty, !starting,
+              waiting.isEmpty, walletWaiting.isEmpty, let view = webView else { return }
+        AppLog.log("[kUSDT] builder page idle: closed until the next use")
+        view.stopLoading()
+        view.navigationDelegate = nil
+        view.configuration.userContentController.removeAllScriptMessageHandlers()
+        webView = nil
+        ready = false
+        walletReady = false
+        walletError = nil
+        loadError = nil
+        files = [:]
+    }
+
     /// Runs `body`, or throws after `nanoseconds` if it hasn't answered, or as soon as the page
     /// dies. Not a task group: a group waits for every child before it returns, and
     /// `callAsyncJavaScript` doesn't stop when cancelled, so a group's timeout could only fire once
@@ -101,7 +152,15 @@ final class KusdtCore: NSObject {
                 guard !Task.isCancelled else { return }
                 gate.finish(.failure(CoreError.unavailable(AppLocalization.string("kUSDT's transaction builder gave no answer."))))
             }
-            Task { @MainActor in
+            pageScripts += 1
+            Task { @MainActor [weak self] in
+                // Counted until the script itself returns, even after the gate gave up on it.
+                defer {
+                    if let self {
+                        self.pageScripts = max(0, self.pageScripts - 1)
+                        self.scheduleIdleTeardown()
+                    }
+                }
                 do {
                     let value = try await body()
                     gate.finish(.success(value))
@@ -115,6 +174,8 @@ final class KusdtCore: NSObject {
     /// Runs one builder command on a JSON request; answers the result as JSON, or throws the
     /// builder's own error (`{"error": …}`).
     func run(_ command: String, request: [String: Any]) async throws -> [String: Any] {
+        callStarted()
+        defer { callEnded() }
         try await load()
         guard let webView else { throw CoreError.unavailable(AppLocalization.string("kUSDT's transaction builder couldn't start.")) }
         let data = try JSONSerialization.data(withJSONObject: request)
@@ -141,6 +202,8 @@ final class KusdtCore: NSObject {
     /// request; answers its JSON, which carries `error` (and maybe `code`) when it refused.
     func wallet(_ function: String, request: [String: Any]) async throws -> [String: Any] {
         guard function == "prepare" || function == "execute" else { throw CoreError.unavailable("bad call") }
+        callStarted()
+        defer { callEnded() }
         try await load()
         try await loadWallet()
         guard let webView else { throw CoreError.unavailable(AppLocalization.string("kUSDT's transaction builder couldn't start.")) }

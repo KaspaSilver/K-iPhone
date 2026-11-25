@@ -167,7 +167,7 @@ struct AddressBookView: View {
                 }
                 ActionSheetRow(
                     title: "Export to Nextcloud",
-                    subtitle: "Save it to the KaChat folder in your Nextcloud, to import on any device.",
+                    subtitle: "Save it to the K folder in your Nextcloud, to import on any device.",
                     systemImage: "icloud.and.arrow.up"
                 ) {
                     showImportExport = false

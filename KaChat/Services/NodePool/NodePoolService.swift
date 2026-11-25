@@ -45,6 +45,46 @@ final class NodePoolService: ObservableObject {
     /// distinct failures can pile up in seconds while the eventual winner is still dialing.
     @Published private(set) var nodeNetworkBlockedSuspected = false
 
+    /// True while public wss nodes stand in for gRPC nodes that don't answer
+    /// (`evaluatePublicFallback`).
+    @Published private(set) var usingPublicFallback = false
+    /// Off when the user pinned a node of their own: "Connected only to this node" holds. On for
+    /// the default node and Automatic Scan.
+    private var publicFallbackAllowed = true
+    private var publicFallbackSince: Date?
+    private var publicFallbackTask: Task<Void, Never>?
+    private var lastPublicFallbackAttempt: Date?
+    /// How long after a walk of the resolvers the next may start: 60 s, doubling (to 15 minutes)
+    /// while walks find nothing new, back to 60 s once one does.
+    private var publicFallbackCooldown: TimeInterval = 60
+    /// Stand-ins dropped as dead this outage: not taken again from the resolvers.
+    private var deadStandInKeys: Set<String> = []
+    /// Since when gRPC has been serving while stand-ins are in the pool (`considerHandBack`).
+    private var handBackSince: Date?
+    private var lastHandBackAttempt: Date?
+    /// Since when gRPC has answered at every look (`considerHandBack`); nil after a look with no
+    /// recent answer.
+    private var grpcSteadySince: Date?
+    /// How long after a hand-back the next may be tried: 60 s, doubling (to 30 minutes) each
+    /// time one doesn't hold; back to 60 s once the stand-ins leave.
+    private var handBackBackoff: TimeInterval = 60
+    /// A hand-back was made and the stand-ins haven't left since: if the subscription lands on a
+    /// stand-in again, it didn't hold.
+    private var handBackUnproven = false
+    /// Runs `evaluatePublicFallback` while the app is open, whatever tab is on screen
+    /// (`startPublicFallbackWatch`).
+    private var publicFallbackWatchTask: Task<Void, Never>?
+    /// The pinned node is asked again while stand-ins serve: the profiler doesn't probe it.
+    private var lastPinnedProbeOnFallback: Date?
+    /// A stand-in that hasn't answered in this long is dead, and replaced.
+    private static let standInGrace: TimeInterval = 60
+    /// How long gRPC must serve before the stand-ins go: one small success under partial DPI
+    /// isn't enough.
+    private static let handBackAfter: TimeInterval = 120
+    /// Boot, pin switches and network path changes: no fallback in the first seconds after one,
+    /// while the gRPC nodes are still being dialed.
+    private var publicFallbackAnchor = Date()
+
     /// Failures before this instant never count toward a blocked verdict, and no verdict is
     /// formed until `blockedDetectionGracePeriod` has elapsed past it. Bumped on initialize,
     /// pin/unpin switches, and network epoch changes (see resetBlockedNetworkDetection).
@@ -68,6 +108,8 @@ final class NodePoolService: ObservableObject {
     private var quickBootTask: Task<Void, Never>?
     private var statsUpdateTask: Task<Void, Never>?
     private var previousPoolHealth: PoolHealth?
+    /// When the pool stats were last worked out (`updatePoolStats`).
+    private var lastStatsUpdateAt: Date = .distantPast
     /// Client tokens currently wanting block-added notifications - see subscribeBlockAdded.
     private var blockAddedClients: Set<String> = []
 
@@ -157,6 +199,9 @@ final class NodePoolService: ObservableObject {
         // discovery/quickBoot work starts, so nothing else gets a chance to upsert.
         let trustedAddress = AppSettings.load().trustedNodeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let trustedEndpoint = trustedAddress.isEmpty ? nil : Endpoint(url: trustedAddress)
+        publicFallbackAllowed = Self.allowsPublicFallback(pinned: trustedAddress)
+        publicFallbackSince = nil
+        usingPublicFallback = false
         if let trustedEndpoint {
             await registry.setTrustedNode(trustedEndpoint)
         }
@@ -273,6 +318,7 @@ final class NodePoolService: ObservableObject {
 
         // Start periodic stats update
         startPeriodicStatsUpdate()
+        startPublicFallbackWatch()
 
         AppLog.log("[NodePool] Initialization complete")
     }
@@ -290,6 +336,7 @@ final class NodePoolService: ObservableObject {
         // Stop periodic stats update
         statsUpdateTask?.cancel()
         statsUpdateTask = nil
+        stopPublicFallbackWatch()
 
         // Stop profiler
         await profiler?.stop()
@@ -309,12 +356,28 @@ final class NodePoolService: ObservableObject {
         isInitialized = false
         isInitializing = false
         isReady = false
+        // The next initialize starts every loop afresh; a pause from before must not stop the
+        // next pause from taking effect.
+        discoveryPauseReasons = []
+        discoveryPausedAt = nil
 
         AppLog.log("[NodePool] Shutdown complete")
     }
 
-    /// True while discovery/probe loops are paused via `pauseDiscovery()` (e.g. off the chat tab).
-    private(set) var isDiscoveryPaused = false
+    /// Why discovery is paused. The two don't undo each other: coming back to the foreground
+    /// doesn't resume scanning on a tab that paused it, nor does the Chats tab resume it while
+    /// the app is in the background.
+    private enum DiscoveryPauseReason: Hashable {
+        /// Off the Chats tab, or browsing a website (`pauseDiscovery()`).
+        case screen
+        /// The app is in the background (`enterBackground`).
+        case background
+    }
+    private var discoveryPauseReasons: Set<DiscoveryPauseReason> = []
+    private var discoveryPausedAt: Date?
+
+    /// True while discovery/probe loops are paused (off the chat tab, or in the background).
+    var isDiscoveryPaused: Bool { !discoveryPauseReasons.isEmpty }
 
     /// Pauses the node discovery/probe loops (the aggressive background scanning), the periodic
     /// stats loop, and any in-flight quickBoot - WITHOUT tearing the pool down. The registry, the
@@ -324,8 +387,15 @@ final class NodePoolService: ObservableObject {
     /// Used to stop scanning while the user is away from the chat tab. Contrast with `shutdown()`,
     /// which is the destructive all-or-nothing teardown.
     func pauseDiscovery() async {
-        guard isInitialized, !isDiscoveryPaused else { return }
-        isDiscoveryPaused = true
+        await pauseDiscovery(for: .screen)
+    }
+
+    private func pauseDiscovery(for reason: DiscoveryPauseReason) async {
+        guard isInitialized else { return }
+        let wasPaused = isDiscoveryPaused
+        discoveryPauseReasons.insert(reason)
+        guard !wasPaused else { return }
+        discoveryPausedAt = Date()
         quickBootTask?.cancel()
         quickBootTask = nil
         statsUpdateTask?.cancel()
@@ -335,22 +405,103 @@ final class NodePoolService: ObservableObject {
     }
 
     /// Resumes the loops paused by `pauseDiscovery()`. Mirrors `initialize`'s cached-nodes path:
-    /// restarts the profiler loops + stats loop and kicks a background quickBoot to restore
-    /// DNS/peer discovery (which `profiler.stop()` cancelled). No-op if not initialized or not paused.
+    /// restarts the profiler loops + stats loop, and a background quickBoot to restore DNS/peer
+    /// discovery (which `profiler.stop()` cancelled) - only after a pause of over 5 minutes or on
+    /// a pool that isn't healthy: every return to the Chats tab used to pay for probes, a peer
+    /// list and a registry write. No-op if not initialized, not paused, or still paused for the
+    /// other reason.
     func resumeDiscovery() async {
-        guard isInitialized, isDiscoveryPaused else { return }
-        isDiscoveryPaused = false
+        await resumeDiscovery(for: .screen)
+    }
+
+    private func resumeDiscovery(for reason: DiscoveryPauseReason) async {
+        guard isInitialized, discoveryPauseReasons.remove(reason) != nil, discoveryPauseReasons.isEmpty else { return }
+        let pausedFor = Date().timeIntervalSince(discoveryPausedAt ?? .distantPast)
+        discoveryPausedAt = nil
         // The stats loop was frozen while paused; restart the verdict window rather than let
         // pre-pause failures (possibly from another network) combine with the resume burst.
         await resetBlockedNetworkDetection(reason: "discovery resumed")
         await profiler?.start(network: networkType)
         startPeriodicStatsUpdate()
-        quickBootTask?.cancel()
-        quickBootTask = Task {
-            await self.profiler?.quickBoot()
-            await self.updatePoolStats()
+        let health = await registry.poolHealth()
+        if pausedFor > 5 * 60 || health != .healthy {
+            quickBootTask?.cancel()
+            quickBootTask = Task {
+                await self.profiler?.quickBoot()
+                await self.updatePoolStats()
+            }
         }
-        AppLog.log("[NodePool] Discovery resumed")
+        AppLog.log("[NodePool] Discovery resumed (paused %.0fs)", pausedFor)
+    }
+
+    /// Bumped, synchronously, by every `enterBackground` / `enterForeground`. A phase change's
+    /// async steps stop after any await once it moved: the two used to run as separate Tasks
+    /// and interleave, so a late block-added stop switched the stream off while K was open, and
+    /// the push-mode close could drop a connection the foreground was subscribing on (audit
+    /// 2026-11-25 N2).
+    private var lifecycleGeneration = 0
+    /// The phase changes' async steps, one after another (`enterBackground`, `enterForeground`).
+    private var lifecycleChain: Task<Void, Never>?
+
+    /// The app went to the background (call from the scene phase handler, after ChatService has
+    /// paused the UTXO subscription in push mode). Stops what has no use there: discovery, the
+    /// profiler and stats loops, and the block stream on the wire (its clients are kept, so the
+    /// foreground brings it back). In push mode the subscription is already gone, so the pool's
+    /// connections are closed too, the former primary's included: an open one was redialed and
+    /// probed on every push wake. The registry is saved, since the app may not come back.
+    /// Not async: the phase and the block-added hold are set before anything can interleave;
+    /// the rest runs after any earlier phase change's steps, and stops if the app comes back.
+    func enterBackground(pushMode: Bool) {
+        lifecycleGeneration += 1
+        let generation = lifecycleGeneration
+        subscriptionManager?.setBlockAddedSuspended(true)
+        stopPublicFallbackWatch()
+        let previous = lifecycleChain
+        lifecycleChain = Task { @MainActor [weak self] in
+            await previous?.value
+            await self?.runEnterBackground(pushMode: pushMode, generation: generation)
+        }
+    }
+
+    private func runEnterBackground(pushMode: Bool, generation: Int) async {
+        guard isInitialized, lifecycleGeneration == generation else { return }
+        await pauseDiscovery(for: .background)
+        guard lifecycleGeneration == generation else { return }
+        await registry.persistNow()
+        guard lifecycleGeneration == generation else { return }
+        if pushMode {
+            // Each connection is re-checked as it's closed: back in the foreground meanwhile, or
+            // one the subscription now uses, it stays.
+            await subscriptionManager?.closeIdleConnectionsForBackground { [weak self] in
+                self?.lifecycleGeneration == generation
+            }
+            guard lifecycleGeneration == generation else { return }
+        }
+        await subscriptionManager?.applyBlockAddedSuspension()
+        AppLog.log("[NodePool] In the background (push mode: %@)", pushMode ? "yes" : "no")
+    }
+
+    /// Back in the foreground: resumes discovery (unless the tab on screen keeps it paused) and
+    /// the block stream if a client still wants it. Dead connections and the subscription come
+    /// back through `reconnectStaleConnections` and ChatService's own resume.
+    func enterForeground() {
+        lifecycleGeneration += 1
+        let generation = lifecycleGeneration
+        subscriptionManager?.setBlockAddedSuspended(false)
+        let previous = lifecycleChain
+        lifecycleChain = Task { @MainActor [weak self] in
+            await previous?.value
+            await self?.runEnterForeground(generation: generation)
+        }
+    }
+
+    private func runEnterForeground(generation: Int) async {
+        guard isInitialized, lifecycleGeneration == generation else { return }
+        await resumeDiscovery(for: .background)
+        guard lifecycleGeneration == generation else { return }
+        await subscriptionManager?.applyBlockAddedSuspension()
+        // A dead pinned node is noticed from here too, not only from the Chats tab's stats loop.
+        startPublicFallbackWatch()
     }
 
     /// Start node discovery early (before wallet is created/imported)
@@ -415,11 +566,7 @@ final class NodePoolService: ObservableObject {
         let op: OperationClass = .getUtxosByAddress
         let activeCandidates = await registry.records(inState: .active)
             .filter { $0.canHandle(op) }
-            .sorted {
-                let lhs = $0.health.latencyMs.value ?? $0.health.globalLatencyMs.value ?? Double.infinity
-                let rhs = $1.health.latencyMs.value ?? $1.health.globalLatencyMs.value ?? Double.infinity
-                return lhs < rhs
-            }
+            .sorted { $0.rankingLatencyMs < $1.rankingLatencyMs }
             .map(\.endpoint)
 
         var orderedEndpoints = activeCandidates
@@ -776,11 +923,7 @@ final class NodePoolService: ObservableObject {
         let activeRecords = await registry.records(inState: .active)
         let sorted = activeRecords
             .filter { !excluding.contains($0.endpoint.key) }
-            .sorted { a, b in
-                let aLatency = a.health.latencyMs.value ?? a.health.globalLatencyMs.value ?? Double.infinity
-                let bLatency = b.health.latencyMs.value ?? b.health.globalLatencyMs.value ?? Double.infinity
-                return aLatency < bLatency
-            }
+            .sorted { $0.rankingLatencyMs < $1.rankingLatencyMs }
         let primaryKey = primaryEndpoint?.key
         var endpoints = sorted.filter { $0.endpoint.key != primaryKey }.prefix(3).map(\.endpoint)
         if let primary = sorted.first(where: { $0.endpoint.key == primaryKey })?.endpoint {
@@ -999,11 +1142,7 @@ final class NodePoolService: ObservableObject {
     func getMempoolEntry(txId: String, attempt: Int = 0) async -> MempoolEntryResult? {
         // Get active nodes sorted by latency, limited to top 10
         let activeRecords = await registry.records(inState: .active)
-        let sortedRecords = activeRecords.sorted { a, b in
-            let aLatency = a.health.latencyMs.value ?? a.health.globalLatencyMs.value ?? Double.infinity
-            let bLatency = b.health.latencyMs.value ?? b.health.globalLatencyMs.value ?? Double.infinity
-            return aLatency < bLatency
-        }
+        let sortedRecords = activeRecords.sorted { $0.rankingLatencyMs < $1.rankingLatencyMs }
         // The primary first - the node most likely to hold a transaction just submitted - then
         // the three fastest others.
         let primaryKey = primaryEndpoint?.key
@@ -1194,13 +1333,8 @@ final class NodePoolService: ObservableObject {
     }
 
     /// Stop wanting block-added notifications for one client; the wanted-flag only drops when
-    /// no client is left. Protocol wrinkle (see UtxoSubscriptionManager.setBlockAddedWanted):
-    /// there is no notify-STOP for block-added, so a connection that already registered keeps
-    /// receiving block pushes until it naturally reconnects (failover, network path change,
-    /// app background/foreground - all frequent on iOS). Deliberately NOT force-closing that
-    /// connection here: it is the primary utxosChanged subscription channel, and recycling it
-    /// would drop live DM delivery and force a full UTXO state resync. The win is that fresh
-    /// connections (and every reconnect) never register for blocks in the first place.
+    /// no client is left, and then the node is told to stop sending blocks on the primary
+    /// connection (`UtxoSubscriptionManager.setBlockAddedWanted`), which stays up for utxosChanged.
     func unsubscribeBlockAdded(client: String) async {
         blockAddedClients.remove(client)
         guard blockAddedClients.isEmpty else { return }
@@ -1212,10 +1346,24 @@ final class NodePoolService: ObservableObject {
         subscriptionManager?.addNotificationHandler(handler) ?? UUID()
     }
 
-    /// When the primary UTXO subscription was last verified alive (a subscribe, or a keepalive
-    /// answered) - see `UtxoSubscriptionManager.lastHealthyAt`. Nil before the pool has one.
+    /// When the primary UTXO subscription was last verified alive (a subscribe, a keepalive
+    /// answered, or a notification from it) - see `UtxoSubscriptionManager.lastHealthyAt`. Nil
+    /// before the pool has one.
     var subscriptionLastHealthyAt: Date? {
         subscriptionManager?.lastHealthyAt
+    }
+
+    /// How old `subscriptionLastHealthyAt` may be on a healthy subscription: about 40 s on WiFi,
+    /// 100 s on an expensive path, where the keepalive runs every 45 s and is skipped when the
+    /// node has just pushed something (`UtxoSubscriptionManager.healthyWindow`).
+    var subscriptionHealthyWindow: TimeInterval {
+        subscriptionManager?.healthyWindow ?? 45
+    }
+
+    /// The subscription manager is retrying a failed subscribe on its own backoff (and waits out
+    /// an offline spell). It owns the retry; a consumer needn't run another.
+    var isRetryingSubscription: Bool {
+        subscriptionManager?.isRetryingSubscribe ?? false
     }
 
     /// Blocks, parsed once on the stream (see `ScannedBlock`). Called off the main actor;
@@ -1460,6 +1608,7 @@ final class NodePoolService: ObservableObject {
     // MARK: - Pool Stats
 
     private func updatePoolStats() async {
+        lastStatsUpdateAt = Date()
         let health = await registry.poolHealth()
         let counts = await registry.stateCounts()
 
@@ -1527,6 +1676,236 @@ final class NodePoolService: ObservableObject {
         }
 
         previousPoolHealth = health
+        // The public fallback is looked at on its own timer (`startPublicFallbackWatch`), not
+        // here: this loop pauses off the Chats tab (audit 2026-11-25 N4).
+    }
+
+    /// Looks at the public fallback every 20 s while the app is open, on any tab: the stats loop
+    /// it used to ride pauses off the Chats tab, so on Wallet, Profile or the Hub a dead pinned
+    /// node never brought a stand-in in (audit 2026-11-25 N4). Each look is a few registry
+    /// reads unless something needs doing. Stopped in the background, where nothing is served.
+    private func startPublicFallbackWatch() {
+        guard isInitialized, !discoveryPauseReasons.contains(.background),
+              publicFallbackWatchTask == nil else { return }
+        publicFallbackWatchTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                guard !Task.isCancelled, let self else { return }
+                await self.evaluatePublicFallback()
+            }
+        }
+    }
+
+    private func stopPublicFallbackWatch() {
+        publicFallbackWatchTask?.cancel()
+        publicFallbackWatchTask = nil
+    }
+
+    // MARK: - Public wss fallback
+
+    /// The default node and Automatic Scan may fall back; a node the user pinned themselves
+    /// ("Connected only to this node") may not, nor does a pinned wss node need to. Compared as
+    /// endpoints, so "node.kaspium.io" with or without its scheme or port is still the default.
+    private static func allowsPublicFallback(pinned address: String) -> Bool {
+        let pinned = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if pinned.isEmpty { return true }
+        guard let key = Endpoint(url: pinned)?.key,
+              let defaultKey = Endpoint(url: AppSettings.defaultTrustedNodeAddress)?.key else {
+            return pinned.lowercased() == AppSettings.defaultTrustedNodeAddress.lowercased()
+        }
+        return key.lowercased() == defaultKey.lowercased()
+    }
+
+    /// Run with every stats pass. When no gRPC node has answered for 30 s while one was being
+    /// tried and the phone is online - gRPC blocked (DPI, a firewall that refuses HTTP/2), or the
+    /// pinned node down - up to two public nodes speaking wRPC over `wss://` join the pool
+    /// (`PublicNodeResolver`), ranked below every gRPC node. A stand-in that stops answering is
+    /// replaced. They leave once gRPC has served for two minutes (`considerHandBack`). Your
+    /// addresses are then known to the public node, as they are to the Kaspa REST API the app
+    /// already falls back to.
+    private func evaluatePublicFallback() async {
+        guard isInitialized else { return }
+        var standIns = await registry.publicFallbackEndpoints()
+        guard publicFallbackAllowed else {
+            if !standIns.isEmpty { await dropPublicFallback(reason: "a node of your own is pinned") }
+            return
+        }
+        let now = Date()
+
+        if !standIns.isEmpty {
+            // Dead stand-ins go, and new ones are asked for below (on the same cooldown).
+            let dead = await registry.removeDeadPublicFallbacks(grace: Self.standInGrace)
+            if !dead.isEmpty {
+                for endpoint in dead {
+                    deadStandInKeys.insert(endpoint.key)
+                    await connectionPool.removeConnection(for: endpoint)
+                }
+                AppLog.log("[NodePool] Public wss node(s) stopped answering, replacing: %@",
+                           dead.map(\.key).joined(separator: ", "))
+                standIns = await registry.publicFallbackEndpoints()
+            }
+        }
+        if !standIns.isEmpty {
+            await considerHandBack(standIns: Set(standIns.map(\.key)), now: now)
+            return
+        }
+        if usingPublicFallback {
+            // Nothing stands in now: every stand-in died, or the registry was replaced (a
+            // network switch).
+            publicFallbackSince = nil
+            usingPublicFallback = false
+            handBackSince = nil
+            grpcSteadySince = nil
+            handBackUnproven = false
+        }
+
+        guard publicFallbackTask == nil, epochMonitor.isOnline,
+              now.timeIntervalSince(publicFallbackAnchor) >= 20 else { return }
+        let grpc = await registry.grpcConnectivity(window: 60)
+        if let last = grpc.lastSuccess, now.timeIntervalSince(last) < 30 { return }
+        guard grpc.recentFailures > 0 else { return }
+        if let last = lastPublicFallbackAttempt, now.timeIntervalSince(last) < publicFallbackCooldown { return }
+        lastPublicFallbackAttempt = now
+
+        let network = networkType
+        let avoiding = deadStandInKeys
+        AppLog.log("[NodePool] No gRPC node has answered for 30s - asking for public wss nodes")
+        publicFallbackTask = Task { [weak self] in
+            let found = await PublicNodeResolver.resolve(network: network, count: 2, avoiding: avoiding)
+            await self?.adoptPublicFallback(found, network: network)
+        }
+    }
+
+    /// Stand-ins are in the pool. Once gRPC has answered steadily for `handBackAfter` the
+    /// subscription moves back to it (stand-ins rank far below it), and once it has served there
+    /// for `handBackAfter` too the stand-ins go. With nothing subscribed (signed out), gRPC
+    /// answering for that long is enough.
+    ///
+    /// Steadily: an answer within the last 45 s at every look for two minutes. One answer used
+    /// to be enough, so under partial DPI the subscription could flap between a stand-in and
+    /// gRPC every minute (audit 2026-11-25 N5). A hand-back that doesn't hold (the
+    /// subscription is back on a stand-in, or failed) doubles the wait before the next.
+    private func considerHandBack(standIns: Set<String>, now: Date) async {
+        // The keepalive is on a stand-in now and the profiler may be paused (off the Chats tab)
+        // or never probes this node (a pinned one), so nothing else would show gRPC answering
+        // again: every 30 s ask the pinned node, or under Automatic Scan the gRPC node that
+        // answered last.
+        if now.timeIntervalSince(lastPinnedProbeOnFallback ?? .distantPast) >= 30 {
+            lastPinnedProbeOnFallback = now
+            let records = await registry.allRecords().filter { $0.origin != .publicFallback }
+            let probe: Endpoint?
+            if let pinned = records.first(where: { $0.origin == .userAdded }) {
+                probe = pinned.endpoint
+            } else {
+                probe = records
+                    .filter { $0.health.lastSuccessAt != nil }
+                    .max { ($0.health.lastSuccessAt ?? .distantPast) < ($1.health.lastSuccessAt ?? .distantPast) }?
+                    .endpoint
+            }
+            if let probe { await profiler?.profileEndpoint(probe) }
+        }
+
+        let grpc = await registry.grpcConnectivity(window: 60)
+        let grpcAnswers = grpc.lastSuccess.map {
+            now.timeIntervalSince($0) < 45 && $0 > (publicFallbackSince ?? .distantPast)
+        } ?? false
+        if grpcAnswers {
+            if grpcSteadySince == nil { grpcSteadySince = now }
+        } else {
+            grpcSteadySince = nil
+        }
+        let grpcSteady = grpcSteadySince.map { now.timeIntervalSince($0) >= Self.handBackAfter } ?? false
+
+        let healthy: Bool
+        if let manager = subscriptionManager, manager.state != .disconnected {
+            let primaryIsStandIn = manager.primaryEndpoint.map { standIns.contains($0.key) } ?? true
+            if handBackUnproven, primaryIsStandIn || manager.state == .failed {
+                // The last hand-back didn't hold: wait twice as long before the next.
+                handBackUnproven = false
+                handBackBackoff = min(30 * 60, handBackBackoff * 2)
+                AppLog.log("[NodePool] The subscription didn't stay on gRPC - next hand-back in %.0fs at the earliest",
+                           handBackBackoff)
+            }
+            if grpcSteady, primaryIsStandIn || manager.state != .subscribed,
+               now.timeIntervalSince(lastHandBackAttempt ?? .distantPast) >= handBackBackoff {
+                lastHandBackAttempt = now
+                handBackUnproven = true
+                AppLog.log("[NodePool] gRPC has answered for two minutes - moving the subscription back to gRPC")
+                await manager.reconnectToBestNodeIfNeeded()
+            }
+            let onGrpc = manager.primaryEndpoint.map { !standIns.contains($0.key) } ?? false
+            let fresh = manager.lastHealthyAt.map { now.timeIntervalSince($0) < manager.healthyWindow } ?? false
+            healthy = manager.state == .subscribed && onGrpc && fresh
+        } else {
+            healthy = grpcSteady
+        }
+
+        if healthy {
+            if handBackSince == nil { handBackSince = now }
+        } else {
+            handBackSince = nil
+        }
+        if let since = handBackSince, now.timeIntervalSince(since) >= Self.handBackAfter {
+            await dropPublicFallback(reason: "gRPC has served for two minutes", reconnect: false)
+        }
+    }
+
+    private func adoptPublicFallback(_ endpoints: [Endpoint], network: NetworkType) async {
+        // Called off by `dropPublicFallback` (which also cleared the task) while the resolvers
+        // were asked.
+        guard !Task.isCancelled else { return }
+        defer { publicFallbackTask = nil }
+        // Answered while the resolvers were asked, or the network was switched meanwhile.
+        guard network == networkType, publicFallbackAllowed else { return }
+        let grpc = await registry.grpcConnectivity(window: 60)
+        if let last = grpc.lastSuccess, Date().timeIntervalSince(last) < 30 { return }
+
+        var added: [Endpoint] = []
+        for endpoint in endpoints {
+            if await registry.addPublicFallback(endpoint) { added.append(endpoint) }
+        }
+        guard !added.isEmpty else {
+            // Nothing new: the next walk waits longer.
+            publicFallbackCooldown = min(15 * 60, publicFallbackCooldown * 2)
+            AppLog.log("[NodePool] No new public wss node found - next try in %.0fs", publicFallbackCooldown)
+            return
+        }
+        publicFallbackCooldown = 60
+        if !usingPublicFallback { publicFallbackSince = Date() }
+        usingPublicFallback = true
+        handBackSince = nil
+        AppLog.log("[NodePool] Using public wss node(s) while gRPC is unreachable: %@",
+                   added.map(\.key).joined(separator: ", "))
+        // Twice each, as for a pinned node: two answers in a row promote it out of candidate.
+        for endpoint in added {
+            await profiler?.profileEndpoint(endpoint)
+            await profiler?.profileEndpoint(endpoint)
+        }
+        await registry.rebalanceActivePool()
+
+        // What arrived while nothing was subscribed is caught up, as after any re-subscribe:
+        // `reconnectToBestNodeIfNeeded` posts `.rpcSubscriptionsRestored` itself when it brings
+        // the subscription back.
+        await subscriptionManager?.reconnectToBestNodeIfNeeded()
+    }
+
+    private func dropPublicFallback(reason: String, reconnect: Bool = true) async {
+        publicFallbackTask?.cancel()
+        publicFallbackTask = nil
+        let gone = await registry.removePublicFallbacks()
+        let wasUsing = usingPublicFallback
+        publicFallbackSince = nil
+        usingPublicFallback = false
+        handBackSince = nil
+        grpcSteadySince = nil
+        handBackBackoff = 60
+        handBackUnproven = false
+        publicFallbackCooldown = 60
+        deadStandInKeys = []
+        for endpoint in gone { await connectionPool.removeConnection(for: endpoint) }
+        guard !gone.isEmpty || wasUsing else { return }
+        AppLog.log("[NodePool] Public wss nodes dropped (%@)", reason)
+        if reconnect { await subscriptionManager?.reconnectToBestNodeIfNeeded() }
     }
 
     /// Restart the blocked-network detector: clear the flag and move the accounting anchor so
@@ -1534,6 +1913,7 @@ final class NodePoolService: ObservableObject {
     /// on boot, pin/unpin switches, discovery restarts, and network epoch changes.
     private func resetBlockedNetworkDetection(reason: String) async {
         blockedDetectionAnchor = Date()
+        publicFallbackAnchor = Date()
         if nodeNetworkBlockedSuspected {
             AppLog.log("[NodePool] Blocked-network verdict cleared (%@)", reason)
             nodeNetworkBlockedSuspected = false
@@ -1556,17 +1936,14 @@ final class NodePoolService: ObservableObject {
         await subManager.reconnectToEndpoint(betterEndpoint)
     }
 
-    /// Start periodic stats update task
+    /// Start periodic stats update task. Every 30 s: every request already works the stats out
+    /// again, and Connection Status, the one screen that shows them live, asks every 2 s
+    /// (`allNodeRecords`), which refreshes them at most every 5 s while it shows.
     private func startPeriodicStatsUpdate() {
         statsUpdateTask?.cancel()
         statsUpdateTask = Task {
             while !Task.isCancelled {
-                // Update less frequently on macCatalyst to reduce UI churn.
-#if targetEnvironment(macCatalyst)
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
-#else
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-#endif
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
 
                 if !Task.isCancelled {
                     await updatePoolStats()
@@ -1598,6 +1975,9 @@ final class NodePoolService: ObservableObject {
     /// connections can die silently while backgrounded/asleep and otherwise only get reconnected
     /// lazily, one at a time, whenever something happens to pick that exact endpoint for a request.
     func reconnectStaleConnections() async {
+        // Back from the background, the last gRPC answer is old because the app was asleep, not
+        // because gRPC is blocked: a fresh grace window, or the fallback would start at once.
+        publicFallbackAnchor = Date()
         await connectionPool.reconnectDisconnected()
         // Reconnecting the primary stream does NOT bring the node-side utxosChanged
         // subscription back with it - re-arm it now if the primary was re-established,
@@ -1690,9 +2070,13 @@ final class NodePoolService: ObservableObject {
 
     // MARK: - UI/Debug Support
 
-    /// Get all node records for UI display
+    /// Get all node records for UI display. Connection Status asks every 2 s while it shows; the
+    /// pool stats are refreshed with it, at most every 5 s (the stats loop itself runs every 30 s).
     func allNodeRecords() async -> [NodeRecord] {
-        await registry.allRecords()
+        if isInitialized, Date().timeIntervalSince(lastStatsUpdateAt) >= 5 {
+            await updatePoolStats()
+        }
+        return await registry.allRecords()
     }
 
     /// Get node counts by state
@@ -1715,15 +2099,14 @@ extension NodePoolService {
     }
 
     /// Active protocol string (for UI)
-    var activeProtocol: String { "gRPC" }
+    var activeProtocol: String {
+        guard let endpoint = primaryEndpoint, endpoint.isWebSocket else { return "gRPC" }
+        return endpoint.secure ? "wss" : "ws"
+    }
 
     /// Active transport security description (for UI)
     var activeProtocolSecurity: String {
-        if let endpoint = primaryEndpoint,
-           endpoint.url.lowercased().hasPrefix("grpcs://") {
-            return "secure"
-        }
-        return "plaintext"
+        primaryEndpoint?.secure == true ? "secure" : "plaintext"
     }
 
     /// Total node count
@@ -1736,11 +2119,16 @@ extension NodePoolService {
     func setTrustedNodeAddress(_ address: String?) async {
         let trimmed = address?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         var staleEndpoint: Endpoint?
+        // The new choice starts on its own nodes; a public stand-in comes back only if needed.
+        publicFallbackAllowed = Self.allowsPublicFallback(pinned: trimmed)
+        await dropPublicFallback(reason: "node selection changed", reconnect: false)
         // Switching modes intentionally races/burns candidates - never let that burst, or
         // failures from the previous mode, feed a blocked-network verdict.
         await resetBlockedNetworkDetection(reason: "node selection changed")
         if trimmed.isEmpty {
             staleEndpoint = await registry.setTrustedNode(nil)
+            // Automatic Scan probes and discovers again.
+            await profiler?.applyTrustedMode()
             await updatePoolStats()
             // Instant switch to Automatic Scan: setTrustedNode(nil) just restored the pre-pin
             // pool (if any) - dial the best-known nodes RIGHT NOW, racing several in parallel
@@ -1760,7 +2148,7 @@ extension NodePoolService {
                         if (lhs.state == .active) != (rhs.state == .active) {
                             return lhs.state == .active
                         }
-                        return lhs.effectiveLatencyMs < rhs.effectiveLatencyMs
+                        return lhs.rankingLatencyMs < rhs.rankingLatencyMs
                     }
                     .prefix(6)
                     .map(\.endpoint)
@@ -1778,6 +2166,8 @@ extension NodePoolService {
             await updatePoolStats()
         } else if let endpoint = Endpoint(url: trimmed) {
             staleEndpoint = await registry.setTrustedNode(endpoint)
+            // Pinned: no probing or discovery (see NodeProfiler.start).
+            await profiler?.applyTrustedMode()
             await updatePoolStats()
             // Probe directly rather than forceProbeAll()/selectNodesForProbing() - that
             // path gates a freshly-added node on a several-minute cold-start interval meant

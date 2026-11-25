@@ -38,6 +38,9 @@ enum KaChatInternalLink: Equatable {
     /// A request to be paid: opens Send Kaspa with the address, amount and memo filled in
     /// (`PaymentRequest`).
     case paymentRequest(PaymentRequest)
+    /// A Kaspa Hub card (Explorer, KaPlay, Portfolio...): opens that section, wherever it lives
+    /// (2026-11-25: a hold on a Hub card copies it). `https://kachat.app/hub/<AppTab.linkSlug>`.
+    case hubSection(AppTab)
 
     /// The universal-link host - the only host the app ever writes into a share. With KaChat
     /// installed iOS opens these links in the app; without it, kachat.app shows the profile or
@@ -67,7 +70,16 @@ enum KaChatInternalLink: Equatable {
             return "https://\(Self.universalLinkHost)/post/\(txId)"
         case .publicChatRoom(let channel):
             return "https://\(Self.universalLinkHost)/broadcast/\(channel)"
+        case .hubSection(let tab):
+            return "https://\(Self.universalLinkHost)/hub/\(tab.linkSlug ?? "")"
         }
+    }
+
+    /// The link a hold on a Kaspa Hub card copies: `https://kachat.app/hub/<slug>`. Nil for a tab
+    /// that isn't a Hub card (the dock's).
+    static func hubSectionShareURL(for tab: AppTab) -> URL? {
+        guard tab.linkSlug != nil else { return nil }
+        return URL(string: KaChatInternalLink.hubSection(tab).universalLinkString)
     }
 
     /// The share sheet's text for a public chat-room invite - one human line and the kachat.app
@@ -104,6 +116,7 @@ enum KaChatInternalLink: Equatable {
             case "pay": return PaymentRequest(rawAddress: payload, url: url).map { .paymentRequest($0) }
             case "kapost": return kaPostLink(rawTxId: payload)
             case "broadcast": return publicChatLink(rawChannel: payload)
+            case "hub": return AppTab(linkSlug: payload).map { .hubSection($0) }
             default: return nil
             }
         case "kapay", "kachatwallet":
@@ -134,6 +147,7 @@ enum KaChatInternalLink: Equatable {
             case "pay": return PaymentRequest(rawAddress: parts[1], url: url).map { .paymentRequest($0) }
             case "post": return kaPostLink(rawTxId: parts[1])
             case "broadcast": return publicChatLink(rawChannel: parts[1])
+            case "hub": return AppTab(linkSlug: parts[1]).map { .hubSection($0) }
             default: return nil
             }
         default:
@@ -163,6 +177,10 @@ enum KaChatInternalLink: Equatable {
     /// - control characters and Unicode bidi/zero-width formatting, the classic way to make a
     ///   room invite *render* as a different room than the one it actually joins.
     /// A leading `#` is tolerated and stripped (people paste "#kaspa").
+    /// A retired room's name comes back as the room that replaced it
+    /// (`PublicChatService.retiredChannels`: "kachat-bugs" is "report-bugs"), so an old link, a
+    /// push or a typed name opens the live room on every path (audit 2026-11-25 C2). The move off
+    /// the old room and leaving it use `PublicChatChannelName.normalize`, which keeps the old name.
     static func normalizeAndValidateChannel(_ rawChannel: String) -> String? {
         var raw = rawChannel.trimmingCharacters(in: .whitespacesAndNewlines)
         while raw.hasPrefix("#") { raw.removeFirst() }
@@ -172,7 +190,7 @@ enum KaChatInternalLink: Equatable {
         let structural: Set<Character> = ["/", "\\", "?", "#", "%", "@", "\"", "'", "<", ">"]
         guard !normalized.contains(where: { structural.contains($0) }) else { return nil }
         guard !normalized.unicodeScalars.contains(where: isDisallowedScalar) else { return nil }
-        return normalized
+        return PublicChatService.retiredChannels[normalized] ?? normalized
     }
 
     /// `kaposts://compose?text=...`: a pre-written post from another app (KaPost's link), for the
@@ -234,7 +252,7 @@ enum KaChatInternalLink: Equatable {
     /// universal form is matched here too so it is claimed as INTERNAL before the generic
     /// preview path can fetch it over the network.
     private static let pattern =
-        #"(?:kachat://(?:profile|pay|kapost|broadcast)/|kapay://(?:profile|pay)/|kaposts://(?:kapost|broadcast)/|https?://(?:www\.)?kachat\.app/(?:u|pay|post|broadcast)/)[^\s<>"']+"#
+        #"(?:kachat://(?:profile|pay|kapost|broadcast|hub)/|kapay://(?:profile|pay)/|kaposts://(?:kapost|broadcast)/|https?://(?:www\.)?kachat\.app/(?:u|pay|post|broadcast|hub)/)[^\s<>"']+"#
 
     private static let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
 
@@ -1719,5 +1737,49 @@ enum ImageDownsampler {
             return nil
         }
         return UIImage(cgImage: cgImage)
+    }
+}
+
+
+// MARK: - Kaspa Hub card links
+
+extension AppTab {
+    /// A Hub card's name in its link (`https://kachat.app/hub/<slug>`). Fixed words, never the
+    /// enum's raw value, so renaming a case can't break links already shared. Nil for the dock's
+    /// tabs, which aren't Hub cards.
+    var linkSlug: String? {
+        switch self {
+        case .addressBook: return "contacts"
+        case .portfolio: return "portfolio"
+        case .coldStorage: return "cold-storage"
+        case .kachatNames: return "usernames"
+        case .kaposts: return "kapost"
+        case .games: return "kaplay"
+        case .apps: return "websites"
+        case .explorer: return "explorer"
+        case .chats, .wallet, .profile, .settings, .hub: return nil
+        }
+    }
+
+    /// The tab a link names, case-insensitively; nil for anything unknown.
+    init?(linkSlug: String) {
+        let slug = linkSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !slug.isEmpty, let tab = AppTab.allCases.first(where: { $0.linkSlug == slug }) else { return nil }
+        self = tab
+    }
+
+    /// One line on what the card holds, for its link's preview card.
+    var hubBlurb: String {
+        switch self {
+        case .addressBook: return "Your saved Kaspa addresses."
+        case .portfolio: return "Track your coins and their value."
+        case .coldStorage: return "Watch and sign for your cold wallets."
+        case .kachatNames: return "Claim, buy and sell .kachat usernames."
+        case .kaposts: return "Posts and replies on Kaspa."
+        case .games: return "Chess, Snake and 2048, scores on chain."
+        case .apps: return "Websites built on Kaspa."
+        case .explorer: return "Blocks, transactions and addresses, live."
+        case .chats, .wallet, .profile, .settings, .hub: return ""
+        }
     }
 }

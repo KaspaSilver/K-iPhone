@@ -1826,6 +1826,34 @@ final class MessageStore {
         }
     }
 
+    /// The edits of the given messages (the chat list's last messages), keyed by the message.
+    func fetchEdits(targetTxIds: [String], decryptionKey: SymmetricKey) async -> [String: MessageEditSnapshot] {
+        guard ensureStoreLoaded(), !targetTxIds.isEmpty else { return [:] }
+        let walletAddress = currentWalletAddress
+        return await withCheckedContinuation { (continuation: CheckedContinuation<[String: MessageEditSnapshot], Never>) in
+            container.performBackgroundTask { context in
+                let request = NSFetchRequest<CDMessageEdit>(entityName: CDMessageEdit.entityName)
+                if let walletAddress {
+                    request.predicate = NSPredicate(format: "targetTxId IN %@ AND (walletAddress == %@ OR walletAddress == nil)", targetTxIds, walletAddress)
+                } else {
+                    request.predicate = NSPredicate(format: "targetTxId IN %@", targetTxIds)
+                }
+                var edits: [String: MessageEditSnapshot] = [:]
+                for record in (try? context.fetch(request)) ?? [] {
+                    guard let data = record.textEncrypted, let text = self.decryptContent(data, key: decryptionKey) else { continue }
+                    let status: ChatMessage.DeliveryStatus
+                    switch record.deliveryStatus {
+                    case "failed": status = .failed
+                    case "pending": status = .pending
+                    default: status = .sent
+                    }
+                    edits[record.targetTxId] = MessageEditSnapshot(targetTxId: record.targetTxId, text: text, editTxId: record.editTxId, blockTime: record.blockTime, deliveryStatus: status)
+                }
+                continuation.resume(returning: edits)
+            }
+        }
+    }
+
     /// One conversation's edits, keyed by the message they change.
     func fetchEdits(contactAddress: String, decryptionKey: SymmetricKey) async -> [String: MessageEditSnapshot] {
         guard ensureStoreLoaded() else { return [:] }

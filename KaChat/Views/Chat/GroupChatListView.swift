@@ -107,6 +107,9 @@ struct GroupChatRow: View {
     }()
 
     private func previewText(for message: GroupMessage) -> String {
+        // an edited message reads with its newest text, as in the thread
+        let message = groupChatService.editsByGroupId[group.id]?[message.txId]
+            .map { message.replacingContent(MessageEditCodec.apply($0.text, to: message.content)) } ?? message
         let key = "\(group.id)|\(message.id.uuidString)|\(groupMemoContentStamp(message.content))|\(group.members.count)|\(KachatNamesRegistry.shared.identityRevision)|\(GroupDisplayNamesRevision.shared.value)" as NSString
         if let cached = Self.previewMemo.object(forKey: key) { return cached as String }
         // a membership line ("<address> joined the group") reads as it does in the thread

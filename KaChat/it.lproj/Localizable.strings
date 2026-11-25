@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "Importa file";
 "Export File" = "Esporta file";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "Salvala nella cartella KaChat del tuo Nextcloud, per importarla su qualsiasi dispositivo.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "Salvala nella cartella K del tuo Nextcloud, per importarla su qualsiasi dispositivo.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "Collega Nextcloud in Impostazioni > Spazio per salvarla anche lì e importarla su un altro dispositivo.";
 "Couldn't read that file." = "Impossibile leggere quel file.";
 "Nothing to export yet. Add a contact first." = "Niente da esportare per ora. Aggiungi prima un contatto.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "Invia offerta";
 "Offers open when .kachat names launch." = "Le offerte si apriranno al lancio dei nomi .kachat.";
 "Pick a CSV file from your Nextcloud." = "Scegli un file CSV dal tuo Nextcloud.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "Salva il CSV nella cartella KaChat del tuo Nextcloud.";
+"Save the CSV to the K folder in your Nextcloud." = "Salva il CSV nella cartella K del tuo Nextcloud.";
 "Names this address claims or buys show here once .kachat names launch." = "I nomi che questo indirizzo rivendica o compra appariranno qui al lancio dei nomi .kachat.";
 "Move to Portfolio" = "Sposta nel portafoglio";
 "Create another portfolio first, then you can move transactions into it." = "Crea prima un altro portafoglio, poi potrai spostarvi le transazioni.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "Degradato";
 "Disconnected" = "Disconnesso";
 "Checking…" = "Verifica…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "Al momento i nodi gRPC non sono raggiungibili, quindi K usa un nodo pubblico tramite wss.";
+"Search public chats" = "Cerca chat pubbliche";
+"No Public Chats" = "Nessuna chat pubblica";
+"Tap + to join or create a public room." = "Tocca + per entrare in una stanza pubblica o crearne una.";
+"Switches between your chats and public chats" = "Passa dalle tue chat alle chat pubbliche";
+"More Rooms" = "Altre stanze";
+"Rooms added on the indexer K reads public chats from." = "Stanze aggiunte sull'indicizzatore da cui K legge le chat pubbliche.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "Link copiato";
+"A link that opens this card in K." = "Un link che apre questa scheda in K.";
+"Open" = "Apri";
+"Opens this card." = "Apre questa scheda.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "Tocca per aprirlo in K.";
+"Opens it in K." = "Lo apre in K.";
+"Your saved Kaspa addresses." = "I tuoi indirizzi Kaspa salvati.";
+"Track your coins and their value." = "Segui le tue monete e il loro valore.";
+"Watch and sign for your cold wallets." = "Controlla i tuoi cold wallet e firma per loro.";
+"Claim, buy and sell .kachat usernames." = "Rivendica, compra e vendi nomi utente .kachat.";
+"Posts and replies on Kaspa." = "Post e risposte su Kaspa.";
+"Chess, Snake and 2048, scores on chain." = "Scacchi, Snake e 2048, punteggi on chain.";
+"Websites built on Kaspa." = "Siti web costruiti su Kaspa.";
+"Blocks, transactions and addresses, live." = "Blocchi, transazioni e indirizzi, in diretta.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "Questo non è un indirizzo resistente ai quanti. Scansiona l'indirizzo KCC-3 mostrato da KasSigner.";
+"That address is already in this account." = "Questo indirizzo è già in questo account.";
+"Quantum-resistant address added." = "Indirizzo resistente ai quanti aggiunto.";
+"Add Quantum-Resistant Address" = "Aggiungi indirizzo resistente ai quanti";
+"Scan a KCC-3 address from KasSigner's address screen." = "Scansiona un indirizzo KCC-3 dalla schermata degli indirizzi di KasSigner.";
+"Stop Watching" = "Smetti di monitorare";
+"Removes this quantum address from the account. Scan it again to add it back." = "Rimuove questo indirizzo quantistico dall'account. Scansionalo di nuovo per aggiungerlo ancora.";
+"Quantum-Resistant Address" = "Indirizzo resistente ai quanti";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "Su KasSigner, apri l'indirizzo KCC-3 che vuoi e scansiona il suo codice QR. La sua chiave resta sul dispositivo finché l'indirizzo non spende.";
+"Address Number on KasSigner" = "Numero dell'indirizzo su KasSigner";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "Il numero che KasSigner mostra per questo indirizzo. Con questo il dispositivo trova subito la chiave quando firma; senza, la cerca.";
+"Add Quantum Address" = "Aggiungi indirizzo quantistico";
+"The address number must be a whole number." = "Il numero dell'indirizzo deve essere un numero intero.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "Richiede KasSigner v1.1 o successivo, che firma gli indirizzi resistenti ai quanti (KCC-3).";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "Il resto torna a questo indirizzo, la cui chiave questo invio rende pubblica sulla catena. Aggiungi un altro indirizzo quantistico da KasSigner per mantenere il resto a prova di quantistica.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "Il resto va a un indirizzo quantistico non usato di questo account, perché questo invio rende pubblica sulla catena la chiave di questo indirizzo.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner non ha restituito lo script della chiave per questo indirizzo resistente ai quanti, quindi non verrà trasmessa. Verifica che il dispositivo usi KasSigner v1.1 o successivo e contenga questo indirizzo.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "La transazione firmata aggiunge condizioni di covenant che questo invio non ha mai chiesto, quindi non verrà trasmessa.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "Indirizzo quantistico";
+"Quantum Change Address" = "Indirizzo di resto quantistico";
+"Quantum Address #%lld" = "Indirizzo quantistico #%lld";
+"Quantum Change Address #%lld" = "Indirizzo di resto quantistico #%lld";
+"That address is already in your Cold Storage account “%@”." = "Questo indirizzo è già nel tuo account Cold Storage «%@».";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "Questo invio rende pubblica sulla catena la chiave di questo indirizzo, quindi il resto non può tornare qui. Aggiungi prima un indirizzo resistente ai quanti non usato da KasSigner (meglio un indirizzo di resto, da #0 a #4), oppure invia tutto il saldo.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "La consolidazione rende pubblica sulla catena la chiave di questo indirizzo, quindi le sue monete vanno a un indirizzo resistente ai quanti non usato di questo account. Aggiungine prima uno da KasSigner (meglio un indirizzo di resto, da #0 a #4).";
+"Stop Watching This Address?" = "Smettere di monitorare questo indirizzo?";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "I suoi %@ KAS restano sulla catena a questo indirizzo, sul tuo KasSigner; K smette solo di mostrarli. Scansiona di nuovo l'indirizzo da KasSigner per monitorarlo ancora.";
+"Edit Address Number" = "Modifica numero dell'indirizzo";
+"The number and chain KasSigner shows for this address." = "Il numero e la catena che KasSigner mostra per questo indirizzo.";
+"Chain" = "Catena";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "Il numero che KasSigner mostra per questo indirizzo, e se è un indirizzo di ricezione o di resto. Con questo il dispositivo trova subito la chiave quando firma; senza, la cerca. KasSigner segna come resto ciò che va ai suoi indirizzi di resto da #0 a #4; ogni altro indirizzo lo mostra come pagamento.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "Numero troppo grande: i numeri degli indirizzi di KasSigner sono inferiori a 2147483648.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "Sposta tutte le monete di questo indirizzo in una sola, a un indirizzo resistente ai quanti non usato di questo account: questa transazione rende pubblica sulla catena la chiave di questo indirizzo.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "Questo indirizzo ha più monete di quante una transazione possa spendere: %lld restano dietro la chiave che questo invio rende pubblica sulla catena. Inviale con un'altra transazione subito dopo.";
+"The coins move to your quantum address:" = "Le monete vanno al tuo indirizzo quantistico:";
+"The change goes to your quantum address:" = "Il resto va al tuo indirizzo quantistico:";
+"KasSigner shows this output as change." = "KasSigner mostra questo output come resto.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner mostrerà questo output come un pagamento normale, non come resto: verifica che sia questo indirizzo prima di firmare.";
+"Sign Without the Address Number" = "Firma senza il numero dell'indirizzo";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "Se KasSigner rifiuta questa richiesta, il numero dell'indirizzo potrebbe essere sbagliato. Senza, il dispositivo cerca l'indirizzo da solo. Modifica numero dell'indirizzo lo corregge per la prossima volta.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "Unisce tutti gli UTXO di questo indirizzo in uno solo a un indirizzo resistente ai quanti non usato di questo account, perché questo rende pubblica sulla catena la chiave di questo indirizzo.";
+"Quantum-Resistant Addresses" = "Indirizzi resistenti ai quanti";
+"Addresses" = "Indirizzi";
+"Receive Address" = "Indirizzo di ricezione";
+"Change Address" = "Indirizzo di resto";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "Eliminare 1 chat pubblica?";
+"Delete %lld Public Chats?" = "Eliminare %lld chat pubbliche?";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Le chat pubbliche predefinite vengono disattivate (riattivale in Modifica chat pubbliche predefinite). Le stanze che hai aggiunto vengono eliminate con i loro messaggi da questo dispositivo.";

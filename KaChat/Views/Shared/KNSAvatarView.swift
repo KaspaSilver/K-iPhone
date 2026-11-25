@@ -533,6 +533,26 @@ enum KNSProfileImageCacheControl {
         }
         return fetched
     }
+
+    /// The hourly profile rescan's look at these pictures (audit 2026-11-25 B17: it used to
+    /// download every contact's avatar and banner again each hour). A picture whose link changed
+    /// has a new cache identity, so it downloads by itself the next time it shows; one this phone
+    /// already holds gets a HEAD with its stored validators, and only a changed one comes down
+    /// again and redraws. Returns how many changed.
+    @discardableResult
+    static func refreshIfChanged(_ urlStrings: [String]) async -> Int {
+        var changed = 0
+        for raw in Set(urlStrings) {
+            guard let descriptor = KNSProfileImageDescriptor.from(raw: raw) else { continue }
+            guard await KNSProfileImageCache.shared.refreshIfChanged(descriptor) else { continue }
+            changed += 1
+            let identity = descriptor.cacheIdentity
+            await MainActor.run {
+                NotificationCenter.default.post(name: .knsProfileImageRefetched, object: identity)
+            }
+        }
+        return changed
+    }
 }
 
 extension Notification.Name {
@@ -574,6 +594,24 @@ private actor KNSProfileImageCache {
         let image = await downloadAndStore(descriptor: descriptor, existingEntry: nil, maxPixelSize: nil)
         return image != nil
     }
+
+    /// See `KNSProfileImageCacheControl.refreshIfChanged`. Nothing for a picture not on disk; a
+    /// conditional check (`revalidate`) for one that is, unless it was checked within the last
+    /// `rescanRevalidateMinAge`. True when new bytes replaced the old file.
+    func refreshIfChanged(_ descriptor: KNSProfileImageDescriptor) async -> Bool {
+        await loadManifestIfNeeded()
+        let identity = descriptor.cacheIdentity
+        guard let entry = manifest[identity],
+              Date().timeIntervalSince(entry.lastValidatedAt) >= Self.rescanRevalidateMinAge,
+              revalidating.insert(identity).inserted else { return false }
+        defer { finishedRevalidating(identity) }
+        // The returned image isn't used: whether the file changed is read from the manifest.
+        _ = await revalidate(entry: entry, descriptor: descriptor, cachedImage: UIImage(), maxPixelSize: nil)
+        return manifest[identity]?.updatedAt != entry.updatedAt
+    }
+
+    /// The hourly rescan doesn't check a picture again sooner than this.
+    private static let rescanRevalidateMinAge: TimeInterval = 50 * 60
 
     /// See `KNSProfileImageCacheControl.resetAfterExternalPurge`.
     func resetAfterExternalPurge() {

@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "Nhập tệp";
 "Export File" = "Xuất tệp";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "Lưu vào thư mục KaChat trên Nextcloud để nhập trên mọi thiết bị.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "Lưu vào thư mục K trên Nextcloud để nhập trên mọi thiết bị.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "Kết nối Nextcloud trong Cài đặt > Lưu trữ để lưu ở đó và nhập trên thiết bị khác.";
 "Couldn't read that file." = "Không đọc được tệp đó.";
 "Nothing to export yet. Add a contact first." = "Chưa có gì để xuất. Hãy thêm một liên hệ trước.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "Gửi đề nghị";
 "Offers open when .kachat names launch." = "Đề nghị sẽ mở khi tên .kachat ra mắt.";
 "Pick a CSV file from your Nextcloud." = "Chọn một tệp CSV từ Nextcloud của bạn.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "Lưu tệp CSV vào thư mục KaChat trên Nextcloud của bạn.";
+"Save the CSV to the K folder in your Nextcloud." = "Lưu tệp CSV vào thư mục K trên Nextcloud của bạn.";
 "Names this address claims or buys show here once .kachat names launch." = "Các tên mà địa chỉ này nhận hoặc mua sẽ hiện ở đây khi tên .kachat ra mắt.";
 "Move to Portfolio" = "Chuyển sang danh mục";
 "Create another portfolio first, then you can move transactions into it." = "Hãy tạo thêm một danh mục trước, rồi bạn có thể chuyển giao dịch vào đó.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "Suy giảm";
 "Disconnected" = "Mất kết nối";
 "Checking…" = "Đang kiểm tra…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "Hiện không thể kết nối tới các node gRPC, nên K đang dùng một node công khai qua wss.";
+"Search public chats" = "Tìm trò chuyện công khai";
+"No Public Chats" = "Không có trò chuyện công khai";
+"Tap + to join or create a public room." = "Chạm + để tham gia hoặc tạo phòng công khai.";
+"Switches between your chats and public chats" = "Chuyển giữa cuộc trò chuyện của bạn và trò chuyện công khai";
+"More Rooms" = "Phòng khác";
+"Rooms added on the indexer K reads public chats from." = "Các phòng được thêm trên trình lập chỉ mục mà K đọc trò chuyện công khai.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "Đã sao chép liên kết";
+"A link that opens this card in K." = "Liên kết mở thẻ này trong K.";
+"Open" = "Mở";
+"Opens this card." = "Mở thẻ này.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "Chạm để mở trong K.";
+"Opens it in K." = "Mở trong K.";
+"Your saved Kaspa addresses." = "Các địa chỉ Kaspa bạn đã lưu.";
+"Track your coins and their value." = "Theo dõi coin và giá trị của chúng.";
+"Watch and sign for your cold wallets." = "Theo dõi ví lạnh và ký cho chúng.";
+"Claim, buy and sell .kachat usernames." = "Nhận, mua và bán tên người dùng .kachat.";
+"Posts and replies on Kaspa." = "Bài đăng và trả lời trên Kaspa.";
+"Chess, Snake and 2048, scores on chain." = "Cờ vua, Snake và 2048, điểm số trên chuỗi.";
+"Websites built on Kaspa." = "Các trang web xây dựng trên Kaspa.";
+"Blocks, transactions and addresses, live." = "Khối, giao dịch và địa chỉ, trực tiếp.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "Đó không phải là địa chỉ chống lượng tử. Hãy quét địa chỉ KCC-3 mà KasSigner hiển thị.";
+"That address is already in this account." = "Địa chỉ đó đã có trong tài khoản này.";
+"Quantum-resistant address added." = "Đã thêm địa chỉ chống lượng tử.";
+"Add Quantum-Resistant Address" = "Thêm địa chỉ chống lượng tử";
+"Scan a KCC-3 address from KasSigner's address screen." = "Quét một địa chỉ KCC-3 từ màn hình địa chỉ của KasSigner.";
+"Stop Watching" = "Ngừng theo dõi";
+"Removes this quantum address from the account. Scan it again to add it back." = "Xóa địa chỉ lượng tử này khỏi tài khoản. Quét lại để thêm lại.";
+"Quantum-Resistant Address" = "Địa chỉ chống lượng tử";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "Trên KasSigner, mở địa chỉ KCC-3 bạn muốn và quét mã QR của nó. Khóa của nó ở lại trên thiết bị cho đến khi địa chỉ chi tiêu.";
+"Address Number on KasSigner" = "Số địa chỉ trên KasSigner";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "Số mà KasSigner hiển thị cho địa chỉ này. Có số này, thiết bị tìm thấy khóa ngay khi ký; không có, thiết bị sẽ tìm khóa.";
+"Add Quantum Address" = "Thêm địa chỉ lượng tử";
+"The address number must be a whole number." = "Số địa chỉ phải là số nguyên.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "Cần KasSigner v1.1 trở lên, phiên bản ký được địa chỉ chống lượng tử (KCC-3).";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "Tiền thừa quay về địa chỉ này, địa chỉ mà lần gửi này công khai khóa trên chuỗi. Thêm một địa chỉ lượng tử khác từ KasSigner để tiền thừa luôn an toàn lượng tử.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "Tiền thừa chuyển đến một địa chỉ lượng tử chưa dùng của tài khoản này, vì lần gửi này công khai khóa của địa chỉ này trên chuỗi.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner không trả về script khóa cho địa chỉ chống lượng tử này, nên giao dịch sẽ không được phát lên mạng. Hãy kiểm tra thiết bị đang chạy KasSigner v1.1 trở lên và có địa chỉ này.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "Giao dịch đã ký thêm các điều khoản covenant mà lần gửi này chưa từng yêu cầu, nên sẽ không được phát lên mạng.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "Địa chỉ lượng tử";
+"Quantum Change Address" = "Địa chỉ tiền thừa lượng tử";
+"Quantum Address #%lld" = "Địa chỉ lượng tử #%lld";
+"Quantum Change Address #%lld" = "Địa chỉ tiền thừa lượng tử #%lld";
+"That address is already in your Cold Storage account “%@”." = "Địa chỉ đó đã có trong tài khoản Cold Storage “%@” của bạn.";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "Lần gửi này công khai khóa của địa chỉ này trên chuỗi, nên tiền thừa không thể quay về đây. Hãy thêm trước một địa chỉ chống lượng tử chưa dùng từ KasSigner (tốt nhất là địa chỉ tiền thừa, #0 đến #4), hoặc gửi toàn bộ số dư.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "Gộp sẽ công khai khóa của địa chỉ này trên chuỗi, nên các đồng của nó chuyển sang một địa chỉ chống lượng tử chưa dùng của tài khoản này. Hãy thêm một địa chỉ từ KasSigner trước (tốt nhất là địa chỉ tiền thừa, #0 đến #4).";
+"Stop Watching This Address?" = "Ngừng theo dõi địa chỉ này?";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "%@ KAS của nó vẫn nằm trên chuỗi tại địa chỉ này, trên KasSigner của bạn; K chỉ ngừng hiển thị. Quét lại địa chỉ từ KasSigner để theo dõi lại.";
+"Edit Address Number" = "Sửa số địa chỉ";
+"The number and chain KasSigner shows for this address." = "Số và chuỗi mà KasSigner hiển thị cho địa chỉ này.";
+"Chain" = "Chuỗi";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "Số mà KasSigner hiển thị cho địa chỉ này, và đây là địa chỉ nhận hay địa chỉ tiền thừa. Có số này, thiết bị tìm thấy khóa ngay khi ký; không có, thiết bị sẽ tìm khóa. KasSigner đánh dấu tiền thừa gửi đến các địa chỉ tiền thừa #0 đến #4 của nó là tiền thừa; mọi địa chỉ khác nó hiển thị là thanh toán.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "Số đó quá lớn: số địa chỉ của KasSigner nhỏ hơn 2147483648.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "Chuyển tất cả các đồng của địa chỉ này thành một, tại một địa chỉ chống lượng tử chưa dùng của tài khoản này: giao dịch này công khai khóa của địa chỉ này trên chuỗi.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "Địa chỉ này có nhiều đồng hơn số một giao dịch có thể chi: %lld đồng ở lại sau khóa mà lần gửi này công khai trên chuỗi. Hãy gửi chúng tiếp trong một giao dịch khác ngay sau đó.";
+"The coins move to your quantum address:" = "Các đồng chuyển đến địa chỉ lượng tử của bạn:";
+"The change goes to your quantum address:" = "Tiền thừa chuyển đến địa chỉ lượng tử của bạn:";
+"KasSigner shows this output as change." = "KasSigner hiển thị đầu ra này là tiền thừa.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner sẽ hiển thị đầu ra này là thanh toán thông thường, không phải tiền thừa: hãy kiểm tra đúng là địa chỉ này trước khi ký.";
+"Sign Without the Address Number" = "Ký không cần số địa chỉ";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "Nếu KasSigner từ chối yêu cầu này, số địa chỉ có thể sai. Không có số, thiết bị tự tìm địa chỉ. Sửa số địa chỉ sẽ chỉnh lại cho lần sau.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "Gộp tất cả UTXO tại địa chỉ này thành một tại một địa chỉ chống lượng tử chưa dùng của tài khoản này, vì việc này công khai khóa của địa chỉ này trên chuỗi.";
+"Quantum-Resistant Addresses" = "Địa chỉ chống lượng tử";
+"Addresses" = "Địa chỉ";
+"Receive Address" = "Địa chỉ nhận";
+"Change Address" = "Địa chỉ tiền thừa";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "Xóa 1 trò chuyện công khai?";
+"Delete %lld Public Chats?" = "Xóa %lld trò chuyện công khai?";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Các trò chuyện công khai mặc định sẽ bị tắt (bật lại trong Sửa trò chuyện công khai mặc định). Các phòng bạn đã thêm sẽ bị xóa cùng tin nhắn trên thiết bị này.";

@@ -95,7 +95,10 @@ struct AnimatedQRDisplayView: View {
 }
 
 /// Scans a KasSigner animated multi-frame QR sequence (a signed KSPT response, or anything else
-/// chunked with QrFrameChunker) and reassembles it. Unlike QRScannerView, which fires once on the
+/// chunked with QrFrameChunker) and reassembles it: a bare code, v1.0.7 frames, or v1.1's tagged
+/// frames (every reply to a quantum 0x06 request). The dots and count come from the
+/// Accumulator either way; a v1.1 set that fails its digest check starts over, so the count
+/// goes back to the prompt and fills again. Unlike QRScannerView, which fires once on the
 /// first decode, this keeps scanning until every frame has been seen.
 struct MultiFrameQRScannerView: View {
     let isComplete: (Data) -> Bool

@@ -73,6 +73,10 @@ final class ChatService: ObservableObject {
     @Published var reactionsByTxId: [String: [MessageStore.ReactionSnapshot]] = [:]
     /// The newest edit per message txId, for the open conversation - see `MessageEditCodec`.
     @Published var editsByTxId: [String: MessageEditSnapshot] = [:]
+    /// The newest edit of each chat's last message, for the chat list's preview line
+    /// (`loadPreviewEdits`). `editsByTxId` only holds the chats opened since launch, so the list
+    /// kept showing a message's text from before it was edited.
+    @Published var previewEditsByTxId: [String: MessageEditSnapshot] = [:]
     /// Newest reaction per contact, across every message in that conversation - not scoped to
     /// whichever single conversation is currently open (unlike `reactionsByTxId`), since the chat
     /// list needs this for every row at once. Refreshed by `refreshLatestReactionPreviews()`; see
@@ -384,8 +388,13 @@ final class ChatService: ObservableObject {
     /// Where the rotating part of the sweep window resumes on the next pass.
     var foregroundSweepRotationOffset = 0
     /// How recently the primary subscription must have been verified alive for the sweep to
-    /// stand down: three keepalive periods, so one missed ping does not wake it.
-    let utxoSubscriptionFreshness: TimeInterval = 45.0
+    /// stand down: the pool's own healthy window (about 40 s on Wi-Fi, 100 s on an expensive
+    /// path, where the keepalive is 45 s), plus a little slack for a tick that runs late. A fixed
+    /// 120 s left the sweep standing down for over a minute on Wi-Fi after the keepalive had
+    /// stopped proving anything (audit 2026-11-25 N10).
+    var utxoSubscriptionFreshness: TimeInterval {
+        NodePoolService.shared.subscriptionHealthyWindow + 20
+    }
     /// Group-chat backstop riding on the sweep loop. Live group delivery is the blockAdded
     /// block-scan (GroupChatService), whose only recovery is a catch-up on scenePhase .active -
     /// while the app SITS open, a block missed during a brief stream gap stayed missing until
@@ -486,6 +495,14 @@ final class ChatService: ObservableObject {
 
     // UTXO subscription state for real-time payment notifications
     var utxoSubscriptionToken: UUID?
+    /// `setupUtxoSubscription` runs now (it can overlap itself across its awaits). While one
+    /// runs, the pool reaching `.subscribed` is its own doing and its handler is on the way.
+    var utxoSubscriptionSetupsInFlight = 0
+    /// Puts our handler back on a subscription the pool brought up by itself
+    /// (`restoreUtxoHandlerIfNeeded`); one at a time.
+    var utxoHandlerRestoreTask: Task<Void, Never>?
+    /// When the fallback poll last read payments by themselves (`pollPaymentsWhileSweepCovers`).
+    var fallbackPaymentPollAt: Date?
     var isUtxoSubscribed = false {
         didSet {
             isRpcSubscribed = isUtxoSubscribed
@@ -807,8 +824,18 @@ final class ChatService: ObservableObject {
                 guard let self else { return }
                 switch state {
                 case .subscribed:
-                    if !self.isUtxoSubscribed {
-                        self.isUtxoSubscribed = true
+                    // Subscribed with no handler of ours means nothing reads utxosChanged: the
+                    // pool came back by a route of its own (the stats pass, the public
+                    // fallback's hand-back, Settings) after our subscribe had failed. Saying
+                    // "subscribed" then stood the sweep and the fallback poll down with nobody
+                    // listening (audit 2026-11-25 N1); the handler goes back first, and the setup
+                    // sets the flag itself.
+                    if self.utxoSubscriptionToken != nil {
+                        if !self.isUtxoSubscribed {
+                            self.isUtxoSubscribed = true
+                        }
+                    } else {
+                        self.restoreUtxoHandlerIfNeeded(reason: "pool subscribed without our handler")
                     }
                 case .disconnected, .failed:
                     if self.isUtxoSubscribed {
@@ -818,6 +845,34 @@ final class ChatService: ObservableObject {
                     break
                 }
             }
+    }
+
+    /// Runs `setupUtxoSubscription` when the pool is subscribed (or says it came back) but no
+    /// utxosChanged handler of ours is on it. Not while a setup is already running (its handler
+    /// is on the way), not without a wallet, and not in the background in push mode, where the
+    /// subscription is paused on purpose. A retry of ours still waiting out its backoff is
+    /// replaced: the pool is up now, so the setup only widens the live subscription. Returns the
+    /// running restore so a caller can wait for the handler before its catch-up.
+    @discardableResult
+    func restoreUtxoHandlerIfNeeded(reason: String) -> Task<Void, Never>? {
+        if let running = utxoHandlerRestoreTask { return running }
+        guard utxoSubscriptionToken == nil, utxoSubscriptionSetupsInFlight == 0,
+              WalletManager.shared.currentWallet != nil else { return nil }
+        if UIApplication.shared.applicationState == .background,
+           settingsViewModel?.settings.notificationMode == .remotePush {
+            return nil
+        }
+        subscriptionRetryTask?.cancel()
+        subscriptionRetryTask = nil
+        AppLog.log("[ChatService] Putting the utxosChanged handler back (%@)", reason)
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.setupUtxoSubscription()
+            // A cancel (account switch) has cleared the slot already, maybe for a newer restore.
+            if !Task.isCancelled { self.utxoHandlerRestoreTask = nil }
+        }
+        utxoHandlerRestoreTask = task
+        return task
     }
 
     let chatHistoryArchiveVersion = 1
@@ -831,6 +886,14 @@ final class ChatService: ObservableObject {
         ) { [weak self] _ in
             AppLog.log("[ChatService] RPC subscriptions restored - syncing to catch any missed messages")
             Task { @MainActor in
+                // The pool re-subscribed on its own after this service's own subscribe had
+                // failed (it leaves that retry to the pool, audit 2026-11-25 B19): no handler of
+                // ours is on it yet, so add it (a widen of the live subscription, no new connect),
+                // which also stops the fallback poll. Shared with the state listener above, so
+                // the two never run a setup each.
+                if let restore = self?.restoreUtxoHandlerIfNeeded(reason: "subscriptions restored") {
+                    await restore.value
+                }
                 // the dead window may have held a payment too: the UTXO notification for it
                 // never came and is not replayed
                 self?.requestPaymentCatchUp(lookBackMs: 15 * 60 * 1000)
@@ -919,6 +982,13 @@ final class ChatService: ObservableObject {
         incomingResolutionWarningTxIds = []
         incomingResolutionAmountHints = [:]
         hiddenPaymentTxIdTimestamps = [:]
+        // The last account's edited previews must not show in the next one's chat list (audit
+        // 2026-11-25 M9); the open thread's edits go with them.
+        previewEditsByTxId = [:]
+        editsByTxId = [:]
+        fallbackPaymentPollAt = nil
+        utxoHandlerRestoreTask?.cancel()
+        utxoHandlerRestoreTask = nil
         // The last account's drafts go to its own key and leave memory; the next account's are
         // loaded the first time a composer asks.
         flushPendingDraftSave()

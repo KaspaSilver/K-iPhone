@@ -781,6 +781,80 @@ extension KaspaFullTransactionResponse {
         }
         return nil
     }
+
+    /// An outgoing history row's amount when this transaction also spent coins that aren't this
+    /// address's: a kUSDT swap spends Trestly's pool, which pays its whole balance back to
+    /// itself, and that output counted as "Sent" (-367,808 KAS for a swap of a few KAS, owner
+    /// 2026-11-25). Works from what left this wallet instead: its inputs, less what came back to
+    /// it (this address and the change to this wallet's other addresses, `ownChange`) and its
+    /// part of the network fee, never more than went to others (`toOthers`). When the wallet
+    /// came out ahead (a swap that paid it Kaspa) the row is Received, by that much. Nil when an
+    /// input of this wallet has no known amount, so the caller keeps its own figure.
+    ///
+    /// Why the wallet and not this address alone (audit 2026-11-25 L2): coins aren't tied to
+    /// outputs, so when two of this wallet's addresses fund one send nothing says which paid
+    /// what. Splitting it by amount would make up figures the change lines under the row don't
+    /// match; the old per-address sum took the whole fee and all the change off each funding
+    /// address, so the smaller one read "Moved" (or "Received") when it paid. Each funding
+    /// address's row shows the same, whole-transaction figure instead, which is what the
+    /// caller's own figure is for a send with no outside inputs. `isOwnAddress` says which other
+    /// input addresses are this wallet's (lowercased); left out, only `address` counts.
+    ///
+    /// The fee: with only this wallet's coins in, it paid all of it. With another party's coins
+    /// in too (a swap pool), the wallet is charged its share by amount (its inputs over all
+    /// inputs). The pool's coins dwarf ours, so that share is near nothing and the row is what
+    /// left the wallet less what came back; that over-counts by at most the fee, where taking
+    /// the whole fee off under-counted by the part the pool paid. With an outside input of
+    /// unknown amount the share can't be worked out, so no fee is taken off.
+    func ownHistoryAmount(
+        for address: String,
+        toOthers: UInt64,
+        ownChange: UInt64,
+        isOwnAddress: (String) -> Bool = { _ in false }
+    ) -> (isOutgoing: Bool, amountSompi: UInt64)? {
+        let this = address.lowercased()
+        var spentHere: UInt64 = 0
+        var spentByWallet: UInt64 = 0
+        var inputTotal: UInt64 = 0
+        var allInputsKnown = true
+        var outsideInputs = false
+        for input in inputs ?? [] {
+            let inputAddress = input.previousOutpointAddress?.lowercased() ?? ""
+            let here = inputAddress == this
+            let ours = here || (!inputAddress.isEmpty && isOwnAddress(inputAddress))
+            if !ours { outsideInputs = true }
+            guard let amount = input.previousOutpointAmount else {
+                if ours { return nil }
+                allInputsKnown = false
+                continue
+            }
+            inputTotal &+= amount
+            if here { spentHere &+= amount }
+            if ours { spentByWallet &+= amount }
+        }
+        guard spentHere > 0 else { return nil }
+        let outputTotal = outputs.reduce(UInt64(0)) { $0 &+ $1.amount }
+        let returnedHere = outputs
+            .filter { $0.scriptPublicKeyAddress?.lowercased() == this }
+            .reduce(UInt64(0)) { $0 &+ $1.amount }
+        let returnedToWallet = returnedHere &+ ownChange
+        guard returnedToWallet < spentByWallet else {
+            // came out ahead (or even): what it gained
+            return returnedToWallet > spentByWallet ? (false, returnedToWallet - spentByWallet) : nil
+        }
+        var paid = spentByWallet - returnedToWallet
+        let fee = allInputsKnown && inputTotal >= outputTotal ? inputTotal - outputTotal : 0
+        let walletFee: UInt64
+        if !outsideInputs || inputTotal == 0 {
+            walletFee = fee
+        } else {
+            // fee × ours / all, in full width: the pool's balance times a fee can pass UInt64
+            let product = fee.multipliedFullWidth(by: spentByWallet)
+            walletFee = inputTotal.dividingFullWidth(product).quotient
+        }
+        paid -= min(paid, walletFee)
+        return (true, min(paid, toOthers))
+    }
 }
 
 actor InFlightResolveTracker {

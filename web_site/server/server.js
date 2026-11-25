@@ -787,6 +787,50 @@ function broadcastPage(channel) {
   });
 }
 
+// A Kaspa Hub card (a hold on a card in K's Kaspa Hub > Copy Link): with K it opens that card; without
+// it, what the card is and the download. The slugs are K's `AppTab.linkSlug` (LinkPreviewService.swift):
+// fixed words, so a link once shared keeps working.
+const HUB_CARDS = {
+  'contacts': { name: 'Contacts', blurb: 'Your saved Kaspa addresses.' },
+  'portfolio': { name: 'Portfolio', blurb: 'Track your coins and their value.' },
+  'cold-storage': { name: 'Cold Storage', blurb: 'Watch and sign for your cold wallets.' },
+  'usernames': { name: 'Usernames', blurb: 'Claim, buy and sell .kachat usernames.' },
+  'kapost': { name: 'KaPost', blurb: 'Posts and replies on Kaspa.' },
+  'kaplay': { name: 'KaPlay', blurb: 'Chess, Snake and 2048, scores on chain.' },
+  'websites': { name: 'Websites', blurb: 'Websites built on Kaspa.' },
+  'explorer': { name: 'Explorer', blurb: 'Blocks, transactions and addresses, live.' },
+};
+
+function hubPage(slug) {
+  const card = HUB_CARDS[slug];
+  const canonical = `${SITE_ORIGIN}/hub/${encodeURIComponent(slug)}`;
+  const body = `
+  <div class="card">
+    <div class="who">
+      <span class="room-ic">K</span>
+      <div>
+        <div class="name" style="font-size:22px">${escapeHTML(card.name)}</div>
+        <div class="meta">In Kaspa Hub, on K</div>
+      </div>
+    </div>
+    <div class="text">${escapeHTML(card.blurb)}</div>
+  </div>
+  <div class="cta">
+    <a class="btn btn-fill btn-block" href="kachat://hub/${encodeURIComponent(slug)}">Open in K</a>
+    <p class="hint">${escapeHTML(card.name)} lives in the app's Kaspa Hub.</p>
+  </div>
+  ${getKaChat("Don't have K yet? It's free.")}`;
+  return page({
+    title: `${card.name} on K`,
+    description: card.blurb,
+    image: OG_IMAGE,
+    canonical,
+    appArgument: canonical,
+    body,
+    largeImage: true,
+  });
+}
+
 // A payment request (Chats > + > Request Payment in the app): who to pay, the exact amount and
 // what it's for. With the app it opens Send Kaspa filled in; without it, the details and the
 // download. Same rules as the app's PaymentRequest: a valid address, an exact amount, a short memo.
@@ -951,7 +995,7 @@ function notFoundPage(what) {
 
 // ---------------------------------------------------------------- well-known
 function aasa() {
-  const paths = ['/post/*', '/broadcast/*', '/u/*', '/pay/*'];
+  const paths = ['/post/*', '/broadcast/*', '/u/*', '/pay/*', '/hub/*'];
   return JSON.stringify({
     applinks: { apps: [], details: IOS_APP_IDS.map(appID => ({ appID, paths })) },
     // Also lets the Intents / Share extensions open these links - harmless without them.
@@ -1021,6 +1065,12 @@ const server = http.createServer(async (req, res) => {
       const channel = parts[1].replace(/^#/, '').toLowerCase();
       if (!CHANNEL.test(channel)) return send(res, 404, 'text/html; charset=utf-8', notFoundPage("That link isn't a KaChat room"));
       return send(res, 200, 'text/html; charset=utf-8', broadcastPage(channel));
+    }
+
+    if (parts.length === 2 && parts[0] === 'hub') {
+      const slug = parts[1].trim().toLowerCase();
+      if (!Object.prototype.hasOwnProperty.call(HUB_CARDS, slug)) return send(res, 404, 'text/html; charset=utf-8', notFoundPage("That link isn't a Kaspa Hub card"));
+      return send(res, 200, 'text/html; charset=utf-8', hubPage(slug));
     }
 
     if (parts.length === 2 && parts[0] === 'u') {

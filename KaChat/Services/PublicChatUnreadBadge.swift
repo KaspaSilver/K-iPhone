@@ -1,8 +1,8 @@
 import Foundation
 import Combine
 
-/// The Public Chats dock badge: the unread count across the listed rooms with their bell on, the
-/// same rooms `AppTabBadge` adds to the Chats badge, worked out again whenever the rooms change
+/// The public rooms' unread count: across the listed rooms with their bell on, which the app icon
+/// adds in (`AppTabBadge.appIconCount`; not the dock's KaChat badge), worked out again whenever the rooms change
 /// and published only when the number does - so the dock (both the real one and
 /// `KaPostsDockCopy`) doesn't redraw for every message that arrives.
 @MainActor

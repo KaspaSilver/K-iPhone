@@ -131,8 +131,11 @@ struct ScannedBlock: Sendable {
         let firstInputIndex: UInt32
     }
     let transactions: [Transaction]
+    /// The Explorer's summary of the block: only while the Explorer shows (`ExplorerBlockDetail.wanted`).
+    let explorer: ExplorerBlockDetail?
 
     init(_ notification: Protowire_BlockAddedNotificationMessage) {
+        explorer = ExplorerBlockDetail.wanted ? ExplorerBlockDetail(notification.block) : nil
         var kept: [Transaction] = []
         for tx in notification.block.transactions where !tx.payload.isEmpty {
             let txId = tx.verboseData.transactionID
@@ -152,6 +155,74 @@ struct ScannedBlock: Sendable {
             RecentOutputScripts.shared.record(txId: txId, scripts: tx.outputs.map { $0.scriptPublicKey.scriptPublicKey })
         }
         transactions = kept
+    }
+}
+
+/// A new block as the Explorer lists it (owner, 2026-11-25: the Explorer's live blocks come from K's
+/// own node, kaspa.stream's API has no live feed). Built on the stream only while the Explorer is
+/// on screen, so the chats' block scanners pay nothing for it.
+struct ExplorerBlockDetail: Sendable {
+    struct Output: Sendable {
+        let address: String
+        let amount: UInt64
+        let covenantId: String
+    }
+    struct Transaction: Sendable {
+        let id: String
+        let subnetwork: String
+        let payloadHex: String
+        let inputCount: Int
+        let outputs: [Output]
+        let mass: UInt64
+    }
+    let hash: String
+    let blueScore: UInt64
+    let daaScore: UInt64
+    /// Milliseconds.
+    let timestamp: Int64
+    let isChainBlock: Bool
+    let difficulty: Double
+    let parents: [String]
+    let children: [String]
+    let mergeSetBlues: Int
+    let mergeSetReds: Int
+    let transactionIds: [String]
+    let transactions: [Transaction]
+
+    private static let lock = NSLock()
+    private static var isWanted = false
+    /// Set by the Explorer while it shows.
+    static var wanted: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return isWanted }
+        set { lock.lock(); isWanted = newValue; lock.unlock() }
+    }
+
+    init(_ block: Protowire_RpcBlock) {
+        let v = block.verboseData
+        hash = v.hash.isEmpty ? block.header.hash : v.hash
+        blueScore = v.blueScore != 0 ? v.blueScore : block.header.blueScore
+        daaScore = block.header.daaScore
+        timestamp = block.header.timestamp
+        isChainBlock = v.isChainBlock
+        difficulty = v.difficulty
+        parents = block.header.parents.first?.parentHashes ?? []
+        children = v.childrenHashes
+        mergeSetBlues = v.mergeSetBluesHashes.count
+        mergeSetReds = v.mergeSetRedsHashes.count
+        transactionIds = v.transactionIds
+        transactions = block.transactions.map { tx in
+            Transaction(
+                id: tx.verboseData.transactionID,
+                subnetwork: tx.subnetworkID,
+                payloadHex: tx.payload,
+                inputCount: tx.inputs.count,
+                outputs: tx.outputs.map {
+                    Output(address: $0.verboseData.scriptPublicKeyAddress, amount: $0.amount,
+                           covenantId: $0.hasCovenant ? $0.covenant.covenantID : "")
+                },
+                mass: tx.verboseData.computeMass
+            )
+        }
     }
 }
 
@@ -205,6 +276,12 @@ final class BlockScanRegistry: @unchecked Sendable {
         lock.lock(); handlers.removeValue(forKey: id); lock.unlock()
     }
 
+    /// Whether any scanner listens. With none, a block isn't parsed at all.
+    var hasHandlers: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return !handlers.isEmpty
+    }
+
     fileprivate func dispatch(_ block: ScannedBlock) {
         lock.lock(); let current = Array(handlers.values); lock.unlock()
         for handler in current { handler(block) }
@@ -223,6 +300,19 @@ actor GRPCStreamConnection {
     private let sharedGroup: EventLoopGroup
     private var channel: GRPCChannel?
     private var stream: BidirectionalStreamingCall<Protowire_KaspadMessage, Protowire_KaspadMessage>?
+    /// A `ws://` / `wss://` node's socket (wRPC JSON, `WRPCTransport.swift`), in place of `stream`.
+    /// Everything else - request matching, timeouts, health, reconnects - is shared.
+    private var socket: WRPCSocket?
+
+    /// The stream or socket is up.
+    private var hasLiveTransport: Bool { stream != nil || socket != nil }
+
+    /// Closes the WebSocket, if this connection has one.
+    private func closeSocket() {
+        let old = socket
+        socket = nil
+        old?.close()
+    }
 
     private var state: ConnectionState = .disconnected
     private var circuitBreaker = CircuitBreaker()
@@ -453,6 +543,7 @@ actor GRPCStreamConnection {
             // Clean up partial connection state (channel only - group is shared)
             stream?.sendEnd(promise: nil)
             stream = nil
+            closeSocket()
             // Properly close the channel and wait for completion to prevent leaks. Taken off the
             // property first: a new connect can start during the await.
             let ch = channel
@@ -470,6 +561,21 @@ actor GRPCStreamConnection {
         guard generation == connectionGeneration else {
             throw KasiaError.networkError("Connection closed")
         }
+
+        if endpoint.isWebSocket {
+            try await connectWebSocket(generation: generation)
+            return
+        }
+
+#if DEBUG
+        // Debug builds launched with KACHAT_BLOCK_GRPC=1 can't reach any gRPC node, as on a
+        // network that blocks it: the public wss fallback then has to carry the app. With
+        // KACHAT_BLOCK_GRPC_SECONDS=N gRPC comes back N seconds after launch, so the fallback's
+        // hand-back can be watched too.
+        if DebugGRPCBlock.isBlocked {
+            throw KasiaError.networkError("gRPC blocked (KACHAT_BLOCK_GRPC)")
+        }
+#endif
 
         // Use ClientConnection instead of GRPCChannelPool to avoid retain cycle memory leaks
         // GRPCChannelPool.with() creates internal ConnectionManager/ConnectionPool objects
@@ -520,6 +626,48 @@ actor GRPCStreamConnection {
             }
             try await Task.sleep(nanoseconds: 25_000_000)
         }
+    }
+
+    /// Opens a WebSocket node's socket. Its frames are decoded off this actor, in order, and come
+    /// back through `handleResponse` exactly as a gRPC stream's messages do.
+    private func connectWebSocket(generation: Int) async throws {
+        guard let url = endpoint.webSocketURL else {
+            throw KasiaError.networkError("Invalid node address")
+        }
+        let socket = WRPCSocket(url: url)
+        socket.onClose = { [weak self] error in
+            Task { await self?.handleSocketClosed(error: error, generation: generation) }
+        }
+        self.socket = socket
+        try await socket.open()
+        guard generation == connectionGeneration, self.socket === socket else {
+            socket.close()
+            throw KasiaError.networkError("Connection closed")
+        }
+        Task { [weak self] in
+            for await message in socket.incoming {
+                guard let self else { return }
+                await self.handleResponse(message, generation: generation)
+            }
+        }
+    }
+
+    /// The WebSocket ended (the node closed it, or the network went).
+    private func handleSocketClosed(error: Error?, generation: Int) {
+        guard generation == connectionGeneration else { return }
+        if state == .connecting {
+            streamClosedWhileConnecting = true
+            return
+        }
+        guard state == .connected else { return }
+        AppLog.log("[GRPCStream] Socket closed on %@: %@", endpoint.key, error?.localizedDescription ?? "closed")
+        state = .disconnected
+        connectedAt = nil
+        closeSocket()
+        for pending in pendingRequests.values where pending.timedOut {
+            forgetTimedOutRequest(pending)
+        }
+        scheduleAutoReconnect()
     }
 
     /// Handle stream being closed (by server or error)
@@ -608,6 +756,13 @@ actor GRPCStreamConnection {
             }
             try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
             guard !Task.isCancelled, await self.state == .disconnected else { return }
+            // Offline, every attempt fails: stop here. Coming back online is a new network epoch,
+            // and `NodePoolService` then redials the pool's dead connections at once
+            // (`GRPCConnectionPool.reconnectDisconnected`), this one included.
+            guard await MainActor.run(body: { NetworkEpochMonitor.shared.isOnline }) else {
+                AppLog.log("[GRPCStream] Offline - %@ waits for the network to reconnect", self.endpoint.key)
+                return
+            }
             // Only the subscription's nodes reconnect without end. Any other connection - a
             // probe's, a node used once - tries a few times while it was in use lately, then
             // stays down until a request needs it (and the pool prunes it).
@@ -656,6 +811,7 @@ actor GRPCStreamConnection {
         // Close stream and channel (group is shared, don't shut it down)
         stream?.sendEnd(promise: nil)
         stream = nil
+        closeSocket()
 
         // Properly close the channel and wait for completion to prevent leaks. Taken off the
         // property first: a new connect can start during the await.
@@ -678,7 +834,7 @@ actor GRPCStreamConnection {
     ) async throws -> Protowire_KaspadMessage {
         lastRequestAt = Date()
         // Check connection first
-        guard stream != nil, state == .connected else {
+        guard hasLiveTransport, state == .connected else {
             // Only check circuit breaker if not connected
             guard circuitBreaker.checkState() else {
                 throw KasiaError.networkError("Circuit breaker open for \(endpoint.key)")
@@ -709,7 +865,9 @@ actor GRPCStreamConnection {
         // new stream by now, so the stream is read only here: sending on a dead one would register
         // a request that only its timeout ever cleans up, and its send failure would then take
         // the new stream down. With no stream, fail the same way as a never-connected call.
-        guard state == .connected, let stream = self.stream else {
+        let stream = self.stream
+        let socket = self.socket
+        guard state == .connected, stream != nil || socket != nil else {
             reservedTypes.remove(type)
             releaseTypeSlot(type)
             throw KasiaError.networkError("Not connected to \(endpoint.key)")
@@ -762,12 +920,23 @@ actor GRPCStreamConnection {
                 reservedTypes.remove(type)
 
                 // Send message
-                let promise = stream.eventLoop.makePromise(of: Void.self)
-                stream.sendMessage(message, promise: promise)
+                if let stream {
+                    let promise = stream.eventLoop.makePromise(of: Void.self)
+                    stream.sendMessage(message, promise: promise)
 
-                promise.futureResult.whenFailure { [weak self] error in
-                    Task {
-                        await self?.handleSendFailure(requestId: requestId, error: error, generation: generation)
+                    promise.futureResult.whenFailure { [weak self] error in
+                        Task {
+                            await self?.handleSendFailure(requestId: requestId, error: error, generation: generation)
+                        }
+                    }
+                } else if let socket {
+                    socket.send(message, type: type) { [weak self] error in
+                        guard let error else { return }
+                        // A socket that can't take a write is gone: handled as a dead stream.
+                        let closed = KasiaError.networkError("Connection closed: \(error.localizedDescription)")
+                        Task {
+                            await self?.handleSendFailure(requestId: requestId, error: closed, generation: generation)
+                        }
                     }
                 }
 
@@ -807,8 +976,12 @@ actor GRPCStreamConnection {
 
             case .blockAddedNotification(let notification):
                 // Scanners get the slim record; the notification path gets an empty payload
-                // so the subscription manager's staleness clock still sees the block.
-                BlockScanRegistry.shared.dispatch(ScannedBlock(notification))
+                // so the subscription manager's staleness clock still sees the block. Nothing is
+                // built (nor output scripts remembered) while no scanner listens: a block left
+                // arriving before its stop is answered costs only the decode.
+                if BlockScanRegistry.shared.hasHandlers {
+                    BlockScanRegistry.shared.dispatch(ScannedBlock(notification))
+                }
                 handleNotification(.blockAdded, nil)
                 return
 
@@ -974,6 +1147,7 @@ actor GRPCStreamConnection {
         // Clean up stale stream
         stream?.sendEnd(promise: nil)
         stream = nil
+        closeSocket()
 
         // Close channel in background to prevent leaks
         if let ch = channel {
@@ -1061,6 +1235,21 @@ actor GRPCStreamConnection {
         circuitBreaker.reset()
     }
 }
+
+#if DEBUG
+/// See `performConnect`: gRPC made unreachable in debug builds, to exercise the wss fallback.
+enum DebugGRPCBlock {
+    private static let launchedAt = Date()
+    static var isBlocked: Bool {
+        let env = ProcessInfo.processInfo.environment
+        if env["KACHAT_BLOCK_GRPC"] == "1" { return true }
+        if let seconds = env["KACHAT_BLOCK_GRPC_SECONDS"].flatMap(Double.init) {
+            return Date().timeIntervalSince(launchedAt) < seconds
+        }
+        return false
+    }
+}
+#endif
 
 // MARK: - Connection Pool
 
@@ -1160,6 +1349,31 @@ actor GRPCConnectionPool {
         if let key = (oldestDisconnected ?? leastUsed)?.key, let conn = connections.removeValue(forKey: key) {
             await conn.disconnect()
             AppLog.log("[GRPCPool] Evicted %@ to stay within %d connections", key, maxTotalConnections)
+        }
+    }
+
+    /// Closes and forgets every connection but those in `keys`, except one with a request
+    /// waiting. For the background (`UtxoSubscriptionManager.closeIdleConnectionsForBackground`):
+    /// an open socket the app no longer uses keeps the radio and the node busy for nothing, and
+    /// a request in the foreground dials again on demand.
+    /// `mayClose` is asked last, right before each close (the app may have come back meanwhile,
+    /// or the subscription moved onto that node); false keeps the connection.
+    func closeIdleConnections(
+        keeping keys: Set<String>,
+        mayClose: @escaping @Sendable (String) async -> Bool = { _ in true }
+    ) async {
+        var closed = 0
+        for (key, conn) in connections where !keys.contains(key) {
+            guard await !conn.hasPendingRequests else { continue }
+            guard await mayClose(key) else { continue }
+            // Replaced while we were asking: that one isn't ours to close.
+            guard connections[key] === conn else { continue }
+            connections.removeValue(forKey: key)
+            await conn.disconnect()
+            closed += 1
+        }
+        if closed > 0 {
+            AppLog.log("[GRPCPool] Closed %d idle connections for the background, %d left", closed, connections.count)
         }
     }
 

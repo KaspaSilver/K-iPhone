@@ -109,8 +109,8 @@ struct AppTabContent: View {
         case .games:
             GamesView()
                 .environmentObject(PublicChatService.shared)
-        case .kachatStats:
-            KaChatStatsView()
+        case .explorer:
+            ExplorerView()
         case .apps:
             NavigationStack {
                 // ProfileAppsView sets its own title; only the shared header items are added.
@@ -135,6 +135,14 @@ struct KaspaHubView: View {
     /// a dock slot (audit 2026-11-21 #28). In the order they were first opened.
     @State private var keptSections: [AppTab] = []
 
+    /// The card held down: its half sheet (Copy Link, Open).
+    @State private var heldCard: AppTab?
+    /// "Link copied", shown over the Hub after Copy Link.
+    @State private var toastMessage: String?
+    /// Which copy the toast belongs to, so a second copy within its 1.6 s isn't cleared early
+    /// by the first one's timer.
+    @State private var toastToken = 0
+
     /// The sections kept alive when left. Each was checked for what it does while on screen:
     /// KaPost's feed polls only while it shows (`KaPostsDockRouter.kaPostsOnScreen`), and the
     /// chess screens watch the arena through `onScreenPresence`, which counts a hidden section as
@@ -142,7 +150,7 @@ struct KaspaHubView: View {
     /// an open chat or room marks itself read and polls until its onDisappear, which a hidden
     /// section never gets, and a web page would keep playing.
     private static let keptAlive: Set<AppTab> = [
-        .kaposts, .portfolio, .games, .kachatNames, .kachatStats, .coldStorage,
+        .kaposts, .portfolio, .games, .kachatNames, .coldStorage, .explorer,
     ]
 
     /// Three across, so the tiles line up the same way whatever the count.
@@ -179,6 +187,12 @@ struct KaspaHubView: View {
             if let open, !Self.keptAlive.contains(open) {
                 AppTabContent(tab: open)
             }
+        }
+        // On the Hub itself, not the grid: the grid is hidden while a section is open, and Open
+        // in the sheet opens one, so the sheet and its toast would go with it.
+        .toast(message: toastMessage)
+        .sheet(item: $heldCard) { tab in
+            cardActionSheet(for: tab)
         }
         .onAppear { keep(router.openSection) }
         .onChange(of: router.openSection) { section in keep(section) }
@@ -223,6 +237,9 @@ struct KaspaHubView: View {
 
     private func tile(_ tab: AppTab) -> some View {
         Button {
+            // A hold that opened the half sheet can also end as a tap on a device; the card
+            // opening behind its own sheet isn't what was asked for (as the chat circles guard).
+            guard heldCard == nil else { return }
             Haptics.impact(.light)
             router.open(tab)
         } label: {
@@ -266,6 +283,59 @@ struct KaspaHubView: View {
                 .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(.plain)
+        // Hold: its half sheet, with the card's link to copy (2026-11-25). A Button label needs
+        // simultaneousGesture, as the chat circles do.
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.4).onEnded { _ in
+                guard tab.linkSlug != nil else { return }
+                Haptics.impact(.medium)
+                heldCard = tab
+            }
+        )
+        .accessibilityHint(Text("Hold for options"))
+    }
+
+    /// A held card's half sheet, as every long-press menu in the app (tiles): Copy Link, whose
+    /// `https://kachat.app/hub/<slug>` opens this card in K for whoever taps it, and Open.
+    private func cardActionSheet(for tab: AppTab) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                AppTabIcon(tab: tab, size: 18)
+                Text(LocalizedStringKey(tab.label))
+                    .font(.headline)
+                    .lineLimit(1)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 4)
+
+            ActionSheetTiles {
+                ActionSheetRow(title: "Copy Link", subtitle: "A link that opens this card in K.", systemImage: "link") {
+                    heldCard = nil
+                    guard let url = KaChatInternalLink.hubSectionShareURL(for: tab) else { return }
+                    UIPasteboard.general.string = url.absoluteString
+                    Haptics.success()
+                    toastToken &+= 1
+                    let token = toastToken
+                    withAnimation(.easeOut(duration: 0.2)) { toastMessage = AppLocalization.string("Link copied") }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                        // only the latest copy's timer takes the toast down
+                        guard token == toastToken else { return }
+                        withAnimation(.easeIn(duration: 0.2)) { toastMessage = nil }
+                    }
+                }
+                ActionSheetRow(title: "Open", subtitle: "Opens this card.", systemImage: "arrow.up.forward.app") {
+                    heldCard = nil
+                    router.open(tab)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .presentationDetents([.height(ActionSheetTileMetrics.sheetHeight(tiles: 2))])
+        .presentationDragIndicator(.visible)
     }
 }
 
@@ -399,4 +469,140 @@ private struct OnScreenPresence: ViewModifier {
 extension Notification.Name {
     /// Opens a .kachat name's screen (from a notification or a link; KaPay's).
     static let openKachatName = Notification.Name("openKachatName")
+    /// Opens a Kaspa Hub card's section (a `kachat.app/hub/<slug>` link); the tab is
+    /// `PendingTabRoute.pending`, which also covers a cold start.
+    static let openHubSection = Notification.Name("openHubSection")
+}
+
+/// A Kaspa Hub card's link (`kachat.app/hub/<slug>`) drawn in a KaPost and its composer, in
+/// KaPost's own card style (as `KaPostPaymentRequestCard`): the card's icon, "Kaspa Hub", its name
+/// and what it holds, and Open, which opens that section in K. Holding it opens a half sheet of
+/// tiles (Copy Link, Open), as every long-press menu in the app. Chats draw the same link as their
+/// internal link card (`KaChatInternalLinkCardView`).
+struct KaspaHubLinkCard: View {
+    let tab: AppTab
+    /// False for the composer's preview: drawn the same, but nothing opens or copies, so a tap
+    /// there can't leave the post being written (audit 2026-11-25 L1). Not only hit testing:
+    /// VoiceOver could still activate a button.
+    var interactive: Bool = true
+
+    /// Held: its half sheet.
+    @State private var showsActions = false
+
+    var body: some View {
+        if interactive {
+            Button {
+                // A hold that opened the sheet can also end as a tap on a device; don't open the
+                // card behind its own sheet (as the chat circles guard).
+                guard !showsActions else { return }
+                open()
+            } label: {
+                card
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.4).onEnded { _ in
+                    Haptics.impact(.medium)
+                    showsActions = true
+                }
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityHint(Text("Opens it in K."))
+            .accessibilityAction(named: Text("Copy Link")) { copyLink() }
+            .sheet(isPresented: $showsActions) {
+                actionSheet
+            }
+        } else {
+            card
+                .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func open() {
+        Haptics.impact(.light)
+        KaChatLinkRouter.open(.hubSection(tab))
+    }
+
+    private func copyLink() {
+        guard let url = KaChatInternalLink.hubSectionShareURL(for: tab) else { return }
+        UIPasteboard.general.string = url.absoluteString
+        Haptics.success()
+    }
+
+    /// The held card's half sheet, as the Hub grid's own (`KaspaHubView.cardActionSheet`).
+    private var actionSheet: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                AppTabIcon(tab: tab, size: 18)
+                Text(LocalizedStringKey(tab.label))
+                    .font(.headline)
+                    .lineLimit(1)
+            }
+            .padding(.top, 20)
+            .padding(.bottom, 4)
+
+            ActionSheetTiles {
+                ActionSheetRow(title: "Copy Link", subtitle: "A link that opens this card in K.", systemImage: "link") {
+                    showsActions = false
+                    copyLink()
+                }
+                ActionSheetRow(title: "Open", subtitle: "Opens this card.", systemImage: "arrow.up.forward.app") {
+                    showsActions = false
+                    open()
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .presentationDetents([.height(ActionSheetTileMetrics.sheetHeight(tiles: 2))])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var card: some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.18))
+                AppTabIcon(tab: tab, size: 22)
+            }
+            .frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Kaspa Hub")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.accentColor)
+                    .textCase(.uppercase)
+                Text(LocalizedStringKey(tab.label))
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                Text(LocalizedStringKey(tab.hubBlurb))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            Spacer(minLength: 8)
+            Text("Open")
+                .font(.subheadline.weight(.bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(Color.accentColor))
+                .fixedSize()
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.accentColor.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.accentColor.opacity(0.35), lineWidth: 1)
+                )
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
 }

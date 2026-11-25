@@ -182,7 +182,6 @@
 		WMSA00010001000100000001 /* WalletManager+SpendingAddresses.swift in Sources */ = {isa = PBXBuildFile; fileRef = WMSA00010001000000000001 /* WalletManager+SpendingAddresses.swift */; };
 		PORTB72D1A36B406604A4E0A /* Base58.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTF28275F65F6ECD47C84C /* Base58.swift */; };
 		PORTBBACC7CFDFABF7F4A582 /* KaspaExtendedPublicKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFE789B52E15F1FF003DA /* KaspaExtendedPublicKey.swift */; };
-		PORTBF2BCB3CFEC0F003C942 /* KaspaNetworkStatsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFCE7EA357E70B2359EAA /* KaspaNetworkStatsService.swift */; };
 		PORTBF30B8868FB2ED94FD03 /* MarketPairService.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTF2E4D68B2ED86A68B5BC /* MarketPairService.swift */; };
 		PORTB948DF6A6C0A7A665B00 /* PortfolioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFBDB43F5D37ED05D74E5 /* PortfolioManager.swift */; };
 		PORTBC8F37D3322B7E034A18 /* PortfolioLedgerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PORTFA9D37592F3677B6F4F7 /* PortfolioLedgerStore.swift */; };
@@ -261,7 +260,6 @@
 		P4BFF9F07A1EA238E730650F /* ChessTournamentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FAAFAF7F21D0C57F7E1F45 /* ChessTournamentsView.swift */; };
 		P4B919167AB9645EE78CC15C /* ChessWaitingRoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4FF1CF7ADB42717ECA98A81 /* ChessWaitingRoomView.swift */; };
 		P4BBE13BBF0F8235B8B98138 /* FittedSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = P4BFD85A32621D5AA01E9C55 /* FittedSheet.swift */; };
-		P5B308635D5ABBBFDA281AE4 /* KaChatStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5F591C396FEF8ECA982FAEC /* KaChatStatsView.swift */; };
 		P5B0F6238B43DD8FC63C05F0 /* KaspaWebsitesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5FB7D7D3BAB15B749134713 /* KaspaWebsitesView.swift */; };
 		P5TB336207E299AF38A80DDA /* TermsOfUseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5TF31FE02495A3C860324BC /* TermsOfUseView.swift */; };
 		P5GBEF99EC3EE12C1EC2C325 /* KachatSetupGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P5GF75C63E0E8A4ABC2D9FFD /* KachatSetupGuideView.swift */; };
@@ -277,6 +275,13 @@
 		SWPB3EE11F0DD5AA53DABDED /* GroupActionSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF3EE11F0DD5AA53DABDED /* GroupActionSheets.swift */; };
 		SWPB5AAC1862CE031DE3E822 /* UsernameMentions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF5AAC1862CE031DE3E822 /* UsernameMentions.swift */; };
 		SWPB4DF284FE477716B873F6 /* AccountSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF4DF284FE477716B873F6 /* AccountSwitcher.swift */; };
+		SWPB3C79B136241B11F32A08 /* WRPCTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF3C79B136241B11F32A08 /* WRPCTransport.swift */; };
+		SWPBBD0ADAD9E37E50362BD1 /* PublicNodeFallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPFBD0ADAD9E37E50362BD1 /* PublicNodeFallback.swift */; };
+		SWPBBB863BD36EE9C6E5C284 /* ExplorerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPFBB863BD36EE9C6E5C284 /* ExplorerModels.swift */; };
+		SWPB9D5CA151DA2DA49CB652 /* ExplorerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF9D5CA151DA2DA49CB652 /* ExplorerViews.swift */; };
+		SWPBD93D0F6CD77A964D7D40 /* ExplorerChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPFD93D0F6CD77A964D7D40 /* ExplorerChartView.swift */; };
+		SWPB0F69A96E0A1F1F5F9DB7 /* ExplorerAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF0F69A96E0A1F1F5F9DB7 /* ExplorerAPI.swift */; };
+		SWPB9E12E3C0839271BA3918 /* ForegroundBeat.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF9E12E3C0839271BA3918 /* ForegroundBeat.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -523,7 +528,6 @@
 		WMSA00010001000000000001 /* WalletManager+SpendingAddresses.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WalletManager+SpendingAddresses.swift"; sourceTree = "<group>"; };
 		PORTF28275F65F6ECD47C84C /* Base58.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base58.swift; sourceTree = "<group>"; };
 		PORTFE789B52E15F1FF003DA /* KaspaExtendedPublicKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaspaExtendedPublicKey.swift; sourceTree = "<group>"; };
-		PORTFCE7EA357E70B2359EAA /* KaspaNetworkStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaspaNetworkStatsService.swift; sourceTree = "<group>"; };
 		PORTF2E4D68B2ED86A68B5BC /* MarketPairService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketPairService.swift; sourceTree = "<group>"; };
 		PORTFBDB43F5D37ED05D74E5 /* PortfolioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioManager.swift; sourceTree = "<group>"; };
 		PORTFA9D37592F3677B6F4F7 /* PortfolioLedgerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioLedgerStore.swift; sourceTree = "<group>"; };
@@ -602,7 +606,6 @@
 		P4FAAFAF7F21D0C57F7E1F45 /* ChessTournamentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessTournamentsView.swift; sourceTree = "<group>"; };
 		P4FF1CF7ADB42717ECA98A81 /* ChessWaitingRoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChessWaitingRoomView.swift; sourceTree = "<group>"; };
 		P4BFD85A32621D5AA01E9C55 /* FittedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FittedSheet.swift; sourceTree = "<group>"; };
-		P5F591C396FEF8ECA982FAEC /* KaChatStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaChatStatsView.swift; sourceTree = "<group>"; };
 		P5FB7D7D3BAB15B749134713 /* KaspaWebsitesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaspaWebsitesView.swift; sourceTree = "<group>"; };
 		P5TF31FE02495A3C860324BC /* TermsOfUseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TermsOfUseView.swift; sourceTree = "<group>"; };
 		P5GF75C63E0E8A4ABC2D9FFD /* KachatSetupGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatSetupGuideView.swift; sourceTree = "<group>"; };
@@ -618,6 +621,13 @@
 		SWPF3EE11F0DD5AA53DABDED /* GroupActionSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupActionSheets.swift; sourceTree = "<group>"; };
 		SWPF5AAC1862CE031DE3E822 /* UsernameMentions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsernameMentions.swift; sourceTree = "<group>"; };
 		SWPF4DF284FE477716B873F6 /* AccountSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSwitcher.swift; sourceTree = "<group>"; };
+		SWPF3C79B136241B11F32A08 /* WRPCTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WRPCTransport.swift; sourceTree = "<group>"; };
+		SWPFBD0ADAD9E37E50362BD1 /* PublicNodeFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicNodeFallback.swift; sourceTree = "<group>"; };
+		SWPFBB863BD36EE9C6E5C284 /* ExplorerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplorerModels.swift; sourceTree = "<group>"; };
+		SWPF9D5CA151DA2DA49CB652 /* ExplorerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplorerViews.swift; sourceTree = "<group>"; };
+		SWPFD93D0F6CD77A964D7D40 /* ExplorerChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplorerChartView.swift; sourceTree = "<group>"; };
+		SWPF0F69A96E0A1F1F5F9DB7 /* ExplorerAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplorerAPI.swift; sourceTree = "<group>"; };
+		SWPF9E12E3C0839271BA3918 /* ForegroundBeat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundBeat.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -835,7 +845,6 @@
 				PORTFA9D37592F3677B6F4F7 /* PortfolioLedgerStore.swift */,
 				PORTFBDB43F5D37ED05D74E5 /* PortfolioManager.swift */,
 				PORTF2E4D68B2ED86A68B5BC /* MarketPairService.swift */,
-				PORTFCE7EA357E70B2359EAA /* KaspaNetworkStatsService.swift */,
 				E81000062D4C000100000004 /* WalletManager.swift */,
 				WMSA00010001000000000001 /* WalletManager+SpendingAddresses.swift */,
 				E81000082D4C000100000005 /* KeychainService.swift */,
@@ -898,6 +907,7 @@
 				E8F100132D4C0001000000FF /* Shared */,
 				E800001B2D4C00000000001B /* Settings */,
 				ECO0001G0000000000000001 /* Ecosystem */,
+				EXPL0001G000000000000001 /* Explorer */,
 				KUSDTGRUP000000000000010 /* Tokens */,
 			);
 			path = Views;
@@ -1067,7 +1077,6 @@
 			children = (
 				P5GF75C63E0E8A4ABC2D9FFD /* KachatSetupGuideView.swift */,
 				P5FB7D7D3BAB15B749134713 /* KaspaWebsitesView.swift */,
-				P5F591C396FEF8ECA982FAEC /* KaChatStatsView.swift */,
 				KPEDF10D994711C9A1C5B292 /* KachatProfileEditorView.swift */,
 				KNMSFBA3EADB34641D367F2B /* KachatHelpView.swift */,
 				KNMSF1BF21F91EC02122A8BE /* KachatMarketView.swift */,
@@ -1092,6 +1101,9 @@
 		NODEPOOL000100010020 /* NodePool */ = {
 			isa = PBXGroup;
 			children = (
+				SWPF9E12E3C0839271BA3918 /* ForegroundBeat.swift */,
+				SWPFBD0ADAD9E37E50362BD1 /* PublicNodeFallback.swift */,
+				SWPF3C79B136241B11F32A08 /* WRPCTransport.swift */,
 				NODEPOOL000100010002 /* NodeModels.swift */,
 				NODEPOOL000100010004 /* NodeRegistry.swift */,
 				NODEPOOL000100010006 /* NetworkEpochMonitor.swift */,
@@ -1172,6 +1184,17 @@
 				P4FC15FA48112C689CD5DB82 /* ChessBoardComponents.swift */,
 			);
 			path = Chess;
+			sourceTree = "<group>";
+		};
+		EXPL0001G000000000000001 /* Explorer */ = {
+			isa = PBXGroup;
+			children = (
+				SWPF0F69A96E0A1F1F5F9DB7 /* ExplorerAPI.swift */,
+				SWPFD93D0F6CD77A964D7D40 /* ExplorerChartView.swift */,
+				SWPF9D5CA151DA2DA49CB652 /* ExplorerViews.swift */,
+				SWPFBB863BD36EE9C6E5C284 /* ExplorerModels.swift */,
+			);
+			path = Explorer;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -1424,6 +1447,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				SWPB9E12E3C0839271BA3918 /* ForegroundBeat.swift in Sources */,
+				SWPB0F69A96E0A1F1F5F9DB7 /* ExplorerAPI.swift in Sources */,
+				SWPBD93D0F6CD77A964D7D40 /* ExplorerChartView.swift in Sources */,
+				SWPB9D5CA151DA2DA49CB652 /* ExplorerViews.swift in Sources */,
+				SWPBBB863BD36EE9C6E5C284 /* ExplorerModels.swift in Sources */,
+				SWPBBD0ADAD9E37E50362BD1 /* PublicNodeFallback.swift in Sources */,
+				SWPB3C79B136241B11F32A08 /* WRPCTransport.swift in Sources */,
 				SWPB4DF284FE477716B873F6 /* AccountSwitcher.swift in Sources */,
 				SWPB5AAC1862CE031DE3E822 /* UsernameMentions.swift in Sources */,
 				SWPB3EE11F0DD5AA53DABDED /* GroupActionSheets.swift in Sources */,
@@ -1439,7 +1469,6 @@
 				P5GBEF99EC3EE12C1EC2C325 /* KachatSetupGuideView.swift in Sources */,
 				P5TB336207E299AF38A80DDA /* TermsOfUseView.swift in Sources */,
 				P5B0F6238B43DD8FC63C05F0 /* KaspaWebsitesView.swift in Sources */,
-				P5B308635D5ABBBFDA281AE4 /* KaChatStatsView.swift in Sources */,
 				P4BBE13BBF0F8235B8B98138 /* FittedSheet.swift in Sources */,
 				P4B919167AB9645EE78CC15C /* ChessWaitingRoomView.swift in Sources */,
 				P4BFF9F07A1EA238E730650F /* ChessTournamentsView.swift in Sources */,
@@ -1517,7 +1546,6 @@
 				PORTBC8F37D3322B7E034A18 /* PortfolioLedgerStore.swift in Sources */,
 				PORTB948DF6A6C0A7A665B00 /* PortfolioManager.swift in Sources */,
 				PORTBF30B8868FB2ED94FD03 /* MarketPairService.swift in Sources */,
-				PORTBF2BCB3CFEC0F003C942 /* KaspaNetworkStatsService.swift in Sources */,
 				PORTBBACC7CFDFABF7F4A582 /* KaspaExtendedPublicKey.swift in Sources */,
 				PORTB72D1A36B406604A4E0A /* Base58.swift in Sources */,
 				E81000012D4C000100000001 /* KaChatApp.swift in Sources */,

@@ -24,7 +24,8 @@ final class UtxoSubscriptionManager: ObservableObject {
         didSet { if standbyEndpoint?.key != oldValue?.key { syncPinnedConnections() } }
     }
     /// Not `@Published`: every notification sets it - block-added ones about ten times a second
-    /// on mainnet - and nothing observes it.
+    /// on mainnet - and nothing observes it. Only the primary's handler delivers notifications, so
+    /// this is also when the primary last spoke, which spares a keepalive ping (`checkPrimaryHealth`).
     private(set) var lastNotificationAt: Date?
     /// The last moment the primary subscription was verified alive: a successful subscribe, or
     /// a keepalive ping answered. Consumers that back the subscription up (the foreground
@@ -58,6 +59,15 @@ final class UtxoSubscriptionManager: ObservableObject {
     /// opening a second stream; re-registered automatically on every (re)connect of that
     /// connection, including failover and epoch-change resubscribes.
     private var wantsBlockAdded = false
+    /// Held off while the app is in the background (`setBlockAddedSuspended`): stopped on the wire, the
+    /// clients' wish kept, so the foreground brings the stream back.
+    private var blockAddedSuspended = false
+    /// The primary connection's current stream is registered for block-added: a start was
+    /// answered on it and no stop since. A stream that reconnects loses it.
+    private var blockAddedOnPrimary = false
+    /// A start or stop is on its way (`applyBlockAddedState`); it re-checks when answered.
+    private var blockAddedApplying = false
+    private var effectiveWantsBlockAdded: Bool { wantsBlockAdded && !blockAddedSuspended }
 
     /// Last time an actual block-added push notification arrived (regardless of its content).
     /// Kaspa produces blocks roughly once a second, so if `wantsBlockAdded` is true and nothing
@@ -93,13 +103,32 @@ final class UtxoSubscriptionManager: ObservableObject {
     /// subscribe's cleanup cancelled it), so nothing else would ever try again.
     private var resubscribeRetryTask: Task<Void, Never>?
 
+    /// This manager is retrying a failed subscribe on its own backoff. It owns the retry: a
+    /// consumer shouldn't run a second loop beside it.
+    var isRetryingSubscribe: Bool { resubscribeRetryTask != nil }
+
     // MARK: - Configuration
 
-    /// Health check interval (ping every 15s)
-    private let healthCheckInterval: TimeInterval = 15
+    /// Health check interval: 15 s, or 45 s on an expensive path (cellular, hotspot, Low Data
+    /// Mode), where every wake-up keeps the radio from idling. Both stay well under the ~100 s a
+    /// proxy such as Cloudflare lets a connection sit idle. Read on every tick.
+    private var healthCheckInterval: TimeInterval {
+        epochMonitor.isExpensivePath ? 45 : 15
+    }
+
+    /// The longest the primary can go between proofs of life while healthy: a tick whose ping
+    /// is spared by a notification just inside the interval, then a full interval to the next
+    /// ping and its answer. Consumers that back the subscription up (ChatService's
+    /// `isUtxoSubscriptionHealthy`) should trust `lastHealthyAt` for this long.
+    var healthyWindow: TimeInterval {
+        2 * healthCheckInterval + pingTimeout + 5
+    }
 
     /// Ping timeout
     private let pingTimeout: TimeInterval = 5.0
+    /// When the standby was last pinged (`pingStandbyIfDue`).
+    private var lastStandbyPingAt: Date?
+    private let standbyPingInterval: TimeInterval = 60
 
     // MARK: - Initialization
 
@@ -265,6 +294,14 @@ final class UtxoSubscriptionManager: ObservableObject {
                 // "failed" with a retry armed).
                 if error is CancellationError { throw error }
                 AppLog.log("[UtxoSub] Subscription failed on %@: %@", endpoint.key, error.localizedDescription)
+                // As for a failed ping: the failure feeds the public fallback's trigger.
+                await registry.recordResult(
+                    endpoint: endpoint,
+                    epochId: epochMonitor.epochId,
+                    latencyMs: nil,
+                    isTimeout: error.localizedDescription.lowercased().contains("timeout"),
+                    isError: true
+                )
                 lastError = error
                 // Continue immediately to next node
             }
@@ -285,6 +322,7 @@ final class UtxoSubscriptionManager: ObservableObject {
         primaryConnection = nil
         primaryHandlerId = nil
         primaryConnectionGeneration = nil
+        blockAddedOnPrimary = false
         primaryEndpoint = nil
         standbyEndpoint = nil
         state = .disconnected
@@ -310,15 +348,23 @@ final class UtxoSubscriptionManager: ObservableObject {
 
     /// Keeps retrying on a capped backoff (1, 2, 4, 8, 16, 30, 30...s) while the subscription
     /// stays failed and wanted. What arrived meanwhile is left to the consumers' catch-up.
+    /// Offline, it waits for the network instead of retrying (every attempt would fail), then
+    /// starts the backoff over.
     private func scheduleResubscribeRetry() {
         guard resubscribeRetryTask == nil else { return }
+        let monitor = epochMonitor
         resubscribeRetryTask = Task { @MainActor [weak self] in
             var attempt = 0
             while !Task.isCancelled {
+                if !monitor.isOnline {
+                    await monitor.waitUntilOnline()
+                    attempt = 0
+                }
                 let backoff = min(30.0, pow(2.0, Double(attempt)))
                 try? await Task.sleep(nanoseconds: UInt64(backoff * 1_000_000_000))
                 guard let self, !Task.isCancelled, self.state == .failed,
                       !self.subscribedAddresses.isEmpty else { break }
+                if !monitor.isOnline { continue }
                 do {
                     try await self.subscribe(addresses: self.subscribedAddresses)
                     AppLog.log("[UtxoSub] Resubscribed after %d failed retries", attempt)
@@ -361,6 +407,7 @@ final class UtxoSubscriptionManager: ObservableObject {
         standbyConnection = nil
         primaryHandlerId = nil
         primaryConnectionGeneration = nil
+        blockAddedOnPrimary = false
         primaryFailures = 0
         failoverAttempts = 0
         lastFailoverAttemptAt = nil
@@ -387,12 +434,16 @@ final class UtxoSubscriptionManager: ObservableObject {
         // stay subscribed on this pooled connection and their changes reach the next account's
         // handler. The stop runs in line with subscribes, so the next start comes after it and
         // a re-login on the same addresses isn't stopped behind its back.
+        // The block stream stops with it: the connection stays in the pool, and the node would
+        // otherwise keep pushing blocks nobody reads until the connection is pruned.
         if let conn = primaryConnection, !subscribedAddresses.isEmpty {
             let stale = subscribedAddresses
+            let blocksOn = blockAddedOnPrimary
             let previous = subscribeInFlight
             subscribeInFlight = Task<Void, Error> { @MainActor in
                 _ = try? await previous?.value
                 await Self.sendNotifyStop(addresses: stale, on: conn)
+                if blocksOn, await conn.isConnected { await self.sendNotifyBlockAdded(on: conn, start: false) }
             }
         }
 
@@ -400,6 +451,7 @@ final class UtxoSubscriptionManager: ObservableObject {
         standbyConnection = nil
         primaryHandlerId = nil
         primaryConnectionGeneration = nil
+        blockAddedOnPrimary = false
         subscribedAddresses = []
         primaryEndpoint = nil
         standbyEndpoint = nil
@@ -420,31 +472,74 @@ final class UtxoSubscriptionManager: ObservableObject {
         notificationHandlers.removeValue(forKey: id)
     }
 
-    /// Enable or disable block-added notifications on the primary connection.
-    /// There is no protocol-level "stop notifying" for block-added, so disabling only
-    /// stops us re-registering on future reconnects - the current connection may keep
-    /// pushing block notifications, which are simply ignored client-side.
+    /// Enable or disable block-added notifications on the primary connection. Disabling sends
+    /// the node a stop (`command = .notifyStop`; wRPC's "unsubscribe"): without it the node kept
+    /// pushing every full block, about ten a second, for the rest of the connection's life.
     func setBlockAddedWanted(_ wanted: Bool) async {
         wantsBlockAdded = wanted
-        guard wanted, state == .subscribed, let conn = primaryConnection else { return }
-        await sendNotifyBlockAdded(on: conn)
+        await applyBlockAddedState()
     }
 
-    private func sendNotifyBlockAdded(on conn: GRPCStreamConnection) async {
+    /// The app went to the background (true) or came back (false). Set synchronously by the
+    /// scene phase change, before anything awaits, so a late background step can't hold the
+    /// stream off in the foreground (audit 2026-11-25 N2). Stopped or started on the wire by
+    /// `applyBlockAddedSuspension`; the clients' wish is kept either way.
+    func setBlockAddedSuspended(_ suspended: Bool) {
+        blockAddedSuspended = suspended
+    }
+
+    /// Sends the block-added stop or start the hold above calls for. `applyBlockAddedState`
+    /// re-reads the hold after each answer, so a phase that flips while one is on its way ends
+    /// with the latest.
+    func applyBlockAddedSuspension() async {
+        await applyBlockAddedState()
+    }
+
+    /// Brings the primary's block-added registration in line with what's wanted, sending a start
+    /// or a stop. One at a time: a change made while one is on its way is picked up when it's
+    /// answered. A failed one is retried by the next health check.
+    private func applyBlockAddedState() async {
+        guard !blockAddedApplying else { return }
+        blockAddedApplying = true
+        defer { blockAddedApplying = false }
+        while state == .subscribed, let conn = primaryConnection {
+            let want = effectiveWantsBlockAdded
+            guard want != blockAddedOnPrimary else { return }
+            guard await sendNotifyBlockAdded(on: conn, start: want) else { return }
+        }
+    }
+
+    /// Sends a block-added start or stop on `conn`; true when the node answered without an error.
+    /// Records the result in `blockAddedOnPrimary` while `conn` is still the primary.
+    @discardableResult
+    private func sendNotifyBlockAdded(on conn: GRPCStreamConnection, start: Bool) async -> Bool {
         var msg = Protowire_KaspadMessage()
-        msg.notifyBlockAddedRequest = Protowire_NotifyBlockAddedRequestMessage()
+        var req = Protowire_NotifyBlockAddedRequestMessage()
+        req.command = start ? .notifyStart : .notifyStop
+        msg.notifyBlockAddedRequest = req
         do {
-            _ = try await conn.sendRequest(
+            let response = try await conn.sendRequest(
                 msg,
                 type: .notifyBlockAdded,
                 timeout: OperationClass.subscribeUtxosChanged.timeout
             )
-            // Baseline the staleness clock from here, not from the next actual notification -
-            // otherwise a node that's simply slow for the first block after subscribing would
-            // look "stale" and trigger an immediate, unnecessary re-send.
-            lastBlockAddedNotificationAt = Date()
+            if case .notifyBlockAddedResponse(let r) = response.payload, r.hasError, !r.error.message.isEmpty {
+                throw KasiaError.networkError(r.error.message)
+            }
+            if start {
+                // Baseline the staleness clock from here, not from the next actual notification -
+                // otherwise a node that's simply slow for the first block after subscribing would
+                // look "stale" and trigger an immediate, unnecessary re-send.
+                lastBlockAddedNotificationAt = Date()
+            } else {
+                AppLog.log("[UtxoSub] Stopped block-added notifications on %@", conn.endpoint.key)
+            }
+            if primaryConnection === conn { blockAddedOnPrimary = start }
+            return true
         } catch {
-            AppLog.log("[UtxoSub] Failed to register block-added notifications: %@", error.localizedDescription)
+            AppLog.log("[UtxoSub] Failed to %@ block-added notifications: %@",
+                       start ? "register" : "stop", error.localizedDescription)
+            return false
         }
     }
 
@@ -487,8 +582,17 @@ final class UtxoSubscriptionManager: ObservableObject {
               currentLatency.map { String(format: "%.0fms", $0) } ?? "none")
 
         // Resubscribe to best node
+        let wasSubscribed = state == .subscribed
         do {
             try await subscribe(addresses: subscribedAddresses)
+            // Every route that brings a broken subscription back (the stats pass, the public
+            // fallback's adopt and hand-back, a pin switch) says so, as the retry loop does: the
+            // consumers put their handlers back and catch up the dead window. Without it a
+            // pending retry saw `.subscribed` and stopped quietly, and nothing read utxosChanged
+            // (audit 2026-11-25 N1). Not after a plain move between two live nodes.
+            if !wasSubscribed, state == .subscribed {
+                NotificationCenter.default.post(name: .rpcSubscriptionsRestored, object: nil)
+            }
         } catch {
             AppLog.log("[UtxoSub] Failed to reconnect to best node: %@", error.localizedDescription)
         }
@@ -583,8 +687,12 @@ final class UtxoSubscriptionManager: ObservableObject {
             primaryConnection = conn
             primaryHandlerId = handlerId
             primaryConnectionGeneration = generationAtSubscribe
-            if wantsBlockAdded {
-                await sendNotifyBlockAdded(on: conn)
+            // A different connection, or this one's stream since replaced: not registered yet.
+            blockAddedOnPrimary = false
+            // The old primary's last word says nothing about this one (`checkPrimaryHealth`).
+            lastNotificationAt = nil
+            if effectiveWantsBlockAdded {
+                await sendNotifyBlockAdded(on: conn, start: true)
             }
         } else {
             standbyConnection = conn
@@ -623,9 +731,15 @@ final class UtxoSubscriptionManager: ObservableObject {
     // MARK: - Notification Handling
 
     private func handleNotification(_ type: KaspaRPCNotification, data: Data) {
-        lastNotificationAt = Date()
+        let now = Date()
+        lastNotificationAt = now
         if type == .blockAdded {
-            lastBlockAddedNotificationAt = Date()
+            lastBlockAddedNotificationAt = now
+        }
+        // The primary speaking is as good as an answered ping. Throttled: blocks come ten a
+        // second, and `lastHealthyAt` is published.
+        if state == .subscribed, now.timeIntervalSince(lastHealthyAt ?? .distantPast) > 5 {
+            lastHealthyAt = now
         }
 
         // Forward to all handlers
@@ -640,7 +754,7 @@ final class UtxoSubscriptionManager: ObservableObject {
         healthCheckTask?.cancel()
         healthCheckTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64(healthCheckInterval * 1_000_000_000))
+                try? await Task.sleep(nanoseconds: UInt64(self.healthCheckInterval * 1_000_000_000))
 
                 if !Task.isCancelled {
                     await checkPrimaryHealth()
@@ -661,6 +775,20 @@ final class UtxoSubscriptionManager: ObservableObject {
         // Check if circuit breaker is open
         if await conn.isCircuitOpen {
             await handlePrimaryFailure()
+            return
+        }
+
+        // The primary pushed a notification within the interval: it is alive and the stream
+        // isn't idle, so the ping is spared (on a quiet subscription it still goes every tick).
+        // Not when the stream was re-established since we subscribed: that needs the re-arm below.
+        let interval = healthCheckInterval
+        if let spoke = lastNotificationAt, Date().timeIntervalSince(spoke) < interval,
+           await conn.connectionGeneration == primaryConnectionGeneration {
+            primaryFailures = 0
+            if spoke > (lastHealthyAt ?? .distantPast) { lastHealthyAt = spoke }
+            await registry.recordAlive(endpoint: endpoint)
+            await pingStandbyIfDue()
+            await afterHealthyTick(conn: conn)
             return
         }
 
@@ -691,6 +819,7 @@ final class UtxoSubscriptionManager: ObservableObject {
             )
 
             AppLog.log("[UtxoSub] Ping OK on %@ (%.0fms)", endpoint.key, latencyMs)
+            await pingStandbyIfDue()
 
             // The node answers again after a failover that found nothing: subscribe once more.
             if state == .failed {
@@ -700,6 +829,15 @@ final class UtxoSubscriptionManager: ObservableObject {
 
         } catch {
             AppLog.log("[UtxoSub] Ping failed on %@ - triggering immediate failover: %@", endpoint.key, error.localizedDescription)
+            // Into the registry too: with a pinned node the profiler no longer probes it, and the
+            // public fallback (`NodePoolService.evaluatePublicFallback`) starts on recent failures.
+            await registry.recordResult(
+                endpoint: endpoint,
+                epochId: epochMonitor.epochId,
+                latencyMs: nil,
+                isTimeout: error.localizedDescription.lowercased().contains("timeout"),
+                isError: true
+            )
             await handlePrimaryFailure()
             return
         }
@@ -710,15 +848,24 @@ final class UtxoSubscriptionManager: ObservableObject {
         // utxosChanged). Re-arm it on the same connection before anything else.
         await resubscribeIfPrimaryReconnected(conn: conn, endpoint: endpoint)
 
+        await afterHealthyTick(conn: conn)
+    }
+
+    /// The rest of a health tick on a primary that's alive: block-added brought in line (a start
+    /// or stop that failed earlier goes again), and a block stream gone quiet re-registered.
+    private func afterHealthyTick(conn: GRPCStreamConnection) async {
+        guard state == .subscribed, primaryConnection === conn else { return }
+        await applyBlockAddedState()
+
         // The ping above only proves the connection still answers requests - it says nothing
         // about whether the node is still actually pushing block-added notifications on it. Kaspa
         // produces a block roughly every second, so total silence for this long while we still
         // want them means that specific subscription silently died server-side; re-register it.
-        if wantsBlockAdded {
+        if effectiveWantsBlockAdded, blockAddedOnPrimary {
             let staleness = lastBlockAddedNotificationAt.map { Date().timeIntervalSince($0) } ?? .infinity
             if staleness > blockAddedStaleThreshold {
                 AppLog.log("[UtxoSub] Block-added notifications stale (%.0fs) - re-registering", staleness)
-                await sendNotifyBlockAdded(on: conn)
+                await sendNotifyBlockAdded(on: conn, start: true)
             }
         }
     }
@@ -748,8 +895,10 @@ final class UtxoSubscriptionManager: ObservableObject {
             // keyed on the GRPCStreamConnection, not the stream), so only the request is re-sent.
             try await sendNotifyUtxosChanged(on: conn)
             primaryConnectionGeneration = liveGeneration
-            if wantsBlockAdded {
-                await sendNotifyBlockAdded(on: conn)
+            // The old stream's block-added registration went with it.
+            blockAddedOnPrimary = false
+            if effectiveWantsBlockAdded {
+                await sendNotifyBlockAdded(on: conn, start: true)
             }
             AppLog.log("[UtxoSub] utxosChanged subscription re-armed on %@", endpoint.key)
             // Anything that confirmed during the dead window never reached us - let ChatService
@@ -883,6 +1032,38 @@ final class UtxoSubscriptionManager: ObservableObject {
     // MARK: - Standby Warmup
 
     /// Keep standby connection warm
+    /// The standby is warmed once and then carries nothing. A proxy in front of a node closes a
+    /// connection idle for about 100 s (Cloudflare does), and a pinned standby reconnects without
+    /// end, so it was cut and redialed every couple of minutes. A GetInfo on it every 60 s keeps
+    /// it open - on the health check's own tick, so it costs no extra wake-up (every tick when
+    /// ticks are 45 s apart, on an expensive path).
+    private func pingStandbyIfDue() async {
+        // Every 60 s on 15 s ticks (Wi-Fi). `min(60, tick) - 1` made it every 14 s there, four
+        // times the traffic meant (audit 2026-11-25 N6). On 45 s ticks every tick: waiting for
+        // the second (90 s) would come close to a proxy's ~100 s idle cut.
+        let tick = healthCheckInterval
+        let due = (tick * 2 > standbyPingInterval ? tick : standbyPingInterval) - 1
+        guard Date().timeIntervalSince(lastStandbyPingAt ?? .distantPast) >= due else { return }
+        guard let conn = standbyConnection, await conn.isConnected else { return }
+        lastStandbyPingAt = Date()
+        var msg = Protowire_KaspadMessage()
+        msg.getInfoRequest = Protowire_GetInfoRequestMessage()
+        let startTime = Date()
+        do {
+            _ = try await conn.sendRequest(msg, type: .getInfo, timeout: pingTimeout)
+            await registry.recordResult(
+                endpoint: conn.endpoint,
+                epochId: epochMonitor.epochId,
+                latencyMs: Date().timeIntervalSince(startTime) * 1000,
+                isTimeout: false,
+                isError: false
+            )
+        } catch {
+            // it reconnects on its own; the next failover finds out whether it's any use
+            AppLog.log("[UtxoSub] Standby keepalive failed on %@: %@", conn.endpoint.key, error.localizedDescription)
+        }
+    }
+
     private func warmupStandby(_ endpoint: Endpoint) async {
         let conn = await connectionPool.connection(for: endpoint)
 
@@ -900,6 +1081,7 @@ final class UtxoSubscriptionManager: ObservableObject {
             await conn.resetCircuitBreaker()
 
             standbyConnection = conn
+            lastStandbyPingAt = Date()
             AppLog.log("[UtxoSub] Standby warmed up: %@", endpoint.key)
 
         } catch {
@@ -907,7 +1089,34 @@ final class UtxoSubscriptionManager: ObservableObject {
         }
     }
 
+    // MARK: - Background
+
+    /// Closes the pool's connections that carry nothing the app needs while in the background:
+    /// every one but the subscription's primary and standby (none, once push mode has
+    /// unsubscribed) and those with a request waiting. Includes the former primary, which
+    /// `unsubscribe()` left open. Requests in the foreground dial again on demand.
+    /// `stillInBackground` is asked before each close: the app coming back stops the closing.
+    /// The subscription's endpoints are read again then too, so one a foreground subscribe has
+    /// just picked is kept (audit 2026-11-25 N2).
+    func closeIdleConnectionsForBackground(stillInBackground: @escaping @MainActor @Sendable () -> Bool) async {
+        let keep = Set([primaryEndpoint?.key, standbyEndpoint?.key].compactMap { $0 })
+        await connectionPool.closeIdleConnections(keeping: keep) { [weak self] key in
+            let manager = self
+            return await MainActor.run {
+                guard stillInBackground(), let manager else { return false }
+                return key != manager.primaryEndpoint?.key && key != manager.standbyEndpoint?.key
+            }
+        }
+    }
+
     // MARK: - Epoch Changes
+
+    /// A GetInfo on the primary; true when it answered in time.
+    private func pingPrimary(_ conn: GRPCStreamConnection, timeout: TimeInterval) async -> Bool {
+        var msg = Protowire_KaspadMessage()
+        msg.getInfoRequest = Protowire_GetInfoRequestMessage()
+        return (try? await conn.sendRequest(msg, type: .getInfo, timeout: timeout)) != nil
+    }
 
     private func handleEpochChange() async {
         // Deliberately not gated on state == .subscribed - a WiFi<->cellular switch (or any
@@ -917,6 +1126,18 @@ final class UtxoSubscriptionManager: ObservableObject {
         // already disconnected just stayed disconnected until something else happened to retry.
         guard state != .connecting, state != .failover else { return }
         guard !subscribedAddresses.isEmpty else { return }
+
+        // Many path changes leave the primary's socket working (a VPN coming up, an interface
+        // appearing beside the one in use). Ask it first: if it answers, the subscription is
+        // kept (re-armed on the same connection if its stream was re-established meanwhile),
+        // with no teardown and no full catch-up. A socket the change killed fails the ping.
+        if state == .subscribed, let conn = primaryConnection, let endpoint = primaryEndpoint,
+           await conn.isConnected, await pingPrimary(conn, timeout: 3) {
+            AppLog.log("[UtxoSub] Network epoch changed - primary %@ still answers, subscription kept", endpoint.key)
+            lastHealthyAt = Date()
+            await resubscribeIfPrimaryReconnected(conn: conn, endpoint: endpoint)
+            return
+        }
 
         AppLog.log("[UtxoSub] Network epoch changed - resubscribing")
 

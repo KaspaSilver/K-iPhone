@@ -149,6 +149,13 @@ struct CreatePaymentRequestView: View {
                             .foregroundColor(.secondary)
                         OwnAddressList(selected: chosenAddress) { picked in
                             chosenAddress = picked.address
+                            // A regular spending address handed out here can be sent kUSDT too:
+                            // watched like Receive's (audit 2026-11-25 M2). Fresh Address and
+                            // quantum picks are quantum, where tokens never live.
+                            if let index = picked.spendingIndex, !WalletManager.isQuantumIndex(index),
+                               let address = picked.address {
+                                TokenWallet.shared.noteReceiveAddressShown(address)
+                            }
                         }
                     }
                 }

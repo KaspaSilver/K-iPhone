@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import P256K
 import UIKit
 import UserNotifications
@@ -381,7 +382,21 @@ final class KaPostsAPIClient: ObservableObject {
     /// Compressed (02/03 + x) or raw x-only pubkey hex -> Kaspa address for the current network.
     /// This is THE bridge that keeps identity in KNS: every K pubkey is mapped to an address and
     /// then resolved through the app's normal contacts/KNS chain.
+    /// Remembered per network: feed rows ("Replying to", tips, notifications) map the same
+    /// pubkeys on every redraw while scrolling, and each mapping was a hex decode and a bech32
+    /// encode (CLAUDE.md, "Smooth scrolling"). NSCache is safe from any thread and drops entries
+    /// under memory pressure; misses (bad hex) aren't kept, they're rare and cheap to refuse.
+    private static let addressByPubkey: NSCache<NSString, NSString> = {
+        let cache = NSCache<NSString, NSString>()
+        cache.countLimit = 4096
+        return cache
+    }()
+
     static func kaspaAddress(fromPubkey pubkeyHex: String) -> String? {
+        // the network is part of the key: the same pubkey is a different address on testnet
+        let hrp = AppSettings.activeNetwork == .mainnet ? "kaspa" : "kaspatest"
+        let key = "\(hrp)|\(pubkeyHex)" as NSString
+        if let cached = addressByPubkey.object(forKey: key) { return cached as String }
         guard let raw = Data(hexString: pubkeyHex) else { return nil }
         let xOnly: Data
         if raw.count == 33 {
@@ -391,8 +406,9 @@ final class KaPostsAPIClient: ObservableObject {
         } else {
             return nil
         }
-        let hrp = AppSettings.load().networkType == .mainnet ? "kaspa" : "kaspatest"
-        return KaspaAddress(hrp: hrp, type: .pubKey, payload: xOnly).address
+        let address = KaspaAddress(hrp: hrp, type: .pubKey, payload: xOnly).address
+        addressByPubkey.setObject(address as NSString, forKey: key)
+        return address
     }
 
     // MARK: - Requests
@@ -1635,7 +1651,9 @@ extension KaPostsAPIClient {
 
 // MARK: - KaPosts notification poll (the bell's count)
 
-/// While the app is active this polls the indexer's notification stream every 20 s, keeps the
+/// While the app is active this polls the indexer's notification stream on the shared foreground
+/// beat (`ForegroundBeat`: every 30 s on Wi-Fi, 60 s on cellular; audit 2026-11-25 B4; every 5
+/// minutes while push is registered, as a safety net: the push asks for a poll itself), keeps the
 /// bell's unseen count and shows a banner for new activity on your posts (owner, 2026-11-22: "when
 /// I'm in the app and someone likes my post ... I should see a banner"), so a banner shows even
 /// when the push service misses one. `KaPostsBannerLedger` keeps it to one banner per action when
@@ -1647,8 +1665,6 @@ final class KaPostsNotificationService {
     static let shared = KaPostsNotificationService()
 
     private var pollTask: Task<Void, Never>?
-    /// Only while the app is open, so the in-app banners come soon after the action.
-    private static let currentPollIntervalNanos: UInt64 = 20 * 1_000_000_000
     /// When the last poll started, so a burst of pushes asks the indexer once.
     private var lastPollAt: Date?
     /// Activity older than this when a poll finds it gets no banner (it is in the bell): a
@@ -1664,7 +1680,25 @@ final class KaPostsNotificationService {
     /// onAppear/onDisappear; consulted by `AppDelegate.willPresent`).
     var isNotificationsScreenVisible = false
 
-    private init() {}
+    /// Follows the signed-in account (audit 2026-11-25 B19): the poll stops on Log Out, Delete
+    /// Account and a switch, and starts again for the next account while the app is open.
+    private var walletObserver: AnyCancellable?
+
+    private init() {
+        walletObserver = WalletManager.shared.$currentWallet
+            .map { $0?.publicAddress }
+            .removeDuplicates()
+            .dropFirst()
+            // after the assignment lands: `@Published` sends before the property changes
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] address in
+                guard let self else { return }
+                self.stop()
+                if address != nil, UIApplication.shared.applicationState == .active {
+                    self.start()
+                }
+            }
+    }
 
     /// Last notification timestamp already surfaced (banner or Notifications screen), per
     /// wallet - anything at or before this never pings.
@@ -1676,14 +1710,47 @@ final class KaPostsNotificationService {
     func start() {
         // No KaPost indexer on this network (testnet): nothing to poll.
         guard KaPostsAPIClient.hasIndexer else { return }
+        // signed out (the sign-in screen): nothing to poll for
+        guard WalletManager.shared.currentWallet != nil else { return }
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
+            // At once: K just opened or came back (or a push asked, `pollSoon`).
+            self?.lastPollAt = Date()
+            await self?.pollOnce()
             while !Task.isCancelled {
-                self?.lastPollAt = Date()
-                await self?.pollOnce()
-                try? await Task.sleep(nanoseconds: Self.currentPollIntervalNanos)
+                // On the shared beat, so a poll never wakes the radio by itself. With push
+                // working, the push is the notice and asks for a poll itself (`pollSoon`); the
+                // poll is only a safety net then, every 5 minutes (owner, 2026-11-25: "do it like
+                // X"). Without push, every beat, since nothing else brings the banner. Checked
+                // each beat, so registering or losing push takes effect at once.
+                await ForegroundBeat.sleepUntilNextBeat(offset: 0.8)
+                guard let self, !Task.isCancelled else { return }
+                if Self.pushBringsActivity,
+                   let lastPollAt = self.lastPollAt,
+                   Date().timeIntervalSince(lastPollAt) < Self.pushSafetyNetInterval - 5 {
+                    continue
+                }
+                self.lastPollAt = Date()
+                await self.pollOnce()
             }
         }
+    }
+
+    /// With push registered, how often the poll runs anyway, in case a push went missing.
+    private static let pushSafetyNetInterval: TimeInterval = 5 * 60
+
+    /// Push is on and this device is registered: KaPost activity arrives as pushes.
+    private static var pushBringsActivity: Bool {
+        let settings = AppSettings.load()
+        return settings.notificationsEnabled
+            && settings.notificationMode == .remotePush
+            && PushNotificationManager.shared.isRegistered
+    }
+
+    /// Profile's bell opened: its count and banners catch up now, unless a poll ran in the last
+    /// 15 s (the list itself loads on its own).
+    func pollForBell() {
+        pollSoon()
     }
 
     /// A KaPost push arrived while the app is open: poll now (the bell's count comes from the

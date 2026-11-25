@@ -2279,7 +2279,7 @@ struct ConnectionSettingsView: View {
                 .autocapitalization(.words)
 
             HStack {
-                TextField("host:port or grpcs://host", text: $newSavedNodeAddress)
+                TextField("host:port, grpcs:// or wss://", text: $newSavedNodeAddress)
                     .font(.system(.body, design: .monospaced))
                     .autocapitalization(.none)
                     .autocorrectionDisabled()
@@ -2623,7 +2623,7 @@ struct ConnectionSettingsView: View {
         let trimmedAddress = newSavedNodeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedAddress.isEmpty else { return }
         guard Endpoint(url: trimmedAddress) != nil else {
-            savedNodeAddressError = "Enter as host:port or grpcs://host"
+            savedNodeAddressError = "Enter as host:port, grpcs://host or wss://host"
             return
         }
         savedNodeAddressError = nil
@@ -3114,6 +3114,13 @@ struct ConnectionStatusDetailView: View {
                 Text("Protocol")
                 Spacer()
                 Text("\(nodePool.activeProtocol) (\(nodePool.activeProtocolSecurity))")
+                    .foregroundColor(.secondary)
+            }
+
+            // gRPC unreachable: public wss nodes stand in (NodePoolService.evaluatePublicFallback)
+            if nodePool.usingPublicFallback {
+                Text("gRPC nodes can't be reached right now, so K is using a public node over wss.")
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
 
@@ -3618,6 +3625,10 @@ private struct ConnectionNodeRow: View {
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .foregroundColor(.secondary)
                         .font(.caption)
+                case .publicFallback:
+                    Image(systemName: "globe")
+                        .foregroundColor(.teal)
+                        .font(.caption)
                 }
 
                 Text(verbatim: record.endpoint.key)
@@ -3714,6 +3725,7 @@ private struct ConnectionNodeRow: View {
         case .userAdded: return .yellow
         case .seed: return .blue
         case .discovered: return .secondary
+        case .publicFallback: return .teal
         }
     }
 
@@ -3770,10 +3782,14 @@ private struct AllNodesRow: View {
                     .font(.caption2)
             case .discovered:
                 EmptyView()
+            case .publicFallback:
+                Image(systemName: "globe")
+                    .foregroundColor(.teal)
+                    .font(.caption2)
             }
 
             // Host:port
-            Text(verbatim: "\(record.endpoint.host):\(record.endpoint.port)")
+            Text(verbatim: record.endpoint.isWebSocket ? record.endpoint.url : "\(record.endpoint.host):\(record.endpoint.port)")
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(1)
 

@@ -603,9 +603,35 @@ extension ChatService {
                 // tick after returning to the foreground syncs promptly; it just does no
                 // network work while the app is not active (same gate as the open-chat poll).
                 guard UIApplication.shared.applicationState == .active else { continue }
+                // Nor the full sync while the foreground contact sweep runs (audit 2026-11-25
+                // B19): it already covers a down subscription's contacts every 30-60 s, and the
+                // two together doubled the indexer traffic. Without an indexer the sweep does
+                // nothing, so the full sync stays then.
+                if self.foregroundSweepTask != nil, self.apiClient.hasIndexer {
+                    // But the sweep reads only contacts' messages: received and sent payments
+                    // come from `fetchNewMessages`' payment phase alone, so with gRPC down they
+                    // waited for the next foreground (audit 2026-11-25 N3). That phase alone,
+                    // then, from the last poll on.
+                    if self.isUtxoSubscriptionHealthy { continue }
+                    await self.pollPaymentsWhileSweepCovers()
+                    continue
+                }
                 await self.fetchNewMessages()
             }
         }
+    }
+
+    /// The fallback poll's payment phase, for a pass where the contact sweep covers messages:
+    /// incoming and outgoing payments since the last such pass (two minutes of slack for the
+    /// indexer's lag, at most 15 minutes back; a failed pass keeps its window for the next).
+    private func pollPaymentsWhileSweepCovers() async {
+        let now = Date()
+        let sinceLast = fallbackPaymentPollAt.map { now.timeIntervalSince($0) } ?? pollDelayAfterSync
+        let lookBack = min(15 * 60, sinceLast + 120)
+        requestPaymentCatchUp(lookBackMs: UInt64(lookBack * 1000))
+        await fetchMissedPaymentsIfNeeded()
+        // `fetchMissedPaymentsIfNeeded` clears the window only when both reads succeeded.
+        if paymentCatchUpSince == nil { fallbackPaymentPollAt = now }
     }
 
     func setupUtxoSubscription() async {
@@ -618,6 +644,10 @@ extension ChatService {
 
         AppLog.log("[ChatService] setupUtxoSubscription: Starting, isConnected=%@",
               NodePoolService.shared.isConnected ? "true" : "false")
+        // Counted so the pool's `.subscribed` from this very subscribe isn't read as one with no
+        // handler of ours (`restoreUtxoHandlerIfNeeded`).
+        utxoSubscriptionSetupsInFlight += 1
+        defer { utxoSubscriptionSetupsInFlight -= 1 }
 
         // Remove old subscription handler if any
         if let token = utxoSubscriptionToken {
@@ -738,6 +768,18 @@ extension ChatService {
             try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
 
             guard !Task.isCancelled else { return }
+
+            // One retry owner (audit 2026-11-25 B19). A subscribe that reached the pool and failed
+            // there leaves UtxoSubscriptionManager in .failed with its own backoff retry armed; it
+            // posts .rpcSubscriptionsRestored when it's back, and that observer puts this
+            // service's handler back (`observeRpcReconnection`). Only a failure before the pool
+            // took the subscribe (no connection at all) is retried from here.
+            if NodePoolService.shared.subscriptionState == .failed
+                || NodePoolService.shared.isRetryingSubscription {
+                AppLog.log("[ChatService] Subscription retry left to the node pool's own")
+                subscriptionRetryTask = nil
+                return
+            }
 
             AppLog.log("[ChatService] Retrying RPC subscription with all pool nodes...")
             await setupUtxoSubscription()

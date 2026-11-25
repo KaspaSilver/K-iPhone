@@ -585,6 +585,10 @@ struct ManageAddressesView: View {
                 systemImage: "doc.on.doc"
             ) {
                 UIPasteboard.general.string = entry.address
+                // A copied address can be handed out for kUSDT like Receive's: the regular look
+                // watches it, so a coin sent there is announced (audit 2026-11-25 M2). Quantum
+                // addresses never hold tokens.
+                if !entry.isQuantum { TokenWallet.shared.noteReceiveAddressShown(entry.address) }
                 Haptics.success()
                 addressActionsTarget = nil
                 showToast(entry.address.addressCopiedToastText)
@@ -885,6 +889,11 @@ struct ManageAddressesView: View {
                 }
             }
             isGenerating = false
+            // A new regular address is about to be handed out: watched for kUSDT like Receive's
+            // (audit 2026-11-25 M2). Quantum addresses never hold tokens.
+            if !quantum, let address = walletManager.spendingAddress(at: index) {
+                TokenWallet.shared.noteReceiveAddressShown(address)
+            }
             // showToast auto-dismisses on the standard timer and replaces (never stacks or
             // extends) any toast a rapid earlier press put up. The old direct assignment
             // here never scheduled a dismissal, so the success toast lingered indefinitely.
@@ -2177,7 +2186,19 @@ struct SpendingAddressTransactionHistoryView: View {
         // An outgoing row counts what went to other people as Sent, and each of this wallet's
         // other addresses that got change on its own line; all of it to our own addresses is
         // Moved.
-        let breakdown: OutgoingBreakdown? = info?.isOutgoing == true ? outgoingBreakdown(tx) : nil
+        var breakdown: OutgoingBreakdown? = info?.isOutgoing == true ? outgoingBreakdown(tx) : nil
+        // A swap also spends the pool's coins: count only what left this wallet (several of its
+        // addresses funding one send each show the whole send).
+        if let current = breakdown,
+           let own = tx.ownHistoryAmount(for: entry.address, toOthers: current.toOthers, ownChange: current.changeTotal,
+                                         isOwnAddress: { WalletManager.shared.ownAddressLabel(for: $0) != nil }) {
+            if own.isOutgoing {
+                breakdown?.toOthers = own.amountSompi
+            } else {
+                info = (isOutgoing: false, amountSompi: own.amountSompi)
+                breakdown = nil
+            }
+        }
         let moved = breakdown.map { $0.toOthers == 0 && $0.changeTotal > 0 } ?? false
         if let breakdown, info != nil {
             info!.amountSompi = moved ? breakdown.changeTotal : breakdown.toOthers

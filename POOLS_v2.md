@@ -1122,3 +1122,32 @@ await connectionPool.pruneIdleConnections(maxAge: 2 * 60)  // 2 minutes
 // Monitoring
 NSLog("[NodeProfiler] Maintenance cycle complete, connections: %d", await connectionPool.connectionCount())
 ```
+
+## 13) Second transport: wRPC JSON over wss (2026-11-25)
+
+An `Endpoint` with `transport: .wrpcJSON` (`ws://` / `wss://`, with a path) is served by the same
+`GRPCStreamConnection` through a `WRPCSocket` (URLSessionWebSocketTask) instead of a gRPC stream.
+`WRPCJSON` encodes each `Protowire_KaspadMessage` request as `{"id","method","params"}` and decodes
+answers and notifications back into protobuf, so matching by type, timeouts, circuit breakers,
+reconnect backoff and the subscription manager are unchanged. Subscriptions are the generic
+`subscribe` / `unsubscribe` methods with `{"UtxosChanged":{"addresses":[...]}}` or
+`{"BlockAdded":{}}`; an unknown method name makes the node close the socket. wRPC names networks
+`mainnet` / `testnet-10`, which the codec reports as `kaspa-mainnet` for `NodeRegistry.belongs`.
+
+Public fallback: `NodePoolService.evaluatePublicFallback` runs with every stats pass. With the
+default node or Automatic Scan, online, past a 20 s grace after boot / pin switch / path change,
+no gRPC success for 30 s and at least one gRPC failure in the last minute, it asks the Kaspa
+resolvers (`PublicNodeResolver`, at most once a minute) for two nodes and adds them as
+`.publicFallback` records (score -4, never persisted, profiled twice, then the subscription is
+moved). The first gRPC success after that drops them, closes their connections and moves the
+subscription back.
+
+Automatic Scan also keeps up to three public wss nodes as ordinary `.seed` records
+(`NodeProfiler.refreshWssSeeds`, run beside every DNS seed refresh, nothing while pinned): new ones
+are dialed at once (`bootstrapProbe`) and saved, so they're raced with the persisted nodes on the
+next launch. They count as the pool's own nodes, so while one answers the public fallback stays
+off.
+
+Keepalive: the primary's 15 s health ping keeps it busy; the standby gets a GetInfo every fourth
+health check (60 s, `pingStandbyIfDue`), since proxies in front of nodes (Cloudflare) close
+connections idle for about 100 s and a pinned standby would otherwise be cut and redialed.

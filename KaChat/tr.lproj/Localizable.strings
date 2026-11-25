@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "Dosya İçe Aktar";
 "Export File" = "Dosya Dışa Aktar";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "Herhangi bir cihazda içe aktarmak için Nextcloud'undaki KaChat klasörüne kaydet.";
+"Save it to the K folder in your Nextcloud, to import on any device." = "Herhangi bir cihazda içe aktarmak için Nextcloud'undaki K klasörüne kaydet.";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "Oraya da kaydedip başka bir cihazda içe aktarmak için Ayarlar > Depolama'da Nextcloud'u bağla.";
 "Couldn't read that file." = "Bu dosya okunamadı.";
 "Nothing to export yet. Add a contact first." = "Henüz dışa aktarılacak bir şey yok. Önce bir kişi ekle.";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "Teklifi Gönder";
 "Offers open when .kachat names launch." = "Teklifler .kachat adları başlayınca açılacak.";
 "Pick a CSV file from your Nextcloud." = "Nextcloud'undan bir CSV dosyası seç.";
-"Save the CSV to the KaChat folder in your Nextcloud." = "CSV'yi Nextcloud'undaki KaChat klasörüne kaydeder.";
+"Save the CSV to the K folder in your Nextcloud." = "CSV'yi Nextcloud'undaki K klasörüne kaydeder.";
 "Names this address claims or buys show here once .kachat names launch." = "Bu adresin aldığı ya da satın aldığı adlar .kachat adları başladığında burada görünür.";
 "Move to Portfolio" = "Portföye Taşı";
 "Create another portfolio first, then you can move transactions into it." = "Önce başka bir portföy oluştur, sonra işlemleri oraya taşıyabilirsin.";
@@ -3299,3 +3299,82 @@
 "Degraded" = "Kısıtlı";
 "Disconnected" = "Bağlantı yok";
 "Checking…" = "Kontrol ediliyor…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "gRPC düğümlerine şu anda ulaşılamıyor, bu yüzden K wss üzerinden herkese açık bir düğüm kullanıyor.";
+"Search public chats" = "Herkese açık sohbetlerde ara";
+"No Public Chats" = "Herkese Açık Sohbet Yok";
+"Tap + to join or create a public room." = "Herkese açık bir odaya katılmak veya oda oluşturmak için + simgesine dokunun.";
+"Switches between your chats and public chats" = "Sohbetlerinle herkese açık sohbetler arasında geçiş yapar";
+"More Rooms" = "Diğer Odalar";
+"Rooms added on the indexer K reads public chats from." = "K'nin herkese açık sohbetleri okuduğu dizinleyiciye eklenen odalar.";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "Bağlantı kopyalandı";
+"A link that opens this card in K." = "Bu kartı K'de açan bir bağlantı.";
+"Open" = "Aç";
+"Opens this card." = "Bu kartı açar.";
+"Kaspa Hub: %@" = "Kaspa Hub: %@";
+"Tap to open it in K." = "K'de açmak için dokun.";
+"Opens it in K." = "K'de açar.";
+"Your saved Kaspa addresses." = "Kayıtlı Kaspa adreslerin.";
+"Track your coins and their value." = "Coinlerini ve değerlerini takip et.";
+"Watch and sign for your cold wallets." = "Soğuk cüzdanlarını izle ve onlar için imzala.";
+"Claim, buy and sell .kachat usernames." = ".kachat kullanıcı adlarını al, satın al ve sat.";
+"Posts and replies on Kaspa." = "Kaspa'da gönderiler ve yanıtlar.";
+"Chess, Snake and 2048, scores on chain." = "Satranç, Snake ve 2048, skorlar zincirde.";
+"Websites built on Kaspa." = "Kaspa üzerine kurulu web siteleri.";
+"Blocks, transactions and addresses, live." = "Bloklar, işlemler ve adresler, canlı.";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "Bu kuantuma dayanıklı bir adres değil. KasSigner'ın gösterdiği KCC-3 adresini tara.";
+"That address is already in this account." = "Bu adres zaten bu hesapta.";
+"Quantum-resistant address added." = "Kuantuma dayanıklı adres eklendi.";
+"Add Quantum-Resistant Address" = "Kuantuma Dayanıklı Adres Ekle";
+"Scan a KCC-3 address from KasSigner's address screen." = "KasSigner'ın adres ekranından bir KCC-3 adresi tara.";
+"Stop Watching" = "İzlemeyi Durdur";
+"Removes this quantum address from the account. Scan it again to add it back." = "Bu kuantum adresini hesaptan kaldırır. Geri eklemek için tekrar tara.";
+"Quantum-Resistant Address" = "Kuantuma Dayanıklı Adres";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "KasSigner'da istediğin KCC-3 adresini aç ve QR kodunu tara. Bu adresten harcama yapılana kadar anahtarı cihazda kalır.";
+"Address Number on KasSigner" = "KasSigner'daki Adres Numarası";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "KasSigner'ın bu adres için gösterdiği numara. Numarayla cihaz imzalarken anahtarı hemen bulur; numara olmadan anahtarı arar.";
+"Add Quantum Address" = "Kuantum Adresi Ekle";
+"The address number must be a whole number." = "Adres numarası bir tam sayı olmalı.";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "Kuantuma dayanıklı (KCC-3) adresleri imzalayan KasSigner v1.1 veya üstü gerekir.";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "Para üstü bu adrese döner; bu gönderim adresin anahtarını zincirde açığa çıkarır. Para üstünü kuantum güvenli tutmak için KasSigner'dan başka bir kuantum adresi ekle.";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "Bu gönderim bu adresin anahtarını zincirde açığa çıkardığı için para üstü bu hesabın kullanılmamış bir kuantum adresine gider.";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner bu kuantuma dayanıklı adresin anahtar betiğini döndürmedi, bu yüzden yayınlanmayacak. Cihazda KasSigner v1.1 veya üstünün çalıştığını ve bu adresin cihazda olduğunu kontrol et.";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "İmzalanan işlem, bu gönderimin hiç istemediği covenant koşulları ekliyor, bu yüzden yayınlanmayacak.";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "Kuantum Adresi";
+"Quantum Change Address" = "Kuantum Para Üstü Adresi";
+"Quantum Address #%lld" = "Kuantum Adresi #%lld";
+"Quantum Change Address #%lld" = "Kuantum Para Üstü Adresi #%lld";
+"That address is already in your Cold Storage account “%@”." = "Bu adres zaten “%@” Cold Storage hesabında.";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "Bu gönderim bu adresin anahtarını zincirde açığa çıkarır, bu yüzden para üstü buraya dönemez. Önce KasSigner'dan kullanılmamış bir kuantuma dayanıklı adres ekle (en iyisi bir para üstü adresi, #0 ile #4 arası) ya da bakiyenin tamamını gönder.";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "Birleştirme bu adresin anahtarını zincirde açığa çıkarır, bu yüzden coin'leri bu hesabın kullanılmamış bir kuantuma dayanıklı adresine taşınır. Önce KasSigner'dan bir tane ekle (en iyisi bir para üstü adresi, #0 ile #4 arası).";
+"Stop Watching This Address?" = "Bu Adresi İzlemeyi Durdur?";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "%@ KAS'ı zincirde bu adreste, KasSigner'ında kalır; K yalnızca göstermeyi bırakır. Yeniden izlemek için adresi KasSigner'dan tekrar tara.";
+"Edit Address Number" = "Adres Numarasını Düzenle";
+"The number and chain KasSigner shows for this address." = "KasSigner'ın bu adres için gösterdiği numara ve zincir.";
+"Chain" = "Zincir";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "KasSigner'ın bu adres için gösterdiği numara ve bunun alma mı yoksa para üstü adresi mi olduğu. Numarayla cihaz imzalarken anahtarı hemen bulur; numara olmadan anahtarı arar. KasSigner, #0 ile #4 arası para üstü adreslerine giden para üstünü para üstü olarak işaretler; diğer her adresi ödeme olarak gösterir.";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "Bu numara çok büyük: KasSigner'ın adres numaraları 2147483648'den küçüktür.";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "Bu adresin tüm coin'lerini bu hesabın kullanılmamış bir kuantuma dayanıklı adresinde tek bir coin'e taşır: bu işlem bu adresin anahtarını zincirde açığa çıkarır.";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "Bu adreste bir işlemin harcayabileceğinden fazla coin var: %lld tanesi bu gönderimin zincirde açığa çıkardığı anahtarın arkasında kalır. Hemen ardından başka bir işlemle gönder.";
+"The coins move to your quantum address:" = "Coin'ler kuantum adresine taşınır:";
+"The change goes to your quantum address:" = "Para üstü kuantum adresine gider:";
+"KasSigner shows this output as change." = "KasSigner bu çıktıyı para üstü olarak gösterir.";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner bu çıktıyı para üstü olarak değil, sıradan bir ödeme olarak gösterecek: imzalamadan önce bu adres olduğunu kontrol et.";
+"Sign Without the Address Number" = "Adres Numarası Olmadan İmzala";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "KasSigner bu isteği reddederse adres numarası yanlış olabilir. Numara olmadan cihaz adresi kendisi arar. Adres Numarasını Düzenle bir dahaki sefer için düzeltir.";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "Bu işlem bu adresin anahtarını zincirde açığa çıkardığı için bu adresteki tüm UTXO'ları bu hesabın kullanılmamış bir kuantuma dayanıklı adresinde tek bir UTXO'da birleştirir.";
+"Quantum-Resistant Addresses" = "Kuantuma Dayanıklı Adresler";
+"Addresses" = "Adresler";
+"Receive Address" = "Alma Adresi";
+"Change Address" = "Para Üstü Adresi";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "1 herkese açık sohbet silinsin mi?";
+"Delete %lld Public Chats?" = "%lld herkese açık sohbet silinsin mi?";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Varsayılan herkese açık sohbetler kapatılır (Varsayılan Herkese Açık Sohbetleri Düzenle'den yeniden aç). Eklediğin odalar mesajlarıyla birlikte bu cihazdan silinir.";

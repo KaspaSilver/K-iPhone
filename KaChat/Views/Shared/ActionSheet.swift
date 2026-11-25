@@ -1110,6 +1110,8 @@ struct PinnedListHeader: View {
     var search: Binding<String>? = nil
     var prompt: LocalizedStringKey = ""
     var showsSearch = true
+    /// Beside the title (Chats' Chats / Public Chats cycle button).
+    var accessory: AnyView? = nil
 
     @FocusState private var searchFocused: Bool
 
@@ -1120,10 +1122,16 @@ struct PinnedListHeader: View {
 
     private var titleAndSearch: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.largeTitle.weight(.bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            HStack(spacing: 12) {
+                Text(title)
+                    .font(.largeTitle.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                if let accessory {
+                    accessory
+                    Spacer(minLength: 0)
+                }
+            }
             if showsSearch, let search {
                 HStack(spacing: 10) {
                     searchField(search)

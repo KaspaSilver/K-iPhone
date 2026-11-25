@@ -258,5 +258,8 @@ struct AllNotificationsBell: View {
         }
         .accessibilityLabel(Text("Notifications"))
         .accessibilityValue(count > 0 ? Text(verbatim: "\(count)") : Text(verbatim: ""))
+        // Looking at Profile catches the count up, as X does when you look at its bell: with
+        // push the poll is otherwise only every 5 minutes.
+        .onAppear { KaPostsNotificationService.shared.pollForBell() }
     }
 }

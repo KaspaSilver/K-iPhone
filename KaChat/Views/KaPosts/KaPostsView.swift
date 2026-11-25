@@ -695,6 +695,16 @@ struct KaPostsView: View {
     /// slide: the dock copy was tapped, and the tab underneath is what should show. A reply
     /// typed under a thread is kept, as it is when the thread is closed with Back.
     private func closeAllCovers() {
+        // iOS still slid the screens down when they were stacked (a post opened from a profile,
+        // a menu screen), whatever the transaction said: leaving KaPost for another dock tab
+        // looked like the screen falling away (owner, 2026-11-25: "it should just take me to the
+        // chat with the same transition as going from chat to profile"). So when one of KaPost's
+        // screens is up, UIKit closes the whole stack first, without animation, and the state
+        // below follows it.
+        let anyCoverOpen = showFeedDrawer || menuSheet != nil || profileTarget != nil
+            || engagementTarget != nil || threadEngagementTarget != nil
+            || detailTarget != nil || profileDetailTarget != nil
+        if anyCoverOpen { Self.dismissPresentedStackWithoutAnimation() }
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
@@ -710,6 +720,18 @@ struct KaPostsView: View {
             profileDetailTarget = nil
         }
         KaPostsSlideSnapshot.reset()
+    }
+
+    /// Closes everything presented over the app's root at once, with no slide.
+    private static func dismissPresentedStackWithoutAnimation() {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+        guard let root = (windows.first(where: \.isKeyWindow) ?? windows.first)?.rootViewController,
+              root.presentedViewController != nil else { return }
+        UIView.performWithoutAnimation {
+            root.dismiss(animated: false)
+        }
     }
 
     private var feedLayer: some View {
@@ -2650,6 +2672,59 @@ struct KaPostsView: View {
     /// The author's own continuation chain for an opened root post, keyed by the root's local
     /// id: [segment2, segment3, ...]. Loaded by walking self-authored replies link by link.
     @State private var threadChains: [UUID: [DraftPost]] = [:]
+    /// The order an open post's replies are shown in, kept while it's open (audit 2026-11-25
+    /// L4). A plain box: writing it while a body is drawn starts no new pass.
+    @State private var commentOrderMemo = CommentOrderMemo()
+
+    /// Each open post's reply order, by reply key (its txid, or its local id before it has one).
+    /// Ranked once, when the replies first show: re-sorting on every pass (three per body, with a
+    /// follow lookup in each comparison) cost time while scrolling, and moved rows under the
+    /// reader each time a page or a like landed. Rows already shown keep their place; replies
+    /// that arrive later (the next page) are ranked among themselves and go below, except your
+    /// own fresh reply, which goes up with the poster's and yours as X shows it.
+    private final class CommentOrderMemo {
+        private var orders: [UUID: [String]] = [:]
+
+        static func key(_ reply: DraftPost) -> String { reply.remoteId ?? reply.id.uuidString }
+
+        /// Closed: the next opening ranks afresh, with the likes as they are then.
+        func forget(_ postId: UUID) { orders[postId] = nil }
+
+        func ordered(
+            _ replies: [DraftPost],
+            for postId: UUID,
+            rank: ([DraftPost]) -> [DraftPost],
+            goesUp: (DraftPost) -> Bool,
+            isTopTier: (DraftPost) -> Bool
+        ) -> [DraftPost] {
+            var byKey: [String: DraftPost] = [:]
+            byKey.reserveCapacity(replies.count)
+            for reply in replies where byKey[Self.key(reply)] == nil {
+                byKey[Self.key(reply)] = reply
+            }
+            let previous = orders[postId] ?? []
+            var shown = previous.compactMap { byKey[$0] }
+            let known = Set(previous)
+            var seenNew = Set<String>()
+            let arrived = replies.filter { reply in
+                let key = Self.key(reply)
+                return !known.contains(key) && seenNew.insert(key).inserted
+            }
+            if arrived.isEmpty && shown.count == previous.count { return shown }
+            let ranked = rank(arrived)
+            if previous.isEmpty {
+                shown = ranked
+            } else {
+                let up = ranked.filter(goesUp)
+                // after the replies already shown at the top (the poster's own and yours)
+                let insertAt = shown.firstIndex { !isTopTier($0) } ?? shown.count
+                shown.insert(contentsOf: up, at: insertAt)
+                shown.append(contentsOf: ranked.filter { !goesUp($0) })
+            }
+            orders[postId] = shown.map(Self.key)
+            return shown
+        }
+    }
     /// Probe bookkeeping that must NOT touch SwiftUI state: claims and negative results live in
     /// a plain reference box, so the write every NEW ROW makes as it scrolls in is invisible to
     /// the render loop. Keeping these in @State invalidated the entire feed twice per revealed
@@ -2670,11 +2745,21 @@ struct KaPostsView: View {
     /// with its own box saved its claims over the other's under the same keys.
     private final class ThreadProbeClaims {
         static let shared = ThreadProbeClaims()
-        private init() {}
+        private init() {
+            for key in Self.legacyKeys { UserDefaults.standard.removeObject(forKey: key) }
+        }
 
-        private static let claimedKey = "kachat_kaposts_thread_probe_claimed"
-        private static let rootsKey = "kachat_kaposts_thread_probe_roots"
-        private static let expiryKey = "kachat_kaposts_thread_probe_expiry"
+        // v2 (2026-11-25): opening a post used to record it as a thread root when its only reply
+        // was someone else's, and those roots were kept for good. New keys ask every post again
+        // under the poster-only rule; the old ones are removed once (`dropLegacyKeys`).
+        private static let claimedKey = "kachat_kaposts_thread_probe_claimed_v2"
+        private static let rootsKey = "kachat_kaposts_thread_probe_roots_v2"
+        private static let expiryKey = "kachat_kaposts_thread_probe_expiry_v2"
+        private static let legacyKeys = [
+            "kachat_kaposts_thread_probe_claimed",
+            "kachat_kaposts_thread_probe_roots",
+            "kachat_kaposts_thread_probe_expiry",
+        ]
         private static let capacity = 2048
 
         /// How long "no thread" holds for a post this old: as long as the post has existed,
@@ -2739,6 +2824,13 @@ struct KaPostsView: View {
         func markRoot(_ id: String) {
             rootsSet.insert(id)
             scheduleSave()
+        }
+
+        /// A root whose poster's own reply is gone (deleted, or a mark from before the
+        /// poster-only rule): back to "no thread", held as long as a fresh probe's answer.
+        func unmarkRoot(_ id: String, answerLifetime: TimeInterval) {
+            guard rootsSet.remove(id) != nil else { return }
+            claim(id, answerLifetime: answerLifetime)
         }
 
         /// One UserDefaults write per burst of claims, not one per revealed row.
@@ -2819,23 +2911,14 @@ struct KaPostsView: View {
         var candidates = visibleComments(of: root).filter { $0.remoteId != nil }
         var hops = 0
         while hops < 25 {
-            // An UNBRANCHED continuation is the conversation, whoever wrote it. A back-and-forth
-            // between two people is one thread to read, and following only the root author's own
-            // replies left every other message behind a tap - which is what made reading a long
-            // exchange cost one tap down per message and the same number of Backs to leave.
-            //
-            // Where the post has SEVERAL replies there is a real branch, and picking one would
-            // hide the others; that case keeps the old rule - the author's own continuation, which
-            // is a thread they wrote deliberately - and everything else stays in Comments below.
-            let next: DraftPost?
-            if candidates.count == 1 {
-                next = candidates.first
-            } else {
-                next = candidates
-                    .filter { $0.posterAddress == root.posterAddress }
-                    .sorted { $0.timestamp < $1.timestamp }
-                    .first
-            }
+            // A thread is the poster's own posts, each under their previous one, as on X (owner,
+            // 2026-11-25): someone else's reply is a comment, never part of the thread, even when
+            // it's the only reply. Following any lone reply made a post with one comment from
+            // someone else show "View thread" and put that comment in the Thread section.
+            let next = candidates
+                .filter { $0.posterAddress == root.posterAddress }
+                .sorted { $0.timestamp < $1.timestamp }
+                .first
             guard let segment = next, let segmentRemoteId = segment.remoteId else { break }
             chain.append(segment)
             hops += 1
@@ -2846,23 +2929,75 @@ struct KaPostsView: View {
                 .sorted { $0.timestamp < $1.timestamp }
         }
         threadChains[rootId] = chain
-        if let remoteId = root.remoteId, !chain.isEmpty {
+        guard let remoteId = root.remoteId else { return }
+        if !chain.isEmpty {
             // Walking the chain answered the probe's question for this post, so it is claimed
             // and recorded as a root the same way a positive probe result is.
             threadProbeClaims.claim(remoteId)
             threadProbeClaims.markRoot(remoteId)
             threadRootIds.insert(remoteId)
+        } else if threadRootIds.contains(remoteId) || threadProbeClaims.persistedRoots.contains(remoteId) {
+            // Marked as a root, but no reply of the poster's was found: the root would show
+            // "View thread" for good (audit 2026-11-25 L6). The loaded comments may be only part
+            // of the replies, or failed to load, so the indexer's first page is asked once more,
+            // as the probe asked it; only an answer with no reply by the poster unmarks it.
+            guard let page = try? await KaPostsAPIClient.shared.fetchReplies(postId: remoteId, limit: 25, before: nil),
+                  !page.posts.contains(where: { reply in
+                      KaPostsAPIClient.kaspaAddress(fromPubkey: reply.userPublicKey) == root.posterAddress
+                  }) else { return }
+            threadRootIds.remove(remoteId)
+            threadProbeClaims.unmarkRoot(remoteId, answerLifetime: ThreadProbeClaims.noThreadAnswerLifetime(
+                postAge: Date().timeIntervalSince(root.timestamp)
+            ))
         }
     }
 
     /// The root's comments with thread segments removed - a thread's segment 2 IS a direct
     /// reply, but it belongs to the Thread section, not the Comments list.
+    ///
+    /// In X's order (owner, 2026-11-25: "match X"): the poster's own replies first, then yours,
+    /// then people you follow, then everyone else; within each, the most liked first, then the
+    /// oldest. Ranked when the replies first show and then kept while the post is open
+    /// (`CommentOrderMemo`), so rows don't move as pages and likes land.
     private func commentsExcludingThread(of post: DraftPost) -> [DraftPost] {
         let chainRemoteIds = Set((threadChains[post.id] ?? []).compactMap(\.remoteId))
-        return visibleComments(of: post).filter { comment in
+        let me = WalletManager.shared.currentWallet?.publicAddress ?? ""
+        let replies = visibleComments(of: post).filter { comment in
             guard let remoteId = comment.remoteId else { return true }
             return !chainRemoteIds.contains(remoteId)
         }
+        // who you follow, looked up here on the main actor rather than inside the ranking
+        let followed = Set(replies.map(\.posterAddress).filter { followStore.isFollowing($0) })
+        return commentOrderMemo.ordered(
+            replies,
+            for: post.id,
+            rank: { arrived in
+                // the tier worked out once per reply, not in every comparison
+                func tier(_ reply: DraftPost) -> Int {
+                    if reply.posterAddress == post.posterAddress { return 0 }
+                    if !me.isEmpty, reply.posterAddress == me { return 1 }
+                    if followed.contains(reply.posterAddress) { return 2 }
+                    return 3
+                }
+                return arrived
+                    .map { reply -> (reply: DraftPost, tier: Int) in (reply, tier(reply)) }
+                    .sorted { a, b in
+                        if a.tier != b.tier { return a.tier < b.tier }
+                        if a.reply.likes != b.reply.likes { return a.reply.likes > b.reply.likes }
+                        return a.reply.timestamp < b.reply.timestamp
+                    }
+                    .map { $0.reply }
+            },
+            // Your reply sent while the post is open (not sent yet, or within ten minutes)
+            // goes up where you'd look for it; a later page's older ones stay below.
+            goesUp: { reply in
+                !me.isEmpty && reply.posterAddress == me
+                    && (reply.remoteId == nil || Date().timeIntervalSince(reply.timestamp) < 600)
+            },
+            isTopTier: { reply in
+                reply.posterAddress == post.posterAddress || (!me.isEmpty && reply.posterAddress == me)
+            }
+        )
     }
 
     /// How a post that didn't go through is shown: failed with Retry, or not confirmed with none.
@@ -5288,6 +5423,54 @@ struct KaPostsView: View {
         return nil
     }
 
+    /// Who a reply answers, for "Replying to" on a reply shown outside its conversation (a
+    /// profile's Replies, Bookmarks). The parent's author: known for this session's replies,
+    /// else the parent's own post when it's loaded (`ReplyParentAuthors`, remembered, so a row
+    /// redrawn while scrolling doesn't search again). That names the poster for their own thread
+    /// reply (audit 2026-11-25 L5): K leaves the signer out of a reply's signed mentions, so for
+    /// a thread reply the first mention was someone else, or none. With the parent not loaded,
+    /// the first signed mention other than the poster, which K writes as the parent's author.
+    /// Nil for a post.
+    private func replyingToLabel(for post: DraftPost) -> String? {
+        guard let parentId = post.parentRemoteId else { return nil }
+        if let pubkey = post.parentPosterPubkey,
+           let address = KaPostsAPIClient.kaspaAddress(fromPubkey: pubkey) {
+            return posterDisplayName(address)
+        }
+        if let author = replyParentAuthors.author(of: parentId, find: { findPost(byRemoteId: $0) }) {
+            return posterDisplayName(author)
+        }
+        for pubkey in post.mentionedPubkeys {
+            guard let address = KaPostsAPIClient.kaspaAddress(fromPubkey: pubkey),
+                  address != post.posterAddress else { continue }
+            return posterDisplayName(address)
+        }
+        return nil
+    }
+
+    /// Parent post id -> its author's address, for "Replying to". A miss is asked again after
+    /// 15 seconds, not on every redraw: the search walks every loaded list and its replies, and
+    /// the parent may load later (a profile's Posts page, an opened thread). A plain box, so
+    /// writing it while a row is drawn starts no new pass.
+    private final class ReplyParentAuthors {
+        private var known: [String: String] = [:]
+        private var missedAt: [String: Date] = [:]
+
+        func author(of parentId: String, find: (String) -> DraftPost?) -> String? {
+            if let author = known[parentId] { return author }
+            let now = Date()
+            if let missed = missedAt[parentId], now.timeIntervalSince(missed) < 15 { return nil }
+            guard let parent = find(parentId), !parent.posterAddress.isEmpty else {
+                missedAt[parentId] = now
+                return nil
+            }
+            known[parentId] = parent.posterAddress
+            missedAt[parentId] = nil
+            return parent.posterAddress
+        }
+    }
+    @State private var replyParentAuthors = ReplyParentAuthors()
+
     /// Cell wiring shared by both of MY profile's pager pages.
     private func myProfileCell(_ post: DraftPost) -> some View {
         let identity = posterIdentity(post.posterAddress)
@@ -5298,6 +5481,7 @@ struct KaPostsView: View {
             avatarURLString: nil,
             isFollowing: followStore.isFollowing(post.posterAddress),
             commentCount: commentCount(of: post),
+            replyingTo: replyingToLabel(for: post),
             quotedDisplayName: post.quoted.map { posterDisplayName($0.posterAddress) },
             quotedAvatarURLString: quotedAvatarURL(post),
             // Was nil, which made every post and reply on your OWN profile the one place you
@@ -5337,6 +5521,7 @@ struct KaPostsView: View {
             avatarURLString: nil,
             isFollowing: followStore.isFollowing(post.posterAddress),
             commentCount: commentCount(of: post),
+            replyingTo: replyingToLabel(for: post),
             quotedDisplayName: post.quoted.map { posterDisplayName($0.posterAddress) },
             quotedAvatarURLString: quotedAvatarURL(post),
             onComment: { profileReplyComposerTarget = post },
@@ -5746,6 +5931,7 @@ struct KaPostsView: View {
                                     avatarURLString: nil,
                                     isFollowing: followStore.isFollowing(post.posterAddress),
                                     commentCount: commentCount(of: post),
+                                    replyingTo: replyingToLabel(for: post),
                                     quotedDisplayName: post.quoted.map { posterDisplayName($0.posterAddress) },
                                     quotedAvatarURLString: quotedAvatarURL(post),
                                     // Bookmarks can reply; it has no thread surface of its own in
@@ -5818,13 +6004,17 @@ struct KaPostsView: View {
                                     // beside it, so the post keeps the same full width as every
                                     // other cell. The geometry follows the cell's own: 16pt
                                     // leading plus a 40pt avatar puts its centre at 36, and 12pt
-                                    // top padding plus that avatar ends it at 52.
+                                    // top padding plus that avatar ends it at 52. It runs 12pt
+                                    // past the cell's bottom, the next cell's top padding, so it
+                                    // meets the next avatar instead of stopping short of it
+                                    // (cells are see-through, so it shows there).
                                     .background(alignment: .topLeading) {
                                         RoundedRectangle(cornerRadius: 1)
                                             .fill(Color.secondary.opacity(0.3))
                                             .frame(width: 2)
                                             .padding(.leading, 35)
                                             .padding(.top, 52)
+                                            .padding(.bottom, -12)
                                     }
                             }
                             threadCell(post, isRoot: true)
@@ -5833,59 +6023,32 @@ struct KaPostsView: View {
                             // X-style thread reading: the author's own continuation renders as
                             // a connected, ordered section right under the root - separate from
                             // other people's comments below.
+                            // The poster's own continuation, as X draws it (owner, 2026-11-25):
+                            // their posts one under another, joined by the line down the avatar
+                            // column, no header. Everyone else's replies follow below.
                             if let chain = threadChains[post.id], !chain.isEmpty {
-                                // "Thread" is what an author calls their OWN continuation. When
-                                // the chain carries other people's replies it is a conversation,
-                                // and calling that a thread would credit them to the root author.
-                                let isSelfThread = chain.allSatisfy { $0.posterAddress == post.posterAddress }
-                                HStack(spacing: 6) {
-                                    Image(systemName: "text.append")
-                                        .font(.caption.weight(.semibold))
-                                    (isSelfThread
-                                     ? Text("Thread · \(chain.count + 1) posts")
-                                     : Text("Conversation · \(chain.count + 1) posts"))
-                                        .font(.subheadline.weight(.bold))
-                                    Spacer()
-                                }
-                                .foregroundColor(.accentColor)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-
-                                ForEach(chain) { segment in
-                                    HStack(alignment: .top, spacing: 0) {
-                                        // Connector rail, X-style: visually chains the segments.
-                                        RoundedRectangle(cornerRadius: 1)
-                                            .fill(Color.accentColor.opacity(0.35))
-                                            .frame(width: 2)
-                                            .padding(.leading, 16)
-                                            .padding(.vertical, 2)
-                                        threadCell(segment)
-                                    }
+                                ForEach(Array(chain.enumerated()), id: \.element.id) { index, segment in
+                                    threadCell(segment)
+                                        .background(alignment: .topLeading) {
+                                            if index < chain.count - 1 {
+                                                // down to the next segment's avatar, as above
+                                                RoundedRectangle(cornerRadius: 1)
+                                                    .fill(Color.secondary.opacity(0.3))
+                                                    .frame(width: 2)
+                                                    .padding(.leading, 35)
+                                                    .padding(.top, 52)
+                                                    .padding(.bottom, -12)
+                                            }
+                                        }
                                 }
                                 Divider()
                             }
 
+                            // Replies follow straight on, as on X: no heading, and nothing at
+                            // all while there are none.
                             let comments = commentsExcludingThread(of: post)
-                            HStack {
-                                (comments.isEmpty ? Text("Comments") : Text("Comments (\(comments.count))"))
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-
                             if comments.isEmpty {
-                                // An unbranched exchange is rendered in full ABOVE, and its
-                                // members are filtered out of this list - so "no comments yet"
-                                // would contradict the replies the reader can already see.
-                                Text((threadChains[post.id] ?? []).isEmpty
-                                     ? "No comments yet - be the first to reply."
-                                     : "Every reply is in the conversation above.")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 20)
+                                EmptyView()
                             } else {
                                 let triggerId = kaPostsPrefetchTriggerId(comments)
                                 ForEach(comments) { comment in
@@ -5912,6 +6075,8 @@ struct KaPostsView: View {
                     // level, so the rungs at the top of the sheet are the whole thread rather
                     // than however much of it happened to be in memory.
                     .task(id: post.remoteId) { await loadAncestors(for: post) }
+                    // Closed: its replies are ranked afresh next time, with the likes as then.
+                    .onDisappear { commentOrderMemo.forget(postId) }
                     // Reply-notification landing: this thread is the PARENT of the reply that
                     // was tapped - once the comment list actually contains that reply, bring
                     // it into view (openDetail's reset fetch changes the id list, firing this).
@@ -6201,6 +6366,9 @@ private struct KaPostCellView: View {
     /// spends both on opening the post. The focused cell has no card tap at all (`onComment` is
     /// nil for the root), so there is nothing to compete with.
     var isFocused: Bool = false
+    /// Who this reply answers ("Replying to Alice"), for a reply shown outside its conversation.
+    /// Nil inside a conversation and for posts.
+    var replyingTo: String? = nil
     /// Resolved display bits for the QUOTED post's author, passed in by the parent (which
     /// observes KNSService) instead of observed here - see the observation note on `body`.
     var quotedDisplayName: String? = nil
@@ -6272,6 +6440,9 @@ private struct KaPostCellView: View {
         /// A payment request link in the post: drawn as a card (`KaPostPaymentRequestCard`)
         /// under the text, and left out of the text itself.
         let paymentLink: (request: PaymentRequest, matchedText: String)?
+        /// A Kaspa Hub card's link (`kachat.app/hub/<slug>`): drawn as a card (`KaspaHubLinkCard`)
+        /// under the text, and left out of the text itself.
+        let hubLink: (tab: AppTab, matchedText: String)?
         /// A KaPlay bot challenge link: drawn as a card (`KaPostBotChallengeCard`) under the
         /// text, and left out of the text itself.
         let challengeLink: KaPlayBotChallenge.Match?
@@ -6305,8 +6476,13 @@ private struct KaPostCellView: View {
     private var textParts: TextParts {
         let displayed = displayedText
         var paymentLink: (request: PaymentRequest, matchedText: String)?
-        if let match = KaChatInternalLink.match(in: displayed), case .paymentRequest(let request) = match.link {
-            paymentLink = (request, match.matchedText)
+        var hubLink: (tab: AppTab, matchedText: String)?
+        if let match = KaChatInternalLink.match(in: displayed) {
+            switch match.link {
+            case .paymentRequest(let request): paymentLink = (request, match.matchedText)
+            case .hubSection(let tab): hubLink = (tab, match.matchedText)
+            default: break
+            }
         }
         let challengeLink = KaPlayBotChallenge.match(in: displayed)
         let arcadeLink = ArcadeChallenge.match(in: displayed)
@@ -6322,8 +6498,9 @@ private struct KaPostCellView: View {
         }
         // The text as drawn: the post without the links drawn as cards.
         var text = displayed
-        if paymentLink != nil || challengeLink != nil || arcadeLink != nil || siteLink != nil || webLink != nil {
+        if paymentLink != nil || hubLink != nil || challengeLink != nil || arcadeLink != nil || siteLink != nil || webLink != nil {
             if let paymentLink { text = text.replacingOccurrences(of: paymentLink.matchedText, with: "") }
+            if let hubLink { text = text.replacingOccurrences(of: hubLink.matchedText, with: "") }
             if let challengeLink { text = text.replacingOccurrences(of: challengeLink.matchedText, with: "") }
             if let arcadeLink { text = text.replacingOccurrences(of: arcadeLink.matchedText, with: "") }
             // Only this one: the same text can also be the start of a longer link to another page.
@@ -6344,7 +6521,7 @@ private struct KaPostCellView: View {
             }
             layout = cut + "\u{2026}"
         }
-        return TextParts(paymentLink: paymentLink, challengeLink: challengeLink, arcadeLink: arcadeLink, siteLink: siteLink,
+        return TextParts(paymentLink: paymentLink, hubLink: hubLink, challengeLink: challengeLink, arcadeLink: arcadeLink, siteLink: siteLink,
                          webLink: webLink, isLong: isLong, isFolded: isFolded, layoutText: layout)
     }
 
@@ -6542,7 +6719,33 @@ private struct KaPostCellView: View {
 
     var body: some View {
         let parts = textParts
-        HStack(alignment: .top, spacing: 12) {
+        Group {
+            if isFocused {
+                focusedLayout(parts)
+            } else {
+                rowLayout(parts)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+        // Delete armed: the card fades while the undo countdown runs.
+        .opacity(post.pendingDeletion ? 0.35 : 1)
+        .animation(.easeInOut(duration: 0.25), value: post.pendingDeletion)
+        // Tap anywhere on the card (outside a button) to open the post's comment thread.
+        .onTapGesture {
+            onOpenThread?()
+        }
+        // The Kaspa-logo burst plays when the like actually lands - i.e. after the 5s
+        // countdown fires, not on the tap that armed it.
+        .onChange(of: post.likedByMe) { liked in
+            if liked { runLikeBurst() }
+        }
+    }
+
+    /// The avatar - tapping it opens the poster's profile.
+    private var avatarButton: some View {
+        Group {
             // KNS avatar (falls back to initials) - tapping it opens the poster's profile.
             Button(action: onOpenProfile) {
                 KNSAvatarView(
@@ -6553,8 +6756,12 @@ private struct KaPostCellView: View {
                 )
             }
             .buttonStyle(.plain)
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 6) {
+    /// The name line (Follow, the bell, the overflow menu) and the bell's note under it.
+    @ViewBuilder
+    private var headerBlock: some View {
                 HStack(spacing: 6) {
                     Text(displayName)
                         .font(.subheadline.weight(.bold))
@@ -6619,6 +6826,11 @@ private struct KaPostCellView: View {
                         .transition(.opacity)
                 }
 
+    }
+
+    /// What the post says: text, link cards, poll, quote.
+    @ViewBuilder
+    private func contentBlock(_ parts: TextParts) -> some View {
                 // Text-only posts, but URLs are TAPPABLE: tapping a link opens a Copy/Open
                 // option menu (never auto-opens - OpenURLAction intercepts). No previews, no
                 // photos, no markdown - just detected links styled accent+underline.
@@ -6681,6 +6893,11 @@ private struct KaPostCellView: View {
                     KaPostPaymentRequestCard(request: link.request)
                         .padding(.top, 4)
                 }
+                // A Kaspa Hub card's link: a card with Open, not the link's text.
+                if let link = parts.hubLink {
+                    KaspaHubLinkCard(tab: link.tab)
+                        .padding(.top, 4)
+                }
                 // A KaPlay bot challenge: a card with a Challenge button, not the link's text.
                 if let link = parts.challengeLink {
                     KaPostBotChallengeCard(challenge: link.challenge)
@@ -6694,13 +6911,13 @@ private struct KaPostCellView: View {
                 }
                 // A link to KaChat's site: its preview, or the link itself if that can't load.
                 if let link = parts.siteLink {
-                    LinkPreviewCardView(url: link.url, txId: post.remoteId ?? "", fallbackText: link.matchedText)
+                    LinkPreviewCardView(url: link.url, txId: post.remoteId ?? "", fallbackText: link.matchedText, fillsWidth: true)
                         .padding(.top, 4)
                 }
                 // Another site's link from a poster with a .kachat name: its preview in place of
                 // the link, or the link itself if the preview can't load.
                 if let link = parts.webLink {
-                    LinkPreviewCardView(url: link.url, txId: post.remoteId ?? "", fallbackText: link.matchedText)
+                    LinkPreviewCardView(url: link.url, txId: post.remoteId ?? "", fallbackText: link.matchedText, fillsWidth: true)
                         .padding(.top, 4)
                 }
                 translateAffordance
@@ -6727,6 +6944,37 @@ private struct KaPostCellView: View {
                     }
                 }
 
+    }
+
+    /// "Replying to Alice" above a reply shown outside its conversation (a profile's Replies, a
+    /// bookmark), as X has it; inside a conversation the post it answers is right above it.
+    @ViewBuilder
+    private var replyingToLine: some View {
+        if let replyingTo {
+            Text(Self.replyingToText(replyingTo))
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    /// "Replying to Alice" in the reader's language, the name in the accent colour.
+    static func replyingToText(_ name: String) -> AttributedString {
+        var text = AttributedString(String(format: AppLocalization.string("Replying to %@"), name))
+        if let range = text.range(of: name, options: .backwards) {
+            text[range].foregroundColor = .accentColor
+        }
+        return text
+    }
+
+    /// A post in a list: the avatar beside everything else.
+    private func rowLayout(_ parts: TextParts) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            avatarButton
+            VStack(alignment: .leading, spacing: 6) {
+                replyingToLine
+                headerBlock
+                contentBlock(parts)
                 // The default gaps, else tighter ones: big counts beside Tip used to make the
                 // row wider than the screen and push the whole post sideways. Built once and
                 // laid out by `KaPostActionRowLayout`, which measures the items and picks the
@@ -6749,22 +6997,54 @@ private struct KaPostCellView: View {
                 .padding(.top, 6)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .contentShape(Rectangle())
-        // Delete armed: the card fades while the undo countdown runs.
-        .opacity(post.pendingDeletion ? 0.35 : 1)
-        .animation(.easeInOut(duration: 0.25), value: post.pendingDeletion)
-        // Tap anywhere on the card (outside a button) to open the post's comment thread.
-        .onTapGesture {
-            onOpenThread?()
-        }
-        // The Kaspa-logo burst plays when the like actually lands - i.e. after the 5s
-        // countdown fires, not on the tap that armed it.
-        .onChange(of: post.likedByMe) { liked in
-            if liked { runLikeBurst() }
+    }
+
+    /// The post you opened, as X draws it (owner, 2026-11-25: "match X"): the avatar and name on
+    /// one line, the text full width and larger under them, the full time ("12:00 PM · Nov 25,
+    /// 2026"), then the actions between two rules.
+    private func focusedLayout(_ parts: TextParts) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                avatarButton
+                VStack(alignment: .leading, spacing: 2) {
+                    headerBlock
+                }
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                contentBlock(parts)
+            }
+            HStack(spacing: 4) {
+                Text(Self.focusedTimestamp(post.timestamp))
+                if post.editedAt != nil {
+                    Text("· edited")
+                }
+            }
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            Divider()
+            actionRow
+            Divider()
         }
     }
+
+    /// X's time on the post you opened: "12:00 PM · Nov 25, 2026", in the reader's locale.
+    static func focusedTimestamp(_ date: Date) -> String {
+        "\(focusedTimeFormatter.string(from: date)) · \(focusedDateFormatter.string(from: date))"
+    }
+
+    private static let focusedTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    private static let focusedDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
 
     /// The action row: comment, like, dislike, repost, bookmark, share, Tip and its count, then
     /// the delivery state at the right edge. Its gap is `KaPostActionRowLayout`'s: measured, so
@@ -7595,6 +7875,7 @@ extension KaPostCellView: Equatable {
         lhs.commentCount == rhs.commentCount &&
         lhs.truncatesLongText == rhs.truncatesLongText &&
         lhs.isFocused == rhs.isFocused &&
+        lhs.replyingTo == rhs.replyingTo &&
         lhs.quotedDisplayName == rhs.quotedDisplayName &&
         lhs.quotedAvatarURLString == rhs.quotedAvatarURLString &&
         (lhs.onComment == nil) == (rhs.onComment == nil) &&
@@ -9224,14 +9505,21 @@ private struct KaPostComposerView: View {
     /// (`KaPostCellView.textParts`): a payment request always, a link to KaChat's site or another
     /// site only when you have a .kachat name (owner, 2026-11-24: the composer shows the post as
     /// it will look).
-    private var inlinePreviews: (payment: KaChatInternalLink.Match?, payRequest: PaymentRequest?, site: KaChatSiteLink.Match?, web: KaPostLinkPreviewPolicy.Match?) {
+    private var inlinePreviews: (payment: KaChatInternalLink.Match?, payRequest: PaymentRequest?, hub: (match: KaChatInternalLink.Match, tab: AppTab)?, site: KaChatSiteLink.Match?, web: KaPostLinkPreviewPolicy.Match?) {
         let source = previewSource
-        guard !source.isEmpty else { return (nil, nil, nil, nil) }
+        guard !source.isEmpty else { return (nil, nil, nil, nil, nil) }
         var payment: KaChatInternalLink.Match?
         var request: PaymentRequest?
-        if let match = KaChatInternalLink.match(in: source), case .paymentRequest(let r) = match.link {
-            payment = match
-            request = r
+        var hub: (match: KaChatInternalLink.Match, tab: AppTab)?
+        if let match = KaChatInternalLink.match(in: source) {
+            switch match.link {
+            case .paymentRequest(let r):
+                payment = match
+                request = r
+            case .hubSection(let tab):
+                hub = (match, tab)
+            default: break
+            }
         }
         let me = WalletManager.shared.currentWallet?.publicAddress ?? ""
         let hasName = !me.isEmpty && KachatLive.identityName(me) != nil
@@ -9242,7 +9530,7 @@ private struct KaPostComposerView: View {
             web = link
             KaPostLinkPreviewPolicy.markForPreview(link.url)
         }
-        return (payment, request, site, web)
+        return (payment, request, hub, site, web)
     }
 
     /// A preview card with an x that takes its link out of the post.
@@ -9281,11 +9569,14 @@ private struct KaPostComposerView: View {
         if let match = previews.payment, let request = previews.payRequest {
             removablePreview(KaPostPaymentRequestCard(request: request)) { removeFromText(match.matchedText) }
         }
+        if let hub = previews.hub {
+            removablePreview(KaspaHubLinkCard(tab: hub.tab, interactive: false)) { removeFromText(hub.match.matchedText) }
+        }
         if let site = previews.site {
-            removablePreview(LinkPreviewCardView(url: site.url, txId: "", fallbackText: site.matchedText)) { removeFromText(site.matchedText) }
+            removablePreview(LinkPreviewCardView(url: site.url, txId: "", fallbackText: site.matchedText, fillsWidth: true)) { removeFromText(site.matchedText) }
         }
         if let web = previews.web {
-            removablePreview(LinkPreviewCardView(url: web.url, txId: "", fallbackText: web.matchedText)) { removeFromText(web.matchedText) }
+            removablePreview(LinkPreviewCardView(url: web.url, txId: "", fallbackText: web.matchedText, fillsWidth: true)) { removeFromText(web.matchedText) }
         }
         if let link = attachedChallenge {
             ZStack(alignment: .topTrailing) {

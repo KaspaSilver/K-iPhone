@@ -11,7 +11,7 @@ struct NextcloudAccount: Codable, Equatable {
     /// Where "Send from Nextcloud" starts browsing — nil means the files root. Optional so
     /// blobs stored before this field existed still decode.
     var defaultFolder: String? = nil
-    /// Where message backups upload — nil means the default "KaChat" folder at the files root.
+    /// Where message backups upload — nil means the default "K" folder at the files root.
     var backupFolder: String? = nil
 
     var serverURL: URL? { URL(string: serverURLString) }
@@ -425,6 +425,9 @@ final class NextcloudService: ObservableObject {
                      Self.lastETagKey] {
             UserDefaults.standard.removeObject(forKey: "\(base)_\(suffix)")
         }
+        // the folder-move dates and merged ETag outlived the account (audit 2026-11-25 M9)
+        Self.removeLegacyFolderState(walletSuffix: suffix)
+        legacyFolderChecked = legacyFolderChecked.filter { !$0.hasPrefix("\(suffix)|") }
     }
 
     /// The active wallet's UserDefaults key for `base`, or nil when signed out (in which case
@@ -682,6 +685,9 @@ final class NextcloudService: ObservableObject {
     /// the next success; a guard failure ends the loop (every state change that could cause one also
     /// calls `stopChangeWatcher`, so this is belt and braces).
     private func runChangeWatcher(walletAtStart: String, epoch: Int) async {
+        // The watcher reads the contacts file in the backup folder: settle "KaChat" -> "K" first,
+        // or it polls a folder the move is about to change (audit 2026-11-25 M3).
+        await migrateLegacyFolderIfNeeded()
         var backoffFactor: Double = 1
         while !Task.isCancelled {
             let interval = min(currentChangeWatchInterval * backoffFactor, Self.changeWatchBackoffMax)
@@ -700,16 +706,13 @@ final class NextcloudService: ObservableObject {
         }
     }
 
-    /// Sleeps up to `seconds`, returning early when the watcher is cancelled or superseded (epoch
-    /// bump). Short sleep slices with a check between them - not a busy loop, and the watcher only
-    /// runs while the app is foregrounded, so the half-second granularity is battery-trivial.
+    /// Sleeps `seconds` in one `Task.sleep` (audit 2026-11-25 B12: the old half-second slices woke
+    /// the main actor about 120 times a minute). `stopChangeWatcher` cancels the task along with
+    /// the epoch bump, and a cancelled sleep returns at once, so a stop still ends the wait
+    /// promptly; the caller re-checks the epoch after it.
     private func sleepInterruptibly(seconds: TimeInterval, epoch: Int) async {
-        let deadline = Date().addingTimeInterval(seconds)
-        while !Task.isCancelled, changeWatcherEpoch == epoch {
-            let remaining = deadline.timeIntervalSinceNow
-            guard remaining > 0 else { return }
-            try? await Task.sleep(nanoseconds: UInt64(min(0.5, remaining) * 1_000_000_000))
-        }
+        guard !Task.isCancelled, changeWatcherEpoch == epoch, seconds > 0 else { return }
+        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
     }
 
     /// One poll: fetch the ETag, and merge the file if it changed. Skips silently (leaving the
@@ -749,9 +752,14 @@ final class NextcloudService: ObservableObject {
     /// The backup file's current ETag via a Depth-0 PROPFIND requesting only `getetag`.
     /// nil = no backup file yet (404); throws on any other failure.
     private func fetchBackupETag() async throws -> String? {
+        try await fetchETag(ofFile: "\(backupFolderPath)/\(Self.backupFileName)")
+    }
+
+    /// A file's current ETag (path under the user's files), the same way. nil = no such file.
+    private func fetchETag(ofFile path: String) async throws -> String? {
         guard let account, let server = account.serverURL else { throw NextcloudError.badCredentials }
         var url = server
-        for part in "remote.php/dav/files/\(account.username)/\(backupFolderPath)/\(Self.backupFileName)".split(separator: "/") {
+        for part in "remote.php/dav/files/\(account.username)/\(path)".split(separator: "/") {
             url.appendPathComponent(String(part))
         }
         var request = URLRequest(url: url)
@@ -881,6 +889,7 @@ final class NextcloudService: ObservableObject {
             AppLog.log("%@", "[Nextcloud] Linked existing backup folder: \(found)")
             setBackupFolder(found)
         }
+        await migrateLegacyFolderIfNeeded(force: true)
 
         // Automatic Sync starts OFF for a fresh connection (an earlier explicit choice for this
         // wallet carries over instead). `noteContactActivity` below is gated on it, so nothing
@@ -959,7 +968,11 @@ final class NextcloudService: ObservableObject {
                 return path.isEmpty ? nil : path
             }
             for entry in entries where entry.isDirectory {
-                if entry.name.caseInsensitiveCompare(Self.backupFolderName) == .orderedSame, namedCandidate == nil {
+                // A folder merely NAMED for the app counts only at the files root and with the exact
+                // name (audit 2026-11-25 C7): a "k" three levels down is someone's own folder, not
+                // ours. Anywhere else only a folder holding the backup file (above) is the answer.
+                if namedCandidate == nil, path.isEmpty,
+                   [Self.backupFolderName, Self.legacyBackupFolderName].contains(entry.name) {
                     namedCandidate = entry.path
                 }
                 // Depth cap: a backup folder buried deeper than this is not something the app
@@ -976,7 +989,7 @@ final class NextcloudService: ObservableObject {
     private static let folderDiscoveryMaxFolders = 40
     private static let folderDiscoveryMaxDepth = 3
 
-    /// Persists the backup destination folder (nil/"" = the default "KaChat" folder).
+    /// Persists the backup destination folder (nil/"" = the default "K" folder).
     func setBackupFolder(_ path: String?) {
         guard var updated = account else { return }
         let clean = path?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -991,7 +1004,7 @@ final class NextcloudService: ObservableObject {
         try? KeychainService.shared.saveNextcloudCredentials(encoded, walletAddress: walletAddress)
     }
 
-    /// The folder backups actually go to — the user's chosen folder, or "KaChat" by default.
+    /// The folder backups actually go to — the user's chosen folder, or "K" by default.
     var backupFolderPath: String {
         account?.backupFolder ?? Self.backupFolderName
     }
@@ -1068,8 +1081,243 @@ final class NextcloudService: ObservableObject {
 
     // MARK: - Contacts backup (WebDAV PUT/GET of one encrypted file)
 
-    static let backupFolderName = "KaChat"
+    /// "K" since 2026-11-25 (owner); accounts that have the old "KaChat" folder get it moved
+    /// (`migrateLegacyFolderIfNeeded`).
+    static let backupFolderName = "K"
+    static let legacyBackupFolderName = "KaChat"
     static let backupFileName = "kachat-contacts.json"
+
+    /// Accounts (wallet + server + user) whose old folder was already looked at this session.
+    private var legacyFolderChecked: Set<String> = []
+    /// The migration running for each account (same key), so concurrent callers (launch, a backup,
+    /// the watcher, a media send) await the one in flight instead of each issuing a MOVE
+    /// (audit 2026-11-25 C7).
+    private var legacyFolderMigrations: [String: Task<Void, Never>] = [:]
+    /// When each account's folders were last found settled ([wallet suffix|server|user: seconds
+    /// since 1970]), so the root PROPFIND isn't every session forever.
+    private nonisolated static let legacyFolderCheckedAtKey = "kachat_nextcloud_k_folder_checked_v1"
+    /// A settled account is looked at again after a week: a phone still on an older build makes
+    /// "KaChat" again and writes its contacts there, and those get merged in.
+    private nonisolated static let legacyFolderRecheckInterval: TimeInterval = 7 * 24 * 3600
+    /// When a MOVE that failed with only "KaChat" there may be tried again ([account key: seconds
+    /// since 1970]). Without it every backup, info read and upload retried it (audit 2026-11-25 M3).
+    private nonisolated static let legacyFolderRetryAtKey = "kachat_nextcloud_k_folder_retry_v1"
+    private nonisolated static let legacyFolderRetryInterval: TimeInterval = 24 * 3600
+    /// The ETag of the old folder's contacts file last merged ([account key: ETag]), so the
+    /// weekly recheck doesn't download and merge the same file again.
+    private nonisolated static let legacyFolderMergedETagKey = "kachat_nextcloud_k_folder_merged_etag_v1"
+
+    /// Moves the old "KaChat" folder to "K" the first time this account touches Nextcloud since the
+    /// rename (owner, 2026-11-25), one WebDAV MOVE, so the contacts backup, exports and media all
+    /// come along (public share links follow the file, not the path). Only for the default
+    /// folder (or one the search linked at the root "KaChat"): a folder the user picked stays.
+    /// When "K" already exists the old folder stays put: a contacts backup "K" lacks is moved in,
+    /// and one both hold is read and merged into the contacts, which the next sync writes to "K".
+    /// Failures leave everything as it was; the next call tries again, except a MOVE refused with
+    /// only "KaChat" there, which keeps using "KaChat" and is tried again after a day.
+    ///
+    /// One run per account at a time, registered before its first await; every later caller
+    /// awaits that run. Once settled it's remembered on the phone and looked at again weekly
+    /// (`force`, from connect, looks now).
+    func migrateLegacyFolderIfNeeded(force: Bool = false) async {
+        guard let account, let server = account.serverURL, let wallet = currentWalletAddress else { return }
+        let accountKey = "\(KeychainService.walletHashSuffix(wallet))|\(server.absoluteString)|\(account.username)"
+        if let running = legacyFolderMigrations[accountKey] {
+            await running.value
+            return
+        }
+        if !force {
+            guard !legacyFolderChecked.contains(accountKey) else { return }
+            if let at = Self.legacyFolderCheckDates()[accountKey],
+               Date().timeIntervalSince1970 - at < Self.legacyFolderRecheckInterval {
+                legacyFolderChecked.insert(accountKey)
+                return
+            }
+            // a MOVE that failed lately: "KaChat" is in use meanwhile, tried again after a day
+            if let retryAt = Self.legacyFolderAccountDictionary(Self.legacyFolderRetryAtKey)[accountKey] as? Double,
+               Date().timeIntervalSince1970 < retryAt {
+                return
+            }
+        }
+        let task = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.runLegacyFolderMigration(wallet: wallet, account: account, server: server, accountKey: accountKey)
+        }
+        legacyFolderMigrations[accountKey] = task
+        await task.value
+        legacyFolderMigrations[accountKey] = nil
+    }
+
+    private static func legacyFolderCheckDates() -> [String: Double] {
+        UserDefaults.standard.dictionary(forKey: legacyFolderCheckedAtKey) as? [String: Double] ?? [:]
+    }
+
+    private static func legacyFolderAccountDictionary(_ key: String) -> [String: Any] {
+        UserDefaults.standard.dictionary(forKey: key) ?? [:]
+    }
+
+    /// Sets (or with nil removes) one account's entry in one of the folder-move dictionaries;
+    /// an emptied dictionary is removed whole.
+    private static func setLegacyFolderValue(_ value: Any?, for accountKey: String, in key: String) {
+        var dictionary = legacyFolderAccountDictionary(key)
+        dictionary[accountKey] = value
+        if dictionary.isEmpty {
+            UserDefaults.standard.removeObject(forKey: key)
+        } else {
+            UserDefaults.standard.set(dictionary, forKey: key)
+        }
+    }
+
+    /// Settled for this account: not looked at again this session, nor for a week.
+    private func markLegacyFolderSettled(_ accountKey: String) {
+        legacyFolderChecked.insert(accountKey)
+        var dates = Self.legacyFolderCheckDates()
+        dates[accountKey] = Date().timeIntervalSince1970
+        UserDefaults.standard.set(dates, forKey: Self.legacyFolderCheckedAtKey)
+        Self.setLegacyFolderValue(nil, for: accountKey, in: Self.legacyFolderRetryAtKey)
+    }
+
+    /// The folder-move records of every account of this wallet (its keys start with the wallet's
+    /// hash suffix), for an account removed from the phone (audit 2026-11-25 M9).
+    private static func removeLegacyFolderState(walletSuffix: String) {
+        for key in [legacyFolderCheckedAtKey, legacyFolderRetryAtKey, legacyFolderMergedETagKey] {
+            for accountKey in legacyFolderAccountDictionary(key).keys where accountKey.hasPrefix("\(walletSuffix)|") {
+                setLegacyFolderValue(nil, for: accountKey, in: key)
+            }
+        }
+    }
+
+    /// The migration itself. `listFolder` and `setBackupFolder` act on the CURRENT account, so the
+    /// account is re-checked after every await: a wallet switch mid-move drops the rest (the new
+    /// account runs its own).
+    private func runLegacyFolderMigration(wallet: String, account: NextcloudAccount, server: URL, accountKey: String) async {
+        func stillCurrent() -> Bool {
+            currentWalletAddress == wallet && self.account?.serverURL == server
+                && self.account?.username == account.username
+        }
+        func rootFolders() async -> (legacy: Bool, new: Bool)? {
+            guard let root = try? await listFolder(""), stillCurrent() else { return nil }
+            // exact case: "k" or "kachat" at the root is someone's own folder
+            return (root.contains { $0.isDirectory && $0.name == Self.legacyBackupFolderName },
+                    root.contains { $0.isDirectory && $0.name == Self.backupFolderName })
+        }
+        let legacy = Self.legacyBackupFolderName
+        let chosen = account.backupFolder
+        guard chosen == nil || chosen == legacy || chosen == Self.backupFolderName else {
+            markLegacyFolderSettled(accountKey)
+            return
+        }
+        guard var root = await rootFolders() else { return }
+        guard root.legacy else {
+            if chosen != nil { setBackupFolder(nil) }
+            markLegacyFolderSettled(accountKey)
+            return
+        }
+        if !root.new {
+            if await move(legacy, to: Self.backupFolderName, account: account, server: server) {
+                guard stillCurrent() else { return }
+                AppLog.log("[Nextcloud] Moved the KaChat folder to K")
+                if chosen != nil { setBackupFolder(nil) }
+                markLegacyFolderSettled(accountKey)
+                return
+            }
+            // A failed MOVE may still mean the folder moved (another device, or an answer lost on
+            // the way back): look again before deciding which folder to use.
+            guard let again = await rootFolders() else { return }
+            root = again
+            if !root.legacy {
+                if root.new {
+                    if chosen != nil { setBackupFolder(nil) }
+                    markLegacyFolderSettled(accountKey)
+                }
+                return
+            }
+            if !root.new {
+                // really still only "KaChat": keep using it, and try again in a day
+                if chosen == nil { setBackupFolder(legacy) }
+                Self.setLegacyFolderValue(Date().timeIntervalSince1970 + Self.legacyFolderRetryInterval,
+                                          for: accountKey, in: Self.legacyFolderRetryAtKey)
+                return
+            }
+            // both there now: fall through to the merge
+        }
+        if chosen != nil { setBackupFolder(nil) }
+        // Both there: bring the contacts backup over if "K" has none, else merge the old one in.
+        guard let newListing = try? await listFolder(Self.backupFolderName), stillCurrent(),
+              let oldListing = try? await listFolder(legacy), stillCurrent() else { return }
+        let newHasBackup = newListing.contains { !$0.isDirectory && $0.name == Self.backupFileName }
+        let oldHasBackup = oldListing.contains { !$0.isDirectory && $0.name == Self.backupFileName }
+        guard oldHasBackup else {
+            markLegacyFolderSettled(accountKey)
+            return
+        }
+        let oldPath = "\(legacy)/\(Self.backupFileName)"
+        if !newHasBackup {
+            if await move(oldPath, to: "\(Self.backupFolderName)/\(Self.backupFileName)", account: account, server: server) {
+                guard stillCurrent() else { return }
+                markLegacyFolderSettled(accountKey)
+                return
+            }
+            guard stillCurrent(),
+                  let listing = try? await listFolder(Self.backupFolderName), stillCurrent(),
+                  listing.contains(where: { !$0.isDirectory && $0.name == Self.backupFileName }) else { return }
+            // "K" has one after all: merge the old one in below
+        }
+        // The same old file as last time is merged already: no download (audit 2026-11-25 M3).
+        // A file whose ETag can't be read is merged anyway; merging again changes nothing.
+        let oldETag = (try? await fetchETag(ofFile: oldPath)) ?? nil
+        guard stillCurrent() else { return }
+        if let oldETag,
+           (Self.legacyFolderAccountDictionary(Self.legacyFolderMergedETagKey)[accountKey] as? String) == oldETag {
+            markLegacyFolderSettled(accountKey)
+            return
+        }
+        if await mergeLegacyContactsFile(oldPath, wallet: wallet, stillCurrent: stillCurrent) {
+            if let oldETag { Self.setLegacyFolderValue(oldETag, for: accountKey, in: Self.legacyFolderMergedETagKey) }
+            markLegacyFolderSettled(accountKey)
+        }
+    }
+
+    /// Reads the old folder's contacts file and merges it into this account's contacts by the
+    /// usual rules (NEXTCLOUD_SYNC.md: newest edit or deletion wins per address; the same
+    /// `mergeBackup` the change watcher uses). What it adds reaches "K" on the next sync. The old
+    /// file stays (a phone on an older build may still be writing it; merging again changes
+    /// nothing). True once it's been dealt with, including a file that isn't this account's.
+    private func mergeLegacyContactsFile(_ path: String, wallet: String, stillCurrent: () -> Bool) async -> Bool {
+        // no key yet (wallet still loading): not settled, try again later
+        guard let key = backupEncryptionKey() else { return false }
+        guard let raw = try? await downloadFile(path), stillCurrent() else { return false }
+        let book = AddressBookManager.shared
+        do {
+            guard BackupEnvelope.parse(raw) != nil else { throw NextcloudError.malformedResponse }
+            let plaintext = try await BackupEnvelope.decryptIfEnvelopedDetached(raw, key: key, walletAddress: wallet)
+            guard stillCurrent(), book.holdsWallet(wallet) else { return false }
+            let result = try book.mergeBackup(plaintext)
+            AppLog.log("%@", "[Nextcloud] Merged the KaChat folder's contacts into K")
+            if result.changedHere { noteContactActivity() }
+            return true
+        } catch {
+            AppLog.log("%@", "[Nextcloud] Skipped the KaChat folder's contacts file: \(error.localizedDescription)")
+            return true
+        }
+    }
+
+    /// WebDAV MOVE of `from` to `to` (paths under the user's files), never overwriting.
+    private func move(_ from: String, to: String, account: NextcloudAccount, server: URL) async -> Bool {
+        func url(_ path: String) -> URL {
+            var url = server.appendingPathComponent("remote.php/dav/files/\(account.username)")
+            for part in path.split(separator: "/") { url.appendPathComponent(String(part)) }
+            return url
+        }
+        var request = URLRequest(url: url(from))
+        request.httpMethod = "MOVE"
+        request.setValue(url(to).absoluteString, forHTTPHeaderField: "Destination")
+        request.setValue("F", forHTTPHeaderField: "Overwrite")
+        applyAuth(&request, account: account)
+        guard let (_, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200..<300).contains(http.statusCode)
+    }
 
     /// Backups run one at a time on this device. The manual button and the automatic sync
     /// both come here, and two uploads of the same file at once had Nextcloud answering the
@@ -1096,6 +1344,7 @@ final class NextcloudService: ObservableObject {
     /// replaced in place, since Nextcloud's version history keeps the old content. The active wallet
     /// is re-checked around every await so a mid-flight account switch aborts.
     private func performBackup() async throws {
+        await migrateLegacyFolderIfNeeded()
         let walletAtStart = currentWalletAddress
         // Encryption key up front: writers ALWAYS encrypt (see BackupEnvelope), so if the
         // identity key is unavailable the backup is skipped rather than uploaded readable.
@@ -1138,7 +1387,7 @@ final class NextcloudService: ObservableObject {
         // Verify (NEXTCLOUD_SYNC.md §4.6): a relay that cuts a large PUT can leave a short file,
         // which the next sync would read as damaged. Say so plainly instead of looping.
         // Only our own write counts: another device may have replaced the file in between.
-        if let storedSize = await fetchBackupInfo()?.size, storedSize != Int64(body.count) {
+        if let storedSize = await backupInfo()?.size, storedSize != Int64(body.count) {
             let currentETag = (try? await fetchBackupETag()) ?? nil
             if newETag == nil || currentETag == newETag {
                 throw NextcloudError.uploadCutOff(sent: body.count, stored: storedSize)
@@ -1223,6 +1472,13 @@ final class NextcloudService: ObservableObject {
     /// The backup file's server-side metadata (nil = no backup yet). A missing folder lists
     /// as a 404, which also just means "no backup yet".
     func fetchBackupInfo() async -> NextcloudFile? {
+        await migrateLegacyFolderIfNeeded()
+        return await backupInfo()
+    }
+
+    /// `fetchBackupInfo` without the folder check, for `performBackup`, which made it already
+    /// (audit 2026-11-25 M3: a backup used to run the migration twice).
+    private func backupInfo() async -> NextcloudFile? {
         guard let listing = try? await listFolder(backupFolderPath) else { return nil }
         return listing.first { $0.name == Self.backupFileName && !$0.isDirectory }
     }
@@ -1263,14 +1519,15 @@ final class NextcloudService: ObservableObject {
 
     /// Fixed upload destination for chat media — intentionally independent of the user-chosen
     /// backup folder so media never lands inside a folder the user picked for backups.
-    nonisolated static let mediaFolderPath = "KaChat/Media"
+    nonisolated static let mediaFolderPath = "K/Media"
 
-    /// Uploads one media file to `KaChat/Media/` and returns a public `/s/TOKEN` share link for
+    /// Uploads one media file to `K/Media/` and returns a public `/s/TOKEN` share link for
     /// it — the exact URL form the recipient's link-preview feature renders as a media bubble.
     /// The folder chain is created level by level (MKCOL is not recursive; 405 means "already
     /// exists", same convention as `uploadBackup`). An 8-char random prefix on the stored name
     /// keeps same-second filenames (photo_20260811-101502.jpg twice) from overwriting each other.
     func uploadMediaAndShare(data: Data, filename: String, contentType: String) async throws -> URL {
+        await migrateLegacyFolderIfNeeded()
         guard let account, let server = account.serverURL else { throw NextcloudError.badCredentials }
 
         var folderURL = server.appendingPathComponent("remote.php/dav/files/\(account.username)")
@@ -1311,6 +1568,7 @@ final class NextcloudService: ObservableObject {
     /// `keepSpaces` keeps a name like "KaChat Address Book" readable in
     /// Nextcloud instead of turning its spaces into underscores.
     func uploadToKaChatFolder(data: Data, filename: String, contentType: String, keepSpaces: Bool = false) async throws -> String {
+        await migrateLegacyFolderIfNeeded()
         guard let account, let server = account.serverURL else { throw NextcloudError.badCredentials }
         let folder = backupFolderPath
         var folderURL = server.appendingPathComponent("remote.php/dav/files/\(account.username)")

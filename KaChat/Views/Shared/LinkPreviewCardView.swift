@@ -41,6 +41,9 @@ struct LinkPreviewCardView: View {
     /// the card is the same tile a hidden photo gets.
     var photosBlocked: Bool = false
     var blockedSenderName: String = ""
+    /// KaPost: the card fills the post's column, as on X, instead of a chat bubble's 260 pt
+    /// (owner, 2026-11-25: the card sat short of the edge on an opened post).
+    var fillsWidth: Bool = false
 
     @State private var preview: LinkPreviewData?
     @State private var hasFinishedLoading: Bool
@@ -52,7 +55,8 @@ struct LinkPreviewCardView: View {
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var settingsViewModel: SettingsViewModel
 
-    init(url: URL, txId: String, fallbackText: String? = nil, onSelect: (() -> Void)? = nil, onDoubleTap: (() -> Void)? = nil, isOutgoing: Bool = false, autoFetch: Bool = true, photosBlocked: Bool = false, blockedSenderName: String = "") {
+    init(url: URL, txId: String, fallbackText: String? = nil, onSelect: (() -> Void)? = nil, onDoubleTap: (() -> Void)? = nil, isOutgoing: Bool = false, autoFetch: Bool = true, photosBlocked: Bool = false, blockedSenderName: String = "", fillsWidth: Bool = false) {
+        self.fillsWidth = fillsWidth
         self.url = url
         self.txId = txId
         self.fallbackText = fallbackText
@@ -189,7 +193,7 @@ struct LinkPreviewCardView: View {
                 .onDoubleTapIfSet(onDoubleTap)
                 .onTapGesture { handleTap(data) }
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .frame(maxWidth: 260)
+                .frame(maxWidth: fillsWidth ? .infinity : 260, alignment: .leading)
                 .messageActions(title: "Link", preview: url.absoluteString) { menuActions() }
         }
     }
@@ -311,9 +315,16 @@ struct LinkPreviewCardView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if let imageURLString = data.imageURLString, let imageURL = URL(string: imageURLString) {
                     ZStack {
-                        LinkPreviewImage(imageURL: imageURL, referer: url)
-                            .frame(height: 140)
+                        // The picture takes the card's width, never its own: a wide image's
+                        // natural size pushed the whole post past the screen's edge once the
+                        // card could grow (`fillsWidth`).
+                        Color.clear
                             .frame(maxWidth: .infinity)
+                            .frame(height: fillsWidth ? 190 : 140)
+                            .overlay {
+                                LinkPreviewImage(imageURL: imageURL, referer: url)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
                             .clipped()
 
                         if isVideoLink || data.nextcloudMedia == .video {
@@ -398,7 +409,7 @@ struct LinkPreviewCardView: View {
             }
         }
         .padding(12)
-        .frame(maxWidth: 260, alignment: .leading)
+        .frame(maxWidth: fillsWidth ? .infinity : 260, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.regularMaterial)
@@ -533,7 +544,7 @@ private struct NextcloudMediaViewerView: View {
     @State private var image: UIImage?
     @State private var pdfData: Data?
     @State private var loadFailed = false
-    @State private var player: AVPlayer?
+    @StateObject private var playback = NextcloudMediaPlayback()
     @State private var isZoomed = false
 
     /// Original-quality photos are the point of this viewer — far above the card cap.
@@ -546,13 +557,10 @@ private struct NextcloudMediaViewerView: View {
                 case .video, .audio:
                     // VideoPlayer handles audio-only streams too (transport controls over a
                     // black stage) — one player path for both.
-                    VideoPlayer(player: player)
+                    VideoPlayer(player: playback.player)
                         .ignoresSafeArea(edges: .bottom)
-                        .onAppear {
-                            if player == nil { player = AVPlayer(url: target.downloadURL) }
-                            player?.play()
-                        }
-                        .onDisappear { player?.pause() }
+                        .onAppear { playback.play(target.downloadURL) }
+                        .onDisappear { playback.stop() }
                 case .pdf:
                     if let pdfData {
                         PDFKitView(data: pdfData)
@@ -635,6 +643,73 @@ private struct NextcloudMediaViewerView: View {
                 }
             }
         }
+    }
+}
+
+/// The Nextcloud viewer's player, playing through `VoicePlaybackCoordinator` like the voice notes
+/// (audit 2026-11-25 M1). Without it the video played with no category of its own: silent with
+/// the ring switch on, over a voice note, and the session never given back, so music another app
+/// was playing didn't resume. The player's own controls can play and pause it too, so the session
+/// follows `timeControlStatus` rather than only this viewer's appear and disappear. Main thread
+/// only, as the coordinator.
+private final class NextcloudMediaPlayback: NSObject, ObservableObject, @unchecked Sendable {
+    @Published private(set) var player: AVPlayer?
+    /// True while the coordinator counts this viewer as the one playing.
+    private var ownsSession = false
+    private var statusObservation: NSKeyValueObservation?
+
+    deinit {
+        statusObservation?.invalidate()
+        player?.pause()
+        if ownsSession { VoicePlaybackCoordinator.shared.didStop(self) }
+    }
+
+    /// The viewer appeared: take the session (stopping any voice note), then play.
+    func play(_ url: URL) {
+        if player == nil {
+            let player = AVPlayer(url: url)
+            // KVO can report on another thread; the coordinator is main-thread only.
+            statusObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
+                DispatchQueue.main.async { [weak self] in self?.statusChanged() }
+            }
+            self.player = player
+        }
+        guard claimSession() else { return }
+        player?.play()
+    }
+
+    /// The viewer closed: stop, and give the session back so other audio resumes.
+    func stop() {
+        player?.pause()
+        releaseSession()
+    }
+
+    /// Played or paused from the player's own controls, finished (it pauses at the end) or
+    /// paused by a call: take or give back the session to match.
+    private func statusChanged() {
+        guard let player else { return }
+        if player.timeControlStatus == .paused {
+            releaseSession()
+        } else if !ownsSession, !claimSession() {
+            // A recording holds the session: nothing plays over it.
+            player.pause()
+        }
+    }
+
+    private func claimSession() -> Bool {
+        let started = VoicePlaybackCoordinator.shared.willStart(self, stop: { [weak self] in
+            // Another note started: the coordinator already moved on, so no didStop here.
+            self?.ownsSession = false
+            self?.player?.pause()
+        })
+        ownsSession = started
+        return started
+    }
+
+    private func releaseSession() {
+        guard ownsSession else { return }
+        ownsSession = false
+        VoicePlaybackCoordinator.shared.didStop(self)
     }
 }
 

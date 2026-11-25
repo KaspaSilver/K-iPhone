@@ -564,7 +564,7 @@
 /* Address Book import / export */
 "Import File" = "导入文件";
 "Export File" = "导出到文件";
-"Save it to the KaChat folder in your Nextcloud, to import on any device." = "保存到 Nextcloud 的 KaChat 文件夹，可在任何设备上导入。";
+"Save it to the K folder in your Nextcloud, to import on any device." = "保存到 Nextcloud 的 K 文件夹，可在任何设备上导入。";
 "Connect Nextcloud in Settings > Storage to also save it there and import it on another device." = "在 设置 > 存储 中连接 Nextcloud，即可同时保存到那里并在其他设备上导入。";
 "Couldn't read that file." = "无法读取该文件。";
 "Nothing to export yet. Add a contact first." = "还没有可导出的内容。请先添加一个联系人。";
@@ -1670,7 +1670,7 @@
 "Send Offer" = "发送出价";
 "Offers open when .kachat names launch." = ".kachat 名称上线后即可出价。";
 "Pick a CSV file from your Nextcloud." = "从你的 Nextcloud 选择一个 CSV 文件。";
-"Save the CSV to the KaChat folder in your Nextcloud." = "将 CSV 保存到你 Nextcloud 中的 KaChat 文件夹。";
+"Save the CSV to the K folder in your Nextcloud." = "将 CSV 保存到你 Nextcloud 中的 K 文件夹。";
 "Names this address claims or buys show here once .kachat names launch." = ".kachat 名称上线后，此地址领取或购买的名称会显示在这里。";
 "Move to Portfolio" = "移至投资组合";
 "Create another portfolio first, then you can move transactions into it." = "请先创建另一个投资组合，然后就可以把交易移过去。";
@@ -3299,3 +3299,82 @@
 "Degraded" = "性能下降";
 "Disconnected" = "已断开";
 "Checking…" = "正在检查…";
+"gRPC nodes can't be reached right now, so K is using a public node over wss." = "当前无法连接 gRPC 节点，因此 K 正在通过 wss 使用公共节点。";
+"Search public chats" = "搜索公共聊天";
+"No Public Chats" = "没有公共聊天";
+"Tap + to join or create a public room." = "轻点 + 加入或创建一个公共聊天室。";
+"Switches between your chats and public chats" = "在你的聊天和公共聊天之间切换";
+"More Rooms" = "更多聊天室";
+"Rooms added on the indexer K reads public chats from." = "在 K 读取公共聊天的索引器上添加的聊天室。";
+
+/* Kaspa Hub card links (2026-11-25) */
+"Link copied" = "链接已复制";
+"A link that opens this card in K." = "在 K 中打开此卡片的链接。";
+"Open" = "打开";
+"Opens this card." = "打开此卡片。";
+"Kaspa Hub: %@" = "Kaspa Hub：%@";
+"Tap to open it in K." = "轻点以在 K 中打开。";
+"Opens it in K." = "在 K 中打开。";
+"Your saved Kaspa addresses." = "你保存的 Kaspa 地址。";
+"Track your coins and their value." = "追踪你的币及其价值。";
+"Watch and sign for your cold wallets." = "查看冷钱包并为其签名。";
+"Claim, buy and sell .kachat usernames." = "领取、购买和出售 .kachat 用户名。";
+"Posts and replies on Kaspa." = "Kaspa 上的帖子和回复。";
+"Chess, Snake and 2048, scores on chain." = "国际象棋、贪吃蛇和 2048，分数上链。";
+"Websites built on Kaspa." = "基于 Kaspa 的网站。";
+"Blocks, transactions and addresses, live." = "区块、交易和地址，实时更新。";
+
+/* Cold Storage quantum addresses (2026-11-25) */
+"That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "这不是抗量子地址。请扫描 KasSigner 显示的 KCC-3 地址。";
+"That address is already in this account." = "该地址已在此账户中。";
+"Quantum-resistant address added." = "已添加抗量子地址。";
+"Add Quantum-Resistant Address" = "添加抗量子地址";
+"Scan a KCC-3 address from KasSigner's address screen." = "从 KasSigner 的地址界面扫描一个 KCC-3 地址。";
+"Stop Watching" = "停止监视";
+"Removes this quantum address from the account. Scan it again to add it back." = "从账户中移除这个量子地址。再次扫描即可重新添加。";
+"Quantum-Resistant Address" = "抗量子地址";
+"On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "在 KasSigner 上打开你要的 KCC-3 地址并扫描其二维码。在该地址花费之前，其密钥一直留在设备上。";
+"Address Number on KasSigner" = "KasSigner 上的地址编号";
+"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "KasSigner 为此地址显示的编号。有了它，设备签名时能立即找到密钥；没有它，设备会搜索密钥。";
+"Add Quantum Address" = "添加量子地址";
+"The address number must be a whole number." = "地址编号必须是整数。";
+"Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "需要 KasSigner v1.1 或更高版本，它可以签署抗量子（KCC-3）地址。";
+"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "找零会回到这个地址，而这次发送会把它的密钥公开到链上。从 KasSigner 再添加一个量子地址，可让找零保持抗量子。";
+"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "找零会转到此账户一个未使用的量子地址，因为这次发送会把这个地址的密钥公开到链上。";
+"kaspa:pq..." = "kaspa:pq...";
+"KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner 没有返回这个抗量子地址的密钥脚本，因此不会广播。请检查设备运行的是 KasSigner v1.1 或更高版本，并且持有这个地址。";
+"The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "签名后的交易添加了这次发送从未要求的契约条款，因此不会广播。";
+
+/* Cold Storage quantum addresses, part 2 (2026-11-25) */
+"Quantum Address" = "量子地址";
+"Quantum Change Address" = "量子找零地址";
+"Quantum Address #%lld" = "量子地址 #%lld";
+"Quantum Change Address #%lld" = "量子找零地址 #%lld";
+"That address is already in your Cold Storage account “%@”." = "该地址已在你的冷存储账户“%@”中。";
+"This send puts this address's key on chain, so its change can't come back here. Add an unused quantum-resistant address from KasSigner first (a change address, #0 to #4, is best), or send the whole balance." = "这次发送会把这个地址的密钥公开到链上，所以找零不能回到这里。请先从 KasSigner 添加一个未使用的抗量子地址（最好是找零地址 #0 到 #4），或发送全部余额。";
+"Compounding puts this address's key on chain, so its coins move to an unused quantum-resistant address of this account. Add one from KasSigner first (a change address, #0 to #4, is best)." = "合并会把这个地址的密钥公开到链上，所以它的币会转到此账户一个未使用的抗量子地址。请先从 KasSigner 添加一个（最好是找零地址 #0 到 #4）。";
+"Stop Watching This Address?" = "停止监视这个地址？";
+"Its %@ KAS stay on chain at this address, on your KasSigner; K only stops showing them. Scan the address again from KasSigner to watch it again." = "它的 %@ KAS 仍在链上的这个地址里，在你的 KasSigner 上；K 只是不再显示。从 KasSigner 再次扫描该地址即可重新监视。";
+"Edit Address Number" = "编辑地址编号";
+"The number and chain KasSigner shows for this address." = "KasSigner 为此地址显示的编号和链。";
+"Chain" = "链";
+"The number KasSigner shows for this address, and whether it is a receive or a change address. With it the unit finds the key at once when signing; without it the unit searches for it. KasSigner marks change sent to its change addresses #0 to #4 as change; any other address it shows as a payment." = "KasSigner 为此地址显示的编号，以及它是收款地址还是找零地址。有了它，设备签名时能立即找到密钥；没有它，设备会搜索密钥。KasSigner 把发往其找零地址 #0 到 #4 的找零标为找零；其他地址都显示为付款。";
+"That number is too large: KasSigner's address numbers are below 2147483648." = "这个编号太大：KasSigner 的地址编号小于 2147483648。";
+"Moves all of this address's coins into one, at an unused quantum-resistant address of this account: this transaction puts this address's key on chain." = "把这个地址的所有币合成一个，转到此账户一个未使用的抗量子地址：这笔交易会把这个地址的密钥公开到链上。";
+"This address holds more coins than one transaction can spend: %lld stay behind the key this send puts on chain. Send them on in another transaction right after." = "这个地址的币超过一笔交易能花费的数量：%lld 个会留在这次发送公开到链上的密钥后面。请紧接着用另一笔交易把它们转走。";
+"The coins move to your quantum address:" = "币会转到你的量子地址：";
+"The change goes to your quantum address:" = "找零会转到你的量子地址：";
+"KasSigner shows this output as change." = "KasSigner 将此输出显示为找零。";
+"KasSigner will show this output as an ordinary payment, not as change: check it is this address before you sign." = "KasSigner 会把此输出显示为普通付款，而不是找零：签名前请确认是这个地址。";
+"Sign Without the Address Number" = "不带地址编号签名";
+"If KasSigner refuses this request, the address number may be wrong. Without it, the unit looks for the address itself. Edit Address Number puts it right for next time." = "如果 KasSigner 拒绝此请求，地址编号可能有误。没有编号时，设备会自行查找地址。“编辑地址编号”可为下次改正。";
+"Combines all UTXOs at this address into one at an unused quantum-resistant address of this account, since this puts this address's key on chain." = "把此地址的所有 UTXO 合并为一个，放到此账户一个未使用的抗量子地址，因为这会把这个地址的密钥公开到链上。";
+"Quantum-Resistant Addresses" = "抗量子地址";
+"Addresses" = "地址";
+"Receive Address" = "收款地址";
+"Change Address" = "找零地址";
+
+/* Public Chats Select (2026-11-25) */
+"Delete 1 Public Chat?" = "删除 1 个公共聊天？";
+"Delete %lld Public Chats?" = "删除 %lld 个公共聊天？";
+"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "默认公共聊天会被关闭（可在“编辑默认公开聊天”中重新打开）。你添加的房间会连同其消息从此设备上删除。";

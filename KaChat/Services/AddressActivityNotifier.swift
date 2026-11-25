@@ -411,8 +411,18 @@ final class AddressActivityNotifier: ObservableObject {
         // the chatting address: only plain transfers newer than what was already looked at
         let floorKey = chattingCatchUpFloorKey(walletAddress)
         let floor = UInt64(max(0, UserDefaults.standard.double(forKey: floorKey)))
+        let nowMs = UInt64(Date().timeIntervalSince1970 * 1000)
         if isChatting {
-            let newest = recentTxs.compactMap(\.blockTime).max() ?? UInt64(Date().timeIntervalSince1970 * 1000)
+            // The floor never moves past a transaction this look skipped (audit 2026-11-25 C1):
+            // a block reward not accepted yet, from the last 10 minutes, may still be, so the
+            // next look sees it again. An empty answer (the read failed) moves it only on the
+            // first look.
+            let skippedTimes = recentTxs
+                .filter { !$0.belongsInHistory }
+                .compactMap(\.blockTime)
+                .filter { $0 > floor && nowMs - min(nowMs, $0) < 10 * 60 * 1000 }
+            var newest = recentTxs.compactMap(\.blockTime).max() ?? (floor == 0 ? nowMs : floor)
+            if let held = skippedTimes.min() { newest = min(newest, held - 1) }
             UserDefaults.standard.set(Double(max(newest, floor)), forKey: floorKey)
             // the first look only sets where it starts
             if floor == 0 { return }
@@ -432,8 +442,15 @@ final class AddressActivityNotifier: ObservableObject {
 
         var attributedAny = false
         for tx in recentTxs {
+            // No block reward the network didn't accept. A block a miner finds is merged by many
+            // later blocks, and each carries a coinbase paying them; only the chain block's is
+            // accepted, so announcing them all pinged once per merging block for one block found
+            // (owner, 2026-11-25). Any other transaction counts: a payment just sent is briefly
+            // unaccepted too, and skipping it lost it for good (audit 2026-11-25 C1).
+            guard tx.belongsInHistory else { continue }
             if isChatting {
-                guard Self.isPlainTransfer(tx), (tx.blockTime ?? 0) > floor else { continue }
+                // An unknown block time is now (it's that new).
+                guard Self.isPlainTransfer(tx), (tx.blockTime ?? nowMs) > floor else { continue }
             }
             let toAddress = tx.outputs
                 .filter { $0.scriptPublicKeyAddress == address }
@@ -450,8 +467,21 @@ final class AddressActivityNotifier: ObservableObject {
             let isSelfSend = !inputAddresses.isEmpty && inputAddresses.contains { ownAll.contains($0) }
             markHandled(txId: tx.transactionId, wallet: walletAddress)
             if !isSelfSend {
-                let pushWasTheNotice = pushWatched && (tx.blockTime ?? 0) > 0 && (tx.blockTime ?? 0) < awayBeforeMs
-                postReceiveNotification(hits: [(address, toAddress)], dedupeKey: tx.transactionId, banner: !pushWasTheNotice)
+                let blockTime = tx.blockTime ?? 0
+                let pushWasTheNotice = pushWatched && blockTime > 0 && blockTime < awayBeforeMs
+                // Only a receive from the last few minutes rings. The catch-up finds what came
+                // while K was closed or this account was signed out (switching accounts announced
+                // a week of receives as if they had just come): those go to the bell, quietly,
+                // dated when they happened (owner, 2026-11-25).
+                // An unknown block time counts as now, as `InAppBanner.isRecent` has it: it's
+                // that new (audit 2026-11-25 C10).
+                let isCurrent = InAppBanner.isRecent(blockTimeMs: Int64(blockTime))
+                postReceiveNotification(
+                    hits: [(address, toAddress)],
+                    dedupeKey: tx.transactionId,
+                    banner: isCurrent && !pushWasTheNotice,
+                    happenedAtMs: blockTime > 0 ? Int64(blockTime) : nil
+                )
             }
         }
 
@@ -464,8 +494,14 @@ final class AddressActivityNotifier: ObservableObject {
 
     // MARK: - Notification posting
 
-    /// `banner` false: the bell only (the push already told them, `activeSince`).
-    private func postReceiveNotification(hits: [(address: String, amount: UInt64)], dedupeKey: String, banner: Bool = true) {
+    /// `banner` false: the bell only (the push already told them, `activeSince`, or it isn't
+    /// from the last few minutes). `happenedAtMs` dates the bell's row (the block's time).
+    private func postReceiveNotification(
+        hits: [(address: String, amount: UInt64)],
+        dedupeKey: String,
+        banner: Bool = true,
+        happenedAtMs: Int64? = nil
+    ) {
         guard featureEnabled else { return }
         let total = hits.reduce(UInt64(0)) { $0 + $1.amount }
         guard total > 0 else { return }
@@ -502,7 +538,7 @@ final class AddressActivityNotifier: ObservableObject {
         // Also list it in the Profile notifications bell.
         Task { @MainActor in
             // the bell's entry opens the same address's history
-            GlobalNotificationCenter.shared.record(id: "wallet-\(dedupeKey)", source: .wallet, title: content.title, body: content.body, timestamp: Int64(Date().timeIntervalSince1970 * 1000), targetId: opensAddress ? opened : nil)
+            GlobalNotificationCenter.shared.record(id: "wallet-\(dedupeKey)", source: .wallet, title: content.title, body: content.body, timestamp: happenedAtMs ?? Int64(Date().timeIntervalSince1970 * 1000), targetId: opensAddress ? opened : nil)
         }
     }
 
@@ -518,10 +554,10 @@ final class AddressActivityNotifier: ObservableObject {
         content.userInfo = info
         applySoundPreference(to: content)
 
+        // Bell only: this is the catch-up's fallback when it can't find the transaction, so
+        // when the Kaspa came is unknown and it may be long ago (owner, 2026-11-25: no ping for
+        // the past).
         let balId = "addr-activity-bal-\(address.suffix(12))-\(UUID().uuidString)"
-        UNUserNotificationCenter.current().add(
-            UNNotificationRequest(identifier: balId, content: content, trigger: nil)
-        )
         Task { @MainActor in
             GlobalNotificationCenter.shared.record(id: "wallet-\(balId)", source: .wallet, title: content.title, body: content.body, timestamp: Int64(Date().timeIntervalSince1970 * 1000), targetId: opensAddress ? address : nil)
         }
@@ -641,7 +677,7 @@ final class AddressActivityNotifier: ObservableObject {
         let cold = ColdStorageManager.shared
         let accounts = cold.accounts
         let fingerprint = ([wallet, network.rawValue, String(cold.hiddenRevision)] + accounts.map {
-            "\($0.kpubString)|\($0.maxAddressIndex)|\($0.notifyOnReceive)|\($0.label)"
+            "\($0.kpubString)|\($0.maxAddressIndex)|\($0.notifyOnReceive)|\($0.label)|\($0.quantumAddresses.map(\.address).joined(separator: "+"))"
         }).joined(separator: ",")
         guard fingerprint != coldFingerprint else { return }
         coldFingerprint = fingerprint
@@ -683,7 +719,11 @@ final class AddressActivityNotifier: ObservableObject {
                 )
                 guard !Task.isCancelled else { return }
                 let hidden = hiddenByAccount[account.id] ?? []
-                for (index, address) in derived {
+                // the KasSigner quantum addresses added by scan, after the derived ones
+                let quantum = account.quantumAddresses.enumerated().map {
+                    (UInt32(ColdStorageManager.quantumIndexBase + $0.offset), $0.element.address)
+                }
+                for (index, address) in derived + quantum {
                     own.insert(address)
                     labels[address] = account.label
                     if account.notifyOnReceive, !hidden.contains(Int(index)) {

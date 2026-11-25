@@ -1068,6 +1068,24 @@ struct KachatLiveExpiredPage: View {
     }
 }
 
+/// A countdown's once-a-second timeline, which stops while its .kachat section is kept hidden in
+/// Kaspa Hub: there it draws once, as of now, and starts ticking again when the section shows.
+/// Every tile and the name page ticked 1 Hz behind other sections (audit 2026-11-25 B20).
+struct KachatCountdownTimeline<Content: View>: View {
+    @Environment(\.hubSectionHidden) private var hubHidden
+    @ViewBuilder let content: (Date) -> Content
+
+    var body: some View {
+        if hubHidden {
+            content(Date())
+        } else {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                content(context.date)
+            }
+        }
+    }
+}
+
 /// A name in its grace period, counting down to its release (then the hub reloads, and it
 /// moves to Available). Opens the name.
 struct KachatGraceTile: View {
@@ -1078,9 +1096,9 @@ struct KachatGraceTile: View {
     var body: some View {
         NavigationLink { KachatListingDetailView(info: info) } label: {
             KachatNameTile(name: info.name) {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
+                KachatCountdownTimeline { now in
                     let releaseAt = KachatNames.clampedSum(info.expiresAt, KachatLive.params?.graceMs ?? 0)
-                    let left = releaseAt - Int64(context.date.timeIntervalSince1970 * 1000)
+                    let left = releaseAt - Int64(now.timeIntervalSince1970 * 1000)
                     VStack(spacing: 2) {
                         Text("Released in")
                             .font(.caption2)
@@ -2682,8 +2700,8 @@ struct KachatLiveNameDetail: View {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Grace period ends \(KachatLive.day(ends))")
-                        TimelineView(.periodic(from: .now, by: 1)) { context in
-                            Text("Released in") + Text(verbatim: " " + KachatLive.countdown(ends - Int64(context.date.timeIntervalSince1970 * 1000)))
+                        KachatCountdownTimeline { now in
+                            Text("Released in") + Text(verbatim: " " + KachatLive.countdown(ends - Int64(now.timeIntervalSince1970 * 1000)))
                                 .monospacedDigit()
                                 .fontWeight(.semibold)
                         }

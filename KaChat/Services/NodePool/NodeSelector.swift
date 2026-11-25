@@ -144,6 +144,17 @@ actor NodeSelector {
             score += 1.0
         }
 
+        // 8. A public wss node stands in while no gRPC node answers: any gRPC node that can
+        // serve is preferred over it.
+        if record.origin == .publicFallback {
+            score -= 4.0
+        } else if record.endpoint.isWebSocket {
+            // 9. Any other WebSocket node (Automatic Scan's wss seeds) ranks below gRPC too, by
+            // less: blocks come as JSON (more CPU and bytes) and public nodes learn your
+            // addresses, so wss serves only when the gRPC nodes fail or are far slower.
+            score -= 1.5
+        }
+
         return score
     }
 
