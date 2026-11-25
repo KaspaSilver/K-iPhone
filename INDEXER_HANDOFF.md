@@ -13,6 +13,12 @@ serve or check something new, or to change how it does. Say what the app sends a
 (endpoint, request, response, rules) and which KaChat commit and spec file it comes from, so the
 item stands on its own.
 
+**And push it to the indexer repo** (owner, 2026-11-24): the indexer session reads its own repo,
+`KaspaSilver/K-Digital-Freedom-Indexer` (the K folder's `K-Digital-Freedom-Indexer`). Each item
+also goes there as its own `docs/<TOPIC>.md` ("For / From / Status", what to build), listed in
+`docs/HANDOFF.md`'s top note; commit and push docs only, never code. The three below are there
+(6ac6f08): `KPLAY_ARCADE_LEADERBOARD.md`, `ROOM_MENTION_PUSHES.md`, `K_NOTIFICATION_SWITCHES.md`.
+
 ## Open
 
 - **2026-11-23 - KaPlay arcade boards (Snake, 2048).** Committed (518fdc8c);
