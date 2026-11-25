@@ -112,8 +112,9 @@ Honor removal counter-actions: an `unvote`/`unquote` should not generate a push.
 - **NEEDED, and better still: per-kind registration.** Alongside `kaposts_pubkey`, accept
   `kaposts_notify_likes` / `_dislikes` / `_comments` / `_reposts` / `_follows` (booleans,
   default true) and skip the push server-side. Filtering on the device still wakes the phone
-  and burns the push; skipping at the source is the real fix. Mentions are deliberately not
-  switchable.
+  and burns the push; skipping at the source is the real fix. Since 2026-11-24 mentions are
+  switchable too: `kaposts_notify_mentions`, sent with the others, and the push extension also
+  skips a switched-off kind itself.
   **The app SENDS these five fields as of 4.1**, on every register and update call, and
   re-registers the moment a switch changes. Until the server honors them, a switched-off kind
   still arrives in the background - see the delivery note below on why the device cannot stop it.

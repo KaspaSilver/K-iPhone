@@ -47,8 +47,17 @@ final class SharedDataManager {
         static let verboseAPILogging = "shared_verbose_api_logging"
         static let groupMentionsOnlyNotifications = "shared_group_mentions_only"
         static let groupSilentNotifications = "shared_group_silent"
-        /// RETIRED with KaPosts: only ever removed now.
+        /// Settings > KaPost's six notification switches, `[kind: Bool]` with kinds "likes",
+        /// "dislikes", "comments", "reposts", "follows", "mentions": the extension silences a
+        /// `kaposts` push whose kind is switched off, even when the push service sent it (an older
+        /// registration, a server that ignores a switch). KaPost is back since 2026-11-21; this
+        /// was only ever removed while it was gone (audit 2026-11-24 notifications).
         static let kaPostsNotificationKinds = "shared_kaposts_notify_kinds"
+        /// Mirror of `AppSettings.notificationMode != .disabled` (Settings > Notifications > Push
+        /// Notifications): off, the extension shows nothing at all, whatever the push. A failed
+        /// unregister, or a push already in flight, would otherwise still ring
+        /// (audit 2026-11-24 notifications). Absent = on (an older app never wrote it).
+        static let notificationsEnabled = "shared_notifications_enabled"
         /// Mirror of `AppSettings.kaspaRestAPIURL` for the Notification Service Extension. A
         /// push for anything over 3.5KB carries no encrypted payload (see PUSH_NOTIFICATIONS.md),
         /// so the extension reads the message off chain itself to say what it is - and it needs
@@ -231,9 +240,18 @@ final class SharedDataManager {
     /// that moment can still return the pre-save cached copy (the cache only invalidates on the
     /// `.settingsDidChange` post, which happens after this runs in the save paths).
     static func syncNotificationSettingsForExtension(_ settings: AppSettings = AppSettings.load()) {
-        // The KaPosts switches are gone with KaPosts (2026-10-24); clear what an older build
-        // left for the extension.
-        sharedDefaults?.removeObject(forKey: Keys.kaPostsNotificationKinds)
+        // The master switch and KaPost's per-kind switches: the extension can't read the app's
+        // settings, so without these copies it rang for pushes the person had switched off
+        // (audit 2026-11-24 notifications).
+        sharedDefaults?.set(settings.notificationMode != .disabled, forKey: Keys.notificationsEnabled)
+        sharedDefaults?.set([
+            "likes": settings.kaPostsNotifyLikes,
+            "dislikes": settings.kaPostsNotifyDislikes,
+            "comments": settings.kaPostsNotifyComments,
+            "reposts": settings.kaPostsNotifyReposts,
+            "follows": settings.kaPostsNotifyFollows,
+            "mentions": settings.kaPostsNotifyMentions
+        ], forKey: Keys.kaPostsNotificationKinds)
         sharedDefaults?.set(settings.incomingNotificationSoundEnabled, forKey: Keys.incomingNotificationSoundEnabled)
         sharedDefaults?.set(settings.incomingNotificationVibrationEnabled, forKey: Keys.incomingNotificationVibrationEnabled)
         sharedDefaults?.set(settings.verboseAPILogging, forKey: Keys.verboseAPILogging)

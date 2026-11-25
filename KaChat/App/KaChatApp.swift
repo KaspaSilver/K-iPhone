@@ -666,6 +666,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             let activeAddress = ChatService.shared.activeConversationAddress
             let threadId = notification.request.content.threadIdentifier
             let settings = AppSettings.load()
+            // A Received KAS push the app sees is remembered, so the catch-up never posts a second
+            // "Received" for its tx once it has left Notification Center (the extension doesn't
+            // run for it: no mutable-content) (audit 2026-11-24 notifications).
+            let isAddressActivityPush = (userInfo["type"] as? String) == "address_activity"
+            if isAddressActivityPush, let txId = userInfo["tx_id"] as? String {
+                InAppBanner.notePushArrived(txId)
+            }
+            // Notifications off in K: nothing shows, whatever the kind. Rooms and KaPost didn't
+            // check it at all, and the server can still send until the registration update lands.
+            // The app's own banners already checked their settings before posting (audit
+            // 2026-11-24 notifications).
+            guard settings.notificationsEnabled else {
+                completionHandler([])
+                return
+            }
+            // A Received KAS push for an address that no longer notifies (its switch, its Cold
+            // Storage account's, or Address Activity turned off since the registration): the
+            // push service can still send until the update lands (audit 2026-11-24 notifications).
+            if isAddressActivityPush {
+                let address = (userInfo["address"] as? String)?.lowercased() ?? ""
+                let watched = Set(AddressActivityNotifier.shared.pushWatchOnlyAddresses().map { $0.lowercased() })
+                guard watched.contains(address) else {
+                    completionHandler([])
+                    return
+                }
+            }
             // KaPosts and Public Chats (back since 2026-11-21, as in KaPost).
             if threadId.hasPrefix("kaposts") || threadId.hasPrefix("broadcast:") {
                 completionHandler(Self.kaPostsOrRoomPresentation(notification, settings: settings))
@@ -785,9 +811,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 return []
             }
             // Nothing for a room that was deleted, muted or switched off: the push service
-            // can still send for it until the registration update lands.
+            // can still send for it until the registration update lands. Except a push that @'s
+            // you (`mention: true`, INDEXER_HANDOFF.md 2026-11-24): the indexer sends those
+            // whatever the bell, as the extension shows them (audit 2026-11-24 notifications).
             guard let room = KaChatInternalLink.normalizeAndValidateChannel(channel),
-                  PublicChatService.shared.wantsRoomPush(channel: room) else {
+                  PublicChatService.shared.wantsRoomPush(channel: room)
+                    || (isTrue(userInfo["mention"])
+                        && !PublicChatService.serviceChannels.contains(PublicChatChannelName.normalize(room))) else {
                 return []
             }
             // The app already bannered this message while open (`InAppBanner`).
@@ -808,6 +838,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             Haptics.impact(.light)
         }
         return options
+    }
+
+    /// A push flag as the server may send it: a bool, a number or "true" / "1" (the extension's
+    /// `isTrue`).
+    private static func isTrue(_ value: Any?) -> Bool {
+        if let flag = value as? Bool { return flag }
+        if let number = value as? NSNumber { return number.intValue != 0 }
+        if let text = value as? String { return text.lowercased() == "true" || text == "1" }
+        return false
     }
 
     /// Which KaPosts pushes the reader still wants shown, by the Settings switches.
@@ -1065,6 +1104,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             || (response.notification.request.content.userInfo["type"] as? String) == "address_activity" {
             let address = (response.notification.request.content.userInfo["address"] as? String)
                 ?? String(threadIdentifier.dropFirst("funds:".count))
+            // The tapped push leaves Notification Center: remembered, so the catch-up that runs
+            // as K opens doesn't announce the same tx again (audit 2026-11-24 notifications).
+            if let txId = response.notification.request.content.userInfo["tx_id"] as? String {
+                InAppBanner.notePushArrived(txId)
+            }
             Task { @MainActor in
                 if AddressActivityNotifier.shared.opensHistory(for: address) {
                     OwnAddressRoute.pending = address
@@ -1581,6 +1625,26 @@ enum InAppBanner {
                 .dictionary(forKey: "push_arrivals_v1") as? [String: Double],
               let at = ledger[lowered] else { return false }
         return Date().timeIntervalSince1970 - at < 30 * 60
+    }
+
+    /// Records a push the app itself saw (`willPresent`, or a tap) in the same ledger, for the
+    /// pushes the extension never sees: `address_activity` comes without mutable-content, so
+    /// nothing recorded it, and once it left Notification Center the catch-up posted a second
+    /// "Received" for the same tx (audit 2026-11-24 notifications). Same window and cap as the
+    /// extension's `recordPushArrival`.
+    nonisolated static func notePushArrived(_ key: String) {
+        let lowered = key.lowercased()
+        guard !lowered.isEmpty,
+              let defaults = UserDefaults(suiteName: SharedDataManager.appGroupIdentifier) else { return }
+        let now = Date().timeIntervalSince1970
+        var ledger = (defaults.dictionary(forKey: "push_arrivals_v1") as? [String: Double]) ?? [:]
+        ledger = ledger.filter { now - $0.value < 30 * 60 }
+        ledger[lowered] = now
+        if ledger.count > 500 {
+            let keep = ledger.sorted { $0.value > $1.value }.prefix(500)
+            ledger = Dictionary(uniqueKeysWithValues: keep.map { ($0.key, $0.value) })
+        }
+        defaults.set(ledger, forKey: "push_arrivals_v1")
     }
 
     /// Whether a local push banner is a message's own.

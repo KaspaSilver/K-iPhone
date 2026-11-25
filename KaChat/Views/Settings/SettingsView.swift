@@ -1434,53 +1434,43 @@ struct KaPostsNotificationSettingsView: View {
                 Toggle("Likes", isOn: $settingsViewModel.settings.kaPostsNotifyLikes)
                     .onChange(of: settingsViewModel.settings.kaPostsNotifyLikes) { _ in
                         settingsViewModel.saveSettings()
-                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
-                        // §3). KaPosts pushes carry no mutable-content, so the extension never
-                        // runs for them and nothing on the device can stop a background push;
-                        // only a re-registration carrying the new switch does.
+                        // The server reads them from the registration (PUSH_EXTENSIONS.md §3),
+                        // and the push extension skips a switched-off kind too (App Group copy).
                         Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
                     }
                 Toggle("Reposts", isOn: $settingsViewModel.settings.kaPostsNotifyReposts)
                     .onChange(of: settingsViewModel.settings.kaPostsNotifyReposts) { _ in
                         settingsViewModel.saveSettings()
-                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
-                        // §3). KaPosts pushes carry no mutable-content, so the extension never
-                        // runs for them and nothing on the device can stop a background push;
-                        // only a re-registration carrying the new switch does.
+                        // The server reads them from the registration (PUSH_EXTENSIONS.md §3),
+                        // and the push extension skips a switched-off kind too (App Group copy).
                         Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
                     }
                 Toggle("Follows", isOn: $settingsViewModel.settings.kaPostsNotifyFollows)
                     .onChange(of: settingsViewModel.settings.kaPostsNotifyFollows) { _ in
                         settingsViewModel.saveSettings()
-                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
-                        // §3). KaPosts pushes carry no mutable-content, so the extension never
-                        // runs for them and nothing on the device can stop a background push;
-                        // only a re-registration carrying the new switch does.
+                        // The server reads them from the registration (PUSH_EXTENSIONS.md §3),
+                        // and the push extension skips a switched-off kind too (App Group copy).
                         Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
                     }
                 Toggle("Dislikes", isOn: $settingsViewModel.settings.kaPostsNotifyDislikes)
                     .onChange(of: settingsViewModel.settings.kaPostsNotifyDislikes) { _ in
                         settingsViewModel.saveSettings()
-                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
-                        // §3). KaPosts pushes carry no mutable-content, so the extension never
-                        // runs for them and nothing on the device can stop a background push;
-                        // only a re-registration carrying the new switch does.
+                        // The server reads them from the registration (PUSH_EXTENSIONS.md §3),
+                        // and the push extension skips a switched-off kind too (App Group copy).
                         Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
                     }
                 Toggle("Comments", isOn: $settingsViewModel.settings.kaPostsNotifyComments)
                     .onChange(of: settingsViewModel.settings.kaPostsNotifyComments) { _ in
                         settingsViewModel.saveSettings()
-                        // And the server reads them from the registration (PUSH_EXTENSIONS.md
-                        // §3). KaPosts pushes carry no mutable-content, so the extension never
-                        // runs for them and nothing on the device can stop a background push;
-                        // only a re-registration carrying the new switch does.
+                        // The server reads them from the registration (PUSH_EXTENSIONS.md §3),
+                        // and the push extension skips a switched-off kind too (App Group copy).
                         Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
                     }
                 Toggle("Mentions", isOn: $settingsViewModel.settings.kaPostsNotifyMentions)
                     .onChange(of: settingsViewModel.settings.kaPostsNotifyMentions) { _ in
                         settingsViewModel.saveSettings()
-                        // Sent with the other kinds (`kaposts_notify_mentions`), so the push
-                        // service can skip mention pushes while it's off, as for the rest.
+                        // Sent with the other kinds (`kaposts_notify_mentions`, sent since the
+                        // 2026-11-24 notifications audit), so the push service skips them too.
                         Task { await PushNotificationManager.shared.forceReregister(reason: "kaposts notification kinds changed") }
                     }
             }
@@ -1581,6 +1571,8 @@ struct NotificationsHubPage: View {
             BackgroundTaskManager.shared.cancelBackgroundFetch()
             enablePushNotifications(previousMode: previousMode)
         }
+        // .kachat reminders are local notifications: off removes them, on schedules them again.
+        KachatNameReminders.notificationSettingsChanged()
     }
 
     private func enablePushNotifications(previousMode: NotificationMode) {
@@ -1594,6 +1586,7 @@ struct NotificationsHubPage: View {
                 AppLog.log("[Settings] Failed to enable push: %@", error.localizedDescription)
                 settingsViewModel.settings.notificationMode = previousMode
                 settingsViewModel.saveSettings()
+                KachatNameReminders.notificationSettingsChanged()
                 if case PushError.permissionDenied = error {
                     notificationPermissionDenied = true
                 }
@@ -1671,6 +1664,10 @@ struct NotificationsSettingsView: View {
                 Toggle("Play sound", isOn: $settingsViewModel.settings.incomingNotificationSoundEnabled)
                     .onChange(of: settingsViewModel.settings.incomingNotificationSoundEnabled) { _ in
                         settingsViewModel.saveSettings()
+                        // The push service sends silent pushes while it's off (`notify_sound`):
+                        // Received KAS and .kachat pushes never reach the extension to be quieted.
+                        Task { await PushNotificationManager.shared.updateWatchedAddresses() }
+                        KachatNameReminders.notificationSettingsChanged()
                     }
 
                 Toggle("Vibration", isOn: $settingsViewModel.settings.incomingNotificationVibrationEnabled)
@@ -3026,6 +3023,8 @@ struct ConnectionStatusDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var isReconnecting: Bool = false
+    /// The message indexer's state, read every 2 s with the node list (nil until the first read).
+    @State private var indexerState: KasiaAPIClient.ConnectionState?
     @State private var nodeRecords: [NodeRecord] = []
     @State private var showClearPoolConfirm: Bool = false
     @State private var toastMessage: String?
@@ -3078,13 +3077,26 @@ struct ConnectionStatusDetailView: View {
         // Status Section
         Section {
             HStack {
-                Text("Status")
+                Text("Node Status")
                 Spacer()
                 HStack(spacing: 6) {
                     Circle()
                         .fill(statusColor)
                         .frame(width: 10, height: 10)
                     Text(chatService.connectionStatus.description)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            // the message indexer (owner, 2026-11-24): Connected, Degraded or Disconnected
+            HStack {
+                Text("Indexer Status")
+                Spacer()
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(indexerStatusColor)
+                        .frame(width: 10, height: 10)
+                    Text(indexerStatusText)
                         .foregroundColor(.secondary)
                 }
             }
@@ -3540,11 +3552,38 @@ struct ConnectionStatusDetailView: View {
 
     private func refreshNodeRecordsContinuously() async {
         await reloadNodeRecords()
+        indexerState = await KasiaAPIClient.shared.connectionState()
+        // one request now, so the indexer's row says how it is, not how it was
+        Task {
+            await KasiaAPIClient.shared.checkIndexerNow()
+            indexerState = await KasiaAPIClient.shared.connectionState()
+        }
 
         while !Task.isCancelled {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             if Task.isCancelled { break }
             await reloadNodeRecords()
+            indexerState = await KasiaAPIClient.shared.connectionState()
+        }
+    }
+
+    private var indexerStatusText: String {
+        switch indexerState {
+        case .connected:
+            return AppLocalization.string(KasiaAPIClient.shared.isDpiSuspected ? "Degraded" : "Connected")
+        case .degraded: return AppLocalization.string("Degraded")
+        case .disconnected: return AppLocalization.string("Disconnected")
+        case .notSet: return AppLocalization.string("Not set")
+        case nil: return AppLocalization.string("Checking…")
+        }
+    }
+
+    private var indexerStatusColor: Color {
+        switch indexerState {
+        case .connected: return KasiaAPIClient.shared.isDpiSuspected ? .orange : .green
+        case .degraded: return .orange
+        case .disconnected: return .red
+        case .notSet, nil: return .gray
         }
     }
 }

@@ -364,8 +364,8 @@ struct OnboardingView: View {
                 signIn(account)
             } label: {
                 HStack(spacing: 10) {
-                    Image(systemName: "person.crop.circle.badge.checkmark")
-                        .foregroundColor(.accentColor)
+                    // the account's own picture, saved while it was signed in (owner, 2026-11-24)
+                    SavedAccountAvatar(publicKey: account.publicKey, name: account.displayAlias, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(account.displayAlias)
                             .font(.subheadline.weight(.semibold))

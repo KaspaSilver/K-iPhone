@@ -28,7 +28,9 @@ import UserNotifications
 /// importing a wallet) never blasts notifications for historical funds.
 ///
 /// Gated by Settings > Notifications > "Address Activity" (default ON) plus the master
-/// notification mode.
+/// notification mode. The gates decide only what is announced: baselines, handled marks and the
+/// chatting floor follow every own address whatever they say, so turning a switch back on never
+/// announces what came while it was off (audit 2026-11-24 notifications).
 ///
 /// Addresses currently reserved-and-offered as fresh payment-pool receive addresses are
 /// excluded from notification (payments to those DO create chat bubbles via the
@@ -43,7 +45,18 @@ final class AddressActivityNotifier: ObservableObject {
         NotificationCenter.default.addObserver(forName: .rpcSubscriptionsRestored, object: nil, queue: .main) { _ in
             Task { @MainActor in await AddressActivityNotifier.shared.runCatchUpIfNeeded() }
         }
+        NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in AddressActivityNotifier.shared.activeSince = Date() }
+        }
     }
+
+    /// When the app last became active (or this notifier started, on a cold launch). A receive in
+    /// a block before it came while K was away: for an address the push service watches, its
+    /// `address_activity` push was the notice, and the catch-up only lists it in the bell
+    /// ("In the background and when closed, pushes alone"). The push has no mutable-content, so
+    /// the extension never records it, and once it's swiped away nothing on the phone remembers
+    /// it (audit 2026-11-24 notifications).
+    private var activeSince = Date()
 
     static let notificationThreadIdentifier = "address-activity"
 
@@ -65,6 +78,13 @@ final class AddressActivityNotifier: ObservableObject {
     /// The account each cold address belongs to, for the notification's wording.
     private var coldAccountLabels: [String: String] = [:]
     private var coldDeriveTask: Task<Void, Never>?
+    /// Each account's Receive Notifications as last seen, to tell a switch turned on from an
+    /// account loading. Turned on, its addresses' baselines are taken as they stand: they aren't
+    /// in the UTXO subscription while off, so a receive since the last catch-up would otherwise be
+    /// announced late (audit 2026-11-24 notifications).
+    private var coldNotifyFlags: [UUID: Bool] = [:]
+    /// Accounts switched on whose addresses aren't absorbed yet (kept across a cancelled derive).
+    private var coldAbsorbPending: Set<UUID> = []
 
     /// Receive notifications for the wallet's spending addresses (Manage Addresses), per
     /// wallet - Default on.
@@ -165,13 +185,17 @@ final class AddressActivityNotifier: ObservableObject {
         parsed: ParsedUtxosChangedNotification,
         removedByTxId: [String: Set<String>]
     ) {
-        guard featureEnabled else { return }
         guard let wallet = WalletManager.shared.currentWallet else { return }
         refreshCaches()
         ensureHandledTxIdsLoaded(wallet: wallet.publicAddress)
 
-        let notifiable = notifiableAddressSet(walletAddress: wallet.publicAddress)
-        guard !notifiable.isEmpty else { return }
+        // Every own address is followed whatever the switches say (master, Address Activity, the
+        // spending switch, a Cold Storage account's): a receive while one is off is marked handled
+        // and folded into the baseline, just not announced. Following only the notifying ones
+        // left their baselines behind, and switching back on announced everything that came
+        // meanwhile in one burst (audit 2026-11-24 notifications).
+        let ownAll = ownInputAddressSet(walletAddress: wallet.publicAddress)
+        let notifiable = featureEnabled ? notifiableAddressSet(walletAddress: wallet.publicAddress) : []
 
         // Group outputs to our own addresses per tx so one tx paying several of our
         // addresses notifies once with the summed amount. Coinbase entries are skipped to
@@ -180,20 +204,28 @@ final class AddressActivityNotifier: ObservableObject {
         var hitsByTx: [String: [(address: String, amount: UInt64)]] = [:]
         for entry in parsed.added {
             guard !entry.isCoinbase, let address = entry.address else { continue }
-            guard notifiable.contains(address) else { continue }
+            guard ownAll.contains(address) else { continue }
             hitsByTx[entry.transactionId, default: []].append((address, entry.amount))
         }
         guard !hitsByTx.isEmpty else { return }
 
-        let ownAll = ownInputAddressSet(walletAddress: wallet.publicAddress)
         for (txId, hits) in hitsByTx {
             guard !handledTxIds.contains(txId), !inFlightTxIds.contains(txId) else { continue }
+            let hitAddresses = Set(hits.map { $0.address })
 
             // Fast path: the tx spends FROM one of our watched addresses in this same
             // batch - self-send (change, consolidation, withdrawal...), suppress silently.
             if let removed = removedByTxId[txId], !removed.isDisjoint(with: ownAll) {
                 markHandled(txId: txId, wallet: wallet.publicAddress)
-                Task { await self.refreshBaselines(for: Set(hits.map { $0.address }), wallet: wallet.publicAddress) }
+                Task { await self.refreshBaselines(for: hitAddresses, wallet: wallet.publicAddress) }
+                continue
+            }
+
+            // Only quiet addresses (or notifications off): seen, nothing to say.
+            let loud = hits.filter { notifiable.contains($0.address) }
+            guard !loud.isEmpty else {
+                markHandled(txId: txId, wallet: wallet.publicAddress)
+                Task { await self.refreshBaselines(for: hitAddresses, wallet: wallet.publicAddress) }
                 continue
             }
 
@@ -201,7 +233,8 @@ final class AddressActivityNotifier: ObservableObject {
             Task { [weak self] in
                 await self?.resolveAndNotifyLive(
                     txId: txId,
-                    hits: hits,
+                    hits: loud,
+                    tracked: hitAddresses,
                     ownAddresses: ownAll,
                     walletAddress: wallet.publicAddress
                 )
@@ -224,8 +257,10 @@ final class AddressActivityNotifier: ObservableObject {
 
         refreshCaches()
         ensureHandledTxIdsLoaded(wallet: wallet.publicAddress)
-        let watched = notifiableAddressSet(walletAddress: wallet.publicAddress)
-        guard !watched.isEmpty else { return }
+        // Every own address's baseline moves, the quiet ones' too, so switching a notice back on
+        // never announces what came while it was off (audit 2026-11-24 notifications).
+        let watched = ownInputAddressSet(walletAddress: wallet.publicAddress)
+        let notifiable = featureEnabled ? notifiableAddressSet(walletAddress: wallet.publicAddress) : []
 
         // One batched balance fetch for the whole set. A network failure leaves baselines untouched so
         // nothing is silently marked as seen.
@@ -257,7 +292,7 @@ final class AddressActivityNotifier: ObservableObject {
                 continue
             }
             if balance != previous { changed = true }
-            if balance > previous, !isFirstRun, featureEnabled {
+            if balance > previous, !isFirstRun, notifiable.contains(address) {
                 await attributeAndNotifyIncrease(
                     address: address,
                     delta: balance - previous,
@@ -270,6 +305,14 @@ final class AddressActivityNotifier: ObservableObject {
             baselines[address] = balance
         }
 
+        // Notifications off: the chatting address's floor moves to now as well, or its plain
+        // transfers from meanwhile would be announced by the first catch-up after they're back on.
+        if !notifiable.contains(wallet.publicAddress) {
+            let floorKey = chattingCatchUpFloorKey(wallet.publicAddress)
+            let nowMs = Date().timeIntervalSince1970 * 1000
+            UserDefaults.standard.set(max(nowMs, UserDefaults.standard.double(forKey: floorKey)), forKey: floorKey)
+        }
+
         if changed {
             saveBaselines(baselines, wallet: wallet.publicAddress)
             NotificationCenter.default.post(name: .ownAddressActivity, object: nil)
@@ -278,9 +321,12 @@ final class AddressActivityNotifier: ObservableObject {
 
     // MARK: - Live resolution
 
+    /// `hits` are the outputs to addresses that notify; `tracked` every own address the tx paid,
+    /// quiet ones included, whose baselines move with it.
     private func resolveAndNotifyLive(
         txId: String,
         hits: [(address: String, amount: UInt64)],
+        tracked: Set<String>,
         ownAddresses: Set<String>,
         walletAddress: String
     ) async {
@@ -325,7 +371,7 @@ final class AddressActivityNotifier: ObservableObject {
         }
         guard !hits.isEmpty else {
             markHandled(txId: txId, wallet: walletAddress)
-            await refreshBaselines(for: [walletAddress], wallet: walletAddress)
+            await refreshBaselines(for: tracked.union([walletAddress]), wallet: walletAddress)
             return
         }
         // A readable tx whose inputs REST couldn't name still notifies: the removed-set fast
@@ -343,7 +389,7 @@ final class AddressActivityNotifier: ObservableObject {
             AppLog.log("[AddressActivity] Suppressed self-send %@ after input resolve", String(txId.prefix(12)))
         }
 
-        await refreshBaselines(for: Set(hits.map { $0.address }), wallet: walletAddress)
+        await refreshBaselines(for: tracked.union(hits.map { $0.address }), wallet: walletAddress)
         NotificationCenter.default.post(name: .ownAddressActivity, object: nil)
     }
 
@@ -379,6 +425,11 @@ final class AddressActivityNotifier: ObservableObject {
             return
         }
 
+        // Receives the push service announced while K was away (see `activeSince`).
+        let pushWatched = PushNotificationManager.shared.isRegistered
+            && pushWatchOnlyAddresses().contains(address)
+        let awayBeforeMs = UInt64(max(0, activeSince.timeIntervalSince1970 * 1000))
+
         var attributedAny = false
         for tx in recentTxs {
             if isChatting {
@@ -399,7 +450,8 @@ final class AddressActivityNotifier: ObservableObject {
             let isSelfSend = !inputAddresses.isEmpty && inputAddresses.contains { ownAll.contains($0) }
             markHandled(txId: tx.transactionId, wallet: walletAddress)
             if !isSelfSend {
-                postReceiveNotification(hits: [(address, toAddress)], dedupeKey: tx.transactionId)
+                let pushWasTheNotice = pushWatched && (tx.blockTime ?? 0) > 0 && (tx.blockTime ?? 0) < awayBeforeMs
+                postReceiveNotification(hits: [(address, toAddress)], dedupeKey: tx.transactionId, banner: !pushWasTheNotice)
             }
         }
 
@@ -412,7 +464,8 @@ final class AddressActivityNotifier: ObservableObject {
 
     // MARK: - Notification posting
 
-    private func postReceiveNotification(hits: [(address: String, amount: UInt64)], dedupeKey: String) {
+    /// `banner` false: the bell only (the push already told them, `activeSince`).
+    private func postReceiveNotification(hits: [(address: String, amount: UInt64)], dedupeKey: String, banner: Bool = true) {
         guard featureEnabled else { return }
         let total = hits.reduce(UInt64(0)) { $0 + $1.amount }
         guard total > 0 else { return }
@@ -435,7 +488,9 @@ final class AddressActivityNotifier: ObservableObject {
 
         // One notice per transaction: none when its Received push (`address_activity`, same
         // `tx_id`) already showed, and a push that comes later is only listed (`InAppBanner`).
-        if !InAppBanner.pushArrived(dedupeKey), InAppBanner.claim(dedupeKey) {
+        // `pushArrived` knows the pushes the app saw (`willPresent`, a tap: `notePushArrived`);
+        // the extension doesn't run for them (no mutable-content).
+        if banner, !InAppBanner.pushArrived(dedupeKey), InAppBanner.claim(dedupeKey) {
             let center = UNUserNotificationCenter.current()
             let request = UNNotificationRequest(identifier: "addr-activity-\(dedupeKey)", content: content, trigger: nil)
             let txId = dedupeKey.lowercased()
@@ -595,7 +650,12 @@ final class AddressActivityNotifier: ObservableObject {
             coldOwnSet = []
             coldNotifySet = []
             coldAccountLabels = [:]
+            coldNotifyFlags = [:]
+            coldAbsorbPending = []
         }
+        coldAbsorbPending.formUnion(accounts.filter { $0.notifyOnReceive && coldNotifyFlags[$0.id] == false }.map(\.id))
+        let switchedOn = coldAbsorbPending
+        coldNotifyFlags = Dictionary(accounts.map { ($0.id, $0.notifyOnReceive) }, uniquingKeysWith: { _, b in b })
         coldDeriveTask?.cancel()
         guard !accounts.isEmpty else {
             let watchedBefore = coldNotifySet
@@ -614,6 +674,7 @@ final class AddressActivityNotifier: ObservableObject {
         coldDeriveTask = Task { [weak self] in
             var own = Set<String>()
             var notify = Set<String>()
+            var absorb = Set<String>()
             var labels: [String: String] = [:]
             for account in accounts {
                 let derived = await ColdStorageAddressCache.shared.addressesInBackground(
@@ -625,7 +686,10 @@ final class AddressActivityNotifier: ObservableObject {
                 for (index, address) in derived {
                     own.insert(address)
                     labels[address] = account.label
-                    if account.notifyOnReceive, !hidden.contains(Int(index)) { notify.insert(address) }
+                    if account.notifyOnReceive, !hidden.contains(Int(index)) {
+                        notify.insert(address)
+                        if switchedOn.contains(account.id) { absorb.insert(address) }
+                    }
                 }
             }
             guard let self, !Task.isCancelled, self.coldFingerprint == fingerprint else { return }
@@ -634,6 +698,8 @@ final class AddressActivityNotifier: ObservableObject {
             self.coldNotifySet = notify
             self.coldAccountLabels = labels
             self.coldDeriveTask = nil
+            self.coldAbsorbPending.subtract(switchedOn)
+            if !absorb.isEmpty { Task { await self.refreshBaselines(for: absorb, wallet: wallet) } }
             // the UTXO subscription takes the new watched set (a no-op before it's set up)
             if watchedChanged {
                 ChatService.shared.checkAndResubscribeIfNeeded()

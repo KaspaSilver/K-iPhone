@@ -1074,6 +1074,20 @@ struct ChatDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // This chat's notifications, one tap away (owner, 2026-11-24): the same Silence the
+            // Chats list's swipe sets (the contact's notification override at Off).
+            if !isSelectingMessages {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    let silent = isChatSilenced
+                    Button {
+                        toggleChatSilence()
+                    } label: {
+                        Image(systemName: silent ? "bell.slash" : "bell.fill")
+                    }
+                    .accessibilityLabel(Text(silent ? "Notifications off" : "Notifications on"))
+                    .accessibilityHint(Text(silent ? "Unsilence" : "Silence"))
+                }
+            }
             if let activeChessGame, !isSelectingMessages {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -5724,6 +5738,22 @@ struct ChatDetailView: View {
                 done(false)
             }
         }
+    }
+
+    /// Whether this chat is silenced: its contact's notification override is Off.
+    private var isChatSilenced: Bool {
+        (contactsManager.getContact(byAddress: contact.address) ?? contact).notificationModeOverride == .off
+    }
+
+    /// The header bell: Silence or Unsilence this chat, as the Chats list's swipe does.
+    private func toggleChatSilence() {
+        var updated = contactsManager.getContact(byAddress: contact.address) ?? contact
+        let silence = updated.notificationModeOverride != .off
+        updated.notificationModeOverride = silence ? .off : nil
+        contactsManager.updateContact(updated)
+        contact.notificationModeOverride = updated.notificationModeOverride
+        Haptics.selection()
+        showToast(AppLocalization.string(silence ? "Chat silenced." : "Notifications on."))
     }
 
     private func showToast(_ message: String, style: ToastStyle = .success) {

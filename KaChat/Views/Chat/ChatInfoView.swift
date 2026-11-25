@@ -497,7 +497,10 @@ struct ChatInfoView: View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Incoming Notifications", selection: $notificationModeOverride) {
+                    Picker("Incoming Notifications", selection: Binding(
+                        get: { notificationModeOverride },
+                        set: { applyNotificationMode($0) }
+                    )) {
                         Text("Default (\(settingsViewModel.settings.defaultIncomingNotificationMode.displayName))")
                             .tag(ContactNotificationMode?.none)
                         Text("Off").tag(ContactNotificationMode?.some(.off))
@@ -686,6 +689,19 @@ struct ChatInfoView: View {
                 userInfo: ["contactAddress": address]
             )
         }
+    }
+
+    /// The Notifications choice takes effect as it's picked, as the Chats list's Silence does: it
+    /// waited for Save, so leaving with Cancel or Back dropped it without a word (audit
+    /// 2026-11-24 notifications). Saved onto the stored contact, so nothing else on it goes stale;
+    /// Save writes the same value again with the rest.
+    private func applyNotificationMode(_ mode: ContactNotificationMode?) {
+        notificationModeOverride = mode
+        if contact.notificationModeOverride != mode { contact.notificationModeOverride = mode }
+        var stored = contactsManager.getContact(byAddress: contact.address) ?? contact
+        guard stored.notificationModeOverride != mode else { return }
+        stored.notificationModeOverride = mode
+        contactsManager.updateContact(stored)
     }
 
     private func saveChanges() {

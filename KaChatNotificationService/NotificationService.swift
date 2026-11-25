@@ -63,6 +63,22 @@ class NotificationService: UNNotificationServiceExtension {
     private let secureEnclaveHeader = Data([0x4B, 0x53, 0x45, 0x31]) // "KSE1"
     private let unreadCountKey = "shared_unread_count"
     private let incomingNotificationSoundEnabledKey = "incoming_notification_sound_enabled"
+    // Settings > Notifications > Vibrate (`incoming_notification_vibration_enabled`) is mirrored
+    // too but not read here: iOS gives a notification no vibration of its own, only with its
+    // sound, so Play sound off is already silent and still (audit 2026-11-24 notifications).
+    /// The app's Push Notifications switch (`SharedDataManager`, `notificationMode != .disabled`).
+    /// Absent = on: an older app never wrote it.
+    private static let notificationsEnabledKey = "shared_notifications_enabled"
+    /// Settings > KaPost's switches, `[kind: Bool]` ("likes", "dislikes", "comments", "reposts",
+    /// "follows", "mentions"), written by `SharedDataManager.syncNotificationSettingsForExtension`.
+    private let kaPostsNotifyKindsKey = "shared_kaposts_notify_kinds"
+
+    /// Per push: true when a contact's own notification mode chose Sound, which wins over the
+    /// global Play sound switch as it always has for 1:1 chats. A class, so the delivering
+    /// closure can read it without holding the extension.
+    private final class SoundChoice { var contactChoseSound = false }
+    private let soundChoice = SoundChoice()
+
     /// Mirror of the main app's Verbose API Logging toggle (Settings > Diagnostics), written to
     /// the App Group by SharedDataManager.syncNotificationSettingsForExtension - the NSE cannot
     /// read standard UserDefaults. Gates the push-payload debug residue below. Default off.
@@ -87,8 +103,13 @@ class NotificationService: UNNotificationServiceExtension {
     override func didReceive(_ request: UNNotificationRequest, withContentHandler deliver: @escaping (UNNotificationContent) -> Void) {
         // Every banner this push leaves goes out without bidi controls, so a sender's name or
         // text can't reorder what the lock screen shows (audit 2026-11-21, #16).
+        // And every one goes through the app's Push Notifications and Play sound switches here,
+        // in one place, so no kind of push (room, KaPost, name event, a request, the timeout's
+        // unprocessed copy) can ring past them (audit 2026-11-24 notifications).
+        let soundChoice = self.soundChoice
         let contentHandler: (UNNotificationContent) -> Void = { content in
-            deliver(Self.withoutBidiControls(content))
+            let settled = Self.applyingDeviceSettings(content, contactChoseSound: soundChoice.contactChoseSound)
+            deliver(Self.withoutBidiControls(settled))
         }
         self.contentHandler = contentHandler
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
@@ -100,6 +121,7 @@ class NotificationService: UNNotificationServiceExtension {
         partBurstOwner = nil
         readOffChain = false
         pushSeenBefore = false
+        soundChoice.contactChoseSound = false
 
         guard let content = bestAttemptContent else {
             contentHandler(request.content)
@@ -111,6 +133,16 @@ class NotificationService: UNNotificationServiceExtension {
         // Tell the app this push came, so it never banners the same message again once opened
         // (the tapped push leaves Notification Center, so the app can't see it there).
         pushSeenBefore = Self.recordPushArrival(request: request, userInfo: userInfo)
+
+        // Push Notifications off in K: nothing shows, whatever kind of push this is. The app
+        // unregisters when it's switched off, but a failed unregister or a push already on its
+        // way still arrives (audit 2026-11-24 notifications). The delivering closure checks it
+        // again; returning here also skips the chain reads nobody would see.
+        guard Self.notificationsEnabledOnDevice else {
+            silence(content)
+            contentHandler(content)
+            return
+        }
 
         // .kachat name events (KACHAT_NAMES_INDEXER.md Part E: offers, sales, renewal reminders):
         // shown as sent since the market came back to K (2026-11-22, kachat-indexer
@@ -145,6 +177,18 @@ class NotificationService: UNNotificationServiceExtension {
         // friendly preview rules 1:1 bodies get. An edit changes an earlier message in place -
         // nothing to announce.
         if request.content.threadIdentifier.hasPrefix("broadcast:") {
+            // A room muted (bell off), switched off or left: nothing shows, even when the push
+            // service hasn't got the new registration yet (owner, 2026-11-24).
+            // Except a push that @'s this account (`mention: true`, INDEXER_HANDOFF.md
+            // 2026-11-24): the indexer sends those whatever the bell, and with every room
+            // silenced on a new download it's the only way a mention reaches a closed app
+            // (audit 2026-11-24 notifications). Push Notifications and Play sound still apply.
+            let room = String(request.content.threadIdentifier.dropFirst("broadcast:".count))
+            if !isRoomBellOn(room), !Self.isTrue(userInfo["mention"]) {
+                silence(content)
+                contentHandler(content)
+                return
+            }
             if isEditEnvelope(content.body) {
                 content.title = ""
                 content.subtitle = ""
@@ -166,10 +210,16 @@ class NotificationService: UNNotificationServiceExtension {
         if request.content.threadIdentifier.hasPrefix("kaposts") {
             // Someone this account blocked or muted on KaPost: nothing shows, even if the push
             // service didn't skip it (an older registration, a server without the block list).
+            let kind = Self.kaPostsKind(pushKind: userInfo["kaposts_kind"] as? String, body: request.content.body)
             if let actor = userInfo["actor_pubkey"] as? String, isHiddenKaPostsActor(actor) {
                 silence(content)
+            } else if !isKaPostsKindEnabled(kind) {
+                // A kind switched off in Settings > KaPost, sent anyway (an older registration,
+                // a server that doesn't honor that switch): nothing shows
+                // (audit 2026-11-24 notifications).
+                silence(content)
             } else if (!content.title.isEmpty || !content.body.isEmpty),
-                      Self.kaPostsKind(pushKind: userInfo["kaposts_kind"] as? String, body: request.content.body) == "tip",
+                      kind == "tip",
                       applyKaPostsTip(content, request: request, userInfo: userInfo) {
                 // A tip is a payment in the tipper's chat: one "Received a tip" notice that opens
                 // that chat (done above).
@@ -259,6 +309,15 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
 
+        // A blocked address rings nothing, payments included: the request rules below skip
+        // payments, which let a blocked sender's payment ring while K was closed
+        // (audit 2026-11-24 notifications).
+        if messageType == "payment", isBlockedAddress(senderAddress) {
+            silence(content)
+            contentHandler(content)
+            return
+        }
+
         // Message Requests (NO_HANDSHAKE_MESSAGING.md): one "New message request" per new sender,
         // then nothing from them until the app has accepted them; nothing at all from a blocked
         // address. Payments land in your own chat and ring as before.
@@ -277,7 +336,8 @@ class NotificationService: UNNotificationServiceExtension {
                     formatAddress(senderAddress)
                 )
                 content.threadIdentifier = "message_requests"
-                content.sound = .default
+                // Play sound off keeps it quiet (audit 2026-11-24 notifications).
+                content.sound = globalSoundEnabled ? .default : nil
             }
             contentHandler(content)
             return
@@ -306,6 +366,9 @@ class NotificationService: UNNotificationServiceExtension {
             return
         }
         content.sound = (effectiveMode == .sound) ? .default : nil
+        // A contact set to Sound rings even with Play sound off, as before; the delivering
+        // closure must not take that away.
+        soundChoice.contactChoseSound = sharedContact?.notificationModeOverride == EffectiveNotificationMode.sound.rawValue
 
         let payloadHex = userInfo["payload"] as? String
         // Debug residue (last_push_* app-group keys + the ciphertext-prefix log line) only
@@ -543,6 +606,24 @@ class NotificationService: UNNotificationServiceExtension {
         guard let address = Self.kaspaAddress(xOnlyPublicKeyHex: key, hrp: hrp) else { return false }
         if let postId = userInfo["postId"] as? String, postId.count == 64 {
             Self.recordTip(txId: txId, postId: postId)
+        }
+        // It reads as a payment in the tipper's chat, so it follows that chat's rules: nothing
+        // from a blocked address, nothing for a contact set to Off, no sound for No Sound
+        // (audit 2026-11-24 notifications). Handled either way, so it isn't shown as sent.
+        if isBlockedAddress(address) {
+            silence(content)
+            return true
+        }
+        let contact = getSharedContact(address: address)
+        switch effectiveNotificationMode(for: contact, defaultSoundEnabled: globalSoundEnabled) {
+        case .off:
+            silence(content)
+            return true
+        case .noSound:
+            content.sound = nil
+        case .sound:
+            content.sound = .default
+            soundChoice.contactChoseSound = contact?.notificationModeOverride == EffectiveNotificationMode.sound.rawValue
         }
         content.title = kaPostsActorName(userInfo["actor_pubkey"] as? String) ?? formatAddress(address)
         content.subtitle = ""
@@ -888,6 +969,17 @@ class NotificationService: UNNotificationServiceExtension {
                 // the setting promises will not happen. If no group here would have allowed it,
                 // the answer is the same whichever group it turns out to be.
                 if allGroupsSuppressUnidentifiedPushes() {
+                    suppressGroupNotification(content)
+                    addPendingMessage(txId: txId, sender: "group", type: messageType)
+                    return
+                }
+                // The push's blinded id names its group even when the message can't be read: a
+                // silenced group stays silent, and a mentions-only one too, since an unread
+                // message can't be checked for a mention. Before, one unrestricted group anywhere
+                // let every unreadable push from a mentions-only group ring as "New group
+                // message" (audit 2026-11-24 notifications). Unidentified: as before.
+                if let blindedGroupIdHex = userInfo["blinded_group_id"] as? String,
+                   restrictedGroupOwning(blindedGroupIdHex: blindedGroupIdHex) != nil {
                     suppressGroupNotification(content)
                     addPendingMessage(txId: txId, sender: "group", type: messageType)
                     return
@@ -1400,6 +1492,72 @@ class NotificationService: UNNotificationServiceExtension {
         content.interruptionLevel = .passive
     }
 
+    /// The app's Push Notifications switch, as mirrored to the App Group. Absent = on.
+    private static var notificationsEnabledOnDevice: Bool {
+        (UserDefaults(suiteName: "group.com.kachat.app")?.object(forKey: notificationsEnabledKey) as? Bool) ?? true
+    }
+
+    /// The app's Play sound switch, as mirrored to the App Group. Absent = on.
+    private var globalSoundEnabled: Bool {
+        (UserDefaults(suiteName: appGroupIdentifier)?.object(forKey: incomingNotificationSoundEnabledKey) as? Bool) ?? true
+    }
+
+    /// What every push goes out as (the delivering closure in `didReceive`): blank and passive
+    /// with Push Notifications off; without its sound with Play sound off, unless a contact's own
+    /// mode chose Sound. Never adds a sound a path took away.
+    private static func applyingDeviceSettings(_ content: UNNotificationContent, contactChoseSound: Bool) -> UNNotificationContent {
+        let defaults = UserDefaults(suiteName: "group.com.kachat.app")
+        let enabled = (defaults?.object(forKey: notificationsEnabledKey) as? Bool) ?? true
+        let soundOn = (defaults?.object(forKey: "incoming_notification_sound_enabled") as? Bool) ?? true
+        if enabled, content.sound == nil || soundOn || contactChoseSound { return content }
+        guard let copy = content.mutableCopy() as? UNMutableNotificationContent else { return content }
+        if !enabled {
+            copy.title = ""
+            copy.subtitle = ""
+            copy.body = ""
+            copy.badge = nil
+            copy.interruptionLevel = .passive
+        }
+        copy.sound = nil
+        return copy
+    }
+
+    /// A push flag sent as a JSON true, 1 or "true".
+    private static func isTrue(_ value: Any?) -> Bool {
+        if let flag = value as? Bool { return flag }
+        if let number = value as? NSNumber { return number.intValue != 0 }
+        if let text = value as? String { return text.lowercased() == "true" || text == "1" }
+        return false
+    }
+
+    /// Whether Settings > KaPost lets this kind of push through (the extension's kinds from
+    /// `kaPostsKind`, mapped as the app's `kaPostsPushAllowed`). Unknown kinds, a tip, and no
+    /// list written yet (an older app) all pass.
+    private func isKaPostsKindEnabled(_ kind: String) -> Bool {
+        let setting: String
+        switch kind {
+        case "like": setting = "likes"
+        case "dislike": setting = "dislikes"
+        case "reply": setting = "comments"
+        case "quote", "repost": setting = "reposts"
+        case "follow": setting = "follows"
+        case "mention": setting = "mentions"
+        default: return true
+        }
+        let switches = UserDefaults(suiteName: appGroupIdentifier)?.dictionary(forKey: kaPostsNotifyKindsKey) as? [String: Bool]
+        return switches?[setting] ?? true
+    }
+
+    /// Whether `address` is on this account's blocked list (`chat_blocked_addresses`, written
+    /// lowercased by `SharedDataManager.syncChatRequestsForExtension`). Lists written for
+    /// another account don't apply.
+    private func isBlockedAddress(_ address: String) -> Bool {
+        guard let defaults = UserDefaults(suiteName: appGroupIdentifier),
+              let wallet = getWalletAddress() else { return false }
+        if let listsWallet = defaults.string(forKey: "chat_requests_wallet"), listsWallet != wallet { return false }
+        return Set(defaults.stringArray(forKey: "chat_blocked_addresses") ?? []).contains(address.lowercased())
+    }
+
     /// Whether a KaPost actor's key (66-hex compressed or 64-hex x-only) is one this account
     /// blocked or muted, as the app wrote them to the App Group
     /// (`PushNotificationManager.syncKaPostsHiddenActorsForExtension`, x-only keys).
@@ -1446,6 +1604,19 @@ class NotificationService: UNNotificationServiceExtension {
         return defaults.string(forKey: "wallet_address")
     }
 
+    /// Whether this account wants a room's pushes: its bell is on in K
+    /// (`PublicChatService.syncRoomBellsForExtension`, App Group `shared_room_bells_v1`, per
+    /// account). An account K hasn't written a list for yet (an older build, the room store not
+    /// open since the update) lets everything through, as before.
+    private func isRoomBellOn(_ rawRoom: String) -> Bool {
+        guard let wallet = getWalletAddress()?.lowercased(),
+              let all = UserDefaults(suiteName: appGroupIdentifier)?.dictionary(forKey: "shared_room_bells_v1") as? [String: [String]],
+              let rooms = all[wallet] else { return true }
+        var room = rawRoom.trimmingCharacters(in: .whitespacesAndNewlines)
+        while room.hasPrefix("#") { room.removeFirst() }
+        return rooms.contains(room.lowercased())
+    }
+
     /// Mirrors `SharedDataManager.syncGroupsForExtension`'s `groupMentionsOnlyNotifications` sync.
     /// Groups the user silenced outright. Read the same way as mentions-only.
     private func isSilentEnabled(groupId: String) -> Bool {
@@ -1465,6 +1636,27 @@ class NotificationService: UNNotificationServiceExtension {
         let groups = getSharedGroups()
         guard !groups.isEmpty else { return false }
         return groups.allSatisfy { isSilentEnabled(groupId: $0.groupId) || isMentionsOnlyEnabled(groupId: $0.groupId) }
+    }
+
+    /// The silenced or mentions-only group a push's blinded id belongs to, or nil (a group with
+    /// neither rule, or none this phone can match). Only restricted groups are checked: a match
+    /// anywhere else changes nothing, and each check is a Keychain read plus a Secure Enclave
+    /// unwrap inside the extension's time budget. The blinded id is per group and member,
+    /// derived as the app's `PushNotificationManager.collectWatchedGroupIds` derives it.
+    private func restrictedGroupOwning(blindedGroupIdHex: String) -> String? {
+        guard let target = Data(hexString: blindedGroupIdHex) else { return nil }
+        for group in getSharedGroups()
+        where isSilentEnabled(groupId: group.groupId) || isMentionsOnlyEnabled(groupId: group.groupId) {
+            guard let bag = loadGroupBag(groupId: group.groupId),
+                  let blindingKey = Data(hexString: bag.blindingKey) else { continue }
+            for member in group.members {
+                guard let memberPubKey = Data(hexString: member.xOnlyPubKeyHex) else { continue }
+                if NotificationGroupCipher.deriveBlindedGroupId(blindingKey: blindingKey, memberXOnlyPubKey: memberPubKey) == target {
+                    return group.groupId
+                }
+            }
+        }
+        return nil
     }
 
     private func isMentionsOnlyEnabled(groupId: String) -> Bool {

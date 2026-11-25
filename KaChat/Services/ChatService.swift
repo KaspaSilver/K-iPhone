@@ -721,6 +721,13 @@ final class ChatService: ObservableObject {
         guard WhoCanMessage.current == .usernames,
               let wallet = WalletManager.shared.currentWallet?.publicAddress.lowercased(),
               let defaults = UserDefaults(suiteName: SharedDataManager.appGroupIdentifier) else { return }
+        // Not while the first sync is catching up: the entries stay filed and ring once it's done,
+        // like every other incoming notice (audit 2026-11-24 notifications).
+        guard !suppressNotificationsUntilSynced else { return }
+        // With notifications off the requests are still settled (dropped from the hidden list and
+        // marked notified) but nothing rings, so turning them back on doesn't ring old requests.
+        let settings = currentSettings
+        let mayNotify = settings.notificationsEnabled && settings.shouldDeliverIncomingNotification(for: nil)
         let hiddenKey = "chat_hidden_request_addresses"
         var hidden = defaults.stringArray(forKey: hiddenKey) ?? []
         let prefix = wallet + "|"
@@ -745,11 +752,13 @@ final class ChatService: ObservableObject {
             changed = true
             guard !notified.contains(entry) else { continue }
             notified.append(entry)
+            guard mayNotify else { continue }
             let content = UNMutableNotificationContent()
             content.title = AppLocalization.string("New message request")
             content.body = String(format: AppLocalization.string("%@ wants to chat with you."), KachatNameLabel.display(label))
             content.threadIdentifier = "message_requests"
-            content.sound = .default
+            // Play sound, as the extension would have rung it (audit 2026-11-24 notifications)
+            content.sound = settings.shouldPlayIncomingNotificationSound(for: nil) ? .default : nil
             UNUserNotificationCenter.current().add(UNNotificationRequest(
                 identifier: "message-request-\(address)", content: content, trigger: nil
             ))

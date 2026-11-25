@@ -721,6 +721,29 @@ final class WalletManager: ObservableObject {
         }
     }
 
+    /// Whether this phone holds `account`'s keys: it is the active slot's, or a snapshot of it was
+    /// filed when another account signed in. Without them signing in needs its recovery phrase.
+    func hasKeysOnThisPhone(_ account: SavedAccountSummary) -> Bool {
+        if let stored = try? keychainService.loadWallet(),
+           Self.isSameAccount(stored.publicAddress, account.publicAddress) {
+            return true
+        }
+        for address in Self.accountAddressVariants(account.publicAddress) {
+            if (try? keychainService.loadAccountSnapshot(publicAddress: address)) != nil { return true }
+        }
+        return false
+    }
+
+    /// The account switcher (a hold on the dock's Profile icon, owner 2026-11-24): Log Out, then
+    /// sign in to `account`, the same two steps as going through the sign-in screen, so everything
+    /// Log Out puts away (push registration, drafts, banners, the open stores) is put away.
+    @discardableResult
+    func switchToSavedAccount(_ account: SavedAccountSummary) async -> Bool {
+        if isCurrentAccount(account) { return true }
+        await logout()
+        return await signInToSavedAccount(account)
+    }
+
     /// Whether the sign-in landed on `account`; when it didn't, and no recovery screen explains
     /// why, the reason waits in `signInFailureMessage` for the rebuilt accounts screen.
     private func finishSignIn(_ account: SavedAccountSummary) -> Bool {
@@ -841,6 +864,11 @@ final class WalletManager: ObservableObject {
     /// password is revoked with the stored login before that login is deleted. Covers each
     /// chatting address the account used before this one (`setChattingAddress`).
     private func removeLocalData(forAccount address: String) async {
+        // its picture on the sign-in screen and in the account switcher
+        if let publicKey = savedAccounts.first(where: { Self.isSameAccount($0.publicAddress, address) })?.publicKey
+            ?? currentWallet.flatMap({ Self.isSameAccount($0.publicAddress, address) ? $0.publicKey : nil }) {
+            SavedAccountAvatars.shared.remove(publicKey: publicKey)
+        }
         let previous = previousChattingAddresses(ofAccount: address)
         for owned in [address] + previous {
             // Read before `removeSpendingData` deletes the derived-address cache they come from.
@@ -876,6 +904,7 @@ final class WalletManager: ObservableObject {
                 KaPostsFollowStore.removeAllData(forWalletAddress: variant)
                 KaPostsModerationStore.removeAllData(forWalletAddress: variant)
                 await PublicChatStore.shared.destroyLocalStore(forWallet: variant)
+                PublicChatService.removeRoomBells(forWallet: variant)
                 // Chess (from KaPlay): the arena rows it sent and is still waiting to see on chain
                 // (`PublicChatService.localStampsWalletKey`, filed under the lowercased address)
                 UserDefaults.standard.removeObject(forKey: "publicChatLocalStampSentAt.\(variant)")

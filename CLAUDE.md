@@ -161,12 +161,16 @@ cache, the names indexer setting); Edit KaChat Profile is KaChat's own
 bell, and your profile is the dock's Profile tab; Edit Profile's Username section (first, since 2026-11-23) has "Get a username", which opens the
 .kachat tab;
 tips go through `ChatService.sendPayment(tip:)`) and Public Chats (`Views/Chat/PublicChat*`,
-`PublicChatService`, `PublicChatStore` in `KaChatBroadcasts-<hash>.sqlite`). Public rooms are rows in
+`PublicChatService`, `PublicChatStore` in `KaChatBroadcasts-<hash>.sqlite`). Room messages translate like KaPost posts:
+a Translate link under someone else's message in another language (owner, 2026-11-24), and in its
+long-press menu (`PostTranslationService`, served by the message indexer). Public rooms are rows in
 the Chats list with the chats and groups, by latest activity (`ChatListView`: Delete switches a
-default room off or leaves your own (either drops its pin), Mute, Pin, Mark as Read), and the Chats +'s New sheet has New Public
-Chat (join or create a room) and Edit Default Public Chats (`PublicChatsSettingsView` in
-`Views/Chat/PublicChatRoomViews.swift`: each default
-room and the language rooms on or off). Rooms with their bell on add to the Chats badge. KaPosts
+default room off or leaves your own (either drops its pin), Mute, Pin, Mark as Read), the Chats +'s New sheet has New Public
+Chat (join or create a room), and the gear at the top left of Chats opens Edit Default Public Chats
+(`PublicChatsSettingsView` in `Views/Chat/PublicChatRoomViews.swift`: each default
+room and the language rooms on or off; owner, 2026-11-24: no longer in the + sheet). Every room
+starts silenced, bell off (owner, 2026-11-24, for new downloads; accounts whose #kaspa and
+#kachat-bugs bells were already switched on keep them). Rooms with their bell on add to the Chats badge. KaPosts
 starts in Kaspa Hub with its own badge (`AppTabBadge`); both open from links and pushes
 (`KaPostsRoutes` in MainTabView; `.kaPost` and `.publicChatRoom` links open in the app), and the push
 registration sends their real fields again (PUSH_EXTENSIONS.md). The ported code calls the app
@@ -292,6 +296,11 @@ The app uses MVVM architecture with global singleton services injected via Swift
 - **Kasia Indexer (REST)**: Configurable via Settings (default: `indexer.kachat.app`; testnet has no default) for message indexing and retrieval
 
 ### Connection Settings
+
+Settings > Connection Status (the dot at the top of Settings) shows Node Status and, below it,
+Indexer Status (owner, 2026-11-24): Connected, Degraded (a request failed within the last two
+minutes, or DPI is suspected) or Disconnected (`KasiaAPIClient.isIndexerDown`), from
+`KasiaAPIClient.connectionState()`, with one `/metrics` request when the screen opens.
 
 Network endpoints are in Settings > Connection Settings: a card per connection (Indexer, Node, Domains, Explorer, Trestly), each opening its own screen with Save (Node saves as you pick), as KaPay has it. All configurable:
 - **Network**: mainnet / testnet toggle
@@ -602,6 +611,21 @@ profile) and outline a message that @'s you; KaPost signs the mentioned keys
 (`mentionedPubkeys`), which drives its "mentioned you" notification. Room mention pushes for
 bell-off rooms are an indexer handoff (INDEXER_HANDOFF.md).
 
+### Notification switches (audit 2026-11-24)
+
+Every switch must hold on every path: the app's own banners (`InAppBanner`, the KaPost poll),
+`willPresent`, the push extension (it reads only the App Group, so each switch it needs is copied
+there: `shared_notifications_enabled`, the sound and vibration, `shared_kaposts_notify_kinds`, the
+group silent / mentions-only sets, contacts' modes, and `shared_room_bells_v1`, each account's
+bell-on rooms, written by `PublicChatService.refreshChannels`), and the push registration (each
+switch the server knows is in `buildWatchedSignature`, so a change re-sends it: rooms, KaPost kinds
+with mentions, `notify_sound`, silenced groups, quiet members). The extension passes every push
+through `applyingDeviceSettings` (master off silences, Play sound off drops the sound). A room push
+with `mention: true` passes a room's bell. 1:1 chats and groups have a bell at the top right of the
+thread (Silence / Unsilence, the same switch as the Chats list's swipe); a room's bell is in the
+room. Registration needs no chat: the primary address alone (.kachat) or the Received KAS
+addresses are enough.
+
 ### Long-press menus
 
 Chat and group rows have no long-press menu: swipe left for Delete, Silence and Pin (your own chat
@@ -672,6 +696,17 @@ Incoming photos in a 1:1 chat have one rule and no setting (`ContactsManager.pho
 hidden until both sides have sent a message and 10 minutes have passed, with no way to reveal one
 early. While the app is open, every contact's profile is looked up again once an hour
 (`ContactsManager.startProfileRescans`).
+
+Switching accounts (owner, 2026-11-24): the glass chip beside Profile's title (your picture and
+username, or your short address, `ProfileAccountChip`; Share Profile is the top-left button) opens a half sheet of the accounts
+saved on this phone (`AccountSwitcherSheet`, `Views/Shared/AccountSwitcher.swift`; not on the dock,
+owner's call). Tapping one runs
+`WalletManager.switchToSavedAccount`: Log Out, then sign in, the same steps as the sign-in screen;
+an account whose keys aren't on the phone says so instead (`hasKeysOnThisPhone`). Add Another
+Account logs out to the sign-in screen. The switcher and the sign-in screen's Saved Accounts show
+each account's own picture (`SavedAccountAvatar`), saved on the phone by `DockAvatar` while that
+account is signed in (`SavedAccountAvatars`, Application Support/AccountAvatars, by public key;
+removed with the account), so nothing looks another address up.
 
 Every sign-in gets new tabs (`ContentView`'s `signInSession`, the `MainTabView` id, bumped on
 sign-out), opening on Chats; without it SwiftUI brought the last account's tabs back, on Settings

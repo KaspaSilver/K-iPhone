@@ -2000,17 +2000,31 @@ final class KachatNamesNotifier {
     }
 
     private var checking = false
+    /// A settings change's check asked for while one was running (`rerunIfBusy`): run again when
+    /// it ends, so the reminders follow the switch even if the running check scheduled them
+    /// before it moved. Registry refreshes don't queue: the next one checks anyway.
+    private var checkAgain = false
     /// Offers this person closed themselves (Withdraw, Refund): not news when they disappear.
     var selfClosedOffers: Set<String> = []
 
     private func key(_ wallet: String) -> String { "kachatNamesNotifier.\(wallet)" }
 
-    func check() async {
-        guard KachatNamesService.isLaunched, !checking,
+    func check(rerunIfBusy: Bool = false) async {
+        if checking {
+            if rerunIfBusy { checkAgain = true }
+            return
+        }
+        guard KachatNamesService.isLaunched,
               let me = KachatNamesActions.shared.myKey, let wallet = KachatNamesActions.shared.myAddress,
               let p = KachatNamesService.shared.manifest?.params else { return }
         checking = true
-        defer { checking = false }
+        defer {
+            checking = false
+            if checkAgain {
+                checkAgain = false
+                Task { await self.check() }
+            }
+        }
         let registry = KachatNamesRegistry.shared
         // every address of this wallet, not only the main one: a name claimed with Buy From
         // gets its notices too (IOS-085 / XP-024)
@@ -2169,19 +2183,43 @@ enum KachatNameReminders {
         if !ids.isEmpty { center.removePendingNotificationRequests(withIdentifiers: ids) }
     }
 
+    /// Settings > Notifications or Play sound changed: switched off, this wallet's reminders go at
+    /// once (no registry read needed); either way the notifier checks again, and its `schedule`
+    /// puts back what the switches now allow, with the sound they now ask for (audit 2026-11-24
+    /// notifications).
+    static func notificationSettingsChanged() {
+        Task { @MainActor in
+            if !AppSettings.load().notificationsEnabled, let wallet = KachatNamesActions.shared.myAddress {
+                await removeAll(forWallet: wallet)
+            }
+            await KachatNamesNotifier.shared.check(rerunIfBusy: true)
+        }
+    }
+
     static func schedule(for names: [KachatNames.NameInfo], params p: KachatNames.Params, wallet: String) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
-        let all = await center.pendingNotificationRequests().map(\.identifier)
+        let requests = await center.pendingNotificationRequests()
+        let all = requests.map(\.identifier)
         let legacy = all.filter { $0.hasPrefix(legacyPrefix) }
         if !legacy.isEmpty { center.removePendingNotificationRequests(withIdentifiers: legacy) }
         let prefix = prefix(wallet: wallet, network: KachatNamesService.networkName)
         // only this wallet's reminders on this network are this call's to keep or drop
         let pending = all.filter { $0.hasPrefix(prefix) }
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+        // The app's own switches count as much as iOS's: with Notifications off in K nothing is
+        // kept waiting, and Play sound decides the sound (audit 2026-11-24 notifications).
+        let appSettings = AppSettings.load()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional,
+              appSettings.notificationsEnabled else {
             center.removePendingNotificationRequests(withIdentifiers: pending)
             return
         }
+        let playSound = appSettings.incomingNotificationSoundEnabled
+        // A reminder already waiting keeps its id, so one scheduled under the other Play sound
+        // setting is replaced (same id), not left ringing the old way.
+        let pendingSound = Dictionary(
+            requests.filter { $0.identifier.hasPrefix(prefix) }.map { ($0.identifier, $0.content.sound != nil) },
+            uniquingKeysWith: { a, _ in a })
         let now = KachatNames.nowMs()
         var wanted: [String: (date: Int64, title: String, body: String, name: String)] = [:]
         func S(_ key: String, _ args: CVarArg...) -> String {
@@ -2207,11 +2245,11 @@ enum KachatNameReminders {
         }
         let stale = pending.filter { wanted[$0] == nil }
         if !stale.isEmpty { center.removePendingNotificationRequests(withIdentifiers: stale) }
-        for (id, r) in wanted where !pending.contains(id) {
+        for (id, r) in wanted where pendingSound[id] != playSound {
             let content = UNMutableNotificationContent()
             content.title = r.title
             content.body = r.body
-            content.sound = .default
+            content.sound = playSound ? .default : nil
             content.threadIdentifier = "kachat-names"
             content.userInfo = ["name": r.name]
             let seconds = max(1, TimeInterval(r.date - now) / 1000)

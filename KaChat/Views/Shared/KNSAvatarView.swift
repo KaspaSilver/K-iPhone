@@ -1184,6 +1184,7 @@ final class DockAvatar: ObservableObject {
             let key = "assigned:\(address):\(AddressBookManager.shared.photoVersion)"
             guard key != shownKey else { return }
             show(Self.dockIcon(from: assigned), key: key)
+            rememberForSignIn(assigned)
             return
         }
         let raw: String?
@@ -1195,6 +1196,12 @@ final class DockAvatar: ObservableObject {
         }
         guard let descriptor = KNSProfileImageDescriptor.from(raw: raw) else {
             show(nil, key: nil)
+            // the profile is known and has no picture: the sign-in screen's copy goes too (not
+            // while the profile is still loading, which also reads as no picture)
+            if KachatNamesService.isEnabled, KachatNamesRegistry.shared.cachedIdentity(for: address) != nil,
+               let publicKey = WalletManager.shared.currentWallet?.publicKey {
+                SavedAccountAvatars.shared.remove(publicKey: publicKey)
+            }
             return
         }
         let key = descriptor.cacheIdentity
@@ -1202,6 +1209,7 @@ final class DockAvatar: ObservableObject {
         let pixels = KNSProfileImageCache.thumbnailPixelSize(forPointSize: Self.side)
         if let cached = KNSProfileImageCache.memoryImage(for: descriptor, maxPixelSize: pixels) {
             show(Self.dockIcon(from: cached), key: key)
+            rememberForSignIn(descriptor: descriptor)
             return
         }
         loadTask?.cancel()
@@ -1209,6 +1217,24 @@ final class DockAvatar: ObservableObject {
             let loaded = await KNSProfileImageCache.shared.image(for: descriptor, maxPixelSize: pixels)
             guard !Task.isCancelled, let self, let loaded else { return }
             self.show(Self.dockIcon(from: loaded), key: key)
+            self.rememberForSignIn(descriptor: descriptor)
+        }
+    }
+
+    /// Keeps the signed-in account's picture for the sign-in screen and the account switcher
+    /// (`SavedAccountAvatars`), at a size those rows can use.
+    private func rememberForSignIn(_ image: UIImage) {
+        guard let publicKey = WalletManager.shared.currentWallet?.publicKey else { return }
+        SavedAccountAvatars.shared.save(image, publicKey: publicKey)
+    }
+
+    private func rememberForSignIn(descriptor: KNSProfileImageDescriptor) {
+        guard let publicKey = WalletManager.shared.currentWallet?.publicKey else { return }
+        Task { [weak self] in
+            let pixels = KNSProfileImageCache.thumbnailPixelSize(forPointSize: 48)
+            guard let large = await KNSProfileImageCache.shared.image(for: descriptor, maxPixelSize: pixels),
+                  self != nil, WalletManager.shared.currentWallet?.publicKey == publicKey else { return }
+            SavedAccountAvatars.shared.save(large, publicKey: publicKey)
         }
     }
 

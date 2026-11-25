@@ -27,7 +27,7 @@ struct ChatListView: View {
     }
 
     /// What the + sheet is showing: the choice, or the screen it led to.
-    private enum CreateStep { case menu, chat, group, publicRoom, publicSettings }
+    private enum CreateStep { case menu, chat, group, publicRoom }
 
     /// The public rooms (Public Chats live in this list since 2026-11-21), as their summaries:
     /// last message, time and unread count, published only when one changes (audit #29). The
@@ -37,6 +37,8 @@ struct ChatListView: View {
     /// For actions only (join, mute, mark read): never read for drawing.
     private var publicChats: PublicChatService { PublicChatService.shared }
     @State private var selectedPublicRoom: String?
+    /// The gear at the top left: Public Chats' settings (Edit Default Public Chats).
+    @State private var showPublicChatsSettings = false
     /// A room you added, waiting on its delete confirmation (a default room is only switched off).
     @State private var roomToLeave: String?
     /// New Public Chat: the room name being typed, and why it was refused.
@@ -153,6 +155,18 @@ struct ChatListView: View {
             .navigationTitle("KaChat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Public Chats' settings (owner, 2026-11-24: here, not in the + sheet): the
+                // default rooms and the language rooms on or off.
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if editMode != .active {
+                        Button {
+                            showPublicChatsSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                        .accessibilityLabel(Text("Edit Default Public Chats"))
+                    }
+                }
                 ToolbarItem(placement: .principal) {
                     balanceToolbarView
                 }
@@ -183,6 +197,11 @@ struct ChatListView: View {
                 refreshFilteredConversations()
             }
             .toast(message: toastMessage, style: toastStyle)
+            // the view brings its own NavigationStack and Done
+            .sheet(isPresented: $showPublicChatsSettings) {
+                PublicChatsSettingsView()
+                    .environmentObject(publicChats)
+            }
 
         let withAlerts = withPresentation
             .sheet(item: $addressBookTarget) { contact in
@@ -577,11 +596,6 @@ struct ChatListView: View {
                             }
                         }
                 }
-            case .publicSettings:
-                // the switches for the default rooms and the language rooms; the view brings its
-                // own NavigationStack and Done
-                PublicChatsSettingsView()
-                    .environmentObject(publicChats)
             }
         }
         .presentationDetents([Self.createMenuHeight, .large], selection: $createDetent)
@@ -620,14 +634,6 @@ struct ChatListView: View {
                 createDetent = .large
                 createStep = .publicRoom
             }
-            ActionSheetRow(
-                title: "Edit Default Public Chats",
-                subtitle: "Turn the default rooms and the language rooms on or off.",
-                systemImage: "slider.horizontal.3"
-            ) {
-                createDetent = .large
-                createStep = .publicSettings
-            }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
@@ -640,7 +646,7 @@ struct ChatListView: View {
         createDetent = Self.createMenuHeight
     }
 
-    private static let createMenuHeight: PresentationDetent = .height(410)
+    private static let createMenuHeight: PresentationDetent = .height(330)
 
     // MARK: - Public rooms
 

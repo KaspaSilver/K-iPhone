@@ -251,8 +251,7 @@ final class PushNotificationManager: ObservableObject {
             return
         }
 
-        let watchedAddresses = collectWatchedAddresses()
-        guard !watchedAddresses.isEmpty else { return }
+        guard hasAnythingToWatch(watchedAddresses: collectWatchedAddresses(), watchedGroupIds: []) else { return }
 
         Task {
             do {
@@ -406,7 +405,10 @@ final class PushNotificationManager: ObservableObject {
 
         // Group ids alone are a valid registration - requiring a non-empty 1:1 list meant a user
         // with groups but no push-eligible 1:1 chats never registered for group pushes at all.
-        guard !watchedAddresses.isEmpty || !watchedGroupIds.isEmpty else {
+        // Received KAS and .kachat pushes need no chat at all (audit 2026-11-24 notifications:
+        // an account with no chats never registered, so they could never be turned on): the
+        // service takes any of chats, groups, watch-only addresses or the primary address.
+        guard hasAnythingToWatch(watchedAddresses: watchedAddresses, watchedGroupIds: watchedGroupIds) else {
             throw PushError.noWatchedAddresses
         }
 
@@ -489,6 +491,8 @@ final class PushNotificationManager: ObservableObject {
             kapostsNotifyComments: kinds.kaPostsNotifyComments,
             kapostsNotifyReposts: kinds.kaPostsNotifyReposts,
             kapostsNotifyFollows: kinds.kaPostsNotifyFollows,
+            kapostsNotifyMentions: kinds.kaPostsNotifyMentions,
+            notifySound: kinds.incomingNotificationSoundEnabled,
             kapostsWatchAuthors: collectKaPostsWatchAuthors(),
             kapostsBlockedPubkeys: collectKaPostsPubkey() == nil ? [] : collectKaPostsHiddenPubkeys(),
             primaryAddress: primaryAddress,
@@ -645,8 +649,7 @@ final class PushNotificationManager: ObservableObject {
         guard hasPushService else { return }
 
         if !isRegistered {
-            let watchedAddresses = collectWatchedAddresses()
-            guard !watchedAddresses.isEmpty else { return }
+            guard hasAnythingToWatch(watchedAddresses: collectWatchedAddresses(), watchedGroupIds: []) else { return }
             if shouldDeferRegistrationForWalletBindingConflict() {
                 return
             }
@@ -737,7 +740,7 @@ final class PushNotificationManager: ObservableObject {
         // Only unregister when there is NOTHING left to watch. Group ids alone are a valid
         // registration - unregistering whenever the 1:1 list was empty killed ALL group pushes for
         // users with groups but no push-eligible 1:1 chats.
-        if watchedAddresses.isEmpty && watchedGroupIds.isEmpty {
+        if !hasAnythingToWatch(watchedAddresses: watchedAddresses, watchedGroupIds: watchedGroupIds) {
             AppLog.log("[Push] No eligible chats for push, unregistering device from indexer")
             // through the shared task, so a registration right after waits for it
             await startUnregisterTask().value
@@ -790,6 +793,8 @@ final class PushNotificationManager: ObservableObject {
             kapostsNotifyComments: kinds.kaPostsNotifyComments,
             kapostsNotifyReposts: kinds.kaPostsNotifyReposts,
             kapostsNotifyFollows: kinds.kaPostsNotifyFollows,
+            kapostsNotifyMentions: kinds.kaPostsNotifyMentions,
+            notifySound: kinds.incomingNotificationSoundEnabled,
             kapostsWatchAuthors: collectKaPostsWatchAuthors(),
             kapostsBlockedPubkeys: collectKaPostsPubkey() == nil ? [] : collectKaPostsHiddenPubkeys(),
             primaryAddress: primaryAddress,
@@ -931,7 +936,8 @@ final class PushNotificationManager: ObservableObject {
         let watchAuthors = collectKaPostsWatchAuthors().sorted().joined(separator: "+")
         let hiddenAuthors = collectKaPostsHiddenPubkeys().joined(separator: "+")
         let kinds = AppSettings.load()
-        let kaPostsKinds = [kinds.kaPostsNotifyLikes, kinds.kaPostsNotifyDislikes, kinds.kaPostsNotifyComments, kinds.kaPostsNotifyReposts, kinds.kaPostsNotifyFollows]
+        let kaPostsKinds = [kinds.kaPostsNotifyLikes, kinds.kaPostsNotifyDislikes, kinds.kaPostsNotifyComments, kinds.kaPostsNotifyReposts, kinds.kaPostsNotifyFollows,
+                            kinds.kaPostsNotifyMentions, kinds.incomingNotificationSoundEnabled]
             .map { $0 ? "1" : "0" }.joined()
         // The K marker and the Received KAS addresses too: a build that starts sending them
         // updates the registration once, and a new spending address is watched at once.
@@ -939,6 +945,14 @@ final class PushNotificationManager: ObservableObject {
         return (addrs + ["|"] + groupIds + ["|"] + aliasList + ["|", primary] + ["|", apnsEnvironment] + ["|", silentGroups]
                 + ["|"] + publicChatChannels + ["|"] + hiddenPublicChat + ["|", kapostsKey, kaPostsKinds, watchAuthors, hiddenAuthors]
                 + ["|", Self.appMarker, watchOnly]).joined(separator: ",")
+    }
+
+    /// Whether there's anything for the push service to send this device: chats, groups, the
+    /// Received KAS addresses or the primary address (.kachat name events). The service refuses a
+    /// registration only when all four are empty (kasia-indexer push.rs "nothing to watch").
+    private func hasAnythingToWatch(watchedAddresses: [String], watchedGroupIds: [String]) -> Bool {
+        !watchedAddresses.isEmpty || !watchedGroupIds.isEmpty
+            || !collectWatchOnlyAddresses().isEmpty || collectPrimaryAddress() != nil
     }
 
     /// The registration's `app` field: K takes every kind of push (docs/K_ALL_IN_ONE_PUSH.md).
@@ -1678,7 +1692,9 @@ final class PushNotificationManager: ObservableObject {
                 AppLog.log("[Push] No group bag for %@ - leaving it out of the watched list", group.id)
                 continue
             }
-            let mutedAddresses = GroupChatService.shared.mutedMemberAddresses(for: group.id)
+            // Hidden members too (audit 2026-11-24 notifications): someone whose messages you
+            // stopped seeing has no business ringing your phone with them.
+            let mutedAddresses = GroupChatService.shared.quietMemberAddresses(for: group.id)
             for member in group.members {
                 // A muted member's messages still show up in the thread (block-scan/catch-up
                 // aren't gated on this at all) - simply not watching their blinded id means the
@@ -2350,6 +2366,11 @@ struct PushRegistrationRequest: Codable {
     let kapostsNotifyComments: Bool
     let kapostsNotifyReposts: Bool
     let kapostsNotifyFollows: Bool
+    /// "mentioned you" (Settings > KaPost > Mentions; audit 2026-11-24 notifications).
+    let kapostsNotifyMentions: Bool
+    /// Settings > Notifications > Play sound: false makes every push from the service silent
+    /// (kasia-indexer `notify_sound`, `silent_tokens`), Received KAS and .kachat included.
+    let notifySound: Bool
     /// Authors whose new posts this device wants a push for - the bell beside Follow
     /// (PUSH_EXTENSIONS.md §3a). Pubkeys, 66-hex compressed.
     let kapostsWatchAuthors: [String]
@@ -2383,6 +2404,8 @@ struct PushRegistrationRequest: Codable {
         case kapostsNotifyComments = "kaposts_notify_comments"
         case kapostsNotifyReposts = "kaposts_notify_reposts"
         case kapostsNotifyFollows = "kaposts_notify_follows"
+        case kapostsNotifyMentions = "kaposts_notify_mentions"
+        case notifySound = "notify_sound"
         case kapostsWatchAuthors = "kaposts_watch_authors"
         case kapostsBlockedPubkeys = "kaposts_blocked_pubkeys"
         case primaryAddress = "primary_address"
@@ -2407,6 +2430,11 @@ struct PushUpdateRequest: Codable {
     let kapostsNotifyComments: Bool
     let kapostsNotifyReposts: Bool
     let kapostsNotifyFollows: Bool
+    /// "mentioned you" (Settings > KaPost > Mentions; audit 2026-11-24 notifications).
+    let kapostsNotifyMentions: Bool
+    /// Settings > Notifications > Play sound: false makes every push from the service silent
+    /// (kasia-indexer `notify_sound`, `silent_tokens`), Received KAS and .kachat included.
+    let notifySound: Bool
     /// Authors whose new posts this device wants a push for - the bell beside Follow
     /// (PUSH_EXTENSIONS.md §3a). Pubkeys, 66-hex compressed.
     let kapostsWatchAuthors: [String]
@@ -2439,6 +2467,8 @@ struct PushUpdateRequest: Codable {
         case kapostsNotifyComments = "kaposts_notify_comments"
         case kapostsNotifyReposts = "kaposts_notify_reposts"
         case kapostsNotifyFollows = "kaposts_notify_follows"
+        case kapostsNotifyMentions = "kaposts_notify_mentions"
+        case notifySound = "notify_sound"
         case kapostsWatchAuthors = "kaposts_watch_authors"
         case kapostsBlockedPubkeys = "kaposts_blocked_pubkeys"
         case primaryAddress = "primary_address"

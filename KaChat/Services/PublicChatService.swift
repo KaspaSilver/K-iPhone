@@ -12,8 +12,8 @@ final class PublicChatService: ObservableObject {
     static let shared = PublicChatService()
 
     /// Hardcoded curated channels pinned to the top of the list, matching Android. Like every
-    /// default room they are joined for every account (see `ensureDefaultChannelsJoined`), and
-    /// these two start with notifications on.
+    /// default room they are joined for every account (see `ensureDefaultChannelsJoined`). Since
+    /// 2026-11-24 (owner) every room starts silenced: the bell is yours to turn on.
     /// nonisolated: read from PublicChatStore's background prune (retention rule) as well as
     /// main-actor UI - immutable Sendable value, safe from anywhere.
     nonisolated static let featuredChannels = ["kaspa", "kachat-bugs"]
@@ -640,8 +640,7 @@ final class PublicChatService: ObservableObject {
     /// Off: the room leaves the list and its notifications stop (the bell goes off, which also
     /// takes it off the push service's watch list). On: it is joined if it wasn't (the same as
     /// joining it from the join sheet, so it appears in the list and the circles row at once)
-    /// and comes back - #kaspa and #kachat-bugs with their bell on again, as they start; the
-    /// language rooms with the bell a newly joined room gets.
+    /// and comes back silenced, as every room starts.
     func setCuratedChannel(_ rawName: String, shown: Bool) {
         let name = PublicChatChannelName.normalize(rawName)
         guard Self.curatedChannels.contains(name) else { return }
@@ -659,8 +658,6 @@ final class PublicChatService: ObservableObject {
         let isJoined = channels.contains { $0.channelName == name }
         if !shown, isJoined {
             setNotifyEnabled(false, forChannel: name)
-        } else if shown, isJoined, Self.featuredChannels.contains(name) {
-            setNotifyEnabled(true, forChannel: name)
         }
     }
 
@@ -815,32 +812,48 @@ final class PublicChatService: ObservableObject {
 
     func refreshChannels() {
         channels = store.joinedChannels()
+        syncRoomBellsForExtension()
+    }
+
+    /// The App Group key the push extension reads: per account, the rooms whose push may show.
+    nonisolated static let sharedRoomBellsKey = "shared_room_bells_v1"
+
+    /// Writes the rooms this account wants pushes from (bell on, not switched off, not a service
+    /// room) where the push extension reads them, so a room muted a moment ago stays quiet while
+    /// K is closed even before the push service has the new registration (owner, 2026-11-24).
+    /// Only once the store is open: before that the list isn't known, and the extension lets
+    /// everything through, as it always did.
+    private func syncRoomBellsForExtension() {
+        guard store.isReady, let wallet = walletAddress?.lowercased(),
+              let defaults = UserDefaults(suiteName: SharedDataManager.appGroupIdentifier) else { return }
+        let rooms = channels
+            .filter { $0.notifyEnabled && isCuratedChannelShown($0.channelName) && !Self.serviceChannels.contains($0.channelName) }
+            .map(\.channelName)
+            .sorted()
+        var all = defaults.dictionary(forKey: Self.sharedRoomBellsKey) as? [String: [String]] ?? [:]
+        guard all[wallet] != rooms else { return }
+        all[wallet] = rooms
+        defaults.set(all, forKey: Self.sharedRoomBellsKey)
+    }
+
+    /// Delete Account: the extension's copy of this account's room bells.
+    nonisolated static func removeRoomBells(forWallet wallet: String) {
+        guard let defaults = UserDefaults(suiteName: "group.com.kachat.app"),
+              var all = defaults.dictionary(forKey: sharedRoomBellsKey) as? [String: [String]],
+              all.removeValue(forKey: wallet.lowercased()) != nil else { return }
+        defaults.set(all, forKey: sharedRoomBellsKey)
     }
 
     /// Every default room is in Public Chats from the start: joined (a store row, so it is
-    /// listed and has a bell), unless it was switched off with the customize button. Rooms join
-    /// with notifications off; #kaspa and #kachat-bugs then get theirs switched on once per
-    /// wallet, so a bell the user later turns off stays off.
+    /// listed and has a bell), unless it was switched off with the customize button. Every room
+    /// joins silenced (owner, 2026-11-24: new downloads start with public chats silenced; until
+    /// then #kaspa and #kachat-bugs had their bell switched on once per wallet, and accounts that
+    /// already got that keep the bells they have).
     func ensureDefaultChannelsJoined() {
         for name in Self.curatedChannels where isCuratedChannelShown(name) {
             _ = store.joinChannel(name)
         }
         refreshChannels()
-        applyDefaultNotificationsOnce()
-    }
-
-    private var defaultNotificationsAppliedKey: String? {
-        walletAddress.map { "kaposts_broadcast_default_bells_\($0)" }
-    }
-
-    private func applyDefaultNotificationsOnce() {
-        guard let key = defaultNotificationsAppliedKey,
-              !UserDefaults.standard.bool(forKey: key) else { return }
-        for name in Self.featuredChannels
-        where isCuratedChannelShown(name) && channels.contains(where: { $0.channelName == name }) {
-            setNotifyEnabled(true, forChannel: name)
-        }
-        UserDefaults.standard.set(true, forKey: key)
     }
 
     @discardableResult

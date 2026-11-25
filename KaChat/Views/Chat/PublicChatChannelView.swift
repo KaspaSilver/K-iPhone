@@ -2093,14 +2093,17 @@ private struct PublicChatMessageRow: View, Equatable {
         return actions
     }
 
-    /// The line under a translated bubble, the same words KaPosts uses: "Translating...",
-    /// "Translated from Spanish - Show original", or why it could not be. Nothing at all until
-    /// Translate is picked from the long-press menu.
+    /// The line under a bubble, the same words KaPosts uses: "Translate" under someone else's
+    /// message in another language (owner, 2026-11-24: as KaPost's "Translate post", not only in
+    /// the long-press menu), then "Translating...", "Translated from Spanish - Show original", or
+    /// why it could not be.
     @ViewBuilder
     private var translationStatus: some View {
         switch translation.state(for: translationKey) {
         case .none:
-            EmptyView()
+            if voicePayload == nil, canTranslate {
+                translationLink("Translate") { translate() }
+            }
         case .translating:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.mini)

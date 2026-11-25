@@ -1715,8 +1715,8 @@ final class KaPostsNotificationService {
         let settings = AppSettings.load()
         guard let pollAddress = WalletManager.shared.currentWallet?.publicAddress,
               let key = lastSeenKey else { return }
-        // Notifications off: nothing here would be shown, so the indexer isn't asked.
-        guard settings.notificationsEnabled else { return }
+        // Asked with notifications off too: the poll is what keeps Profile's bell counting while
+        // K is open, and only its banners belong to the switch (audit 2026-11-24 notifications).
         do {
             var page = try await KaPostsAPIClient.shared.fetchNotifications(limit: 50)
             var notifications = page.notifications
@@ -1737,7 +1737,6 @@ final class KaPostsNotificationService {
             guard WalletManager.shared.currentWallet?.publicAddress == pollAddress else { return }
             // Remote-push mode: the push service delivers KaPosts pings (registered via
             // kaposts_pubkey) while the app is backgrounded or closed.
-            guard settings.notificationsEnabled else { return }
             if settings.notificationMode == .remotePush,
                UIApplication.shared.applicationState != .active { return }
             guard let newest = notifications.map(\.timestamp).max() else { return }
@@ -1769,7 +1768,7 @@ final class KaPostsNotificationService {
                 KaPostsNotificationCenter.shared.markAllSeen()
             } else {
                 KaPostsNotificationCenter.shared.recordArrivals(arrivals.count)
-                if UIApplication.shared.applicationState == .active {
+                if settings.notificationsEnabled, UIApplication.shared.applicationState == .active {
                     await postBanners(for: arrivals)
                 }
             }
@@ -1832,6 +1831,9 @@ final class KaPostsNotificationService {
         content.title = "KaPost"
         content.body = "\(actorName(for: address)) \(action)" + (text.isEmpty ? "" : ": \(String(text.prefix(200)))")
         content.threadIdentifier = "kaposts"
+        // Sounds (and so vibrates) as the other in-app banners do (`InAppBanner.post`); it was
+        // always silent (audit 2026-11-24 notifications).
+        content.sound = AppSettings.load().incomingNotificationSoundEnabled ? .default : nil
         // A tap opens what the bell's row opens: the reply or quote itself, the post for a vote,
         // a mention's post, nothing for a follow (KaChatApp reads userInfo["postId"]).
         let targetTxId: String?
@@ -1842,6 +1844,10 @@ final class KaPostsNotificationService {
         default: targetTxId = notification.contentId
         }
         var userInfo: [String: Any] = ["actor_pubkey": notification.userPublicKey]
+        // The push's own kind names, so `willPresent` (the Settings switches, the ledger) reads
+        // the kind instead of guessing from the body: a reply saying "I liked your take" was
+        // dropped as a like (audit 2026-11-24 notifications).
+        if let pushKind = KaPostsBannerLedger.pushKind(for: kind) { userInfo["kaposts_kind"] = pushKind }
         if let targetTxId, !targetTxId.isEmpty { userInfo["postId"] = targetTxId }
         content.userInfo = userInfo
 
@@ -1904,6 +1910,17 @@ enum KaPostsBannerLedger {
         case "follow": return "follow"
         case "mention": return "mention"
         default: return "other"
+        }
+    }
+
+    /// The push's `kaposts_kind` for a ledger kind (the inverse of `kind(pushKind:body:)`), for
+    /// the poll's own banners. Nil for a kind no push names.
+    static func pushKind(for kind: String) -> String? {
+        switch kind {
+        case "like": return "vote_up"
+        case "dislike": return "vote_down"
+        case "reply", "quote", "repost", "follow", "mention", "tip": return kind
+        default: return nil
         }
     }
 

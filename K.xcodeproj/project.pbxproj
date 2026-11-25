@@ -276,6 +276,7 @@
 		SWPBACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPFACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift */; };
 		SWPB3EE11F0DD5AA53DABDED /* GroupActionSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF3EE11F0DD5AA53DABDED /* GroupActionSheets.swift */; };
 		SWPB5AAC1862CE031DE3E822 /* UsernameMentions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF5AAC1862CE031DE3E822 /* UsernameMentions.swift */; };
+		SWPB4DF284FE477716B873F6 /* AccountSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = SWPF4DF284FE477716B873F6 /* AccountSwitcher.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -616,6 +617,7 @@
 		SWPFACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KNSRevealRecovery.swift; sourceTree = "<group>"; };
 		SWPF3EE11F0DD5AA53DABDED /* GroupActionSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupActionSheets.swift; sourceTree = "<group>"; };
 		SWPF5AAC1862CE031DE3E822 /* UsernameMentions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsernameMentions.swift; sourceTree = "<group>"; };
+		SWPF4DF284FE477716B873F6 /* AccountSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSwitcher.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -1033,6 +1035,7 @@
 		E8F100132D4C0001000000FF /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				SWPF4DF284FE477716B873F6 /* AccountSwitcher.swift */,
 				SWPF5AAC1862CE031DE3E822 /* UsernameMentions.swift */,
 				P4BFD85A32621D5AA01E9C55 /* FittedSheet.swift */,
 				P4F5452B1CB580CE25FAF382 /* ChessTabIcon.swift */,
@@ -1421,6 +1424,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				SWPB4DF284FE477716B873F6 /* AccountSwitcher.swift in Sources */,
 				SWPB5AAC1862CE031DE3E822 /* UsernameMentions.swift in Sources */,
 				SWPB3EE11F0DD5AA53DABDED /* GroupActionSheets.swift in Sources */,
 				SWPBACAFDA5B77587EE8DAD0 /* KNSRevealRecovery.swift in Sources */,

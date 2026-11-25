@@ -492,11 +492,29 @@ final class GroupChatService: ObservableObject {
     func hideMember(_ address: String, in groupId: String) {
         groupHiddenMembers[groupId, default: []].insert(address)
         saveGroupHiddenMembers()
+        hiddenMembersChanged()
     }
 
     func unhideMember(_ address: String, in groupId: String) {
         groupHiddenMembers[groupId]?.remove(address)
         saveGroupHiddenMembers()
+        hiddenMembersChanged()
+    }
+
+    /// Someone you stopped seeing doesn't notify either (audit 2026-11-24 notifications): their
+    /// messages leave the unread count, so the badge is redone, and their blinded id leaves the
+    /// push watch list (`collectWatchedGroupIds`), which only `$groupMutedMembers` and
+    /// `$groupSilentNotifications` refresh on their own.
+    private func hiddenMembersChanged() {
+        ChatService.shared.scheduleBadgeUpdate()
+        guard AppSettings.load().notificationMode == .remotePush else { return }
+        Task { await PushNotificationManager.shared.updateWatchedAddresses() }
+    }
+
+    /// The members whose messages never notify in this group: muted ("never notify you") and
+    /// hidden ("stop seeing their messages").
+    func quietMemberAddresses(for groupId: String) -> Set<String> {
+        mutedMemberAddresses(for: groupId).union(hiddenMemberAddresses(for: groupId))
     }
 
     func hiddenMemberAddresses(for groupId: String) -> Set<String> {
@@ -558,8 +576,11 @@ final class GroupChatService: ObservableObject {
               InAppBanner.isRecent(blockTimeMs: message.blockTime),
               message.timestamp >= group.createdAt.addingTimeInterval(-120),
               !silentNotifications(for: group.id) else { return }
-        if mentionsOnlyNotifications(for: group.id), !isPersonalMessage(message.content) { return }
         let sender = message.senderAddress ?? ""
+        // A muted or hidden member never notifies, as their push never comes (they're off the
+        // watch list): before, the open app still bannered them (audit 2026-11-24 notifications).
+        if !sender.isEmpty, quietMemberAddresses(for: group.id).contains(sender) { return }
+        if mentionsOnlyNotifications(for: group.id), !isPersonalMessage(message.content) { return }
         InAppBanner.post(
             txId: message.txId,
             title: group.name,
@@ -698,23 +719,33 @@ final class GroupChatService: ObservableObject {
         let fingerprint = UnreadFingerprint(
             messageCount: messages.count,
             lastBlockTime: messages.last?.blockTime ?? 0,
-            lastReadAt: groupLastReadAt[group.id]
+            lastReadAt: groupLastReadAt[group.id],
+            hiddenSenders: hiddenMemberAddresses(for: group.id)
         )
         if let cached = unreadCache[group.id], cached.fingerprint == fingerprint {
             return cached.value
         }
-        let value = computeUnreadCount(for: group, messages: messages, lastReadAt: fingerprint.lastReadAt)
+        let value = computeUnreadCount(for: group, messages: messages, lastReadAt: fingerprint.lastReadAt,
+                                       hiddenSenders: fingerprint.hiddenSenders)
         unreadCache[group.id] = (fingerprint, value)
         return value
     }
 
-    private func computeUnreadCount(for group: GroupChat, messages: [GroupMessage], lastReadAt: Date?) -> Int {
+    private func computeUnreadCount(for group: GroupChat, messages: [GroupMessage], lastReadAt: Date?,
+                                    hiddenSenders: Set<String>) -> Int {
+        // A hidden member's messages aren't in the thread, so they aren't unread either: the
+        // badge counted mail you could never see to clear (audit 2026-11-24 notifications).
+        func counts(_ message: GroupMessage) -> Bool {
+            guard !message.isOutgoing else { return false }
+            guard let sender = message.senderAddress else { return true }
+            return !hiddenSenders.contains(sender)
+        }
         // A long voice note's parts count once (MESSAGING.md, "Long voice notes").
         guard let lastReadAt else {
-            let count = VoicePartGrouping.unreadUnits(messages.filter { !$0.isOutgoing })
+            let count = VoicePartGrouping.unreadUnits(messages.filter(counts))
             return group.isAdmin ? count : max(count, 1)
         }
-        return VoicePartGrouping.unreadUnits(messages.filter { !$0.isOutgoing && $0.timestamp > lastReadAt })
+        return VoicePartGrouping.unreadUnits(messages.filter { counts($0) && $0.timestamp > lastReadAt })
     }
 
     /// Everything `computeUnreadCount` actually reads, cheap to derive. A delivery-status change
@@ -724,6 +755,8 @@ final class GroupChatService: ObservableObject {
         let messageCount: Int
         let lastBlockTime: Int64
         let lastReadAt: Date?
+        /// Hiding or unhiding a member changes the count with no new message.
+        let hiddenSenders: Set<String>
     }
 
     /// Memoises `unreadCount(for:)`, which SwiftUI calls from view bodies - the Chats tab

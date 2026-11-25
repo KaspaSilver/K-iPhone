@@ -736,6 +736,21 @@ struct GroupChatDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // No info button: tapping the header opens Group Info, exactly as it does in a 1:1 chat.
+            // The bell (owner, 2026-11-24): Silence or Unsilence this group, the Chats list's swipe.
+            if !isSelectingMessages {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    let silent = groupChatService.silentNotifications(for: group.id)
+                    Button {
+                        groupChatService.setSilentNotifications(!silent, for: group.id)
+                        Haptics.selection()
+                        showToast(AppLocalization.string(silent ? "Notifications on." : "Group silenced."), style: .success)
+                    } label: {
+                        Image(systemName: silent ? "bell.slash" : "bell.fill")
+                    }
+                    .accessibilityLabel(Text(silent ? "Notifications off" : "Notifications on"))
+                    .accessibilityHint(Text(silent ? "Unsilence" : "Silence"))
+                }
+            }
             // Entry point into select mode is a message's long-press "Select" menu item (see
             // `enterSelectMode(with:)`), not a toolbar button - this only ever shows Cancel/Delete
             // once already selecting.

@@ -1084,6 +1084,24 @@ final class KasiaAPIClient: NSObject, URLSessionTaskDelegate {
         }
     }
 
+    /// How the message indexer is doing, for Settings > Connection Status (owner, 2026-11-24):
+    /// down after three failures in a row (`isIndexerDown`), degraded while a recent request
+    /// failed, otherwise connected; not set when Settings names none.
+    enum ConnectionState { case connected, degraded, disconnected, notSet }
+
+    func connectionState() async -> ConnectionState {
+        guard Self.isUsableBaseURL(baseURL) else { return .notSet }
+        if await isIndexerDown { return .disconnected }
+        if await indexerHealth.hasRecentFailures { return .degraded }
+        return .connected
+    }
+
+    /// One cheap request, so the state reflects the indexer now (the screen showing it opened).
+    func checkIndexerNow() async {
+        guard Self.isUsableBaseURL(baseURL) else { return }
+        _ = try? await getMetrics()
+    }
+
     /// For a caller about to read the indexer: true while it's down. Once a minute a single
     /// cheap request goes out to find out whether it's back, so an outage never costs a real
     /// sync run against a dead server.
@@ -1922,6 +1940,12 @@ private actor IndexerHealth {
     private static let retryInterval: TimeInterval = 60
 
     var isDown: Bool { downSince != nil }
+
+    /// Up, but a request failed lately (within the failure window): Connection Status says
+    /// Degraded.
+    var hasRecentFailures: Bool {
+        failuresInARow > 0 && Date().timeIntervalSince(lastFailureAt) <= Self.failureWindow
+    }
 
     /// True at most once a minute, while it's down.
     func claimRecoveryCheck() -> Bool {
