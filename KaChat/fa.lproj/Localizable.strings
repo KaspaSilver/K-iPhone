@@ -2167,6 +2167,7 @@
 "The translated text again." = "دوباره متن ترجمه‌شده.";
 "No testnet indexer yet" = "هنوز نمایه‌ساز تست‌نت وجود ندارد";
 "Public Chats" = "گفتگوهای عمومی";
+"Private Chats" = "گفتگوهای خصوصی";
 "Today" = "امروز";
 "New Public Chat" = "گفتگوی عمومی جدید";
 "Tip" = "انعام";
@@ -3322,6 +3323,7 @@
 "Posts and replies on Kaspa." = "پست‌ها و پاسخ‌ها در Kaspa.";
 "Chess, Snake and 2048, scores on chain." = "شطرنج، اسنیک و ۲۰۴۸، امتیازها روی زنجیره.";
 "Websites built on Kaspa." = "وب‌سایت‌های ساخته‌شده روی Kaspa.";
+"Watch and listen, and pay the creator in KAS." = "تماشا کنید و گوش دهید، و به سازنده با KAS پرداخت کنید.";
 "Blocks, transactions and addresses, live." = "بلوک‌ها، تراکنش‌ها و نشانی‌ها، زنده.";
 
 /* Cold Storage quantum addresses (2026-11-25) */

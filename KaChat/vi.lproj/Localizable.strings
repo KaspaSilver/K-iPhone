@@ -2167,6 +2167,7 @@
 "The translated text again." = "Lại văn bản đã dịch.";
 "No testnet indexer yet" = "Chưa có trình lập chỉ mục testnet";
 "Public Chats" = "Trò chuyện công khai";
+"Private Chats" = "Trò chuyện riêng tư";
 "Today" = "Hôm nay";
 "New Public Chat" = "Phòng chat công khai mới";
 "Tip" = "Tiền tip";
@@ -3322,6 +3323,7 @@
 "Posts and replies on Kaspa." = "Bài đăng và trả lời trên Kaspa.";
 "Chess, Snake and 2048, scores on chain." = "Cờ vua, Snake và 2048, điểm số trên chuỗi.";
 "Websites built on Kaspa." = "Các trang web xây dựng trên Kaspa.";
+"Watch and listen, and pay the creator in KAS." = "Xem và nghe, rồi trả cho người sáng tạo bằng KAS.";
 "Blocks, transactions and addresses, live." = "Khối, giao dịch và địa chỉ, trực tiếp.";
 
 /* Cold Storage quantum addresses (2026-11-25) */

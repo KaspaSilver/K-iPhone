@@ -48,8 +48,11 @@ screen. Every other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
 `Views/Ecosystem/KaspaHubView.swift`), where it opens full screen; tapping Kaspa Hub again goes back
 to the grid (`HubRouter`). Holding a card opens its half sheet (Copy Link, Open; 2026-11-25): the
 link is `https://kachat.app/hub/<slug>` (`AppTab.linkSlug`, fixed words: contacts, portfolio,
-cold-storage, usernames, kapost, kaplay, websites, explorer; also `kachat://hub/<slug>`), which opens
-that card for whoever taps it (`KaChatInternalLink.hubSection`, `.openHubSection`). Chats draw it as
+cold-storage, usernames, kapost, kaplay, websites, explorer, kasshi; also `kachat://hub/<slug>`), which opens
+that card for whoever taps it (`KaChatInternalLink.hubSection`, `.openHubSection`). **Kasshi** (owner, 2026-11-26) is its own card (`AppTab.kasshi`, slug `kasshi`), no longer
+one of the Websites: kasshi.io in `InAppBrowserScreen` with `powersDown: false` (the dock stays
+on screen, so the node and chats keep running; the X goes back to the grid). Signing in with K
+there needs the in-app `window.kachat` provider, not built yet (KASSHI_INTEGRATION.md). Chats draw it as
 their internal link card with the card's own icon, KaPost as `KaspaHubLinkCard` (posts and the
 composer). The site serves `/hub/<slug>` and lists `/hub/*` for the app (web_site/server, redeploy). A section opened from the Hub stays alive, hidden, when you leave it
 (audit 2026-11-21 #28): KaPost, Portfolio, KaPlay, .kachat, the Explorer and Cold Storage come back exactly
@@ -286,7 +289,7 @@ length and waveform cached in `VoiceNoteInfoCache`). Room messages translate lik
 a Translate link under someone else's message in another language (owner, 2026-11-24), and in its
 long-press menu (`PostTranslationService`, served by the message indexer). Public rooms are the KaChat
 tab's second page (owner, 2026-11-25): the cycle button beside the KaChat title (`ListPage`,
-`pageCycleButton`) switches Chats (chats, groups, bots, Message Requests) and Public Chats (the
+`pageCycleButton`) switches Private Chats (chats, groups, bots, Message Requests; the pill read "Chats" until 2026-11-26) and Public Chats (the
 rooms by latest activity, pinned rooms as circles above them). The button's red count is the
 public chats' unread (rooms with their bell on) on either page; the dock's KaChat badge counts only
 chats and groups (owner, 2026-11-25). On the rooms page (`ChatListView`: Delete
@@ -305,13 +308,13 @@ too (`PublicChatService.indexerDefaultChannels`, part of `curatedChannels`), wit
 joined bell off, under More Rooms in Edit Default Public Chats. The machinery rooms
 (`hiddenIndexerRooms`) and retired names are left out. K asks hourly, and within a minute when
 Edit Default Public Chats opens; a new list joins its rooms at once (`IndexerTrackedRooms.didChange`).
-A room the indexer drops stops being a default and leaves the list of everyone K joined it for
-(owner, 2026-11-25: nobody indexes it, so its history and pushes would stop with no explanation),
-pin included, once it's been off the indexer's list 2 hours (`droppedAutoRoomGrace`, two hourly
-reads). K remembers the rooms it joined per account (`kachat_rooms_auto_joined_v1_<wallet>`; the
-first run counts the indexer rooms already joined, except ones you've posted in); a room you join
-by name or from a link, or post, edit, react or delete in (`keepRoomAsOwn`), is yours and stays as
-an ordinary room. Switched off, it's left once missing 7 days (`droppedRoomGrace`, so one short
+A room the indexer drops stops being a default and leaves everyone's list (owner, 2026-11-26:
+any room the indexer listed, even one you joined by name or posted in; nobody indexes it, so its
+history and pushes would stop with no explanation), pin included, once it's been off the
+indexer's list 2 hours (`droppedAutoRoomGrace`, two hourly reads). K remembers per account the
+joined rooms the indexer listed (`kachat_rooms_indexer_listed_v1_<wallet>`, `noteIndexerListedRooms`;
+one off the list and not joined is forgotten, so joining it again later keeps it). A room the
+indexer never listed (your own, or one with its own indexer) stays. Switched off, it's left once missing 7 days (`droppedRoomGrace`, so one short
 answer doesn't turn it back on). Every room
 starts silenced, bell off (owner, 2026-11-24). The 2026-11-25 build silences every account's rooms
 once, the first time its room store opens (`silenceRoomsOnceIfNeeded`,
@@ -1147,6 +1150,7 @@ Ported from KaPay on 2026-11-19 (KaPay's CLAUDE.md "Tokens (kUSDT)" is the full 
 | `NEXTCLOUD_SYNC.md` | The shared contract for Nextcloud Automatic Sync: contacts only on iOS since 2026-11-05 (`kachat-contacts.json`); for Android, Desktop and the extension until they move, one `kachat-backup.json` overwritten in place (never extra files), folder discovery, read-merge-write, merge rules (chats, groups, Address Book, portfolios - the wallet app's, passed through here), timings, error handling, per-client conformance |
 | `DETERMINISTIC_ALIASES.md` | Deterministic alias derivation (shipped protocol - see `Utilities/DeterministicAlias.swift`): algorithm, migration notes, legacy-alias compatibility |
 | `NO_HANDSHAKE_MESSAGING.md` | No-handshake 1:1 chats (5.2): the inbox tag on a first message, Message Requests, private chats, the indexer handoff and porting notes |
+| `KASSHI_INTEGRATION.md` | For the Kasshi team (kasshi.io): signing in and paying with K inside K's built-in browser through the same `window.kachat` provider as the K browser extension (which Kasshi already supports); K's side (the in-app provider, Connect / Sign / Send sheets, `kachat.app/open?url=`) is not built yet |
 | `QUANTUM_SAFE_CHATS.md` | Plan, not built: hybrid post-quantum (X-Wing) chats against harvest-now-decrypt-later, with seed-derived self-sealing, per-conversation setup, groups, UI and rollout |
 
 Historical plan/design documents were removed from the repo in the 4.0 hygiene pass; shipped code is the source of truth for those features.

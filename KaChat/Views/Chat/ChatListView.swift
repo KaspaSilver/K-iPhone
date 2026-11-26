@@ -35,7 +35,7 @@ struct ChatListView: View {
         case chats, publicChats
         var title: String {
             switch self {
-            case .chats: return "Chats"
+            case .chats: return "Private Chats"
             case .publicChats: return "Public Chats"
             }
         }

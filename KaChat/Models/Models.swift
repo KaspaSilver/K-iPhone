@@ -2582,6 +2582,9 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
     case apps
     /// K's own block explorer (2026-11-25): blocks, transactions and addresses in the app.
     case explorer
+    /// Kasshi (owner, 2026-11-26): kasshi.io, pay-per-view video and music in KAS, in the in-app
+    /// browser. Its own card, no longer one of the Websites.
+    case kasshi
 
     var id: String { rawValue }
 
@@ -2604,6 +2607,7 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .games: return "Arcade"
         case .apps: return "Websites"
         case .explorer: return "Explorer"
+        case .kasshi: return "Kasshi"
         }
     }
 
@@ -2627,6 +2631,7 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .games: return "gamecontroller"
         case .apps: return "globe"
         case .explorer: return "cube.transparent"
+        case .kasshi: return "play.rectangle.fill"
         }
     }
 
@@ -2646,6 +2651,7 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         // its tag from before it left (2026-10-24)
         case .apps: return 9
         case .explorer: return 24
+        case .kasshi: return 26
         }
     }
 

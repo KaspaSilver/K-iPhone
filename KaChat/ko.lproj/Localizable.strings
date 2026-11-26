@@ -2167,6 +2167,7 @@
 "The translated text again." = "번역된 텍스트를 다시 봅니다.";
 "No testnet indexer yet" = "아직 테스트넷 인덱서가 없음";
 "Public Chats" = "공개 채팅";
+"Private Chats" = "비공개 채팅";
 "Today" = "오늘";
 "New Public Chat" = "새 공개 채팅";
 "Tip" = "팁";
@@ -3322,6 +3323,7 @@
 "Posts and replies on Kaspa." = "Kaspa의 게시물과 답글.";
 "Chess, Snake and 2048, scores on chain." = "체스, 스네이크, 2048. 점수는 체인에 기록.";
 "Websites built on Kaspa." = "Kaspa로 만든 웹사이트.";
+"Watch and listen, and pay the creator in KAS." = "보고 듣고, 크리에이터에게 KAS로 지불하세요.";
 "Blocks, transactions and addresses, live." = "블록, 거래, 주소를 실시간으로.";
 
 /* Cold Storage quantum addresses (2026-11-25) */

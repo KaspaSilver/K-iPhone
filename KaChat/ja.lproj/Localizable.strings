@@ -2167,6 +2167,7 @@
 "The translated text again." = "翻訳されたテキストに戻します。";
 "No testnet indexer yet" = "テストネット用インデクサはまだありません";
 "Public Chats" = "パブリックチャット";
+"Private Chats" = "プライベートチャット";
 "Today" = "今日";
 "New Public Chat" = "新しい公開チャット";
 "Tip" = "チップ";
@@ -3322,6 +3323,7 @@
 "Posts and replies on Kaspa." = "Kaspa の投稿と返信。";
 "Chess, Snake and 2048, scores on chain." = "チェス、スネーク、2048。スコアはチェーンに記録。";
 "Websites built on Kaspa." = "Kaspa で作られたウェブサイト。";
+"Watch and listen, and pay the creator in KAS." = "見て、聴いて、クリエイターに KAS で支払おう。";
 "Blocks, transactions and addresses, live." = "ブロック、取引、アドレスをライブで。";
 
 /* Cold Storage quantum addresses (2026-11-25) */

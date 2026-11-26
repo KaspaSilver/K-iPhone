@@ -2219,6 +2219,10 @@ struct InAppBrowserScreen: View {
     let url: URL
     /// Optional strip under the top bar (Claim Testnet Kaspa: "your address is copied").
     var notice: String? = nil
+    /// Pause the node and chat polling while it's up, as for a backgrounded app. Off where the
+    /// dock stays on screen (Kasshi's Kaspa Hub card): there the connection dot would turn red,
+    /// and a tap on Chats must find live chats.
+    var powersDown = true
     let onClose: () -> Void
 
     @State private var isLoading = true
@@ -2300,8 +2304,8 @@ struct InAppBrowserScreen: View {
                 .ignoresSafeArea(edges: .bottom)
         }
         .background(Color(uiColor: .systemBackground))
-        .onAppear { powerDownForBrowsing() }
-        .onDisappear { powerUpAfterBrowsing() }
+        .onAppear { if powersDown { powerDownForBrowsing() } }
+        .onDisappear { if powersDown { powerUpAfterBrowsing() } }
     }
 }
 

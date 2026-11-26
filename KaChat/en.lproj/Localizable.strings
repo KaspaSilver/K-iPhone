@@ -2167,6 +2167,7 @@
 "The translated text again." = "The translated text again.";
 "No testnet indexer yet" = "No testnet indexer yet";
 "Public Chats" = "Public Chats";
+"Private Chats" = "Private Chats";
 "Today" = "Today";
 "New Public Chat" = "New Public Chat";
 "Tip" = "Tip";
@@ -3322,6 +3323,7 @@
 "Posts and replies on Kaspa." = "Posts and replies on Kaspa.";
 "Chess, Snake and 2048, scores on chain." = "Chess, Snake and 2048, scores on chain.";
 "Websites built on Kaspa." = "Websites built on Kaspa.";
+"Watch and listen, and pay the creator in KAS." = "Watch and listen, and pay the creator in KAS.";
 "Blocks, transactions and addresses, live." = "Blocks, transactions and addresses, live.";
 
 /* Cold Storage quantum addresses (2026-11-25) */

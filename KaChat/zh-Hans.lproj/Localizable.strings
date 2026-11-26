@@ -2167,6 +2167,7 @@
 "The translated text again." = "再次显示译文。";
 "No testnet indexer yet" = "尚无测试网索引器";
 "Public Chats" = "公共聊天";
+"Private Chats" = "私人聊天";
 "Today" = "今天";
 "New Public Chat" = "新公共聊天";
 "Tip" = "打赏";
@@ -3322,6 +3323,7 @@
 "Posts and replies on Kaspa." = "Kaspa 上的帖子和回复。";
 "Chess, Snake and 2048, scores on chain." = "国际象棋、贪吃蛇和 2048，分数上链。";
 "Websites built on Kaspa." = "基于 Kaspa 的网站。";
+"Watch and listen, and pay the creator in KAS." = "观看和收听，用 KAS 直接支付给创作者。";
 "Blocks, transactions and addresses, live." = "区块、交易和地址，实时更新。";
 
 /* Cold Storage quantum addresses (2026-11-25) */

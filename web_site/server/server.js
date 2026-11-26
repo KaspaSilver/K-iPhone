@@ -799,6 +799,7 @@ const HUB_CARDS = {
   'kaplay': { name: 'KaPlay', blurb: 'Chess, Snake and 2048, scores on chain.' },
   'websites': { name: 'Websites', blurb: 'Websites built on Kaspa.' },
   'explorer': { name: 'Explorer', blurb: 'Blocks, transactions and addresses, live.' },
+  'kasshi': { name: 'Kasshi', blurb: 'Watch and listen, and pay the creator in KAS.' },
 };
 
 function hubPage(slug) {

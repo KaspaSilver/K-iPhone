@@ -1757,6 +1757,7 @@ extension AppTab {
         case .games: return "kaplay"
         case .apps: return "websites"
         case .explorer: return "explorer"
+        case .kasshi: return "kasshi"
         case .chats, .wallet, .profile, .settings, .hub: return nil
         }
     }
@@ -1779,6 +1780,7 @@ extension AppTab {
         case .games: return "Chess, Snake and 2048, scores on chain."
         case .apps: return "Websites built on Kaspa."
         case .explorer: return "Blocks, transactions and addresses, live."
+        case .kasshi: return "Watch and listen, and pay the creator in KAS."
         case .chats, .wallet, .profile, .settings, .hub: return ""
         }
     }

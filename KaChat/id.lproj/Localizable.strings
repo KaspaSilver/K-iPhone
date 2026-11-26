@@ -2167,6 +2167,7 @@
 "The translated text again." = "Teks terjemahan lagi.";
 "No testnet indexer yet" = "Belum ada pengindeks testnet";
 "Public Chats" = "Obrolan Publik";
+"Private Chats" = "Obrolan Pribadi";
 "Today" = "Hari ini";
 "New Public Chat" = "Obrolan Publik Baru";
 "Tip" = "Tip";
@@ -3322,6 +3323,7 @@
 "Posts and replies on Kaspa." = "Postingan dan balasan di Kaspa.";
 "Chess, Snake and 2048, scores on chain." = "Catur, Snake, dan 2048, skor di chain.";
 "Websites built on Kaspa." = "Situs web yang dibangun di Kaspa.";
+"Watch and listen, and pay the creator in KAS." = "Tonton dan dengarkan, lalu bayar kreatornya dengan KAS.";
 "Blocks, transactions and addresses, live." = "Blok, transaksi, dan alamat, langsung.";
 
 /* Cold Storage quantum addresses (2026-11-25) */

@@ -111,6 +111,11 @@ struct AppTabContent: View {
                 .environmentObject(PublicChatService.shared)
         case .explorer:
             ExplorerView()
+        case .kasshi:
+            // kasshi.io in the in-app browser, its X back to the grid
+            InAppBrowserScreen(url: URL(string: "https://kasshi.io")!, powersDown: false) {
+                HubRouter.shared.close()
+            }
         case .apps:
             NavigationStack {
                 // ProfileAppsView sets its own title; only the shared header items are added.
