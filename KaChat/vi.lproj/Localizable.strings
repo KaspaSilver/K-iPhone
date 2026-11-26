@@ -3392,3 +3392,13 @@
 "Tap to view" = "Chạm để xem";
 "Add as Contact" = "Thêm vào danh bạ";
 "Opens their posts and replies." = "Mở bài đăng và trả lời của họ.";
+
+/* Website wallet: Connect, Sign (KaChatSiteWallet) */
+"Connect to K" = "Kết nối với K";
+"This site sees the address you connect and its balance. It can ask you to sign in or to pay, and nothing happens without your OK here." = "Trang này thấy địa chỉ bạn kết nối và số dư của nó. Trang có thể yêu cầu bạn đăng nhập hoặc thanh toán, và không có gì xảy ra nếu bạn không đồng ý tại đây.";
+"Which address do you want to connect?" = "Bạn muốn kết nối địa chỉ nào?";
+"Another address keeps this site apart from your username and chats." = "Một địa chỉ khác giúp tách trang này khỏi tên người dùng và các cuộc trò chuyện của bạn.";
+"Sign Message" = "Ký tin nhắn";
+"Sign" = "Ký";
+"Signing proves you own this address. It costs nothing and sends no Kaspa." = "Ký chứng minh địa chỉ này là của bạn. Miễn phí và không gửi Kaspa.";
+"Check the amount and the address before you send." = "Kiểm tra số tiền và địa chỉ trước khi gửi.";

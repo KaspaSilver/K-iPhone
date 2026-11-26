@@ -51,8 +51,16 @@ link is `https://kachat.app/hub/<slug>` (`AppTab.linkSlug`, fixed words: contact
 cold-storage, usernames, kapost, kaplay, websites, explorer, kasshi; also `kachat://hub/<slug>`), which opens
 that card for whoever taps it (`KaChatInternalLink.hubSection`, `.openHubSection`). **Kasshi** (owner, 2026-11-26) is its own card (`AppTab.kasshi`, slug `kasshi`), no longer
 one of the Websites: kasshi.io in `InAppBrowserScreen` with `powersDown: false` (the dock stays
-on screen, so the node and chats keep running; the X goes back to the grid). Signing in with K
-there needs the in-app `window.kachat` provider, not built yet (KASSHI_INTEGRATION.md). Chats draw it as
+on screen, so the node and chats keep running; the X goes back to the grid). **K signs in to
+Kasshi itself** (2026-11-26, KASSHI_INTEGRATION.md): `KaChatSiteWallet` puts the K browser
+extension's `window.kachat` provider (same calls, shapes and error codes, plus `platform: "ios"`)
+on allowed https origins only (`allowedHosts`: kasshi.io and subdomains; main frame, checked again
+at the bridge). `requestAccounts` opens Connect (`SiteWalletSheets.swift`), where the person picks
+the Chatting Address or another regular address (`OwnAddressList`, never quantum; the pick is
+remembered per account and site, `kachat_site_connections_<wallet>`); `signMessage` opens Sign
+(KasWare's personal-message Schnorr, hex, with that address's key); `sendKaspa` opens
+`WithdrawKaspaView` on its Review (`siteHost`, `onSent`: address, amount and From fixed). One
+sheet at a time, 3 s after a decline; a sheet closed without an answer is a 4001. Chats draw it as
 their internal link card with the card's own icon, KaPost as `KaspaHubLinkCard` (posts and the
 composer). The site serves `/hub/<slug>` and lists `/hub/*` for the app (web_site/server, redeploy). A section opened from the Hub stays alive, hidden, when you leave it
 (audit 2026-11-21 #28): KaPost, Portfolio, KaPlay, .kachat, the Explorer and Cold Storage come back exactly
@@ -1150,7 +1158,7 @@ Ported from KaPay on 2026-11-19 (KaPay's CLAUDE.md "Tokens (kUSDT)" is the full 
 | `NEXTCLOUD_SYNC.md` | The shared contract for Nextcloud Automatic Sync: contacts only on iOS since 2026-11-05 (`kachat-contacts.json`); for Android, Desktop and the extension until they move, one `kachat-backup.json` overwritten in place (never extra files), folder discovery, read-merge-write, merge rules (chats, groups, Address Book, portfolios - the wallet app's, passed through here), timings, error handling, per-client conformance |
 | `DETERMINISTIC_ALIASES.md` | Deterministic alias derivation (shipped protocol - see `Utilities/DeterministicAlias.swift`): algorithm, migration notes, legacy-alias compatibility |
 | `NO_HANDSHAKE_MESSAGING.md` | No-handshake 1:1 chats (5.2): the inbox tag on a first message, Message Requests, private chats, the indexer handoff and porting notes |
-| `KASSHI_INTEGRATION.md` | For the Kasshi team (kasshi.io): signing in and paying with K inside K's built-in browser through the same `window.kachat` provider as the K browser extension (which Kasshi already supports); K's side (the in-app provider, a Connect sheet that picks the address (Chatting Address or another regular one, never quantum), Sign / Send sheets, `kachat.app/open?url=`) is not built yet |
+| `KASSHI_INTEGRATION.md` | For the Kasshi team (kasshi.io): signing in and paying with K inside K's built-in browser through the same `window.kachat` provider as the K browser extension (which Kasshi already supports); K's side is built (`KaChatSiteWallet`) except the `kachat.app/open?url=` link |
 | `QUANTUM_SAFE_CHATS.md` | Plan, not built: hybrid post-quantum (X-Wing) chats against harvest-now-decrypt-later, with seed-derived self-sealing, per-conversation setup, groups, UI and rollout |
 
 Historical plan/design documents were removed from the repo in the 4.0 hygiene pass; shipped code is the source of truth for those features.

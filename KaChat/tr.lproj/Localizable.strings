@@ -3392,3 +3392,13 @@
 "Tap to view" = "Görmek için dokun";
 "Add as Contact" = "Kişilere Ekle";
 "Opens their posts and replies." = "Gönderilerini ve yanıtlarını açar.";
+
+/* Website wallet: Connect, Sign (KaChatSiteWallet) */
+"Connect to K" = "K ile Bağlan";
+"This site sees the address you connect and its balance. It can ask you to sign in or to pay, and nothing happens without your OK here." = "Bu site bağladığınız adresi ve bakiyesini görür. Giriş yapmanızı veya ödeme yapmanızı isteyebilir; burada onayınız olmadan hiçbir şey olmaz.";
+"Which address do you want to connect?" = "Hangi adresi bağlamak istiyorsunuz?";
+"Another address keeps this site apart from your username and chats." = "Başka bir adres, bu siteyi kullanıcı adınızdan ve sohbetlerinizden ayrı tutar.";
+"Sign Message" = "Mesajı İmzala";
+"Sign" = "İmzala";
+"Signing proves you own this address. It costs nothing and sends no Kaspa." = "İmzalamak bu adresin size ait olduğunu kanıtlar. Ücretsizdir ve Kaspa göndermez.";
+"Check the amount and the address before you send." = "Göndermeden önce tutarı ve adresi kontrol edin.";

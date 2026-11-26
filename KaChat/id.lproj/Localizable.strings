@@ -3392,3 +3392,13 @@
 "Tap to view" = "Ketuk untuk melihat";
 "Add as Contact" = "Tambah ke Kontak";
 "Opens their posts and replies." = "Membuka postingan dan balasannya.";
+
+/* Website wallet: Connect, Sign (KaChatSiteWallet) */
+"Connect to K" = "Hubungkan ke K";
+"This site sees the address you connect and its balance. It can ask you to sign in or to pay, and nothing happens without your OK here." = "Situs ini melihat alamat yang Anda hubungkan dan saldonya. Situs bisa meminta Anda masuk atau membayar, dan tidak ada yang terjadi tanpa persetujuan Anda di sini.";
+"Which address do you want to connect?" = "Alamat mana yang ingin Anda hubungkan?";
+"Another address keeps this site apart from your username and chats." = "Alamat lain menjaga situs ini terpisah dari nama pengguna dan obrolan Anda.";
+"Sign Message" = "Tanda Tangani Pesan";
+"Sign" = "Tanda Tangani";
+"Signing proves you own this address. It costs nothing and sends no Kaspa." = "Tanda tangan membuktikan alamat ini milik Anda. Gratis dan tidak mengirim Kaspa.";
+"Check the amount and the address before you send." = "Periksa jumlah dan alamat sebelum mengirim.";

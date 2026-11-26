@@ -3392,3 +3392,13 @@
 "Tap to view" = "轻点查看";
 "Add as Contact" = "添加到联系人";
 "Opens their posts and replies." = "打开其帖子和回复。";
+
+/* Website wallet: Connect, Sign (KaChatSiteWallet) */
+"Connect to K" = "连接到 K";
+"This site sees the address you connect and its balance. It can ask you to sign in or to pay, and nothing happens without your OK here." = "此网站能看到你连接的地址及其余额。它可以请你登录或付款，但未经你在这里确认，什么都不会发生。";
+"Which address do you want to connect?" = "你要连接哪个地址？";
+"Another address keeps this site apart from your username and chats." = "使用其他地址可让此网站与你的用户名和聊天分开。";
+"Sign Message" = "签名消息";
+"Sign" = "签名";
+"Signing proves you own this address. It costs nothing and sends no Kaspa." = "签名可证明此地址属于你。不收费，也不会发送 Kaspa。";
+"Check the amount and the address before you send." = "发送前请核对金额和地址。";

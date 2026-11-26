@@ -9,11 +9,11 @@ Kasshi already supports K on desktop. The "K" tile in **Sign in with your Kaspa 
 the K browser extension through `window.kapay || window.kachat` and uses its `requestAccounts`,
 `getPublicKey`, `signMessage` and `sendKaspa`.
 
-The K iPhone app will put **the same `window.kachat` provider** into kasshi.io when it is opened
-in K's built-in browser (Kaspa Hub > Kaspa Websites > KasShi). The calls, return shapes and error
-codes will match the extension. Kasshi's existing K code should therefore work inside the app
-with **no change**: the K tile shows "Installed", and the sign-in, deposit and withdraw flows run
-as they do on desktop.
+The K iPhone app puts **the same `window.kachat` provider** into kasshi.io when it is opened
+in K's built-in browser (Kaspa Hub > Kasshi, its own card since 2026-11-26). The calls, return
+shapes and error codes match the extension. Kasshi's existing K code should therefore work inside
+the app with **no change**: the K tile shows "Installed", and the sign-in, deposit and withdraw
+flows run as they do on desktop.
 
 Each request opens a native K sheet: Connect, Sign or Send, with Approve and Decline. Kasshi's
 page never sees a key.
@@ -48,7 +48,7 @@ check already matches.
 | `getPublicKey()` | 33-byte compressed public key, hex (`"02..."` / `"03..."`) | nothing (connected only) |
 | `getBalance()` | `{ confirmed, unconfirmed, total }` in **sompi**, as numbers | nothing (connected only) |
 | `signMessage(text)` | signature, 64-byte Schnorr, **hex** | Sign sheet showing the full text |
-| `sendKaspa(to, sompi, { priorityFee })` | txid (64 hex) | K's own Send review (To, amount, fee), then a swipe up to send |
+| `sendKaspa(to, sompi, { priorityFee })` | txid (64 hex) | K's own Send review (To, amount, From, fee), then a swipe up to send. The txid comes back as soon as the send is out |
 | `disconnect()` | `true` | nothing; the site must call `requestAccounts()` again |
 | `on("accountsChanged" \| "disconnect" \| "networkChanged", fn)` / `removeListener` | | |
 
@@ -87,7 +87,8 @@ A few rules follow from that:
 
 - `sompi` is a whole number above zero, as a number or a digit string. Kasshi passes
   `Math.round(kas * 1e8)`, which works. `to` must be a `kaspa:` address.
-- `priorityFee` is optional extra sompi, at most 1 KAS.
+- `priorityFee` is accepted but not used in the app: the person picks the fee speed on K's
+  review, as for every send.
 - K builds and signs the transaction itself, from the connected address.
 - The person confirms on K's Send review screen, the same one K uses for every payment.
 
@@ -98,7 +99,7 @@ Errors are thrown as `Error`, with `code` set. The messages say "K".
 | code | Meaning | What Kasshi should do |
 |---|---|---|
 | `4001` | Declined in K. K refuses that site's requests for a few seconds afterwards | Show "Request rejected in K" (Kasshi's `Qy()` already does) |
-| `4002` | **May have been sent**: the send didn't get a final answer. `error.txid` is set when known | Don't retry blindly. Check the txid or the deposit address first |
+| `4002` | **May have been sent** (extension only; the app shows a failed send in K with Try Again, and closing it answers `4001`) | Don't retry blindly. Check the txid or the deposit address first |
 | `4100` | Not connected yet | Call `requestAccounts()` |
 | `4200` | Method not supported | |
 | `4900` | K couldn't reach the network | Retry later |
@@ -117,9 +118,8 @@ Nothing here needs new code. It is listed so Kasshi can check its assumptions.
    Kasshi wallet address. After the swipe, the txid comes back.
 3. **Withdraw.** This is server-side (Kasshi pays out to the K address), so nothing happens in K.
    The KAS shows up in K's Wallet as Received KAS.
-4. **Account switch in K.** If the person switches K accounts while the page is open, K fires
-   `accountsChanged` with `[]` and treats the site as disconnected. Kasshi's listener already
-   calls its `y()` reset on an empty array.
+4. **Account switch in K.** Switching K accounts closes K's browser, and the page with it: the
+   next visit starts unconnected and signs in again.
 
 ## 3. What differs inside the app
 
@@ -165,12 +165,13 @@ d. **(Optional) "Open in K" button.** When kasshi.io is opened in mobile Safari,
 
 ## 5. K's side (for reference)
 
-The K team will build:
-- the `window.kachat` provider in K's built-in browser, limited to kasshi.io at first;
+Built in K for iPhone (2026-11-26):
+- the `window.kachat` provider in K's built-in browser, on kasshi.io (and its subdomains) only;
 - the native Connect (with the address choice), Sign and Send sheets;
-- `accountsChanged` on an account switch;
-- the `kachat.app/open?url=` link from ask (d).
+- `accountsChanged` with the address on connect, and with `[]` plus `disconnect` after `disconnect()`.
 
-Kasshi can test against the K browser extension today: the in-app provider answers the same way.
+Not built yet: the `kachat.app/open?url=` link from ask (d).
+
+Kasshi can also test against the K browser extension: the in-app provider answers the same way.
 
 Questions: reply through the K team's usual contact.

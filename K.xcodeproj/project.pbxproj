@@ -82,6 +82,7 @@
 		E81000032D4C000100000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000022D4C000100000002 /* ContentView.swift */; };
 		E81000052D4C000100000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E81000042D4C000100000003 /* Assets.xcassets */; };
 		E81000072D4C000100000004 /* WalletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000062D4C000100000004 /* WalletManager.swift */; };
+		KSWL0001B00000000000001 /* KaChatSiteWallet.swift in Sources */ = {isa = PBXBuildFile; fileRef = KSWL0001A00000000000001 /* KaChatSiteWallet.swift */; };
 		E81000092D4C000100000005 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000082D4C000100000005 /* KeychainService.swift */; };
 		E810000B2D4C000100000006 /* KaChatAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E810000A2D4C000100000006 /* KaChatAPIClient.swift */; };
 		E810000D2D4C000100000007 /* ContactsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E810000C2D4C000100000007 /* ContactsManager.swift */; };
@@ -115,6 +116,7 @@
 		E8F1A0062F4B000100000006 /* external/opus/Opus.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = E8F1A0052F4B000100000005 /* external/opus/Opus.xcframework */; };
 		E8F1AC710001000000000001 /* ActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F1AC700001000000000001 /* ActionSheet.swift */; };
 		SKCM00010001000100000001 /* SendKaspaComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKCM00010001000000000001 /* SendKaspaComponents.swift */; };
+		KSWL0002B00000000000001 /* SiteWalletSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = KSWL0002A00000000000001 /* SiteWalletSheets.swift */; };
 		KPRQ00010001000100000001 /* PaymentRequestViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPRQ00010001000000000001 /* PaymentRequestViews.swift */; };
 		OBC00010001000000000002 /* OutgoingBubbleColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBC00010001000000000001 /* OutgoingBubbleColor.swift */; };
 		ARC0001B000000000000001 /* AddressResolutionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = ARC0001A000000000000001 /* AddressResolutionCard.swift */; };
@@ -395,6 +397,7 @@
 		E81000022D4C000100000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		E81000042D4C000100000003 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E81000062D4C000100000004 /* WalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletManager.swift; sourceTree = "<group>"; };
+		KSWL0001A00000000000001 /* KaChatSiteWallet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaChatSiteWallet.swift; sourceTree = "<group>"; };
 		E81000082D4C000100000005 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		E810000A2D4C000100000006 /* KaChatAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaChatAPIClient.swift; sourceTree = "<group>"; };
 		E810000C2D4C000100000007 /* ContactsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsManager.swift; sourceTree = "<group>"; };
@@ -430,6 +433,7 @@
 		E8F1A0052F4B000100000005 /* external/opus/Opus.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = external/opus/Opus.xcframework; sourceTree = "<group>"; };
 		E8F1AC700001000000000001 /* ActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionSheet.swift; sourceTree = "<group>"; };
 		SKCM00010001000000000001 /* SendKaspaComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendKaspaComponents.swift; sourceTree = "<group>"; };
+		KSWL0002A00000000000001 /* SiteWalletSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteWalletSheets.swift; sourceTree = "<group>"; };
 		KPRQ00010001000000000001 /* PaymentRequestViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentRequestViews.swift; sourceTree = "<group>"; };
 		OBC00010001000000000001 /* OutgoingBubbleColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutgoingBubbleColor.swift; sourceTree = "<group>"; };
 		ARC0001A000000000000001 /* AddressResolutionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressResolutionCard.swift; sourceTree = "<group>"; };
@@ -846,6 +850,7 @@
 				PORTFBDB43F5D37ED05D74E5 /* PortfolioManager.swift */,
 				PORTF2E4D68B2ED86A68B5BC /* MarketPairService.swift */,
 				E81000062D4C000100000004 /* WalletManager.swift */,
+				KSWL0001A00000000000001 /* KaChatSiteWallet.swift */,
 				WMSA00010001000000000001 /* WalletManager+SpendingAddresses.swift */,
 				E81000082D4C000100000005 /* KeychainService.swift */,
 				E810000A2D4C000100000006 /* KaChatAPIClient.swift */,
@@ -1056,6 +1061,7 @@
 				E8F100112D4C0001000000FF /* Toast.swift */,
 				E8F1AC700001000000000001 /* ActionSheet.swift */,
 				SKCM00010001000000000001 /* SendKaspaComponents.swift */,
+				KSWL0002A00000000000001 /* SiteWalletSheets.swift */,
 				KPRQ00010001000000000001 /* PaymentRequestViews.swift */,
 				OBC00010001000000000001 /* OutgoingBubbleColor.swift */,
 				ARC0001A000000000000001 /* AddressResolutionCard.swift */,
@@ -1552,6 +1558,7 @@
 				E81000032D4C000100000002 /* ContentView.swift in Sources */,
 				3F4C10012F72000100000002 /* LaunchRouter.swift in Sources */,
 				E81000072D4C000100000004 /* WalletManager.swift in Sources */,
+				KSWL0001B00000000000001 /* KaChatSiteWallet.swift in Sources */,
 				WMSA00010001000100000001 /* WalletManager+SpendingAddresses.swift in Sources */,
 				E81000092D4C000100000005 /* KeychainService.swift in Sources */,
 				E810000B2D4C000100000006 /* KaChatAPIClient.swift in Sources */,
@@ -1613,6 +1620,7 @@
 				E8F100122D4C0001000000FF /* Toast.swift in Sources */,
 				E8F1AC710001000000000001 /* ActionSheet.swift in Sources */,
 				SKCM00010001000100000001 /* SendKaspaComponents.swift in Sources */,
+				KSWL0002B00000000000001 /* SiteWalletSheets.swift in Sources */,
 				KPRQ00010001000100000001 /* PaymentRequestViews.swift in Sources */,
 				OBC00010001000000000002 /* OutgoingBubbleColor.swift in Sources */,
 				ARC0001B000000000000001 /* AddressResolutionCard.swift in Sources */,

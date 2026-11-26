@@ -3392,3 +3392,13 @@
 "Tap to view" = "タップして表示";
 "Add as Contact" = "連絡先に追加";
 "Opens their posts and replies." = "この人の投稿と返信を開きます。";
+
+/* Website wallet: Connect, Sign (KaChatSiteWallet) */
+"Connect to K" = "K に接続";
+"This site sees the address you connect and its balance. It can ask you to sign in or to pay, and nothing happens without your OK here." = "このサイトには、接続したアドレスとその残高が見えます。サインインや支払いを求めることがありますが、ここであなたが許可しない限り何も起きません。";
+"Which address do you want to connect?" = "どのアドレスを接続しますか？";
+"Another address keeps this site apart from your username and chats." = "別のアドレスを使うと、このサイトをユーザー名やチャットと切り離せます。";
+"Sign Message" = "メッセージに署名";
+"Sign" = "署名";
+"Signing proves you own this address. It costs nothing and sends no Kaspa." = "署名すると、このアドレスがあなたのものだと証明できます。費用はかからず、Kaspa も送金されません。";
+"Check the amount and the address before you send." = "送金する前に金額とアドレスを確認してください。";

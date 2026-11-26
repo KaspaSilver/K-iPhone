@@ -1041,7 +1041,13 @@ struct WithdrawKaspaView: View {
     /// Opened from one address's history (its Send button): the Kaspa leaves from that address
     /// and the From section offers no other.
     var lockedSource: SendSource? = nil
+    /// A website's `sendKaspa` in K's browser (`KaChatSiteWallet`): its host. The send opens on
+    /// the Review (address, amount and From are fixed), says who asked, and hands the txid back
+    /// through `onSent`.
+    var siteHost: String? = nil
     var onComplete: (() -> Void)? = nil
+    /// After `onComplete` so a trailing closure still means `onComplete`.
+    var onSent: ((String) -> Void)? = nil
 
     /// The request this send pays, if any (`paymentRequest`, or one pasted in).
     @State private var activeRequest: PaymentRequest?
@@ -1165,7 +1171,7 @@ struct WithdrawKaspaView: View {
     /// are set), a payment request or a pre-filled recipient to From (or the amount, when From
     /// is fixed).
     private var initialStep: Step {
-        if isCompoundMode { return .review }
+        if isCompoundMode || siteHost != nil { return .review }
         if paymentRequest != nil || prefillAddress != nil { return afterRecipient }
         return .recipient
     }
@@ -1176,7 +1182,7 @@ struct WithdrawKaspaView: View {
     private var currentStep: Step { step ?? initialStep }
 
     private var screenTitle: String {
-        isCompoundMode ? "Compound UTXOs" : (activeRequest != nil ? "Payment Request" : "Send Kaspa")
+        isCompoundMode ? "Compound UTXOs" : (activeRequest != nil && siteHost == nil ? "Payment Request" : "Send Kaspa")
     }
 
     /// Where Back goes from a step; nil for the first one. A payment request opened from a link
@@ -1188,7 +1194,7 @@ struct WithdrawKaspaView: View {
         case .amount:
             if lockedSource == nil { return .from }
             return (isCompoundMode || paymentRequest != nil) ? nil : .recipient
-        case .review: return isCompoundMode ? nil : .amount
+        case .review: return (isCompoundMode || siteHost != nil) ? nil : .amount
         case .fee: return .review
         }
     }
@@ -1399,7 +1405,7 @@ struct WithdrawKaspaView: View {
                     ScrollView {
                         VStack(spacing: 18) {
                             reviewAmount
-                            PaymentRequestSummary(request: activeRequest)
+                            requestSummary(activeRequest)
                             if exceedsBalance {
                                 Text("This is more than the address you're sending from holds.")
                                     .font(.footnote)
@@ -1597,7 +1603,7 @@ struct WithdrawKaspaView: View {
                 .background(sendKaspaGlass(cornerRadius: 20))
 
                 if let activeRequest {
-                    PaymentRequestSummary(request: activeRequest)
+                    requestSummary(activeRequest)
                 }
 
                 // The only things that can still change: the fee and the coins it spends.
@@ -1740,6 +1746,16 @@ struct WithdrawKaspaView: View {
             resolveKNSDomain(trimmed)
         } else {
             isValidAddress = false
+        }
+    }
+
+    /// The request's card: a payment request's, or the website that asked for this send.
+    @ViewBuilder
+    private func requestSummary(_ request: PaymentRequest) -> some View {
+        if let siteHost {
+            SiteRequestNote(host: siteHost)
+        } else {
+            PaymentRequestSummary(request: request)
         }
     }
 
@@ -1927,6 +1943,7 @@ struct WithdrawKaspaView: View {
                 }
                 await MainActor.run {
                     isSending = false
+                    onSent?(txId)
                     sentTransaction = SentTransaction(
                         txId: txId,
                         amountSompi: amountSompi,
@@ -2226,6 +2243,11 @@ struct InAppBrowserScreen: View {
     let onClose: () -> Void
 
     @State private var isLoading = true
+    /// K as the page's wallet (`window.kachat`), on the sites `KaChatSiteWallet` allows (Kasshi).
+    @StateObject private var siteWallet = KaChatSiteWallet()
+    /// The site's request on screen. Kept apart from `siteWallet.pending` so a send's Sent screen
+    /// stays up after the txid went back to the page.
+    @State private var siteSheet: KaChatSiteWallet.Request?
     /// The page on screen now, not the site it opened on: a link or redirect that left the site
     /// would otherwise sit under the first site's name (audit 2026-11-21, #2).
     @State private var currentURL: URL?
@@ -2300,10 +2322,25 @@ struct InAppBrowserScreen: View {
                 .background(Color.accentColor.opacity(0.15))
             }
             Divider()
-            InAppWebView(url: url, isLoading: $isLoading, currentURL: $currentURL)
+            InAppWebView(url: url, isLoading: $isLoading, currentURL: $currentURL,
+                         siteWallet: KaChatSiteWallet.isAllowed(host: url.host) ? siteWallet : nil)
                 .ignoresSafeArea(edges: .bottom)
         }
         .background(Color(uiColor: .systemBackground))
+        .onChange(of: siteWallet.pending?.id) { _ in
+            if let request = siteWallet.pending {
+                siteWallet.sheetOpen = true
+                siteSheet = request
+            }
+        }
+        .sheet(item: $siteSheet, onDismiss: {
+            // closed without an answer: declined
+            if siteWallet.pending != nil { siteWallet.decline() }
+            siteWallet.sheetOpen = false
+        }) { request in
+            SiteWalletSheet(wallet: siteWallet, request: request)
+        }
+        .onDisappear { siteWallet.close() }
         .onAppear { if powersDown { powerDownForBrowsing() } }
         .onDisappear { if powersDown { powerUpAfterBrowsing() } }
     }
@@ -2318,6 +2355,8 @@ private struct InAppWebView: UIViewRepresentable {
     let url: URL
     @Binding var isLoading: Bool
     @Binding var currentURL: URL?
+    /// K as the page's wallet, on an allowed site only.
+    var siteWallet: KaChatSiteWallet? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -2326,7 +2365,9 @@ private struct InAppWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        siteWallet?.install(in: configuration)
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        siteWallet?.attach(webView)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
         context.coordinator.observe(webView)
@@ -2338,6 +2379,9 @@ private struct InAppWebView: UIViewRepresentable {
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         coordinator.urlObservation = nil
+        // the bridge holds its handler strongly
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: KaChatSiteWallet.handlerName, contentWorld: .page)
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {

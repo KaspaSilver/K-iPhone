@@ -3392,3 +3392,13 @@
 "Tap to view" = "اضغط عشان تشوف";
 "Add as Contact" = "ضيف لجهات الاتصال";
 "Opens their posts and replies." = "بيفتح بوستاته وردوده.";
+
+/* Website wallet: Connect, Sign (KaChatSiteWallet) */
+"Connect to K" = "اتصل بـ K";
+"This site sees the address you connect and its balance. It can ask you to sign in or to pay, and nothing happens without your OK here." = "الموقع ده بيشوف العنوان اللي بتوصله ورصيده. ممكن يطلب منك تسجل دخول أو تدفع، ومفيش حاجة بتحصل من غير موافقتك هنا.";
+"Which address do you want to connect?" = "عايز توصل أنهي عنوان؟";
+"Another address keeps this site apart from your username and chats." = "عنوان تاني بيخلي الموقع ده بعيد عن اسم المستخدم والمحادثات بتاعتك.";
+"Sign Message" = "وقّع الرسالة";
+"Sign" = "وقّع";
+"Signing proves you own this address. It costs nothing and sends no Kaspa." = "التوقيع بيثبت إن العنوان ده بتاعك. مش بيكلف حاجة ومش بيبعت Kaspa.";
+"Check the amount and the address before you send." = "راجع المبلغ والعنوان قبل ما تبعت.";
