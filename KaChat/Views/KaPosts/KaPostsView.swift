@@ -7352,8 +7352,23 @@ private struct KaPostCellView: View {
             to: &built,
             protecting: Self.mentionCharacterRanges(in: rendered.text)
         )
+        dropKachatEndings(in: &built)
         linkifiedCache.setObject(LinkifiedBox(built), forKey: key)
         return built
+    }
+
+    /// "@alice.kachat" drawn as "@alice": the ending is never shown (owner, 2026-11-26). Only the
+    /// mention's text; its link still names the whole token.
+    private static func dropKachatEndings(in attributed: inout AttributedString) {
+        var cuts: [Range<AttributedString.Index>] = []
+        for run in attributed.runs {
+            guard let url = run.link, url.scheme == "kachat-mention" else { continue }
+            let token = String(attributed[run.range].characters)
+            guard token.lowercased().hasSuffix(".kachat") else { continue }
+            let start = attributed.index(run.range.upperBound, offsetByCharacters: -7)
+            cuts.append(start..<run.range.upperBound)
+        }
+        for cut in cuts.reversed() { attributed.removeSubrange(cut) }
     }
 
     /// Character ranges of the @mention tokens in already-rendered text.

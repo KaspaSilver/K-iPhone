@@ -12,7 +12,6 @@ final class GroupDisplayNamesRevision {
     static let shared = GroupDisplayNamesRevision()
 
     private(set) var value = 0
-    private var showsEnding = KachatNameLabel.showsEnding
     private var cancellables: Set<AnyCancellable> = []
 
     private init() {
@@ -23,17 +22,6 @@ final class GroupDisplayNamesRevision {
         AddressBookManager.shared.$entries
             .dropFirst()
             .sink { [weak self] _ in self?.value &+= 1 }
-            .store(in: &cancellables)
-        // Any UserDefaults write posts this; only a flip of Show .kachat Endings counts.
-        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                let now = KachatNameLabel.showsEnding
-                guard now != self.showsEnding else { return }
-                self.showsEnding = now
-                self.value &+= 1
-            }
             .store(in: &cancellables)
     }
 }

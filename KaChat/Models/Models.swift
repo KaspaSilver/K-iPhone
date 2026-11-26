@@ -2597,7 +2597,8 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .hub: return "Kaspa Hub"
         case .portfolio: return "Portfolio"
         case .coldStorage: return "Cold Storage"
-        // "Usernames", its icon the .kachat wordmark (owner's call, 2026-11-23)
+        // "Usernames"; its Hub icon is the "@" symbol (owner, 2026-11-26; the .kachat wordmark
+        // until then)
         case .kachatNames: return "Usernames"
         case .kaposts: return "Posts"
         case .games: return "Arcade"
@@ -2769,26 +2770,11 @@ enum WhoCanMessage: String, CaseIterable {
     }
 }
 
-/// How a .kachat name is shown: "alice.kachat" by default, or "alice" when Settings >
-/// Customization > Show .kachat Endings is off. Display only: typing, copying and anything sent
-/// keep working with either form (the codec strips the ending).
+/// How a .kachat name is shown: always bare, "alice", never "alice.kachat" (owner, 2026-11-26:
+/// the ending is never shown, and the Show .kachat Endings switch is gone). Display only: typing,
+/// copying and anything sent keep working with either form (the codec strips the ending).
 enum KachatNameLabel {
-    static let showEndingsKey = "kachat_show_name_endings"
-
-    /// Read once and kept: every name drawn asked UserDefaults (audit 2026-11-24 #28). The toggle
-    /// writes the key through `@AppStorage`, so any defaults write empties it, and the toggle
-    /// calls `invalidateShowsEnding()` as well.
-    private static let showsEndingCache = DefaultsBackedCache<Bool> {
-        UserDefaults.standard.object(forKey: showEndingsKey) as? Bool ?? false
-    }
-
-    static var showsEnding: Bool { showsEndingCache.value }
-
-    static func invalidateShowsEnding() { showsEndingCache.invalidate() }
-
-    static func display(_ name: String) -> String {
-        showsEnding ? "\(name).kachat" : name
-    }
+    static func display(_ name: String) -> String { name }
 }
 
 /// A value read from UserDefaults once and kept until any UserDefaults write in the app

@@ -306,13 +306,6 @@ struct KachatNameTile<Footer: View>: View {
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                // the ending only when Show .kachat Endings is on (off by default): the
-                // marketplace sells names, and a name is just the name
-                if KachatNameLabel.showsEnding {
-                    Text(verbatim: ".kachat")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.accentColor)
-                }
             }
             footer
             Spacer(minLength: 0)

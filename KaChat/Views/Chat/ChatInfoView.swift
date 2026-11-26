@@ -437,12 +437,12 @@ struct ChatInfoView: View {
         .presentationDragIndicator(.visible)
     }
 
-    /// Set as Name: puts this .kachat name, in full ("alice.kachat"), in this screen's name field.
-    /// Nothing is saved until Save (top right); Cancel leaves their name as it was. Shown as set
-    /// once it is what the field holds.
+    /// Set as Name: puts this .kachat name, bare ("alice", never the ending: owner, 2026-11-26),
+    /// in this screen's name field. Nothing is saved until Save (top right); Cancel leaves their
+    /// name as it was. Shown as set once it is what the field holds.
     @ViewBuilder
     private func setAsNameButton(for name: String) -> some View {
-        let full = "\(name).kachat"
+        let full = name
         if editedAlias.trimmingCharacters(in: .whitespacesAndNewlines) == full {
             Label("Their Name", systemImage: "checkmark")
                 .font(.caption.weight(.semibold))

@@ -121,7 +121,9 @@ extension UsernameMention {
             if token.range.location > cursor {
                 out += AttributedString(ns.substring(with: NSRange(location: cursor, length: token.range.location - cursor)))
             }
-            var mention = AttributedString(ns.substring(with: token.range))
+            // shown as "@alice", never with the ending, whatever the sender typed (owner,
+            // 2026-11-26); the link still names the username
+            var mention = AttributedString("@\(token.name)")
             mention.font = .body.weight(.semibold)
             mention.foregroundColor = isOutgoing ? .white : .accentColor
             mention.link = URL(string: "\(linkScheme)://\(token.name)")

@@ -78,9 +78,6 @@ struct KachatSetupGuideView: View {
                     Text("yourname")
                         .foregroundColor(Color(.placeholderText))
                     Spacer()
-                    Text(".kachat")
-                        .font(.body.weight(.semibold))
-                        .foregroundColor(.secondary)
                 }
                 .padding(12)
                 .background(fieldBackground)

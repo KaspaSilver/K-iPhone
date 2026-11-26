@@ -339,8 +339,8 @@ struct KaspaHubView: View {
     }
 }
 
-/// A tab's icon at a size, as the Hub draws it. Kaspa Hub is the Kaspa logo,
-/// Domains the ".kachat" wordmark.
+/// A tab's icon at a size, as the Hub draws it. Kaspa Hub is the Kaspa logo; Usernames is its
+/// "@" symbol like every other tab (owner, 2026-11-26: no longer the ".kachat" wordmark).
 struct AppTabIcon: View {
     let tab: AppTab
     let size: CGFloat
@@ -351,9 +351,6 @@ struct AppTabIcon: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: size, height: size)
-        } else if tab == .kachatNames {
-            // the ".kachat" wordmark, as the Domains screen's own header draws it
-            KachatTabIcon.view(side: size * 1.25)
         } else {
             Image(systemName: tab.icon)
                 .font(.scaled(size: size, weight: .medium))

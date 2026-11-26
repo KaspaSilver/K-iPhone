@@ -251,11 +251,8 @@ struct SettingsView: View {
                             settingsViewModel.saveSettings()
                         }
 
-                    KachatEndingsToggle()
                 } header: {
                     Text("Customization")
-                } footer: {
-                    Text("Turn off to show names like alice instead of alice.kachat. A name you gave someone yourself never has the ending.")
                 }
 
                 // What Tip sends, the same in KaPost and in a 1:1 chat's + (owner's call, 2026-11-23:
@@ -933,27 +930,6 @@ struct SecuritySettingsPage: View {
         }
         .navigationTitle("Security")
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-/// Settings > Customization > Show .kachat Endings. Its own view so it owns the @AppStorage:
-/// held by SettingsView, the pushed Customization page never redrew and the switch didn't move.
-/// Off (the default, owner's call 2026-11-23: .kachat is the only name service) shows .kachat
-/// names bare ("alice"); on writes the ending out ("alice.kachat").
-struct KachatEndingsToggle: View {
-    @AppStorage(KachatNameLabel.showEndingsKey) private var showEndings = false
-
-    var body: some View {
-        Toggle("Show .kachat Endings", isOn: $showEndings)
-            .onChange(of: showEndings) { _ in
-                KachatNameLabel.invalidateShowsEnding()
-                NotificationCenter.default.post(name: .settingsDidChange, object: nil)
-                // Names are read from UserDefaults as rows draw, and nothing those rows watch
-                // changed: the chat list, Contacts and the headers kept the old form until a
-                // pull to refresh. Every view showing a name watches one of these two.
-                KachatNamesRegistry.shared.objectWillChange.send()
-                ContactsManager.shared.objectWillChange.send()
-            }
     }
 }
 

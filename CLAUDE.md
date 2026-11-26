@@ -236,7 +236,7 @@ Follow and Chat sit under the follow counts.
 Nextcloud backs up contacts only), Cold Storage (`Views/ColdStorage/`, KasSigner; Coin Control is KaPay's
 `CoinControlView` there, showing spending and KasSigner coin labels), the full `.kachat` market (claim,
 renew, list, buy, offers, reminders: `Views/Ecosystem/KachatMarketView.swift`,
-`KachatNamesLiveViews.swift`, the `.kachat` tab, labeled Usernames with the ".kachat" wordmark for its icon (`KachatTabIcon`, owner, 2026-11-23); Your Domains' .kachat card is KaPay's
+`KachatNamesLiveViews.swift`, the `.kachat` tab, labeled Usernames, its Hub tile an "@" symbol and its header and title "Usernames" (owner, 2026-11-26; the ".kachat" wordmark, `KachatTabIcon`, is only the dock image now); Your Domains' .kachat card is KaPay's
 `KachatLiveDomainsTab`; the .kachat tab's Your Names row, like For sale, shows only once the account owns a name), and Trestly trading (`TrestlyProvider` for Trestly's site inside K, `TrestlyConnectSheet` →
 `TrestlyBrowserView`; since 2026-11-23 nothing opens the site: Wallet's Swap trades kUSDT itself, see "Swap"). Each is a tab that starts in
 Kaspa Hub. The `.kachat` registry is KaPay's with KaChat's own parts merged back in (contact identity
@@ -535,10 +535,10 @@ only its saved redeem script can spend: `KNSRevealRecovery` (`Services/KNSReveal
 with the reveal builder in KaChatTransactionBuilder) finishes those reveals on app-active and
 wallet load, returning the coins; it starts nothing new (audit 2026-11-24 #4). Remove it a few
 releases after no `kachat_spending_kns_reveals_` record is left. `KNSAvatarView.swift` is the app's shared picture code
-(avatars, banners, the image cache), not KNS. Show .kachat Endings is off by default
-(`KachatNameLabel.showsEnding`), the marketplace included: its tiles and search field show bare
-names unless it's on; text other people read (a KaPost @mention, a copied name, the Address
-Book) keeps the ending.
+(avatars, banners, the image cache), not KNS. A .kachat name is never shown with its ending
+(owner, 2026-11-26: the Show .kachat Endings switch is gone; `KachatNameLabel.display` returns the
+bare name): screens, the marketplace, Set as Name, and @mentions in rooms and KaPost posts draw
+"@alice" whatever the sender typed. A copied name and text you send keep working with either form.
 
 ### Data Sync Strategy
 
@@ -812,8 +812,7 @@ memoized per message (keys: the content's stamp, `KachatNamesRegistry.identityRe
 ChatService (`requestCountMemo`), KaPost tips are held in memory (`KaPostTipLedger.tipsCache`;
 `record` re-reads the App Group, which the extension also writes), assigned photos are cached by
 address and decoded once, avatar links are parsed once (`avatarSource`), `AppSettings.activeNetwork`
-reads the network without copying the settings, and `KachatNameLabel.showsEnding` /
-`WhoCanMessage.current` are cached (`DefaultsBackedCache`). A post's action row is built once and
+reads the network without copying the settings, and `WhoCanMessage.current` is cached (`DefaultsBackedCache`). A post's action row is built once and
 lays itself out in one pass (`KaPostActionRowLayout`: 18, 12 or 8 pt gaps, whichever fits; not
 ViewThatFits). The Chats list rebuilds coalesced (180 ms, never held past a second) and only writes
 a changed list.

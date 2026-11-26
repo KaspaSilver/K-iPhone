@@ -144,7 +144,7 @@ struct KachatMarketView: View {
                 }
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle(".kachat")
+            .navigationTitle("Usernames")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { BalanceToolbarLabel() }
@@ -360,7 +360,10 @@ struct KachatMarketView: View {
 
     private var hero: some View {
         VStack(spacing: 8) {
-            KachatTabIcon.view(side: 56)
+            // "Usernames", where the ".kachat" wordmark was (owner, 2026-11-26)
+            Text("Usernames")
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .foregroundStyle(Color.accentColor)
             Text("Claim your name on Kaspa")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -954,7 +957,9 @@ struct KachatAddressDomainsList: View {
     private var comingNote: some View {
         List {
             VStack(spacing: 10) {
-                KachatTabIcon.view(side: 40)
+                Image(systemName: "at")
+                            .font(.system(size: 34, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
                 Text("No usernames on this address")
                     .font(.headline)
                 Text("Names this address claims or buys show here once .kachat names launch.")
@@ -995,7 +1000,9 @@ struct KachatAddressLiveNamesList: View {
                         .padding(.vertical, 40)
                 } else if service.registryUpgrading || names.isEmpty {
                     VStack(spacing: 10) {
-                        KachatTabIcon.view(side: 40)
+                        Image(systemName: "at")
+                            .font(.system(size: 34, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
                         Text("No usernames on this address")
                             .font(.headline)
                         Text("Usernames this address owns show here.")
@@ -1064,11 +1071,6 @@ private struct KachatNameSearchCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text("Clear"))
-                }
-                if KachatNameLabel.showsEnding {
-                    Text(".kachat")
-                        .font(.title3.weight(.semibold))
-                        .foregroundColor(.accentColor)
                 }
             }
             .padding(.horizontal, 14)
