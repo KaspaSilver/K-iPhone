@@ -27,6 +27,10 @@ struct WalletView: View {
     /// Swap (owner's call, 2026-11-23: it replaced Swap Stablecoins): the agreements the first
     /// time, then the swap screen (`SwapView`), full screen.
     @State private var showSwap = false
+    /// Buy Kaspa with Debit Card (owner, 2026-11-26): the flow, full screen; `buyKaspaResume` is
+    /// an order still on its way, which opens on its page.
+    @State private var showBuyKaspa = false
+    @State private var buyKaspaResume: CardBuy?
     /// The balance card's page: 0 is Kaspa, then one per token (`TokenWallet.tokens`).
     @State private var balancePage = 0
     /// The pull's address sweep is still going (it runs on after the spinner ends).
@@ -94,6 +98,9 @@ struct WalletView: View {
             .fullScreenCover(isPresented: $showSwap) {
                 SwapView()
             }
+            .fullScreenCover(isPresented: $showBuyKaspa) {
+                BuyKaspaView(resume: buyKaspaResume)
+            }
             .onAppear {
                 takeTokenRoute()
                 priceModel.refreshIfStale()
@@ -151,6 +158,18 @@ struct WalletView: View {
             chattingAddressSection(wallet)
             // moved here from Profile (owner's call, 2026-11-19), as KaPay's Wallet tab has it
             YourDomainsCard(onToast: { message, style in showToast(message, style: style) })
+            // Buy Kaspa with Debit Card, under Your Usernames (owner, 2026-11-26; mainnet only)
+            if BuyKaspaCard.isOffered {
+                BuyKaspaCard(onOpen: { resume in
+                    buyKaspaResume = resume
+                    showBuyKaspa = true
+                }, onSwap: { buy in
+                    guard let units = buy.mintedUnits else { return }
+                    SwapService.shared.prepareKusdtSell(from: buy.target, units: units)
+                    CardBuyTracker.shared.clear()
+                    showSwap = true
+                })
+            }
             // No Notifications card: they are behind Profile's bell since 2026-11-21, with KaPost's.
         }
         .padding(.horizontal, 16)

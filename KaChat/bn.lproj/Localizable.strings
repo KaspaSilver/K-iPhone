@@ -3402,3 +3402,34 @@
 "Sign" = "সই করুন";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "সই করলে প্রমাণ হয় ঠিকানাটি আপনার। এতে কোনো খরচ নেই এবং কোনো Kaspa পাঠানো হয় না।";
 "Check the amount and the address before you send." = "পাঠানোর আগে পরিমাণ ও ঠিকানা মিলিয়ে নিন।";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "ডেবিট কার্ডে Kaspa কিনুন";
+"Swap to Kaspa" = "Kaspa-তে সোয়াপ করুন";
+"Waiting for your payment" = "আপনার পেমেন্টের অপেক্ষায়";
+"Paid. Your USDC is on its way." = "পেমেন্ট হয়েছে। আপনার USDC পথে আছে।";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "kUSDT হিসেবে Kaspa-তে ব্রিজ হচ্ছে, সাধারণত প্রায় ২০ মিনিট";
+"%@ arrived. Swap it for Kaspa." = "%@ এসেছে। Kaspa-তে সোয়াপ করুন।";
+"Open to sign the bridge again" = "আবার ব্রিজে সই করতে খুলুন";
+"Stripe refused this purchase. Nothing was taken." = "Stripe এই কেনাকাটা প্রত্যাখ্যান করেছে। কিছুই কাটা হয়নি।";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "ব্রিজ চালানো যায়নি, তাই USDC ফেরত দেওয়া হয়েছে। আবার ব্রিজ করতে খুলুন।";
+"Not paid. Nothing was taken." = "পেমেন্ট হয়নি। কিছুই কাটা হয়নি।";
+"Buy Kaspa" = "Kaspa কিনুন";
+"Where should your kUSDT land?" = "আপনার kUSDT কোথায় আসবে?";
+"K needs this account's recovery words on this phone to buy with a card." = "কার্ডে কিনতে K-এর এই ফোনে এই অ্যাকাউন্টের রিকভারি শব্দ দরকার।";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe যুক্তরাষ্ট্র ও ইইউ-এর ক্রেতাদের কাছে বিক্রি করে। কার্ড ফি ও নেটওয়ার্ক ফি পেমেন্টের আগে পরের পাতায় দেখানো হয়।";
+"Pay with your debit card" = "আপনার ডেবিট কার্ডে পেমেন্ট করুন";
+"Stripe sells you USDC, on Trestly's page inside K." = "K-এর ভেতরে Trestly-এর পাতায় Stripe আপনাকে USDC বিক্রি করে।";
+"kUSDT lands on your address" = "kUSDT আপনার ঠিকানায় আসে";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Trestly-এর ব্রিজ USDC-কে Kaspa-তে kUSDT বানায়।";
+"Swap it for Kaspa" = "Kaspa-তে সোয়াপ করুন";
+"K opens Swap with your kUSDT ready." = "K আপনার kUSDT তৈরি রেখে সোয়াপ খোলে।";
+"kUSDT lands on: %@" = "kUSDT আসবে: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "আপনি এটি বন্ধ করতে পারেন। K ওয়ালেট ট্যাবে আপনার অর্ডার দেখতে থাকবে।";
+"Approve the Bridge" = "ব্রিজ অনুমোদন করুন";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "একটি সইয়ে Trestly-এর ব্রিজ K-এর Ethereum ঠিকানা থেকে এই পরিমাণ পর্যন্ত USDC নিয়ে kUSDT হিসেবে Kaspa-তে জমা দিতে পারে। ETH লাগে না, আর আপনার ওয়ালেট থেকে কোনো Kaspa যায় না।";
+"Up to" = "সর্বোচ্চ";
+"kUSDT lands on" = "kUSDT আসবে";
+"Ends" = "শেষ";
+"Bridge" = "ব্রিজ";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "K-এর Ethereum ঠিকানা এই অ্যাকাউন্টের শব্দ থেকে তৈরি, যেমন যেকোনো Ethereum ওয়ালেট তৈরি করত।";

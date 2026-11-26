@@ -3402,3 +3402,34 @@
 "Sign" = "امضا";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "امضا ثابت می‌کند این نشانی مال شماست. هزینه‌ای ندارد و Kaspa ارسال نمی‌کند.";
 "Check the amount and the address before you send." = "پیش از ارسال، مبلغ و نشانی را بررسی کنید.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "خرید Kaspa با کارت بانکی";
+"Swap to Kaspa" = "سوآپ به Kaspa";
+"Waiting for your payment" = "در انتظار پرداخت شما";
+"Paid. Your USDC is on its way." = "پرداخت شد. USDC شما در راه است.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "در حال انتقال به Kaspa به‌صورت kUSDT، معمولاً حدود ۲۰ دقیقه";
+"%@ arrived. Swap it for Kaspa." = "%@ رسید. آن را با Kaspa سوآپ کنید.";
+"Open to sign the bridge again" = "برای امضای دوبارهٔ پل باز کنید";
+"Stripe refused this purchase. Nothing was taken." = "Stripe این خرید را رد کرد. هیچ مبلغی کسر نشد.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "پل اجرا نشد، پس USDC برگردانده شد. برای انتقال دوباره باز کنید.";
+"Not paid. Nothing was taken." = "پرداخت نشد. هیچ مبلغی کسر نشد.";
+"Buy Kaspa" = "خرید Kaspa";
+"Where should your kUSDT land?" = "kUSDT شما به کدام نشانی برسد؟";
+"K needs this account's recovery words on this phone to buy with a card." = "K برای خرید با کارت به واژه‌های بازیابی این حساب روی این گوشی نیاز دارد.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe به خریداران در آمریکا و اتحادیهٔ اروپا می‌فروشد. کارمزد کارت و کارمزدهای شبکه پیش از پرداخت در صفحهٔ بعد نشان داده می‌شوند.";
+"Pay with your debit card" = "با کارت بانکی پرداخت کنید";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe در صفحهٔ Trestly داخل K به شما USDC می‌فروشد.";
+"kUSDT lands on your address" = "kUSDT به نشانی شما می‌رسد";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "پل Trestly، USDC را به kUSDT روی Kaspa تبدیل می‌کند.";
+"Swap it for Kaspa" = "آن را با Kaspa سوآپ کنید";
+"K opens Swap with your kUSDT ready." = "K صفحهٔ سوآپ را با kUSDT آماده باز می‌کند.";
+"kUSDT lands on: %@" = "kUSDT به این نشانی می‌رسد: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "می‌توانید این را ببندید. K سفارش شما را در زبانهٔ کیف پول دنبال می‌کند.";
+"Approve the Bridge" = "تأیید پل";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "یک امضا به پل Trestly اجازه می‌دهد تا این مقدار USDC را از نشانی اتریوم K بردارد و به‌صورت kUSDT در Kaspa واریز کند. به ETH نیازی نیست و هیچ Kaspa از کیف پول شما خارج نمی‌شود.";
+"Up to" = "تا سقف";
+"kUSDT lands on" = "kUSDT به این نشانی می‌رسد";
+"Ends" = "پایان";
+"Bridge" = "پل";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "نشانی اتریوم K از واژه‌های این حساب ساخته می‌شود، همان‌طور که هر کیف پول اتریومی می‌سازد.";

@@ -3402,3 +3402,34 @@
 "Sign" = "签名";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "签名可证明此地址属于你。不收费，也不会发送 Kaspa。";
 "Check the amount and the address before you send." = "发送前请核对金额和地址。";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "用借记卡购买 Kaspa";
+"Swap to Kaspa" = "兑换为 Kaspa";
+"Waiting for your payment" = "等待你付款";
+"Paid. Your USDC is on its way." = "已付款。你的 USDC 正在路上。";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "正以 kUSDT 跨链到 Kaspa,通常约 20 分钟";
+"%@ arrived. Swap it for Kaspa." = "%@ 已到账。把它兑换为 Kaspa。";
+"Open to sign the bridge again" = "打开以重新签署跨链";
+"Stripe refused this purchase. Nothing was taken." = "Stripe 拒绝了这笔购买。未扣任何款项。";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "跨链未能完成,USDC 已退回。打开以重新跨链。";
+"Not paid. Nothing was taken." = "未付款。未扣任何款项。";
+"Buy Kaspa" = "购买 Kaspa";
+"Where should your kUSDT land?" = "你的 kUSDT 要到哪个地址?";
+"K needs this account's recovery words on this phone to buy with a card." = "要用卡购买,K 需要此手机上有这个账户的助记词。";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe 向美国和欧盟的买家销售。卡费和网络费会在付款前显示在下一页。";
+"Pay with your debit card" = "用借记卡付款";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe 在 K 内的 Trestly 页面向你出售 USDC。";
+"kUSDT lands on your address" = "kUSDT 到达你的地址";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Trestly 的跨链桥把 USDC 变成 Kaspa 上的 kUSDT。";
+"Swap it for Kaspa" = "兑换为 Kaspa";
+"K opens Swap with your kUSDT ready." = "K 会打开兑换,并备好你的 kUSDT。";
+"kUSDT lands on: %@" = "kUSDT 到达:%@";
+"You can close this. K keeps following your order on the Wallet tab." = "你可以关闭此页面。K 会在钱包标签页继续跟踪你的订单。";
+"Approve the Bridge" = "批准跨链";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "一次签名即可让 Trestly 的跨链桥从 K 的以太坊地址取走最多这么多 USDC,并以 kUSDT 存入 Kaspa。无需 ETH,也不会有 Kaspa 离开你的钱包。";
+"Up to" = "最多";
+"kUSDT lands on" = "kUSDT 到达";
+"Ends" = "截止";
+"Bridge" = "跨链桥";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "K 的以太坊地址由这个账户的助记词生成,和任何以太坊钱包生成的一样。";

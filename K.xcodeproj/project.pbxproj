@@ -101,6 +101,7 @@
 		E81000232D4C000100000012 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000222D4C000100000012 /* MainTabView.swift */; };
 		E81000292D4C000100000015 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000282D4C000100000015 /* SettingsViewModel.swift */; };
 		E810002F2D4C000100000018 /* CryptoUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = E810002E2D4C000100000018 /* CryptoUtils.swift */; };
+		KBUY0001B00000000000001 /* EthereumCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBUY0001A00000000000001 /* EthereumCrypto.swift */; };
 		E81000332D4C00010000001A /* AddContactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000322D4C00010000001A /* AddContactView.swift */; };
 		E81000352D4C00010000001B /* MessageBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000342D4C00010000001B /* MessageBubbleView.swift */; };
 		E81000372D4C00010000001C /* Bech32.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81000362D4C00010000001C /* Bech32.swift */; };
@@ -209,7 +210,10 @@
 		KPEDB0BE524EFF38D05C5C68 /* KachatProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPEDF10D994711C9A1C5B292 /* KachatProfileEditorView.swift */; };
 		TRSTB546979518F5194AF697 /* KusdtWalletRelays.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTF11678887B12CB3FE87D /* KusdtWalletRelays.swift */; };
 		TRSTBE271E75C8A92F78F886 /* TrestlyProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTFE5E6C7543C38BAE7D55 /* TrestlyProvider.swift */; };
+		KBUY0003B00000000000001 /* CardBuy.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBUY0003A00000000000001 /* CardBuy.swift */; };
+		KBUY0002B00000000000001 /* EthereumAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBUY0002A00000000000001 /* EthereumAccount.swift */; };
 		TRSTB6269077EC0D7E09A604 /* BuyStablecoinsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTF033EB52A30BC16CD96E /* BuyStablecoinsSheet.swift */; };
+		KBUY0004B00000000000001 /* BuyKaspaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBUY0004A00000000000001 /* BuyKaspaViews.swift */; };
 		TRSTB3E82952E5005BC87DA0 /* TrestlyApprovalSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTFC7BC3004B39D3EBBE63 /* TrestlyApprovalSheet.swift */; };
 		TRSTBF96D14850519233B14F /* TokenGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRSTF39FAE3B81E73982BEF8 /* TokenGuideView.swift */; };
 		TRSTBB65F64C8D27858EEF36 /* kusdt-wallet.js.txt in Resources */ = {isa = PBXBuildFile; fileRef = TRSTF2DAAE2617D5C8CCE81B /* kusdt-wallet.js.txt */; };
@@ -416,6 +420,7 @@
 		E81000222D4C000100000012 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		E81000282D4C000100000015 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		E810002E2D4C000100000018 /* CryptoUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoUtils.swift; sourceTree = "<group>"; };
+		KBUY0001A00000000000001 /* EthereumCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EthereumCrypto.swift; sourceTree = "<group>"; };
 		E81000322D4C00010000001A /* AddContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddContactView.swift; sourceTree = "<group>"; };
 		E81000342D4C00010000001B /* MessageBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleView.swift; sourceTree = "<group>"; };
 		E81000362D4C00010000001C /* Bech32.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bech32.swift; sourceTree = "<group>"; };
@@ -557,7 +562,10 @@
 		KPEDF10D994711C9A1C5B292 /* KachatProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KachatProfileEditorView.swift; sourceTree = "<group>"; };
 		TRSTF11678887B12CB3FE87D /* KusdtWalletRelays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KusdtWalletRelays.swift; sourceTree = "<group>"; };
 		TRSTFE5E6C7543C38BAE7D55 /* TrestlyProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrestlyProvider.swift; sourceTree = "<group>"; };
+		KBUY0003A00000000000001 /* CardBuy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardBuy.swift; sourceTree = "<group>"; };
+		KBUY0002A00000000000001 /* EthereumAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EthereumAccount.swift; sourceTree = "<group>"; };
 		TRSTF033EB52A30BC16CD96E /* BuyStablecoinsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyStablecoinsSheet.swift; sourceTree = "<group>"; };
+		KBUY0004A00000000000001 /* BuyKaspaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuyKaspaViews.swift; sourceTree = "<group>"; };
 		TRSTFC7BC3004B39D3EBBE63 /* TrestlyApprovalSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrestlyApprovalSheet.swift; sourceTree = "<group>"; };
 		TRSTF39FAE3B81E73982BEF8 /* TokenGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenGuideView.swift; sourceTree = "<group>"; };
 		TRSTF2DAAE2617D5C8CCE81B /* kusdt-wallet.js.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = kusdt-wallet.js.txt; sourceTree = "<group>"; };
@@ -691,6 +699,8 @@
 			children = (
 				SWPF02F40588D5EF1BF904D3 /* TrestlyTrade.swift */,
 				TRSTFE5E6C7543C38BAE7D55 /* TrestlyProvider.swift */,
+				KBUY0003A00000000000001 /* CardBuy.swift */,
+				KBUY0002A00000000000001 /* EthereumAccount.swift */,
 				TRSTF11678887B12CB3FE87D /* KusdtWalletRelays.swift */,
 				KUSDTFREF000000000000002 /* Kusdt.swift */,
 				KUSDTFREF000000000000004 /* KusdtBalances.swift */,
@@ -707,6 +717,7 @@
 				TRSTF39FAE3B81E73982BEF8 /* TokenGuideView.swift */,
 				TRSTFC7BC3004B39D3EBBE63 /* TrestlyApprovalSheet.swift */,
 				TRSTF033EB52A30BC16CD96E /* BuyStablecoinsSheet.swift */,
+				KBUY0004A00000000000001 /* BuyKaspaViews.swift */,
 				KUSDTFREF000000000000011 /* WalletTokens.swift */,
 				KUSDTFREF000000000000013 /* TokenViews.swift */,
 				KUSDTFREF000000000000015 /* TokenManageViews.swift */,
@@ -938,6 +949,7 @@
 				PORTFE789B52E15F1FF003DA /* KaspaExtendedPublicKey.swift */,
 				PORTF28275F65F6ECD47C84C /* Base58.swift */,
 				E810002E2D4C000100000018 /* CryptoUtils.swift */,
+				KBUY0001A00000000000001 /* EthereumCrypto.swift */,
 				APLC00010000000000000BF2 /* AppLocalization.swift */,
 				DA0001A0000000000000001 /* DeviceAuth.swift */,
 				IMGP00010001000000000001 /* ImagePrep.swift */,
@@ -1527,7 +1539,10 @@
 				TRSTBF96D14850519233B14F /* TokenGuideView.swift in Sources */,
 				TRSTB3E82952E5005BC87DA0 /* TrestlyApprovalSheet.swift in Sources */,
 				TRSTB6269077EC0D7E09A604 /* BuyStablecoinsSheet.swift in Sources */,
+				KBUY0004B00000000000001 /* BuyKaspaViews.swift in Sources */,
 				TRSTBE271E75C8A92F78F886 /* TrestlyProvider.swift in Sources */,
+				KBUY0003B00000000000001 /* CardBuy.swift in Sources */,
+				KBUY0002B00000000000001 /* EthereumAccount.swift in Sources */,
 				TRSTB546979518F5194AF697 /* KusdtWalletRelays.swift in Sources */,
 				KPEDB0BE524EFF38D05C5C68 /* KachatProfileEditorView.swift in Sources */,
 				KNMSBF8F2039F10BDDE6F76E /* KachatHelpView.swift in Sources */,
@@ -1636,6 +1651,7 @@
 				E81000292D4C000100000015 /* SettingsViewModel.swift in Sources */,
 				DTAL00010001000100000001 /* DeterministicAlias.swift in Sources */,
 				E810002F2D4C000100000018 /* CryptoUtils.swift in Sources */,
+				KBUY0001B00000000000001 /* EthereumCrypto.swift in Sources */,
 				APLC00010000000000000BF1 /* AppLocalization.swift in Sources */,
 				DA0001B0000000000000001 /* DeviceAuth.swift in Sources */,
 				IMGP00010001000100000001 /* ImagePrep.swift in Sources */,

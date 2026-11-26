@@ -1121,6 +1121,41 @@ Request; it replaced the Swap Stablecoins card) opens `SwapView` full screen
   swap shows (`TokenWallet.followTrade`): Trestly lists new coins late, and the 30 s poll runs
   only with Address Activity notifications on, so one look at 4 s left the balance old.
 
+### Buy Kaspa with Debit Card
+
+Owner, 2026-11-26. The Wallet tab's card under Your Usernames (`BuyKaspaCard`, the Kaspa logo on
+the left, mainnet only: Trestly sells by card on mainnet) opens one flow, `BuyKaspaView`
+(`Views/Tokens/BuyKaspaViews.swift`):
+1. "Where should your kUSDT land?": the Chatting Address or another regular address
+   (`OwnAddressList`, never quantum).
+2. Trestly's buy page, `trestly.io/buy` (`CardBuyBrowserView`, in `TrestlyWebView`). Stripe sells
+   USDC on Ethereum into the buyer's own Ethereum wallet. That wallet first signs one EIP-2612
+   permit, and Trestly's bridge then deposits the USDC to the Kaspa address as kUSDT (no ETH
+   needed; Trestly's gas wallet sends it).
+   - The page gets K's Kaspa side for the picked address (`TrestlyProvider`, "Use K" fills the
+     field) and K's Ethereum side (`CardBuyEthereumProvider`, `Services/Tokens/CardBuy.swift`),
+     announced by EIP-6963 as "K".
+   - **K is that Ethereum wallet** (owner's call): `EthereumAccount` derives m/44'/60'/0'/0/0 from
+     the account's words and passphrase (the address MetaMask shows for the same words, so a
+     refund is never stuck). It's never shown as a wallet.
+   - The provider answers accounts, chain (mainnet only) and `eth_signTypedData_v4` for one thing:
+     a USDC permit on Ethereum mainnet from that address (`PermitRequest.parse`: exactly
+     Permit's types, USDC's pinned contract, owner, value up to $1M, a deadline within a day). It
+     shows in `CardBuySignSheet` and is signed only on Approve. Everything else is 4200; K sends no
+     Ethereum transaction.
+   - Keccak-256, EIP-55 and EIP-712 are in `Utilities/EthereumCrypto.swift`, tested by
+     `scripts/test_ethereum_crypto.swift`.
+3. Swap: once the kUSDT is in, Swap to Kaspa sets up `SwapView` as kUSDT for KAS from that
+   address with what landed (`SwapService.prepareKusdtSell`).
+
+`CardBuyTracker` follows the order once the page saves it. The page script reports its session
+from `localStorage` and the URL. The tracker reads Trestly's `/buy-api/order?session=` and the
+API's `/deposits/1/<nonce>` (status `minted`): every 8 s with Buy Kaspa open, else on the
+foreground beat (started by the Wallet tab's card or Buy Kaspa) until the order is over. It's kept per account
+(`kachat_card_buy_v1_<account>`, removed with the account), so the card shows the order's stage
+(paid, bridging, arrived, refused, refunded) and offers Swap to Kaspa. An order still on its way
+reopens on its page (`/buy?session=`).
+
 ### Tokens (kUSDT)
 
 Ported from KaPay on 2026-11-19 (KaPay's CLAUDE.md "Tokens (kUSDT)" is the full reference; keep the two in step). Since 2026-11-21 KaChat trades too (all-in-one): Wallet's Swap trades KAS ⇄ kUSDT itself (see "Swap"); Trestly's site inside KaChat (no longer opened from anywhere since Swap Stablecoins left on 2026-11-23) connects to one address (`TrestlyProvider`, kusdt-open SPEC section 14); trades are checked and built by Trestly's own pool code (`kusdt-wallet.js`, pinned) in the hidden builder page, which a content rule list keeps off the network except the public Kaspa node WebSockets (`wss://*.kaspa.stream|red|green|blue`); its HTTP goes through `KusdtNetRelay`'s allow-list. Swaps are approved in `TrestlyApprovalSheet`.

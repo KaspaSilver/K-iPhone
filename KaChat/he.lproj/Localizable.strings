@@ -3402,3 +3402,34 @@
 "Sign" = "חתימה";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "החתימה מוכיחה שהכתובת הזו שלכם. היא לא עולה כלום ולא שולחת Kaspa.";
 "Check the amount and the address before you send." = "בדקו את הסכום ואת הכתובת לפני השליחה.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "קניית Kaspa בכרטיס חיוב";
+"Swap to Kaspa" = "החלפה ל-Kaspa";
+"Waiting for your payment" = "ממתינים לתשלום שלך";
+"Paid. Your USDC is on its way." = "שולם. ה-USDC שלך בדרך.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "מועבר ל-Kaspa כ-kUSDT, בדרך כלל כ-20 דקות";
+"%@ arrived. Swap it for Kaspa." = "%@ הגיעו. החליפו ל-Kaspa.";
+"Open to sign the bridge again" = "פתחו כדי לחתום שוב על הגשר";
+"Stripe refused this purchase. Nothing was taken." = "Stripe דחתה את הרכישה הזו. לא חויב דבר.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "הגשר לא הצליח לפעול, ולכן ה-USDC הוחזר. פתחו כדי להעביר אותו שוב.";
+"Not paid. Nothing was taken." = "לא שולם. לא חויב דבר.";
+"Buy Kaspa" = "קניית Kaspa";
+"Where should your kUSDT land?" = "לאן להגיע ה-kUSDT שלך?";
+"K needs this account's recovery words on this phone to buy with a card." = "כדי לקנות בכרטיס, K צריכה את מילות השחזור של החשבון הזה בטלפון הזה.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe מוכרת לקונים בארה״ב ובאיחוד האירופי. עמלת הכרטיס ועמלות הרשת מוצגות בעמוד הבא, לפני התשלום.";
+"Pay with your debit card" = "שלמו בכרטיס החיוב";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe מוכרת לך USDC, בעמוד של Trestly בתוך K.";
+"kUSDT lands on your address" = "ה-kUSDT מגיע לכתובת שלך";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "הגשר של Trestly הופך את ה-USDC ל-kUSDT ב-Kaspa.";
+"Swap it for Kaspa" = "החליפו ל-Kaspa";
+"K opens Swap with your kUSDT ready." = "K פותחת את ההחלפה עם ה-kUSDT מוכן.";
+"kUSDT lands on: %@" = "ה-kUSDT מגיע אל: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "אפשר לסגור את זה. K ממשיכה לעקוב אחר ההזמנה בכרטיסייה ארנק.";
+"Approve the Bridge" = "אישור הגשר";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "חתימה אחת מאפשרת לגשר של Trestly לקחת עד סכום ה-USDC הזה מכתובת ה-Ethereum של K ולהפקיד אותו ב-Kaspa כ-kUSDT. אין צורך ב-ETH, ושום Kaspa לא יוצא מהארנק שלך.";
+"Up to" = "עד";
+"kUSDT lands on" = "ה-kUSDT מגיע אל";
+"Ends" = "מסתיים";
+"Bridge" = "גשר";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "כתובת ה-Ethereum של K נוצרת ממילות החשבון הזה, כפי שכל ארנק Ethereum היה יוצר אותה.";

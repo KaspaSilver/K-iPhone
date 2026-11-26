@@ -1276,10 +1276,12 @@ struct TrestlyBrowserView: View {
 }
 
 /// The page itself: a `WKWebView` with its own data store (nothing shared with the app) and K's
-/// wallet provider (`TrestlyProvider`) for `target`, on the Trestly site only.
-private struct TrestlyWebView: UIViewRepresentable {
+/// wallet provider (`TrestlyProvider`) for `target`, on the Trestly site only. Buy Kaspa's page
+/// also gets K's Ethereum side (`CardBuyEthereumProvider`).
+struct TrestlyWebView: UIViewRepresentable {
     let url: URL
     let provider: TrestlyProvider
+    var ethereum: CardBuyEthereumProvider? = nil
     @Binding var isLoading: Bool
 
     func makeCoordinator() -> Coordinator { Coordinator(isLoading: $isLoading, siteURL: url) }
@@ -1287,7 +1289,10 @@ private struct TrestlyWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        // Stripe's identity check (Buy Kaspa) shows the camera in the page, not full screen
+        configuration.allowsInlineMediaPlayback = true
         provider.install(in: configuration)
+        ethereum?.install(in: configuration)
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.navigationDelegate = context.coordinator
         view.uiDelegate = context.coordinator

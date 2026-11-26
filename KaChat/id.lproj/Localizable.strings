@@ -3402,3 +3402,34 @@
 "Sign" = "Tanda Tangani";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "Tanda tangan membuktikan alamat ini milik Anda. Gratis dan tidak mengirim Kaspa.";
 "Check the amount and the address before you send." = "Periksa jumlah dan alamat sebelum mengirim.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "Beli Kaspa dengan Kartu Debit";
+"Swap to Kaspa" = "Tukar ke Kaspa";
+"Waiting for your payment" = "Menunggu pembayaran Anda";
+"Paid. Your USDC is on its way." = "Sudah dibayar. USDC Anda sedang dalam perjalanan.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "Dijembatani ke Kaspa sebagai kUSDT, biasanya sekitar 20 menit";
+"%@ arrived. Swap it for Kaspa." = "%@ sudah tiba. Tukar dengan Kaspa.";
+"Open to sign the bridge again" = "Buka untuk menandatangani jembatan lagi";
+"Stripe refused this purchase. Nothing was taken." = "Stripe menolak pembelian ini. Tidak ada yang ditagih.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "Jembatan tidak dapat berjalan, jadi USDC dikembalikan. Buka untuk menjembataninya lagi.";
+"Not paid. Nothing was taken." = "Belum dibayar. Tidak ada yang ditagih.";
+"Buy Kaspa" = "Beli Kaspa";
+"Where should your kUSDT land?" = "Ke mana kUSDT Anda harus masuk?";
+"K needs this account's recovery words on this phone to buy with a card." = "K memerlukan kata pemulihan akun ini di ponsel ini untuk membeli dengan kartu.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe menjual kepada pembeli di AS dan UE. Biaya kartu dan biaya jaringan ditampilkan di halaman berikutnya, sebelum Anda membayar.";
+"Pay with your debit card" = "Bayar dengan kartu debit Anda";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe menjual USDC kepada Anda, di halaman Trestly di dalam K.";
+"kUSDT lands on your address" = "kUSDT masuk ke alamat Anda";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Jembatan Trestly mengubah USDC menjadi kUSDT di Kaspa.";
+"Swap it for Kaspa" = "Tukar dengan Kaspa";
+"K opens Swap with your kUSDT ready." = "K membuka Tukar dengan kUSDT Anda siap.";
+"kUSDT lands on: %@" = "kUSDT masuk ke: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "Anda bisa menutup ini. K terus mengikuti pesanan Anda di tab Dompet.";
+"Approve the Bridge" = "Setujui Jembatan";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "Satu tanda tangan mengizinkan jembatan Trestly mengambil hingga sebanyak ini USDC dari alamat Ethereum K dan menyetorkannya ke Kaspa sebagai kUSDT. Tidak perlu ETH, dan tidak ada Kaspa yang keluar dari dompet Anda.";
+"Up to" = "Hingga";
+"kUSDT lands on" = "kUSDT masuk ke";
+"Ends" = "Berakhir";
+"Bridge" = "Jembatan";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "Alamat Ethereum K berasal dari kata-kata akun ini, sama seperti yang akan dibuat dompet Ethereum mana pun.";

@@ -324,8 +324,9 @@ final class TrestlyProvider: NSObject, ObservableObject, WKScriptMessageHandlerW
     }
 
     /// K's globe logo as a small PNG data URL for `info.icon` (the site takes up to 256 KB). It
-    /// named K's "KaChatWalletLogo", which K doesn't ship, so the site showed no logo.
-    private static let iconDataURL: String? = {
+    /// named K's "KaChatWalletLogo", which K doesn't ship, so the site showed no logo. Also the
+    /// Ethereum provider's EIP-6963 icon on the buy page (`CardBuyEthereumProvider`).
+    static let iconDataURL: String? = {
         guard let image = UIImage(named: "KLogo") else { return nil }
         let size = CGSize(width: 96, height: 96)
         let format = UIGraphicsImageRendererFormat()

@@ -3402,3 +3402,34 @@
 "Sign" = "서명";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "서명하면 이 주소가 내 것임을 증명합니다. 비용이 들지 않으며 Kaspa를 보내지 않습니다.";
 "Check the amount and the address before you send." = "보내기 전에 금액과 주소를 확인하세요.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "직불카드로 Kaspa 구매";
+"Swap to Kaspa" = "Kaspa로 스왑";
+"Waiting for your payment" = "결제를 기다리는 중";
+"Paid. Your USDC is on its way." = "결제 완료. USDC를 보내는 중입니다.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "kUSDT로 Kaspa에 브리지 중, 보통 약 20분";
+"%@ arrived. Swap it for Kaspa." = "%@ 도착. Kaspa로 스왑하세요.";
+"Open to sign the bridge again" = "열어서 브리지에 다시 서명";
+"Stripe refused this purchase. Nothing was taken." = "Stripe가 이 구매를 거절했습니다. 결제된 금액은 없습니다.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "브리지가 실행되지 않아 USDC가 반환되었습니다. 열어서 다시 브리지하세요.";
+"Not paid. Nothing was taken." = "결제되지 않았습니다. 결제된 금액은 없습니다.";
+"Buy Kaspa" = "Kaspa 구매";
+"Where should your kUSDT land?" = "kUSDT를 어디로 받을까요?";
+"K needs this account's recovery words on this phone to buy with a card." = "카드로 구매하려면 이 휴대폰에 이 계정의 복구 단어가 있어야 합니다.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe는 미국과 EU의 구매자에게 판매합니다. 카드 수수료와 네트워크 수수료는 결제 전에 다음 페이지에 표시됩니다.";
+"Pay with your debit card" = "직불카드로 결제";
+"Stripe sells you USDC, on Trestly's page inside K." = "K 안의 Trestly 페이지에서 Stripe가 USDC를 판매합니다.";
+"kUSDT lands on your address" = "kUSDT가 내 주소로 들어옴";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Trestly의 브리지가 USDC를 Kaspa의 kUSDT로 바꿉니다.";
+"Swap it for Kaspa" = "Kaspa로 스왑";
+"K opens Swap with your kUSDT ready." = "K가 kUSDT를 준비한 채로 스왑을 엽니다.";
+"kUSDT lands on: %@" = "kUSDT 받는 곳: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "닫아도 됩니다. K가 지갑 탭에서 주문을 계속 확인합니다.";
+"Approve the Bridge" = "브리지 승인";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "서명 한 번으로 Trestly의 브리지가 K의 이더리움 주소에서 이 금액까지의 USDC를 가져가 kUSDT로 Kaspa에 입금할 수 있습니다. ETH는 필요 없고, 지갑에서 Kaspa가 나가지 않습니다.";
+"Up to" = "최대";
+"kUSDT lands on" = "kUSDT 받는 곳";
+"Ends" = "만료";
+"Bridge" = "브리지";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "K의 이더리움 주소는 어느 이더리움 지갑이든 그렇듯 이 계정의 단어로 만들어집니다.";

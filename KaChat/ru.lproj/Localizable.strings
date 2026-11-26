@@ -3402,3 +3402,34 @@
 "Sign" = "Подписать";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "Подпись доказывает, что адрес принадлежит вам. Это бесплатно и не отправляет Kaspa.";
 "Check the amount and the address before you send." = "Проверьте сумму и адрес перед отправкой.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "Купить Kaspa дебетовой картой";
+"Swap to Kaspa" = "Обменять на Kaspa";
+"Waiting for your payment" = "Ожидание вашей оплаты";
+"Paid. Your USDC is on its way." = "Оплачено. Ваши USDC уже в пути.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "Перевод в Kaspa как kUSDT, обычно около 20 минут";
+"%@ arrived. Swap it for Kaspa." = "%@ поступили. Обменяйте на Kaspa.";
+"Open to sign the bridge again" = "Откройте, чтобы снова подписать мост";
+"Stripe refused this purchase. Nothing was taken." = "Stripe отклонил эту покупку. Ничего не списано.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "Мост не сработал, поэтому USDC вернули. Откройте, чтобы перевести снова.";
+"Not paid. Nothing was taken." = "Не оплачено. Ничего не списано.";
+"Buy Kaspa" = "Купить Kaspa";
+"Where should your kUSDT land?" = "Куда должны поступить ваши kUSDT?";
+"K needs this account's recovery words on this phone to buy with a card." = "Чтобы покупать картой, K нужны слова восстановления этого аккаунта на этом телефоне.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe продаёт покупателям в США и ЕС. Комиссия карты и сетевые комиссии показаны на следующей странице, до оплаты.";
+"Pay with your debit card" = "Оплатите дебетовой картой";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe продаёт вам USDC на странице Trestly внутри K.";
+"kUSDT lands on your address" = "kUSDT поступают на ваш адрес";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Мост Trestly превращает USDC в kUSDT в сети Kaspa.";
+"Swap it for Kaspa" = "Обменяйте на Kaspa";
+"K opens Swap with your kUSDT ready." = "K откроет Обмен с готовыми kUSDT.";
+"kUSDT lands on: %@" = "kUSDT поступят на: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "Это можно закрыть. K продолжит следить за заказом на вкладке «Кошелёк».";
+"Approve the Bridge" = "Одобрить мост";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "Одна подпись позволяет мосту Trestly взять до этой суммы USDC с Ethereum-адреса K и зачислить её в Kaspa как kUSDT. ETH не нужен, и Kaspa не покидает ваш кошелёк.";
+"Up to" = "До";
+"kUSDT lands on" = "kUSDT поступят на";
+"Ends" = "Действует до";
+"Bridge" = "Мост";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "Ethereum-адрес K получается из слов этого аккаунта, так же как его создал бы любой Ethereum-кошелёк.";

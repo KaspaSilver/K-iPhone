@@ -958,6 +958,8 @@ final class WalletManager: ObservableObject {
                     "kachat_rooms_indexer_listed_v1_\(lowered)",
                     // the address each website in K's browser last connected (`KaChatSiteWallet`)
                     "kachat_site_connections_\(lowered)",
+                    // Buy Kaspa with Debit Card's order being followed (`CardBuyTracker`)
+                    "\(CardBuyTracker.storagePrefix)\(lowered)",
                     // rooms' deletes for everyone (`PublicChatStore.recordDelete`)
                     "kachat_room_deletes_v2_\(lowered)",
                     "kachat_broadcast_last_read_\(lowered)",

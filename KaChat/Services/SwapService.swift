@@ -254,6 +254,17 @@ final class SwapService: ObservableObject {
         rescheduleEstimate()
     }
 
+    /// Buy Kaspa's last step (`CardBuyTracker`): kUSDT for KAS, from the address the card's kUSDT
+    /// landed on, "You Send" filled with what landed.
+    func prepareKusdtSell(from target: TrestlyTarget, units: UInt64) {
+        clearCreatedSwap()
+        kasIsSendSide = false
+        setOtherCoin(.kusdt)
+        kusdtFrom = target
+        setAmountText(TokenAmount.typed(units, token: .kusdt))
+        refreshKusdtBalances()
+    }
+
     /// The pair changed, so the quoted side's figure is for a different pair - blank it until
     /// the new quote lands; the typed side stays as the input.
     private func clearQuotedAmount() {

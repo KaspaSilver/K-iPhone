@@ -3402,3 +3402,34 @@
 "Sign" = "وقّع";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "التوقيع بيثبت إن العنوان ده بتاعك. مش بيكلف حاجة ومش بيبعت Kaspa.";
 "Check the amount and the address before you send." = "راجع المبلغ والعنوان قبل ما تبعت.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "اشتري Kaspa ببطاقة الخصم";
+"Swap to Kaspa" = "بدّل لـ Kaspa";
+"Waiting for your payment" = "مستنيين دفعتك";
+"Paid. Your USDC is on its way." = "اتدفع. الـ USDC بتاعك في الطريق.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "بيتنقل لـ Kaspa كـ kUSDT، عادةً حوالي 20 دقيقة";
+"%@ arrived. Swap it for Kaspa." = "وصل %@. بدّله بـ Kaspa.";
+"Open to sign the bridge again" = "افتح عشان توقّع الجسر تاني";
+"Stripe refused this purchase. Nothing was taken." = "Stripe رفضت الشراء ده. ماتخصمش أي حاجة.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "الجسر ماشتغلش، فالـ USDC رجع. افتح عشان تنقله تاني.";
+"Not paid. Nothing was taken." = "ماتدفعش. ماتخصمش أي حاجة.";
+"Buy Kaspa" = "اشتري Kaspa";
+"Where should your kUSDT land?" = "الـ kUSDT بتاعك يوصل فين؟";
+"K needs this account's recovery words on this phone to buy with a card." = "K محتاج كلمات الاسترداد بتاعة الحساب ده على الموبايل ده عشان تشتري بالبطاقة.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe بتبيع للمشترين في أمريكا والاتحاد الأوروبي. رسوم البطاقة ورسوم الشبكة بتظهر في الصفحة الجاية قبل ما تدفع.";
+"Pay with your debit card" = "ادفع ببطاقة الخصم";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe بتبيعلك USDC، على صفحة Trestly جوه K.";
+"kUSDT lands on your address" = "الـ kUSDT يوصل لعنوانك";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "جسر Trestly بيحوّل الـ USDC لـ kUSDT على Kaspa.";
+"Swap it for Kaspa" = "بدّله بـ Kaspa";
+"K opens Swap with your kUSDT ready." = "K بيفتح المبادلة والـ kUSDT جاهز.";
+"kUSDT lands on: %@" = "الـ kUSDT يوصل على: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "تقدر تقفل ده. K هيفضل متابع طلبك في تبويب المحفظة.";
+"Approve the Bridge" = "وافق على الجسر";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "توقيع واحد بيسمح لجسر Trestly ياخد لحد المبلغ ده من USDC من عنوان K على Ethereum ويودعه في Kaspa كـ kUSDT. مش محتاج ETH، ومفيش Kaspa بيخرج من محفظتك.";
+"Up to" = "لحد";
+"kUSDT lands on" = "الـ kUSDT يوصل على";
+"Ends" = "ينتهي";
+"Bridge" = "الجسر";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "عنوان K على Ethereum جاي من كلمات الحساب ده، زي ما أي محفظة Ethereum هتعمله.";

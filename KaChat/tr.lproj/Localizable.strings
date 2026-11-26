@@ -3402,3 +3402,34 @@
 "Sign" = "İmzala";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "İmzalamak bu adresin size ait olduğunu kanıtlar. Ücretsizdir ve Kaspa göndermez.";
 "Check the amount and the address before you send." = "Göndermeden önce tutarı ve adresi kontrol edin.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "Banka Kartıyla Kaspa Al";
+"Swap to Kaspa" = "Kaspa'ya Takas Et";
+"Waiting for your payment" = "Ödemeniz bekleniyor";
+"Paid. Your USDC is on its way." = "Ödendi. USDC'niz yolda.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "kUSDT olarak Kaspa'ya köprüleniyor, genellikle yaklaşık 20 dakika";
+"%@ arrived. Swap it for Kaspa." = "%@ geldi. Kaspa ile takas edin.";
+"Open to sign the bridge again" = "Köprüyü yeniden imzalamak için açın";
+"Stripe refused this purchase. Nothing was taken." = "Stripe bu satın almayı reddetti. Hiçbir ücret alınmadı.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "Köprü çalışamadı, bu yüzden USDC iade edildi. Yeniden köprülemek için açın.";
+"Not paid. Nothing was taken." = "Ödenmedi. Hiçbir ücret alınmadı.";
+"Buy Kaspa" = "Kaspa Al";
+"Where should your kUSDT land?" = "kUSDT'niz nereye gelsin?";
+"K needs this account's recovery words on this phone to buy with a card." = "Kartla almak için K'nin bu hesabın kurtarma kelimelerine bu telefonda ihtiyacı var.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe ABD ve AB'deki alıcılara satış yapar. Kart ücreti ve ağ ücretleri, ödemeden önce sonraki sayfada gösterilir.";
+"Pay with your debit card" = "Banka kartınızla ödeyin";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe size, K içindeki Trestly sayfasında USDC satar.";
+"kUSDT lands on your address" = "kUSDT adresinize gelir";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Trestly'nin köprüsü USDC'yi Kaspa üzerinde kUSDT'ye çevirir.";
+"Swap it for Kaspa" = "Kaspa ile takas edin";
+"K opens Swap with your kUSDT ready." = "K, kUSDT'niz hazır şekilde Takas'ı açar.";
+"kUSDT lands on: %@" = "kUSDT'nin geleceği adres: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "Bunu kapatabilirsiniz. K siparişinizi Cüzdan sekmesinde izlemeye devam eder.";
+"Approve the Bridge" = "Köprüyü Onayla";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "Tek bir imza, Trestly'nin köprüsünün K'nin Ethereum adresinden bu kadar USDC'ye kadar almasına ve bunu Kaspa'ya kUSDT olarak yatırmasına izin verir. ETH gerekmez ve cüzdanınızdan hiç Kaspa çıkmaz.";
+"Up to" = "En fazla";
+"kUSDT lands on" = "kUSDT'nin geleceği adres";
+"Ends" = "Bitiş";
+"Bridge" = "Köprü";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "K'nin Ethereum adresi, herhangi bir Ethereum cüzdanının yapacağı gibi bu hesabın kelimelerinden türetilir.";

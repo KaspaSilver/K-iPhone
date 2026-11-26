@@ -3402,3 +3402,34 @@
 "Sign" = "Ký";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "Ký chứng minh địa chỉ này là của bạn. Miễn phí và không gửi Kaspa.";
 "Check the amount and the address before you send." = "Kiểm tra số tiền và địa chỉ trước khi gửi.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "Mua Kaspa bằng thẻ ghi nợ";
+"Swap to Kaspa" = "Hoán đổi sang Kaspa";
+"Waiting for your payment" = "Đang chờ bạn thanh toán";
+"Paid. Your USDC is on its way." = "Đã thanh toán. USDC của bạn đang được chuyển.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "Đang chuyển sang Kaspa dưới dạng kUSDT, thường khoảng 20 phút";
+"%@ arrived. Swap it for Kaspa." = "Đã nhận %@. Hoán đổi sang Kaspa.";
+"Open to sign the bridge again" = "Mở để ký lại cầu nối";
+"Stripe refused this purchase. Nothing was taken." = "Stripe đã từ chối giao dịch mua này. Không có khoản nào bị trừ.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "Cầu nối không chạy được nên USDC đã được trả lại. Mở để chuyển lại.";
+"Not paid. Nothing was taken." = "Chưa thanh toán. Không có khoản nào bị trừ.";
+"Buy Kaspa" = "Mua Kaspa";
+"Where should your kUSDT land?" = "kUSDT của bạn nên về địa chỉ nào?";
+"K needs this account's recovery words on this phone to buy with a card." = "K cần các từ khôi phục của tài khoản này trên điện thoại này để mua bằng thẻ.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe bán cho người mua ở Mỹ và EU. Phí thẻ và phí mạng hiển thị ở trang tiếp theo, trước khi bạn thanh toán.";
+"Pay with your debit card" = "Thanh toán bằng thẻ ghi nợ";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe bán USDC cho bạn, trên trang của Trestly trong K.";
+"kUSDT lands on your address" = "kUSDT về địa chỉ của bạn";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Cầu nối của Trestly đổi USDC thành kUSDT trên Kaspa.";
+"Swap it for Kaspa" = "Hoán đổi sang Kaspa";
+"K opens Swap with your kUSDT ready." = "K mở Hoán đổi với kUSDT của bạn đã sẵn sàng.";
+"kUSDT lands on: %@" = "kUSDT về: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "Bạn có thể đóng mục này. K vẫn theo dõi đơn hàng của bạn ở tab Ví.";
+"Approve the Bridge" = "Phê duyệt cầu nối";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "Một chữ ký cho phép cầu nối của Trestly lấy tối đa số USDC này từ địa chỉ Ethereum của K và nạp vào Kaspa dưới dạng kUSDT. Không cần ETH và không có Kaspa nào rời khỏi ví của bạn.";
+"Up to" = "Tối đa";
+"kUSDT lands on" = "kUSDT về";
+"Ends" = "Hết hạn";
+"Bridge" = "Cầu nối";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "Địa chỉ Ethereum của K được tạo từ các từ của tài khoản này, giống như bất kỳ ví Ethereum nào cũng sẽ tạo.";

@@ -3405,3 +3405,34 @@
 "Sign" = "Signieren";
 "Signing proves you own this address. It costs nothing and sends no Kaspa." = "Mit der Signatur beweist du, dass dir diese Adresse gehört. Sie kostet nichts und sendet kein Kaspa.";
 "Check the amount and the address before you send." = "Prüfe Betrag und Adresse, bevor du sendest.";
+
+/* Buy Kaspa with Debit Card (BuyKaspaViews, CardBuy) */
+"Buy Kaspa with Debit Card" = "Kaspa mit Debitkarte kaufen";
+"Swap to Kaspa" = "In Kaspa tauschen";
+"Waiting for your payment" = "Warte auf deine Zahlung";
+"Paid. Your USDC is on its way." = "Bezahlt. Dein USDC ist unterwegs.";
+"Bridging to Kaspa as kUSDT, usually about 20 minutes" = "Wird als kUSDT zu Kaspa gebrückt, meist etwa 20 Minuten";
+"%@ arrived. Swap it for Kaspa." = "%@ angekommen. Tausche es in Kaspa.";
+"Open to sign the bridge again" = "Öffnen, um die Brücke erneut zu signieren";
+"Stripe refused this purchase. Nothing was taken." = "Stripe hat diesen Kauf abgelehnt. Es wurde nichts abgebucht.";
+"The bridge couldn't run, so the USDC was returned. Open to bridge it again." = "Die Brücke konnte nicht laufen, daher wurde das USDC zurückgeschickt. Öffnen, um es erneut zu brücken.";
+"Not paid. Nothing was taken." = "Nicht bezahlt. Es wurde nichts abgebucht.";
+"Buy Kaspa" = "Kaspa kaufen";
+"Where should your kUSDT land?" = "Wo soll dein kUSDT ankommen?";
+"K needs this account's recovery words on this phone to buy with a card." = "K braucht die Wiederherstellungswörter dieses Kontos auf diesem Telefon, um mit Karte zu kaufen.";
+"Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe verkauft an Käufer in den USA und der EU. Die Kartengebühr und die Netzwerkgebühren siehst du auf der nächsten Seite, bevor du bezahlst.";
+"Pay with your debit card" = "Mit deiner Debitkarte bezahlen";
+"Stripe sells you USDC, on Trestly's page inside K." = "Stripe verkauft dir USDC, auf Trestlys Seite in K.";
+"kUSDT lands on your address" = "kUSDT kommt auf deiner Adresse an";
+"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Trestlys Brücke macht aus dem USDC kUSDT auf Kaspa.";
+"Swap it for Kaspa" = "In Kaspa tauschen";
+"K opens Swap with your kUSDT ready." = "K öffnet Tauschen mit deinem kUSDT bereit.";
+"kUSDT lands on: %@" = "kUSDT kommt an auf: %@";
+"You can close this. K keeps following your order on the Wallet tab." = "Du kannst das schließen. K verfolgt deine Bestellung im Tab Wallet weiter.";
+"Approve the Bridge" = "Brücke genehmigen";
+"One signature lets Trestly's bridge take up to this much USDC from K's Ethereum address and deposit it to Kaspa as kUSDT. No ETH is needed, and no Kaspa leaves your wallet." = "Mit einer Signatur darf Trestlys Brücke bis zu diesem Betrag in USDC von Ks Ethereum-Adresse nehmen und als kUSDT auf Kaspa einzahlen. Es wird kein ETH gebraucht, und kein Kaspa verlässt deine Wallet.";
+"Up to" = "Bis zu";
+"kUSDT lands on" = "kUSDT kommt an auf";
+"Ends" = "Endet";
+"Bridge" = "Brücke";
+"K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "Ks Ethereum-Adresse entsteht aus den Wörtern dieses Kontos, so wie jede Ethereum-Wallet sie bilden würde.";
