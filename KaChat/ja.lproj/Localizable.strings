@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "まだ誰も%@に勝っていません。";
 "Play %@" = "%@と対局";
 "Players (%lld of %lld)" = "プレイヤー（%lld/%lld）";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Kでチェスをしよう：KaPlay > チェス > 1v1 > コードで参加 を開いて、%@ を入力してね。";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Kの私のチェストーナメントに参加しよう：KaPlay > チェス > トーナメント > コードで参加 を開いて、%@ を入力してね。";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "Kでチェスをしよう：アーケード > チェス > 1v1 > コードで参加 を開いて、%@ を入力してね。";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "Kの私のチェストーナメントに参加しよう：アーケード > チェス > トーナメント > コードで参加 を開いて、%@ を入力してね。";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Kで%@（レベル%lld）に%lld手で勝ちました。もっと少ない手数で勝てる？";
 "Share to KaPost" = "KaPostでシェア";
 "Chess Challenge" = "チェス チャレンジ";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "K を使う全員について、このルームから消えます。Kaspa ネットワーク上には残り、チェーンを読む人は誰でも見つけられます。削除には少額のネットワーク手数料がかかります。";
 "Couldn't delete the message. Try again." = "メッセージを削除できませんでした。もう一度お試しください。";
 "%@ mentioned you in %@" = "%@さんが%@であなたをメンションしました";
+"Arcade" = "アーケード";

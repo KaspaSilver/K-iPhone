@@ -161,13 +161,13 @@ struct ChatListView: View {
         // expression - that combination is what triggered "unable to type-check in reasonable
         // time" once the third `.alert` (bulk delete) was added.
         let withToolbar = VStack(spacing: 0) {
-            PinnedListHeader(title: "KaChat", search: $searchText,
+            PinnedListHeader(title: "Chats", search: $searchText,
                              prompt: listPage == .chats ? "Search chats" : "Search public chats",
                              accessory: AnyView(pageCycleButton))
             chatListContent
                 .scrollDismissesKeyboard(.immediately)
         }
-            .navigationTitle("KaChat")
+            .navigationTitle("Chats")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Public Chats' settings (owner, 2026-11-24: here, not in the + sheet): the

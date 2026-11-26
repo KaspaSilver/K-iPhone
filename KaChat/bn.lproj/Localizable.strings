@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "এখনো কেউ %@-কে হারাতে পারেনি।";
 "Play %@" = "%@-এর সঙ্গে খেলুন";
 "Players (%lld of %lld)" = "খেলোয়াড় (%lld/%lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "K-তে আমার সঙ্গে দাবা খেলুন: KaPlay > দাবা > 1v1 > কোড দিয়ে যোগ দিন খুলে %@ লিখুন।";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "K-তে আমার দাবা টুর্নামেন্টে যোগ দিন: KaPlay > দাবা > টুর্নামেন্ট > কোড দিয়ে যোগ দিন খুলে %@ লিখুন।";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "K-তে আমার সঙ্গে দাবা খেলুন: আর্কেড > দাবা > 1v1 > কোড দিয়ে যোগ দিন খুলে %@ লিখুন।";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "K-তে আমার দাবা টুর্নামেন্টে যোগ দিন: আর্কেড > দাবা > টুর্নামেন্ট > কোড দিয়ে যোগ দিন খুলে %@ লিখুন।";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "আমি K-তে %@ (লেভেল %lld)-কে %lld চালে হারিয়েছি। আপনি কি এর চেয়ে কম চালে পারবেন?";
 "Share to KaPost" = "KaPost-এ শেয়ার করুন";
 "Chess Challenge" = "দাবা চ্যালেঞ্জ";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "K ব্যবহারকারী সবার জন্য এটি এই রুম থেকে চলে যায়। এটি Kaspa নেটওয়ার্কে থেকে যায়, যেখানে চেইন পড়া যে কেউ এখনও এটি খুঁজে পেতে পারে। মুছতে সামান্য নেটওয়ার্ক ফি লাগে।";
 "Couldn't delete the message. Try again." = "বার্তাটি মোছা যায়নি। আবার চেষ্টা করুন।";
 "%@ mentioned you in %@" = "%@ আপনাকে %@-এ উল্লেখ করেছেন";
+"Arcade" = "আর্কেড";

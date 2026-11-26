@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "%@ ещё никто не обыграл.";
 "Play %@" = "Играть с %@";
 "Players (%lld of %lld)" = "Игроки (%lld из %lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Сыграй со мной в шахматы в K: открой «KaPlay» > «Шахматы» > 1v1 > «Войти по коду» и введи %@.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Присоединяйся к моему шахматному турниру в K: открой «KaPlay» > «Шахматы» > «Турниры» > «Войти по коду» и введи %@.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "Сыграй со мной в шахматы в K: открой «Аркада» > «Шахматы» > 1v1 > «Войти по коду» и введи %@.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "Присоединяйся к моему шахматному турниру в K: открой «Аркада» > «Шахматы» > «Турниры» > «Войти по коду» и введи %@.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Победа над %@ (уровень %lld) за %lld ходов в K. Сможете за меньшее число ходов?";
 "Share to KaPost" = "Поделиться в KaPost";
 "Chess Challenge" = "Шахматный вызов";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Сообщение исчезнет из этой комнаты для всех, кто пользуется K. Оно останется в сети Kaspa, где любой, кто читает блокчейн, всё ещё может его найти. Удаление стоит небольшой комиссии сети.";
 "Couldn't delete the message. Try again." = "Не удалось удалить сообщение. Попробуйте ещё раз.";
 "%@ mentioned you in %@" = "%@ упомянул(а) вас в %@";
+"Arcade" = "Аркада";

@@ -33,6 +33,12 @@ screen (`OnboardingView`) shows the K globe (`KLogo`, cut from the app icon) wit
 The app icon is dark only (owner, 2026-11-22): `AppIcon` has the dark globe (`dark.png`) for every
 appearance plus the tinted one; the teal light-mode icon is gone, so don't add one back.
 
+**Section names (owner, 2026-11-26):** the chats tab is **Chats** (dock, title), KaPost is **Posts**
+(Hub tile, title, Settings > Posts) and KaPlay is **Arcade** (Hub tile, title, the chess invite
+text "open Arcade > Chess"), in all 19 languages (`AppTab.label`). This replaces the "KaChat",
+"KaPost" and "KaPlay" labels described below where they name the tab or screen; other strings
+("Share to KaPost", "Search KaPost", push titles) and code names are unchanged.
+
 **Dock and Kaspa Hub (phase 1, 2026-11-20):** the dock is fixed (owner's call, 2026-11-23: no
 Customize Dock): Kaspa Hub, Wallet, KaChat (the `.chats` tab, labeled "KaChat" since 2026-11-21 for
 the rebrand of the app as "K"), Profile, Settings (`AppTab.defaultDock`, `DockLayout`). The

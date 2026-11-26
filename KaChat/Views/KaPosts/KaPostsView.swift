@@ -1036,7 +1036,7 @@ struct KaPostsView: View {
             // the feed moves. The hamburger sits before it.
             HStack(spacing: 12) {
                 feedMenuButton
-                Text("KaPost")
+                Text("Posts")
                     .font(.largeTitle.weight(.bold))
                 Spacer(minLength: 8)
                 // one button for the three feeds (owner's call, 2026-11-23: it replaced the
@@ -11634,7 +11634,7 @@ struct KaPostsPageView: View {
             KaPostsView()
                 // Inline, because the title itself is now pinned chrome inside KaPostsView -
                 // see feedTabBar. The bar keeps the dot and the balance either side of it.
-                .navigationTitle("KaPost")
+                .navigationTitle("Posts")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .principal) {

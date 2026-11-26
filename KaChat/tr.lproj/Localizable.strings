@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "Henüz kimse %@ rakibini yenemedi.";
 "Play %@" = "%@ ile oyna";
 "Players (%lld of %lld)" = "Oyuncular (%lld / %lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "K'te benimle satranç oyna: KaPlay > Satranç > 1v1 > Kodla katıl'ı aç ve %@ kodunu gir.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "K'teki satranç turnuvama katıl: KaPlay > Satranç > Turnuvalar > Kodla katıl'ı aç ve %@ kodunu gir.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "K'te benimle satranç oyna: Arcade > Satranç > 1v1 > Kodla katıl'ı aç ve %@ kodunu gir.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "K'teki satranç turnuvama katıl: Arcade > Satranç > Turnuvalar > Kodla katıl'ı aç ve %@ kodunu gir.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "K'te %@ rakibini (Seviye %lld) %lld hamlede yendim. Daha azında yapabilir misin?";
 "Share to KaPost" = "KaPost'ta paylaş";
 "Chess Challenge" = "Satranç Meydan Okuması";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "K kullanan herkes için bu odadan kalkar. Kaspa ağında kalır; zinciri okuyan herkes onu hâlâ bulabilir. Silmenin küçük bir ağ ücreti vardır.";
 "Couldn't delete the message. Try again." = "Mesaj silinemedi. Tekrar deneyin.";
 "%@ mentioned you in %@" = "%@ seni %@ içinde andı";
+"Arcade" = "Arcade";

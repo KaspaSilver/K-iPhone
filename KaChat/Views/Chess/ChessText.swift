@@ -71,8 +71,8 @@ enum ChessText {
     /// The text a private room's share button sends: where the code goes, one sentence per kind.
     static func invite(for tournament: ChessTournament) -> String {
         tournament.isDuel
-            ? format("Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@.", tournament.id)
-            : format("Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@.", tournament.id)
+            ? format("Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@.", tournament.id)
+            : format("Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@.", tournament.id)
     }
 
     // MARK: - Results

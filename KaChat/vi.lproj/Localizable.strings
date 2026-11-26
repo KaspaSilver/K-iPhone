@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "Chưa ai đánh bại %@.";
 "Play %@" = "Chơi với %@";
 "Players (%lld of %lld)" = "Người chơi (%lld/%lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Chơi cờ vua với tôi trên K: mở KaPlay > Cờ vua > 1v1 > Tham gia bằng mã, rồi nhập %@.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Tham gia giải cờ vua của tôi trên K: mở KaPlay > Cờ vua > Giải đấu > Tham gia bằng mã, rồi nhập %@.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "Chơi cờ vua với tôi trên K: mở Arcade > Cờ vua > 1v1 > Tham gia bằng mã, rồi nhập %@.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "Tham gia giải cờ vua của tôi trên K: mở Arcade > Cờ vua > Giải đấu > Tham gia bằng mã, rồi nhập %@.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Tôi đã thắng %@ (Cấp %lld) trong %lld nước trên K. Bạn có làm được với ít nước hơn không?";
 "Share to KaPost" = "Chia sẻ lên KaPost";
 "Chess Challenge" = "Thách đấu cờ vua";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Tin nhắn sẽ biến mất khỏi phòng này với mọi người dùng K. Nó vẫn còn trên mạng Kaspa, nơi bất kỳ ai đọc chuỗi vẫn có thể tìm thấy. Việc xóa tốn một khoản phí mạng nhỏ.";
 "Couldn't delete the message. Try again." = "Không thể xóa tin nhắn. Hãy thử lại.";
 "%@ mentioned you in %@" = "%@ đã nhắc đến bạn trong %@";
+"Arcade" = "Arcade";

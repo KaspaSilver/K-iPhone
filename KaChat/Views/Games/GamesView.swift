@@ -42,9 +42,9 @@ struct GamesView: View {
                 }
                 .padding(.vertical, 16)
             }
-            .fixedScreenTitle(Text(verbatim: "KaPlay"))
+            .fixedScreenTitle(Text("Arcade"))
             .background(Color(.systemGroupedBackground))
-            .navigationTitle(Text(verbatim: "KaPlay"))
+            .navigationTitle(Text("Arcade"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { BalanceToolbarLabel() }

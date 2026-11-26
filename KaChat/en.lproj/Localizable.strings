@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "Nobody has beaten %@ yet.";
 "Play %@" = "Play %@";
 "Players (%lld of %lld)" = "Players (%lld of %lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?";
 "Share to KaPost" = "Share to KaPost";
 "Chess Challenge" = "Chess Challenge";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee.";
 "Couldn't delete the message. Try again." = "Couldn't delete the message. Try again.";
 "%@ mentioned you in %@" = "%@ mentioned you in %@";
+"Arcade" = "Arcade";

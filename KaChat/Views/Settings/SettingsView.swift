@@ -93,7 +93,7 @@ struct SettingsView: View {
                     // (2026-11-21)
                     // KaPosts' own settings (the cool down), here since 2026-11-21 rather than in the
                     // feed's menu; its tips moved to Customization > Tipping on 2026-11-23
-                    settingsCategoryRow("KaPost", icon: "square.text.square", tint: .accentColor) {
+                    settingsCategoryRow("Posts", icon: "square.text.square", tint: .accentColor) {
                         KaPostsSettingsView(onClose: {}, embedded: true, part: .kaPost)
                     }
                     settingsCategoryRow("Help", icon: "questionmark.circle", tint: .accentColor) {
@@ -1475,7 +1475,7 @@ struct KaPostsNotificationSettingsView: View {
                     }
             }
         }
-        .navigationTitle("KaPost")
+        .navigationTitle("Posts")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -1533,7 +1533,7 @@ struct NotificationsHubPage: View {
                     WalletNotificationSettingsView()
                 }
                 // KaPosts' kinds; Public Chats rooms keep their own bells, in each room.
-                settingsCategoryRow("KaPost", icon: AppTab.kaposts.icon, tint: .accentColor) {
+                settingsCategoryRow("Posts", icon: AppTab.kaposts.icon, tint: .accentColor) {
                     KaPostsNotificationSettingsView()
                 }
             }

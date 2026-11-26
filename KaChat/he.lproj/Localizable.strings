@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "אף אחד עוד לא ניצח את %@.";
 "Play %@" = "שחקו נגד %@";
 "Players (%lld of %lld)" = "שחקנים (%lld מתוך %lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "בואו לשחק איתי שחמט ב-K: פתחו KaPlay > שחמט > 1v1 > הצטרפות עם קוד, והזינו %@.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "הצטרפו לטורניר השחמט שלי ב-K: פתחו KaPlay > שחמט > טורנירים > הצטרפות עם קוד, והזינו %@.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "בואו לשחק איתי שחמט ב-K: פתחו ארקייד > שחמט > 1v1 > הצטרפות עם קוד, והזינו %@.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "הצטרפו לטורניר השחמט שלי ב-K: פתחו ארקייד > שחמט > טורנירים > הצטרפות עם קוד, והזינו %@.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "ניצחתי את %@ (רמה %lld) ב-%lld מסעים ב-K. חושבים שתצליחו בפחות?";
 "Share to KaPost" = "שיתוף ל-KaPost";
 "Chess Challenge" = "אתגר שחמט";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "היא תיעלם מהחדר הזה אצל כל מי שמשתמש ב-K. היא נשארת ברשת Kaspa, שם כל מי שקורא את השרשרת עדיין יכול למצוא אותה. המחיקה עולה עמלת רשת קטנה.";
 "Couldn't delete the message. Try again." = "לא ניתן היה למחוק את ההודעה. נסו שוב.";
 "%@ mentioned you in %@" = "%@ הזכיר/ה אותך ב-%@";
+"Arcade" = "ארקייד";

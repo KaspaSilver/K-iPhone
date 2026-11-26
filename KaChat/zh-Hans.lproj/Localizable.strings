@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "还没有人战胜 %@。";
 "Play %@" = "挑战 %@";
 "Players (%lld of %lld)" = "玩家（%lld/%lld）";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "来 K 和我下棋吧：打开 KaPlay > 国际象棋 > 1v1 > 用代码加入，然后输入 %@。";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "来 K 参加我的国际象棋锦标赛吧：打开 KaPlay > 国际象棋 > 锦标赛 > 用代码加入，然后输入 %@。";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "来 K 和我下棋吧：打开 街机 > 国际象棋 > 1v1 > 用代码加入，然后输入 %@。";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "来 K 参加我的国际象棋锦标赛吧：打开 街机 > 国际象棋 > 锦标赛 > 用代码加入，然后输入 %@。";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "我在 K 上战胜了 %@（等级 %lld），只用了 %lld 步。你能用更少的步数做到吗？";
 "Share to KaPost" = "分享到 KaPost";
 "Chess Challenge" = "国际象棋挑战";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "所有使用 K 的人都将在此房间看不到它。它仍留在 Kaspa 网络上，任何读取链的人仍能找到它。删除需支付少量网络费。";
 "Couldn't delete the message. Try again." = "无法删除这条消息。请重试。";
 "%@ mentioned you in %@" = "%@ 在 %@ 中提到了你";
+"Arcade" = "街机";

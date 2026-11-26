@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "هنوز کسی %@ را شکست نداده است.";
 "Play %@" = "بازی با %@";
 "Players (%lld of %lld)" = "بازیکنان (%lld از %lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "در K با من شطرنج بازی کن: KaPlay > شطرنج > 1v1 > پیوستن با کد را باز کن و %@ را وارد کن.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "به تورنمنت شطرنج من در K بپیوند: KaPlay > شطرنج > تورنمنت‌ها > پیوستن با کد را باز کن و %@ را وارد کن.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "در K با من شطرنج بازی کن: آرکید > شطرنج > 1v1 > پیوستن با کد را باز کن و %@ را وارد کن.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "به تورنمنت شطرنج من در K بپیوند: آرکید > شطرنج > تورنمنت‌ها > پیوستن با کد را باز کن و %@ را وارد کن.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "%@ (سطح %lld) را در %lld حرکت در K شکست دادم. فکر می‌کنید با حرکت‌های کمتری می‌توانید؟";
 "Share to KaPost" = "اشتراک در KaPost";
 "Chess Challenge" = "چالش شطرنج";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "برای همهٔ کاربران K از این اتاق حذف می‌شود. اما روی شبکه Kaspa می‌ماند و هر کسی که زنجیره را بخواند هنوز می‌تواند پیدایش کند. حذف کردن کمی کارمزد شبکه دارد.";
 "Couldn't delete the message. Try again." = "حذف پیام ممکن نشد. دوباره تلاش کنید.";
 "%@ mentioned you in %@" = "%@ شما را در %@ نام برد";
+"Arcade" = "آرکید";

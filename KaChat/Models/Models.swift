@@ -2588,7 +2588,7 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
     var label: String {
         switch self {
         // "KaChat" (owner, 2026-11-21): the app itself is being rebranded as just "K"
-        case .chats: return "KaChat"
+        case .chats: return "Chats"
         case .wallet: return "Wallet"
         // "Contacts" (owner's call, 2026-10-28; "Addresses" before, as in the KaChat wallet app).
         case .addressBook: return "Contacts"
@@ -2599,8 +2599,8 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
         case .coldStorage: return "Cold Storage"
         // "Usernames", its icon the .kachat wordmark (owner's call, 2026-11-23)
         case .kachatNames: return "Usernames"
-        case .kaposts: return "KaPost"
-        case .games: return "KaPlay"
+        case .kaposts: return "Posts"
+        case .games: return "Arcade"
         case .apps: return "Websites"
         case .explorer: return "Explorer"
         }

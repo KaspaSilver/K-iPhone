@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "Belum ada yang mengalahkan %@.";
 "Play %@" = "Lawan %@";
 "Players (%lld of %lld)" = "Pemain (%lld dari %lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Ayo main catur denganku di K: buka KaPlay > Catur > 1v1 > Gabung dengan kode, lalu masukkan %@.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Ikuti turnamen caturku di K: buka KaPlay > Catur > Turnamen > Gabung dengan kode, lalu masukkan %@.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "Ayo main catur denganku di K: buka Arcade > Catur > 1v1 > Gabung dengan kode, lalu masukkan %@.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "Ikuti turnamen caturku di K: buka Arcade > Catur > Turnamen > Gabung dengan kode, lalu masukkan %@.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Saya mengalahkan %@ (Level %lld) dalam %lld langkah di K. Bisakah Anda lebih sedikit?";
 "Share to KaPost" = "Bagikan ke KaPost";
 "Chess Challenge" = "Tantangan Catur";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Pesan hilang dari ruang ini untuk semua pengguna K. Pesan tetap ada di jaringan Kaspa, tempat siapa pun yang membaca chain masih bisa menemukannya. Menghapus memerlukan biaya jaringan kecil.";
 "Couldn't delete the message. Try again." = "Tidak dapat menghapus pesan. Coba lagi.";
 "%@ mentioned you in %@" = "%@ menyebut Anda di %@";
+"Arcade" = "Arcade";

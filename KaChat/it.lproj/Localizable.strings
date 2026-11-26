@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "Nessuno ha ancora battuto %@.";
 "Play %@" = "Sfida %@";
 "Players (%lld of %lld)" = "Giocatori (%lld di %lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Gioca a scacchi con me su K: apri KaPlay > Scacchi > 1v1 > Unisciti con un codice e inserisci %@.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Unisciti al mio torneo di scacchi su K: apri KaPlay > Scacchi > Tornei > Unisciti con un codice e inserisci %@.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "Gioca a scacchi con me su K: apri Arcade > Scacchi > 1v1 > Unisciti con un codice e inserisci %@.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "Unisciti al mio torneo di scacchi su K: apri Arcade > Scacchi > Tornei > Unisciti con un codice e inserisci %@.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Ho battuto %@ (livello %lld) in %lld mosse su K. Pensi di farcela in meno?";
 "Share to KaPost" = "Condividi su KaPost";
 "Chess Challenge" = "Sfida a scacchi";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Sparisce da questa stanza per tutti quelli che usano K. Resta sulla rete Kaspa, dove chiunque legga la catena può ancora trovarlo. L'eliminazione costa una piccola commissione di rete.";
 "Couldn't delete the message. Try again." = "Impossibile eliminare il messaggio. Riprova.";
 "%@ mentioned you in %@" = "%@ ti ha menzionato in %@";
+"Arcade" = "Arcade";

@@ -2780,8 +2780,8 @@
 "Nobody has beaten %@ yet." = "Ninguém venceu %@ ainda.";
 "Play %@" = "Jogar contra %@";
 "Players (%lld of %lld)" = "Jogadores (%lld de %lld)";
-"Play me at chess in K: open KaPlay > Chess > 1v1 > Join with a code, and enter %@." = "Jogue xadrez comigo no K: abra KaPlay > Xadrez > 1v1 > Entrar com um código e digite %@.";
-"Join my chess tournament in K: open KaPlay > Chess > Tournaments > Join with a code, and enter %@." = "Participe do meu torneio de xadrez no K: abra KaPlay > Xadrez > Torneios > Entrar com um código e digite %@.";
+"Play me at chess in K: open Arcade > Chess > 1v1 > Join with a code, and enter %@." = "Jogue xadrez comigo no K: abra Arcade > Xadrez > 1v1 > Entrar com um código e digite %@.";
+"Join my chess tournament in K: open Arcade > Chess > Tournaments > Join with a code, and enter %@." = "Participe do meu torneio de xadrez no K: abra Arcade > Xadrez > Torneios > Entrar com um código e digite %@.";
 "I beat %@ (Level %lld) in %lld moves on K. Think you can do it in fewer?" = "Venci %@ (nível %lld) em %lld lances no K. Acha que consegue em menos?";
 "Share to KaPost" = "Compartilhar no KaPost";
 "Chess Challenge" = "Desafio de xadrez";
@@ -3386,3 +3386,4 @@
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Ela some desta sala para todos que usam o K. Continua na rede Kaspa, onde qualquer pessoa que leia a blockchain ainda pode encontrá-la. Excluir custa uma pequena taxa de rede.";
 "Couldn't delete the message. Try again." = "Não foi possível excluir a mensagem. Tente novamente.";
 "%@ mentioned you in %@" = "%@ mencionou você em %@";
+"Arcade" = "Arcade";
