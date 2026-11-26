@@ -3418,12 +3418,6 @@
 "Where should your kUSDT land?" = "לאן להגיע ה-kUSDT שלך?";
 "K needs this account's recovery words on this phone to buy with a card." = "כדי לקנות בכרטיס, K צריכה את מילות השחזור של החשבון הזה בטלפון הזה.";
 "Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe מוכרת לקונים בארה״ב ובאיחוד האירופי. עמלת הכרטיס ועמלות הרשת מוצגות בעמוד הבא, לפני התשלום.";
-"Pay with your debit card" = "שלמו בכרטיס החיוב";
-"Stripe sells you USDC, on Trestly's page inside K." = "Stripe מוכרת לך USDC, בעמוד של Trestly בתוך K.";
-"kUSDT lands on your address" = "ה-kUSDT מגיע לכתובת שלך";
-"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "הגשר של Trestly הופך את ה-USDC ל-kUSDT ב-Kaspa.";
-"Swap it for Kaspa" = "החליפו ל-Kaspa";
-"K opens Swap with your kUSDT ready." = "K פותחת את ההחלפה עם ה-kUSDT מוכן.";
 "kUSDT lands on: %@" = "ה-kUSDT מגיע אל: %@";
 "You can close this. K keeps following your order on the Wallet tab." = "אפשר לסגור את זה. K ממשיכה לעקוב אחר ההזמנה בכרטיסייה ארנק.";
 "Approve the Bridge" = "אישור הגשר";
@@ -3433,3 +3427,5 @@
 "Ends" = "מסתיים";
 "Bridge" = "גשר";
 "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "כתובת ה-Ethereum של K נוצרת ממילות החשבון הזה, כפי שכל ארנק Ethereum היה יוצר אותה.";
+"A new address that has never been used, so this purchase stays apart from your username and chats." = "כתובת חדשה שמעולם לא נעשה בה שימוש, כדי שהרכישה הזו תישאר נפרדת משם המשתמש ומהצ'אטים שלך.";
+"The address people message and pay you on." = "הכתובת שאליה שולחים לך הודעות ותשלומים.";

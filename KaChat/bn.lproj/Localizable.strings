@@ -3418,12 +3418,6 @@
 "Where should your kUSDT land?" = "আপনার kUSDT কোথায় আসবে?";
 "K needs this account's recovery words on this phone to buy with a card." = "কার্ডে কিনতে K-এর এই ফোনে এই অ্যাকাউন্টের রিকভারি শব্দ দরকার।";
 "Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe যুক্তরাষ্ট্র ও ইইউ-এর ক্রেতাদের কাছে বিক্রি করে। কার্ড ফি ও নেটওয়ার্ক ফি পেমেন্টের আগে পরের পাতায় দেখানো হয়।";
-"Pay with your debit card" = "আপনার ডেবিট কার্ডে পেমেন্ট করুন";
-"Stripe sells you USDC, on Trestly's page inside K." = "K-এর ভেতরে Trestly-এর পাতায় Stripe আপনাকে USDC বিক্রি করে।";
-"kUSDT lands on your address" = "kUSDT আপনার ঠিকানায় আসে";
-"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Trestly-এর ব্রিজ USDC-কে Kaspa-তে kUSDT বানায়।";
-"Swap it for Kaspa" = "Kaspa-তে সোয়াপ করুন";
-"K opens Swap with your kUSDT ready." = "K আপনার kUSDT তৈরি রেখে সোয়াপ খোলে।";
 "kUSDT lands on: %@" = "kUSDT আসবে: %@";
 "You can close this. K keeps following your order on the Wallet tab." = "আপনি এটি বন্ধ করতে পারেন। K ওয়ালেট ট্যাবে আপনার অর্ডার দেখতে থাকবে।";
 "Approve the Bridge" = "ব্রিজ অনুমোদন করুন";
@@ -3433,3 +3427,5 @@
 "Ends" = "শেষ";
 "Bridge" = "ব্রিজ";
 "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "K-এর Ethereum ঠিকানা এই অ্যাকাউন্টের শব্দ থেকে তৈরি, যেমন যেকোনো Ethereum ওয়ালেট তৈরি করত।";
+"A new address that has never been used, so this purchase stays apart from your username and chats." = "একটি নতুন ঠিকানা যা কখনো ব্যবহার হয়নি, যাতে এই কেনাকাটা আপনার ইউজারনেম ও চ্যাট থেকে আলাদা থাকে।";
+"The address people message and pay you on." = "যে ঠিকানায় লোকে আপনাকে মেসেজ ও পেমেন্ট পাঠায়।";

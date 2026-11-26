@@ -1126,8 +1126,9 @@ Request; it replaced the Swap Stablecoins card) opens `SwapView` full screen
 Owner, 2026-11-26. The Wallet tab's card under Your Usernames (`BuyKaspaCard`, the Kaspa logo on
 the left, mainnet only: Trestly sells by card on mainnet) opens one flow, `BuyKaspaView`
 (`Views/Tokens/BuyKaspaViews.swift`):
-1. "Where should your kUSDT land?": the Chatting Address or another regular address
-   (`OwnAddressList`, never quantum).
+1. "Where should your kUSDT land?": Fresh Address (the default, owner 2026-11-26: the next unused
+   regular address, `TokenWallet.freshReceiveAddress`, revealed on Continue) or the Chatting
+   Address. No other address is offered.
 2. Trestly's buy page, `trestly.io/buy` (`CardBuyBrowserView`, in `TrestlyWebView`). Stripe sells
    USDC on Ethereum into the buyer's own Ethereum wallet. That wallet first signs one EIP-2612
    permit, and Trestly's bridge then deposits the USDC to the Kaspa address as kUSDT (no ETH
@@ -1154,7 +1155,12 @@ API's `/deposits/1/<nonce>` (status `minted`): every 8 s with Buy Kaspa open, el
 foreground beat (started by the Wallet tab's card or Buy Kaspa) until the order is over. It's kept per account
 (`kachat_card_buy_v1_<account>`, removed with the account), so the card shows the order's stage
 (paid, bridging, arrived, refused, refunded) and offers Swap to Kaspa. An order still on its way
-reopens on its page (`/buy?session=`).
+reopens on its page (`/buy?session=`). **Only a paid order is followed** (owner, 2026-11-26): the
+page reports its session when the order is made and again when Stripe takes the payment
+(`buy.paid:<session>`, the `?session=` address), and Trestly's Stripe status, delivered USDC,
+bridge or refund also count. An order not paid is dropped when Buy Kaspa closes (after one last
+look) and never shows on the card. Trestly's `"delivered": null` is not a delivery (it read as
+Paid before).
 
 ### Tokens (kUSDT)
 

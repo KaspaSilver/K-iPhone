@@ -3418,12 +3418,6 @@
 "Where should your kUSDT land?" = "الـ kUSDT بتاعك يوصل فين؟";
 "K needs this account's recovery words on this phone to buy with a card." = "K محتاج كلمات الاسترداد بتاعة الحساب ده على الموبايل ده عشان تشتري بالبطاقة.";
 "Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe بتبيع للمشترين في أمريكا والاتحاد الأوروبي. رسوم البطاقة ورسوم الشبكة بتظهر في الصفحة الجاية قبل ما تدفع.";
-"Pay with your debit card" = "ادفع ببطاقة الخصم";
-"Stripe sells you USDC, on Trestly's page inside K." = "Stripe بتبيعلك USDC، على صفحة Trestly جوه K.";
-"kUSDT lands on your address" = "الـ kUSDT يوصل لعنوانك";
-"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "جسر Trestly بيحوّل الـ USDC لـ kUSDT على Kaspa.";
-"Swap it for Kaspa" = "بدّله بـ Kaspa";
-"K opens Swap with your kUSDT ready." = "K بيفتح المبادلة والـ kUSDT جاهز.";
 "kUSDT lands on: %@" = "الـ kUSDT يوصل على: %@";
 "You can close this. K keeps following your order on the Wallet tab." = "تقدر تقفل ده. K هيفضل متابع طلبك في تبويب المحفظة.";
 "Approve the Bridge" = "وافق على الجسر";
@@ -3433,3 +3427,5 @@
 "Ends" = "ينتهي";
 "Bridge" = "الجسر";
 "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "عنوان K على Ethereum جاي من كلمات الحساب ده، زي ما أي محفظة Ethereum هتعمله.";
+"A new address that has never been used, so this purchase stays apart from your username and chats." = "عنوان جديد عمره ما اتستخدم، عشان الشراء ده يفضل بعيد عن اسم المستخدم والمحادثات بتاعتك.";
+"The address people message and pay you on." = "العنوان اللي الناس بتبعتلك وبتدفعلك عليه.";

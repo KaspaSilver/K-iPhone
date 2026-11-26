@@ -15,29 +15,42 @@ struct BuyKaspaCard: View {
     /// Trestly sells by card on mainnet only.
     static var isOffered: Bool { AppSettings.load().networkType == .mainnet }
 
+    /// The order to show: only one that was paid (one never paid is dropped once Buy Kaspa closes,
+    /// and never shows here, even before that check runs). A refused one shows too.
+    private var shown: CardBuy? {
+        guard let buy = tracker.buy, buy.paidSeen == true || buy.stage == .rejected else { return nil }
+        return buy
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Button {
                 Haptics.impact(.light)
                 // an order still on its way opens on its page; anything else starts a new one
-                if let buy = tracker.buy, !buy.isFinished { onOpen(buy) } else { onOpen(nil) }
+                // a paid order still on its way opens on its page; anything else starts a new one
+                if let buy = shown, !buy.isFinished { onOpen(buy) } else { onOpen(nil) }
             } label: {
-                HStack(spacing: 12) {
-                    Image("KaspaLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 30, height: 30)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Buy Kaspa with Debit Card")
-                            .foregroundColor(.primary)
-                        if let buy = tracker.buy {
-                            Text(verbatim: BuyKaspaStatus.line(buy))
-                                .font(.caption)
-                                .foregroundColor(buy.stage == .rejected || buy.stage == .expired ? .orange : .secondary)
-                                .lineLimit(2)
+                // a Label with the logo at icon size, as Your Usernames and Chatting Address are drawn,
+                // so the card is the same height as theirs
+                HStack {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Buy Kaspa with Debit Card")
+                                .foregroundColor(.primary)
+                            if let buy = shown {
+                                Text(verbatim: BuyKaspaStatus.line(buy))
+                                    .font(.caption)
+                                    .foregroundColor(buy.stage == .rejected || buy.stage == .expired ? .orange : .secondary)
+                                    .lineLimit(2)
+                            }
                         }
+                    } icon: {
+                        Image("KaspaLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
                     }
-                    Spacer(minLength: 8)
+                    Spacer()
                     Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -47,7 +60,7 @@ struct BuyKaspaCard: View {
             }
             .buttonStyle(.plain)
 
-            if let buy = tracker.buy, buy.isFinished || buy.stage == .signAgain {
+            if let buy = shown, buy.isFinished || buy.stage == .signAgain {
                 HStack(spacing: 10) {
                     if buy.stage == .arrived {
                         Button {
@@ -127,8 +140,10 @@ struct BuyKaspaView: View {
     }
 
     @State private var step: Step
-    @State private var source: SendSource = .chatting
-    @State private var choosing = false
+    /// Fresh Address (owner, 2026-11-26: "so kUSDT lands in a fresh address") or the Chatting Address.
+    @State private var useFresh = true
+    /// The next unused regular address (`TokenWallet.freshReceiveAddress`), revealed on Continue.
+    @State private var fresh: FreshAddress?
     /// K's Ethereum address for this account; nil when its words aren't on this phone.
     @State private var ethereumAddress: String?
     @State private var checkedWords = false
@@ -166,6 +181,9 @@ struct BuyKaspaView: View {
                 ethereumAddress = EthereumAccount.address()
                 checkedWords = true
             }
+            if fresh == nil, let next = TokenWallet.shared.freshReceiveAddress() {
+                fresh = FreshAddress(index: next.index, address: next.address)
+            }
         }
         .onDisappear { tracker.screenOpen = false }
     }
@@ -177,55 +195,52 @@ struct BuyKaspaView: View {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { step = .swap }
     }
 
+    private struct FreshAddress {
+        let index: Int
+        let address: String
+    }
+
     private var canContinue: Bool {
-        ethereumAddress != nil && !(choosing && source == .chatting)
+        ethereumAddress != nil && (!useFresh || fresh != nil)
     }
 
     private var addressStep: some View {
         SendStepScreen(title: Text("Buy Kaspa"), onCancel: { dismiss() }, continueTitle: "Continue",
                        canContinue: canContinue) {
-            guard let address = source.address else { return }
             let target: TrestlyTarget
-            switch source {
-            case .chatting:
+            if useFresh {
+                guard let fresh else { return }
+                target = TrestlyTarget(label: String(format: AppLocalization.string("Address #%lld"),
+                                                     WalletManager.addressNumber(forIndex: fresh.index)),
+                                       address: fresh.address, spendingIndex: fresh.index)
+                // on Manage Addresses' list (and watched) from now on, so the next fresh one is another
+                Task { await TokenWallet.shared.revealFreshReceiveAddress(fresh.index) }
+            } else {
+                guard let address = WalletManager.shared.currentWallet?.publicAddress else { return }
                 target = TrestlyTarget(label: AppLocalization.string("Chatting Address"), address: address, spendingIndex: nil)
-            case .spending(let index, _, let label):
-                target = TrestlyTarget(label: label, address: address, spendingIndex: index)
             }
-            TokenWallet.shared.noteReceiveAddressShown(address)
+            TokenWallet.shared.noteReceiveAddressShown(target.address)
             withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { step = .page(target, session: nil) }
         } content: {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    howItWorks
                     SendStepQuestion(text: "Where should your kUSDT land?")
                     HStack(spacing: 10) {
-                        SelectablePill(title: "Chatting Address", selected: !choosing) {
-                            choosing = false
-                            source = .chatting
+                        SelectablePill(title: "Fresh Address", selected: useFresh) {
+                            useFresh = true
                         }
-                        SelectablePill(title: "Choose an Address", selected: choosing) {
-                            choosing = true
+                        SelectablePill(title: "Chatting Address", selected: !useFresh) {
+                            useFresh = false
                         }
                     }
-                    if choosing {
-                        OwnAddressList(selected: source == .chatting ? nil : source.address, excludeQuantum: true) { picked in
-                            source = picked
-                            if picked == .chatting { choosing = false }
-                        }
+                    if useFresh {
+                        addressCard(title: fresh.map {
+                            String(format: AppLocalization.string("Address #%lld"), WalletManager.addressNumber(forIndex: $0.index))
+                        } ?? AppLocalization.string("Fresh Address"), address: fresh?.address,
+                                    note: "A new address that has never been used, so this purchase stays apart from your username and chats.")
                     } else if let wallet = WalletManager.shared.currentWallet {
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Chatting Address")
-                                    .font(.subheadline.weight(.semibold))
-                                Text(verbatim: "\(wallet.publicAddress.prefix(14))...\(wallet.publicAddress.suffix(6))")
-                                    .font(.caption.monospaced())
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                        }
-                        .padding(14)
-                        .background(sendKaspaGlass(cornerRadius: 16))
+                        addressCard(title: AppLocalization.string("Chatting Address"), address: wallet.publicAddress,
+                                    note: "The address people message and pay you on.")
                     }
                     if checkedWords && ethereumAddress == nil {
                         Text("K needs this account's recovery words on this phone to buy with a card.")
@@ -245,33 +260,25 @@ struct BuyKaspaView: View {
         }
     }
 
-    private var howItWorks: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            stepRow(1, "Pay with your debit card", "Stripe sells you USDC, on Trestly's page inside K.")
-            stepRow(2, "kUSDT lands on your address", "Trestly's bridge turns the USDC into kUSDT on Kaspa.")
-            stepRow(3, "Swap it for Kaspa", "K opens Swap with your kUSDT ready.")
+    private func addressCard(title: String, address: String?, note: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(verbatim: title)
+                .font(.subheadline.weight(.semibold))
+            if let address {
+                Text(verbatim: "\(address.prefix(14))...\(address.suffix(6))")
+                    .font(.caption.monospaced())
+                    .foregroundColor(.secondary)
+            } else {
+                ProgressView().controlSize(.small)
+            }
+            Text(note)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(sendKaspaGlass(cornerRadius: 16))
-    }
-
-    private func stepRow(_ number: Int, _ title: LocalizedStringKey, _ detail: LocalizedStringKey) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(verbatim: "\(number)")
-                .font(.subheadline.weight(.bold))
-                .foregroundColor(.black)
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(Color.accentColor))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(detail)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
     }
 
     private var noWords: some View {
@@ -320,7 +327,7 @@ struct CardBuyBrowserView: View {
 
     /// The order this page made, once it's paid (before that the page itself is the whole story).
     private var followed: CardBuy? {
-        guard let buy = tracker.buy, buy.address == target.address, buy.stage != .waitingPayment else { return nil }
+        guard let buy = tracker.buy, buy.address == target.address, buy.paidSeen == true else { return nil }
         return buy
     }
 

@@ -3418,12 +3418,6 @@
 "Where should your kUSDT land?" = "Where should your kUSDT land?";
 "K needs this account's recovery words on this phone to buy with a card." = "K needs this account's recovery words on this phone to buy with a card.";
 "Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay.";
-"Pay with your debit card" = "Pay with your debit card";
-"Stripe sells you USDC, on Trestly's page inside K." = "Stripe sells you USDC, on Trestly's page inside K.";
-"kUSDT lands on your address" = "kUSDT lands on your address";
-"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Trestly's bridge turns the USDC into kUSDT on Kaspa.";
-"Swap it for Kaspa" = "Swap it for Kaspa";
-"K opens Swap with your kUSDT ready." = "K opens Swap with your kUSDT ready.";
 "kUSDT lands on: %@" = "kUSDT lands on: %@";
 "You can close this. K keeps following your order on the Wallet tab." = "You can close this. K keeps following your order on the Wallet tab.";
 "Approve the Bridge" = "Approve the Bridge";
@@ -3433,3 +3427,5 @@
 "Ends" = "Ends";
 "Bridge" = "Bridge";
 "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it.";
+"A new address that has never been used, so this purchase stays apart from your username and chats." = "A new address that has never been used, so this purchase stays apart from your username and chats.";
+"The address people message and pay you on." = "The address people message and pay you on.";

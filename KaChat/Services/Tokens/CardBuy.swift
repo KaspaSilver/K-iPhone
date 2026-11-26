@@ -127,15 +127,16 @@ final class CardBuyEthereumProvider: NSObject, ObservableObject, WKScriptMessage
             window.addEventListener('eip6963:requestProvider', announce);
             announce();
 
-            // The order K follows after the page closes: the session the page saves, and puts in
-            // its address once paid.
-            const report = (session) => {
+            // The order K follows after the page closes: the session the page saves when the order
+            // is made (not paid yet), and the one it marks paid (`buy.paid:<session>`) and puts in
+            // its address once Stripe says the payment went through.
+            const report = (session, paid) => {
               if (typeof session === 'string' && /^[A-Za-z0-9_-]{6,200}$/.test(session)) {
-                bridge.postMessage({ method: 'k_session', params: session }).catch(() => {});
+                bridge.postMessage({ method: 'k_session', params: { session, paid: !!paid } }).catch(() => {});
               }
             };
             const fromURL = (url) => {
-              try { report(new URL(url, location.href).searchParams.get('session')); } catch (e) {}
+              try { report(new URL(url, location.href).searchParams.get('session'), true); } catch (e) {}
             };
             fromURL(location.href);
             for (const name of ['pushState', 'replaceState']) {
@@ -150,7 +151,9 @@ final class CardBuyEthereumProvider: NSObject, ObservableObject, WKScriptMessage
             Storage.prototype.setItem = function (key, value) {
               const result = setItem.apply(this, arguments);
               if (key === 'kusdt.web.buy.last') {
-                try { report(JSON.parse(value).session); } catch (e) {}
+                try { report(JSON.parse(value).session, false); } catch (e) {}
+              } else if (typeof key === 'string' && key.startsWith('kusdt.web.buy.paid:')) {
+                report(key.slice('kusdt.web.buy.paid:'.length), true);
               }
               return result;
             };
@@ -209,8 +212,8 @@ final class CardBuyEthereumProvider: NSObject, ObservableObject, WKScriptMessage
         case "eth_signTypedData_v4":
             return try await signPermit(params)
         case "k_session":
-            if let session = params as? String {
-                CardBuyTracker.shared.follow(session: session, target: target)
+            if let report = params as? [String: Any], let session = report["session"] as? String {
+                CardBuyTracker.shared.follow(session: session, target: target, paid: report["paid"] as? Bool == true)
             }
             return nil
         default:
@@ -393,6 +396,9 @@ struct CardBuy: Codable, Equatable, Identifiable {
     var mintedUnits: UInt64?
     /// USDC sent back, in units.
     var refundUnits: UInt64?
+    /// The page said Stripe took the payment. Until then (or Trestly says so) the order is dropped
+    /// once Buy Kaspa closes: an order never paid isn't followed.
+    var paidSeen: Bool?
 
     var id: String { session }
 
@@ -416,9 +422,12 @@ final class CardBuyTracker: ObservableObject {
     static let shared = CardBuyTracker()
 
     @Published private(set) var buy: CardBuy?
-    /// Buy Kaspa is on screen: poll faster.
+    /// Buy Kaspa is on screen: poll faster. When it closes, an order that wasn't paid is dropped
+    /// (one last look first, in case the payment went through as it closed).
     var screenOpen = false {
-        didSet { if screenOpen { pollSoon() } }
+        didSet {
+            if screenOpen { pollSoon() } else if oldValue { ensurePolling() }
+        }
     }
 
     private var account: String?
@@ -442,12 +451,19 @@ final class CardBuyTracker: ObservableObject {
         WalletManager.shared.currentWallet?.publicAddress.lowercased()
     }
 
-    /// The page saved an order: follow it. The same session again changes nothing.
-    func follow(session: String, target: TrestlyTarget) {
+    /// The page saved an order (or marked it paid): follow it.
+    func follow(session: String, target: TrestlyTarget, paid: Bool) {
         syncAccount()
-        guard buy?.session != session else { return }
+        if var current = buy, current.session == session {
+            if paid, current.paidSeen != true {
+                current.paidSeen = true
+                buy = current
+                save()
+            }
+            return
+        }
         buy = CardBuy(session: session, address: target.address, label: target.label,
-                      spendingIndex: target.spendingIndex, startedAt: Date())
+                      spendingIndex: target.spendingIndex, startedAt: Date(), paidSeen: paid ? true : nil)
         save()
         // the regular kUSDT look covers this address from now on
         TokenWallet.shared.noteReceiveAddressShown(target.address)
@@ -519,7 +535,8 @@ final class CardBuyTracker: ObservableObject {
         let purchase = order["purchase"] as? [String: Any]
 
         if orderObject == nil, purchase == nil {
-            // Trestly doesn't know it (yet); an order nobody paid in a day is over
+            // Trestly doesn't know it (yet): nothing was paid, so with Buy Kaspa closed it's dropped
+            if !screenOpen, current.paidSeen != true { clear(); return }
             if Date().timeIntervalSince(current.startedAt) > 86_400 { next.stage = .expired }
             update(next)
             return
@@ -554,12 +571,19 @@ final class CardBuyTracker: ObservableObject {
             }
         } else if orderObject?["tx"] as? String != nil {
             next.stage = .bridging
-        } else if stripe == "fulfillment_complete" || stripe == "fulfillment_processing" || purchase?["delivered"] != nil {
+        } else if stripe == "fulfillment_complete" || stripe == "fulfillment_processing" || Self.hasValue(purchase?["delivered"]) {
             next.stage = .paid
         } else {
             next.stage = .waitingPayment
         }
         guard buy?.session == current.session else { return }
+        // only a real payment counts: Stripe's status, the USDC delivered, the bridge, a refund
+        if [.paid, .bridging, .arrived, .refunded].contains(next.stage) { next.paidSeen = true }
+        // never paid and Buy Kaspa closed: not followed any more, and nothing shows on the card
+        if next.paidSeen != true, !screenOpen, [.waitingPayment, .signAgain, .expired].contains(next.stage) {
+            clear()
+            return
+        }
         let arrivedNow = next.stage == .arrived && current.stage != .arrived
         update(next)
         if arrivedNow {
@@ -572,6 +596,14 @@ final class CardBuyTracker: ObservableObject {
         guard next != buy else { return }
         buy = next
         save()
+    }
+
+    /// A field that's really there: JSON's null comes back as NSNull, which isn't nil (an order
+    /// nobody paid has `"delivered": null`, which read as delivered and showed "Paid").
+    private static func hasValue(_ value: Any?) -> Bool {
+        guard let value, !(value is NSNull) else { return false }
+        if let text = value as? String { return !text.isEmpty }
+        return true
     }
 
     /// "50.00" from Stripe's amount (a string or a number).

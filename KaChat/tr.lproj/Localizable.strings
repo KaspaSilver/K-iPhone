@@ -3418,12 +3418,6 @@
 "Where should your kUSDT land?" = "kUSDT'niz nereye gelsin?";
 "K needs this account's recovery words on this phone to buy with a card." = "Kartla almak için K'nin bu hesabın kurtarma kelimelerine bu telefonda ihtiyacı var.";
 "Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe ABD ve AB'deki alıcılara satış yapar. Kart ücreti ve ağ ücretleri, ödemeden önce sonraki sayfada gösterilir.";
-"Pay with your debit card" = "Banka kartınızla ödeyin";
-"Stripe sells you USDC, on Trestly's page inside K." = "Stripe size, K içindeki Trestly sayfasında USDC satar.";
-"kUSDT lands on your address" = "kUSDT adresinize gelir";
-"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Trestly'nin köprüsü USDC'yi Kaspa üzerinde kUSDT'ye çevirir.";
-"Swap it for Kaspa" = "Kaspa ile takas edin";
-"K opens Swap with your kUSDT ready." = "K, kUSDT'niz hazır şekilde Takas'ı açar.";
 "kUSDT lands on: %@" = "kUSDT'nin geleceği adres: %@";
 "You can close this. K keeps following your order on the Wallet tab." = "Bunu kapatabilirsiniz. K siparişinizi Cüzdan sekmesinde izlemeye devam eder.";
 "Approve the Bridge" = "Köprüyü Onayla";
@@ -3433,3 +3427,5 @@
 "Ends" = "Bitiş";
 "Bridge" = "Köprü";
 "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "K'nin Ethereum adresi, herhangi bir Ethereum cüzdanının yapacağı gibi bu hesabın kelimelerinden türetilir.";
+"A new address that has never been used, so this purchase stays apart from your username and chats." = "Hiç kullanılmamış yeni bir adres; böylece bu satın alma kullanıcı adınızdan ve sohbetlerinizden ayrı kalır.";
+"The address people message and pay you on." = "İnsanların size mesaj attığı ve ödeme yaptığı adres.";

@@ -3418,12 +3418,6 @@
 "Where should your kUSDT land?" = "kUSDT của bạn nên về địa chỉ nào?";
 "K needs this account's recovery words on this phone to buy with a card." = "K cần các từ khôi phục của tài khoản này trên điện thoại này để mua bằng thẻ.";
 "Stripe sells to buyers in the US and the EU. The card fee and network fees show on the next page, before you pay." = "Stripe bán cho người mua ở Mỹ và EU. Phí thẻ và phí mạng hiển thị ở trang tiếp theo, trước khi bạn thanh toán.";
-"Pay with your debit card" = "Thanh toán bằng thẻ ghi nợ";
-"Stripe sells you USDC, on Trestly's page inside K." = "Stripe bán USDC cho bạn, trên trang của Trestly trong K.";
-"kUSDT lands on your address" = "kUSDT về địa chỉ của bạn";
-"Trestly's bridge turns the USDC into kUSDT on Kaspa." = "Cầu nối của Trestly đổi USDC thành kUSDT trên Kaspa.";
-"Swap it for Kaspa" = "Hoán đổi sang Kaspa";
-"K opens Swap with your kUSDT ready." = "K mở Hoán đổi với kUSDT của bạn đã sẵn sàng.";
 "kUSDT lands on: %@" = "kUSDT về: %@";
 "You can close this. K keeps following your order on the Wallet tab." = "Bạn có thể đóng mục này. K vẫn theo dõi đơn hàng của bạn ở tab Ví.";
 "Approve the Bridge" = "Phê duyệt cầu nối";
@@ -3433,3 +3427,5 @@
 "Ends" = "Hết hạn";
 "Bridge" = "Cầu nối";
 "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "Địa chỉ Ethereum của K được tạo từ các từ của tài khoản này, giống như bất kỳ ví Ethereum nào cũng sẽ tạo.";
+"A new address that has never been used, so this purchase stays apart from your username and chats." = "Một địa chỉ mới chưa từng dùng, để giao dịch mua này tách biệt khỏi tên người dùng và các cuộc trò chuyện của bạn.";
+"The address people message and pay you on." = "Địa chỉ mọi người nhắn tin và thanh toán cho bạn.";
