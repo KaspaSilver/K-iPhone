@@ -274,8 +274,14 @@ too (`PublicChatService.indexerDefaultChannels`, part of `curatedChannels`), wit
 joined bell off, under More Rooms in Edit Default Public Chats. The machinery rooms
 (`hiddenIndexerRooms`) and retired names are left out. K asks hourly, and within a minute when
 Edit Default Public Chats opens; a new list joins its rooms at once (`IndexerTrackedRooms.didChange`).
-A room the indexer drops stops being a default: kept as an ordinary room if on, left if switched off (its
-switched-off mark is kept 7 days, `droppedRoomGrace`, so one short answer doesn't turn it back on). Every room
+A room the indexer drops stops being a default and leaves the list of everyone K joined it for
+(owner, 2026-11-25: nobody indexes it, so its history and pushes would stop with no explanation),
+pin included, once it's been off the indexer's list 2 hours (`droppedAutoRoomGrace`, two hourly
+reads). K remembers the rooms it joined per account (`kachat_rooms_auto_joined_v1_<wallet>`; the
+first run counts the indexer rooms already joined, except ones you've posted in); a room you join
+by name or from a link, or post, edit, react or delete in (`keepRoomAsOwn`), is yours and stays as
+an ordinary room. Switched off, it's left once missing 7 days (`droppedRoomGrace`, so one short
+answer doesn't turn it back on). Every room
 starts silenced, bell off (owner, 2026-11-24). The 2026-11-25 build silences every account's rooms
 once, the first time its room store opens (`silenceRoomsOnceIfNeeded`,
 `kachat_rooms_silenced_once_v1_<wallet>`), including the #kaspa and #kachat-bugs bells older builds

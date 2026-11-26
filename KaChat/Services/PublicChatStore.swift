@@ -1161,6 +1161,22 @@ final class PublicChatStore {
         return grouped
     }
 
+    /// The rooms, of `channels`, where `sender` has a message on this phone (any case).
+    func channels(_ channels: Set<String>, withMessagesFrom sender: String) -> Set<String> {
+        guard isLoaded, !channels.isEmpty else { return [] }
+        let context = viewContext
+        var found: Set<String> = []
+        context.performAndWait {
+            for channel in channels {
+                let request = NSFetchRequest<CDPublicChatMessage>(entityName: CDPublicChatMessage.entityName)
+                request.predicate = NSPredicate(format: "channelName == %@ AND senderAddress ==[c] %@", channel, sender)
+                request.fetchLimit = 1
+                if ((try? context.count(for: request)) ?? 0) > 0 { found.insert(channel) }
+            }
+        }
+        return found
+    }
+
     // MARK: - Hidden senders (PER ROOM)
 
     func hideSender(_ address: String, inChannel channel: String) {

@@ -756,8 +756,11 @@ final class PublicChatService: ObservableObject {
         if let key = hiddenCuratedKey {
             UserDefaults.standard.set(Array(hiddenCuratedChannels), forKey: key)
         }
-        if shown, !channels.contains(where: { $0.channelName == name }) {
-            joinChannel(name)
+        if shown, !channels.contains(where: { $0.channelName == name }), store.joinChannel(name) {
+            // still a default room, so it goes if the indexer drops it (not `joinChannel`,
+            // which makes a room the person's own)
+            updateSavedAutoJoinedChannels { $0.insert(name) }
+            refreshChannels()
         }
         let isJoined = channels.contains { $0.channelName == name }
         if !shown, isJoined {
@@ -979,30 +982,44 @@ final class PublicChatService: ObservableObject {
         // it again (no switch for it any more), so it's left. One still on stays, as your own room.
         // Only once it's been missing for `droppedRoomGrace`: one short `/broadcast-channels`
         // answer forgot it was switched off, and it came back on (audit 2026-11-25 C10).
-        if store.isReady, let missingKey = hiddenMissingSinceKey {
+        // A room K joined for this person (`autoJoinedKey`) that the indexer dropped goes too
+        // (owner, 2026-11-25): nobody indexes it any more, so its history and pushes would stop
+        // with no explanation. Only after `droppedAutoRoomGrace`, so one short answer doesn't
+        // empty it. Rooms the person joined by name or posted in (`keepRoomAsOwn`) stay.
+        if store.isReady, store.currentWalletAddress == walletAddress, let missingKey = hiddenMissingSinceKey {
             let defaults = UserDefaults.standard
             let now = Date().timeIntervalSince1970
             let saved = defaults.dictionary(forKey: missingKey) as? [String: Double] ?? [:]
-            let absent = savedHiddenCuratedChannels().subtracting(curated)
+            let joined = Set(store.joinedChannels().map(\.channelName))
+            let absentHidden = savedHiddenCuratedChannels().subtracting(curated)
+            let absentAuto = savedAutoJoinedChannels().intersection(joined).subtracting(curated)
+            let absent = absentHidden.union(absentAuto)
             // back on the indexer's list, or switched on again: its clock stops
             var missingSince = saved.filter { absent.contains($0.key) }
             for name in absent where missingSince[name] == nil { missingSince[name] = now }
-            let dropped = Set(missingSince.filter { now - $0.value >= Self.droppedRoomGrace }.keys)
+            let dropped = Set(missingSince.filter {
+                now - $0.value >= (absentHidden.contains($0.key) ? Self.droppedRoomGrace : Self.droppedAutoRoomGrace)
+            }.keys)
             for name in dropped { missingSince.removeValue(forKey: name) }
             if missingSince != saved {
                 if missingSince.isEmpty { defaults.removeObject(forKey: missingKey) } else { defaults.set(missingSince, forKey: missingKey) }
             }
             if !dropped.isEmpty {
                 updateSavedHiddenCuratedChannels { $0.subtract(dropped) }
-                let joined = Set(store.joinedChannels().map(\.channelName))
+                updateSavedAutoJoinedChannels { $0.subtract(dropped) }
                 for name in dropped where joined.contains(name) {
+                    AppLog.log("%@", "[PublicChat] #\(name) left: the indexer no longer tracks it")
                     leaveChannel(name)
+                    removeRoomPin(name)
                 }
             }
         }
+        let joinedBefore = Set(store.joinedChannels().map(\.channelName))
+        var joinedNow: Set<String> = []
         for name in curated where isCuratedChannelShown(name) {
-            _ = store.joinChannel(name)
+            if store.joinChannel(name), !joinedBefore.contains(name) { joinedNow.insert(name) }
         }
+        recordAutoJoined(joinedNow, joinedBefore: joinedBefore)
         silenceRoomsOnceIfNeeded()
         refreshChannels()
     }
@@ -1031,6 +1048,60 @@ final class PublicChatService: ObservableObject {
 
     /// How long a switched-off room may be missing from the indexer's list before it's forgotten.
     private static let droppedRoomGrace: TimeInterval = 7 * 86_400
+
+    /// How long a room K joined for the person may be missing from the indexer's list before it's
+    /// left: two of the hourly `/broadcast-channels` reads.
+    private static let droppedAutoRoomGrace: TimeInterval = 2 * 3600
+
+    /// The rooms K joined on this account's behalf (default rooms, built in or from the indexer's
+    /// list), per account. A room leaves it once the person joins it by name or posts in it.
+    private var autoJoinedKey: String? { walletAddress.map { "kachat_rooms_auto_joined_v1_\($0)" } }
+
+    private func savedAutoJoinedChannels() -> Set<String> {
+        Set(autoJoinedKey.flatMap { UserDefaults.standard.stringArray(forKey: $0) } ?? [])
+    }
+
+    private func updateSavedAutoJoinedChannels(_ change: (inout Set<String>) -> Void) {
+        guard let key = autoJoinedKey else { return }
+        var saved = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        let before = saved
+        change(&saved)
+        guard saved != before || UserDefaults.standard.object(forKey: key) == nil else { return }
+        UserDefaults.standard.set(Array(saved).sorted(), forKey: key)
+    }
+
+    /// Notes the default rooms just joined for the person. The first time on this build, the rooms
+    /// from the indexer's list already joined count too: K joined those itself (since 2026-11-25
+    /// every one is joined automatically), and nobody had a way to tell them apart.
+    private func recordAutoJoined(_ joinedNow: Set<String>, joinedBefore: Set<String>) {
+        guard let key = autoJoinedKey else { return }
+        let firstRun = UserDefaults.standard.object(forKey: key) == nil
+        var earlier = firstRun ? joinedBefore.intersection(Set(Self.indexerDefaultChannels)) : []
+        // ...except one the person has posted in: theirs already
+        if !earlier.isEmpty, let me = WalletManager.shared.currentWallet?.publicAddress {
+            earlier.subtract(store.channels(earlier, withMessagesFrom: me))
+        }
+        guard firstRun || !joinedNow.isEmpty else { return }
+        updateSavedAutoJoinedChannels { $0.formUnion(joinedNow.union(earlier)) }
+    }
+
+    /// The person made this room their own (joined it by name, from a link, or posted in it): it
+    /// stays when the indexer drops it.
+    private func keepRoomAsOwn(_ rawName: String) {
+        let name = PublicChatChannelName.normalize(rawName)
+        guard savedAutoJoinedChannels().contains(name) else { return }
+        updateSavedAutoJoinedChannels { $0.remove(name) }
+    }
+
+    /// Takes a room out of the Chats list's room circles (ChatListView's `roomPinsKey`).
+    private func removeRoomPin(_ name: String) {
+        guard let wallet = walletAddress else { return }
+        let pinsKey = "kachat_room_pins_\(wallet)"
+        guard var pins = UserDefaults.standard.stringArray(forKey: pinsKey), pins.contains(name) else { return }
+        pins.removeAll { $0 == name }
+        UserDefaults.standard.set(pins, forKey: pinsKey)
+        NotificationCenter.default.post(name: .publicRoomPinsChanged, object: nil)
+    }
 
     /// Since when each switched-off room has been missing from the default rooms (seconds since
     /// 1970), per account.
@@ -1083,6 +1154,8 @@ final class PublicChatService: ObservableObject {
     func joinChannel(_ rawName: String) -> Bool {
         let rawName = Self.retiredChannels[PublicChatChannelName.normalize(rawName)] ?? rawName
         guard store.joinChannel(rawName) else { return false }
+        // joined by the person (New Public Chat, a link): theirs, whatever the indexer does
+        keepRoomAsOwn(rawName)
         refreshChannels()
         return true
     }
@@ -2987,6 +3060,8 @@ final class PublicChatService: ObservableObject {
         pendingId: String,
         feeOverride: UInt64? = nil
     ) async throws -> String {
+        // posting (a message, an edit, a reaction, a delete) makes the room the person's own
+        keepRoomAsOwn(channel)
         let chatService = ChatService.shared
 
         // Fetch UTXOs fresh (not the 20s-stale `fetchCachedUtxos`) and merge in any pending
