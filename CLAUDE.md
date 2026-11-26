@@ -826,7 +826,7 @@ addresses are enough.
 
 ### Long-press menus
 
-A silenced chat, group or room shows a gray "Silenced" pill beside its name in the Chats list
+A silenced chat, group or room shows a teal "Silenced" pill beside its name in the Chats list
 (`SilencedPill` in ChatListView.swift, owner 2026-11-25), not a bell icon.
 
 Chat and group rows have no long-press menu: swipe left for Delete, Silence and Pin (your own chat

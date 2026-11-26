@@ -3121,18 +3121,18 @@ struct MessageRequestsView: View {
     }
 }
 
-/// The "Silenced" tag beside a chat's, group's or room's name in the Chats list (owner,
+/// The teal "Silenced" tag beside a chat's, group's or room's name in the Chats list (owner,
 /// 2026-11-25: a pill, plainer than the old bell-slash icon). Never squeezed: the name truncates
 /// first.
 struct SilencedPill: View {
     var body: some View {
         Text("Silenced")
             .font(.scaled(size: 11, weight: .semibold))
-            .foregroundColor(.secondary)
+            .foregroundColor(.accentColor)
             .lineLimit(1)
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
-            .background(Capsule().fill(Color.secondary.opacity(0.16)))
+            .background(Capsule().fill(Color.accentColor.opacity(0.16)))
             .fixedSize()
     }
 }
