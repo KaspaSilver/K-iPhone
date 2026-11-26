@@ -355,7 +355,10 @@ registered here (`kaposts`, `kapay`, `kachatwallet`, `kachatchess`): posts, room
 payment requests, `kaposts://compose?text=` (the KaPosts composer) and `kapay://market` (the
 .kachat Marketplace) open in KaChat (`KaChatInternalLink`, `KaChatApp.handleIncomingURL`). The app
 icon's badge is the Chats tab's count plus bell-on rooms plus KaPosts' unseen activity (`AppTabBadge.appIconCount`) (`ChatService.updateAppBadge`,
-also run by `DockBadgeSync`). Settings > Help has KaPay's .kachat Names Guide
+also run by `DockBadgeSync`). Both set it through `AppTabBadge.applyIconCount`, which skips only a
+number this run already put there and forgets it whenever the app comes to the foreground; room
+and KaPost pushes number the icon from the same shared count as chat pushes (2026-11-26: a read
+room left "1" on the icon until the next open). Settings > Help has KaPay's .kachat Names Guide
 (`KachatSetupGuideView`) and kUSDT Guide beside the Welcome Guide. The product is called KaPost
 (singular; owner, 2026-11-21): every label people read says KaPost (the Hub tile, Settings > KaPost,
 Share to KaPost, Search KaPost), while code names (`.kaposts`, `KaPostsView`, `[KaPosts]` log

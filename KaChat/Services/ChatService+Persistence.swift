@@ -1194,13 +1194,7 @@ extension ChatService {
     /// as KaPost's icon did (since 2026-11-21, with KaPosts and rooms back).
     func updateAppBadge() {
         AppTabBadge.syncDockBadges(dockTabs: DockLayout.shared.dock)
-        let totalUnread = AppTabBadge.appIconCount
-        SharedDataManager.setUnreadCount(totalUnread)
-        if #available(iOS 16.0, *) {
-            UNUserNotificationCenter.current().setBadgeCount(totalUnread)
-        } else {
-            UIApplication.shared.applicationIconBadgeNumber = totalUnread
-        }
+        AppTabBadge.applyIconCount(AppTabBadge.appIconCount, force: true)
     }
 
     /// Syncs can overlap (an open chat's fetch during a full one), so these count: only the last

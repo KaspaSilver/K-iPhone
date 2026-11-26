@@ -1,4 +1,5 @@
 import UIKit
+import UserNotifications
 
 /// How many unseen things a tab is holding, wherever that tab is drawn.
 ///
@@ -23,6 +24,25 @@ enum AppTabBadge {
     /// Unread messages in the public rooms with their bell on: the KaChat title's cycle button
     /// shows it, and the app icon adds it in.
     static var publicRoomUnreadCount: Int { PublicChatUnreadBadge.shared.count }
+
+    /// What this run last put on the app icon. Pushes put their own number on the icon while
+    /// the app is in the background, so this is forgotten whenever the app comes to the
+    /// foreground (`forgetAppliedIconCount`): the first pass after that always sets the icon.
+    /// It used to be compared with the extension's saved count instead, which room and KaPost
+    /// pushes didn't move: a room read in the app left the icon at 1 until the next open
+    /// (2026-11-26).
+    private static var appliedIconCount: Int?
+
+    /// Puts `total` on the app icon (and gives the extension the same count to add to), unless
+    /// this run already put exactly that there. `force` sets it whatever was put before.
+    static func applyIconCount(_ total: Int, force: Bool = false) {
+        if SharedDataManager.getUnreadCount() != total { SharedDataManager.setUnreadCount(total) }
+        guard force || appliedIconCount != total else { return }
+        appliedIconCount = total
+        UNUserNotificationCenter.current().setBadgeCount(total)
+    }
+
+    static func forgetAppliedIconCount() { appliedIconCount = nil }
 
     /// What the app icon shows: chats and groups, bell-on rooms and KaPosts' unseen activity.
     static var appIconCount: Int {

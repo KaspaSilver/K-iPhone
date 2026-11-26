@@ -605,11 +605,8 @@ private struct DockBadgeSync: ViewModifier {
             AppTabBadge.syncDockBadges(dockTabs: DockLayout.shared.dock)
             // The app icon too, as `ChatService.updateAppBadge` counts it (KaPosts' and the rooms'
             // counts change without a chat sync), and only when the number changed: a tab switch
-            // changes nothing (audit #35). The shared count is what was last put on the icon.
-            let total = AppTabBadge.appIconCount
-            guard total != SharedDataManager.getUnreadCount() else { return }
-            SharedDataManager.setUnreadCount(total)
-            UNUserNotificationCenter.current().setBadgeCount(total)
+            // changes nothing (audit #35), compared with what this run last put on the icon.
+            AppTabBadge.applyIconCount(AppTabBadge.appIconCount)
         }
     }
 }

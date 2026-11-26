@@ -204,6 +204,10 @@ class NotificationService: UNNotificationServiceExtension {
                 return
             }
             content.body = publicChatPreviewText(for: content.body)
+            // The icon's number from the count K keeps with this extension (as a chat message's),
+            // not the server's: a number K doesn't know about stayed on the icon after the room
+            // was read in the app (2026-11-26).
+            if let badge = incrementUnreadCountIfNeeded() { content.badge = NSNumber(value: badge) }
             contentHandler(content)
             return
         }
@@ -234,6 +238,8 @@ class NotificationService: UNNotificationServiceExtension {
                 if let name = kaPostsActorName(userInfo["actor_pubkey"] as? String) {
                     content.subtitle = name
                 }
+                // the icon's number from K's own count, as for a room (above)
+                if let badge = incrementUnreadCountIfNeeded() { content.badge = NSNumber(value: badge) }
             }
             contentHandler(content)
             return

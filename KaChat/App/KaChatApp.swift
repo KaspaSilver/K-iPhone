@@ -176,6 +176,10 @@ struct KaChatApp: App {
             }
         case .active:
             LaunchTrace.mark("scene active")
+            // Pushes changed the icon's number while the app was away: the next count is put
+            // on it whatever this run put there before (`AppTabBadge.applyIconCount`).
+            AppTabBadge.forgetAppliedIconCount()
+            ChatService.shared.scheduleBadgeUpdate()
             // Cancel background fetch when app becomes active (we'll poll normally)
             BackgroundTaskManager.shared.cancelBackgroundFetch()
             // The node pool's discovery and block stream, paused in the background (audit
