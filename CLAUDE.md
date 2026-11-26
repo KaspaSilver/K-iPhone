@@ -510,8 +510,13 @@ The app uses MVVM architecture with global singleton services injected via Swift
 
 Settings > Connection Status (the dot at the top of Settings) shows Node Status and, below it,
 Indexer Status (owner, 2026-11-24): Connected, Degraded (a request failed within the last two
-minutes, or DPI is suspected) or Disconnected (`KasiaAPIClient.isIndexerDown`), from
-`KasiaAPIClient.connectionState()`, with one `/metrics` request when the screen opens.
+minutes) or Disconnected (`KasiaAPIClient.isIndexerDown`), from
+`KasiaAPIClient.connectionState()`, with one `/metrics` request when the screen opens. DPI has
+its own row and no longer makes the indexer read Degraded (2026-11-26). DPI is suspected only
+when a request fails, fails again on a fresh connection, and HTTP/1.1 then works (one dropped
+connection after the phone woke used to flag it on good Wi-Fi). HTTP/1.1 is not kept for the
+whole network epoch: HTTP/2 is probed again after 5 minutes (15, then 30 if DPI keeps coming
+back; `DpiModeState.claimHTTP2Probe`), and a working probe clears "Suspected".
 
 Network endpoints are in Settings > Connection Settings: a card per connection (Indexer, Node, Domains, Explorer, Trestly), each opening its own screen with Save (Node saves as you pick), as KaPay has it. All configurable:
 - **Network**: mainnet / testnet toggle

@@ -146,7 +146,33 @@ final class KasiaAPIClient: NSObject, URLSessionTaskDelegate {
 
     private func shouldForceHTTP1() async -> Bool {
         let epochId = await currentEpochId()
-        return await dpiState.shouldForceHTTP1(epochId: epochId)
+        let forced = await dpiState.shouldForceHTTP1(epochId: epochId)
+        if forced, await dpiState.claimHTTP2Probe(epochId: epochId) {
+            Task { await probeHTTP2(epochId: epochId) }
+        }
+        return forced
+    }
+
+    /// While HTTP/1.1 is forced, one small HTTP/2 request on a fresh connection after the
+    /// cool-down. If it answers, requests go back to HTTP/2 and DPI is no longer suspected; if
+    /// real DPI is still there, the next failing request finds it again.
+    private func probeHTTP2(epochId: Int) async {
+        var ok = false
+        if let rootURL = rootURL() {
+            resetSessions()
+            var request = URLRequest(url: rootURL)
+            request.httpMethod = "GET"
+            request.timeoutInterval = 8
+            if let (_, response) = try? await session.data(for: request),
+               let http = response as? HTTPURLResponse {
+                ok = (200...599).contains(http.statusCode)
+            }
+        }
+        let ended = await dpiState.finishHTTP2Probe(epochId: epochId, ok: ok)
+        AppLog.log("[KasiaAPI] HTTP/2 probe while DPI suspected: %@", ok ? "OK, back to HTTP/2" : "failed, staying on HTTP/1.1")
+        if ended {
+            await MainActor.run { dpiSuspectedSnapshot = false }
+        }
     }
 
     // MARK: - URLSessionTaskDelegate
@@ -831,13 +857,10 @@ final class KasiaAPIClient: NSObject, URLSessionTaskDelegate {
                 await recordHTTP2PathSuccess(responseBytes: data.count, source: "primary", url: url)
                 return result
             } catch {
-                if await shouldTryHTTP1AfterFailure(url: url, error: error, source: "primary") {
-                    #if DEBUG
-                    AppLog.log("[KasiaAPI] Primary failed; switching to HTTP/1.1 for %@", url.absoluteString)
-                    #endif
-                    await markHTTP1ForEpoch()
-                    return try await performHTTP1(url: url)
-                }
+                // A dropped or timed-out request is first retried on a fresh connection: after
+                // the phone wakes, iOS has usually closed the old one, and that is not DPI. Only
+                // when the fresh connection fails too, and HTTP/1.1 then works, is DPI suspected
+                // (2026-11-26: one dropped request flagged DPI on good Wi-Fi for the whole session).
                 if shouldRetryWithFallback(error) {
                     resetSessions()
                     #if DEBUG
@@ -1723,10 +1746,24 @@ private actor DpiModeState {
     private var noDpiConfidence: Int = 0
     private var http2FailureStreak: Int = 0
     private var lastHTTP2FailureAt: Date?
+    /// HTTP/1.1 is never kept for the whole network epoch: HTTP/2 is tried again after a
+    /// cool-down (5 minutes, then 15, then 30 each time DPI shows again in the epoch), and a
+    /// working probe ends the forced mode and the "Suspected" label.
+    private var detectionsThisEpoch = 0
+    private var nextHTTP2ProbeAt: Date?
+    private var http2ProbeInFlight = false
+    private static let http2ProbeIntervals: [TimeInterval] = [300, 900, 1800]
+
+    private static func probeInterval(after detections: Int) -> TimeInterval {
+        http2ProbeIntervals[min(max(0, detections - 1), http2ProbeIntervals.count - 1)]
+    }
 
     func reset() {
         forcedHTTP1Epoch = nil
         dpiDetectedEpoch = nil
+        detectionsThisEpoch = 0
+        nextHTTP2ProbeAt = nil
+        http2ProbeInFlight = false
         lastRootCheck = nil
         noDpiConfidence = 0
         http2FailureStreak = 0
@@ -1738,10 +1775,37 @@ private actor DpiModeState {
     }
 
     func markHTTP1(epochId: Int) {
+        if dpiDetectedEpoch != epochId { detectionsThisEpoch = 0 }
+        detectionsThisEpoch += 1
         forcedHTTP1Epoch = epochId
         dpiDetectedEpoch = epochId
         http2FailureStreak = 0
         lastHTTP2FailureAt = nil
+        nextHTTP2ProbeAt = Date().addingTimeInterval(Self.probeInterval(after: detectionsThisEpoch))
+    }
+
+    /// True once per cool-down while HTTP/1.1 is forced: the caller probes HTTP/2 and reports
+    /// back through `finishHTTP2Probe`.
+    func claimHTTP2Probe(epochId: Int) -> Bool {
+        guard forcedHTTP1Epoch == epochId, !http2ProbeInFlight,
+              let due = nextHTTP2ProbeAt, Date() >= due else { return false }
+        http2ProbeInFlight = true
+        return true
+    }
+
+    /// True when the forced mode ended.
+    func finishHTTP2Probe(epochId: Int, ok: Bool) -> Bool {
+        http2ProbeInFlight = false
+        guard forcedHTTP1Epoch == epochId else { return false }
+        if ok {
+            forcedHTTP1Epoch = nil
+            nextHTTP2ProbeAt = nil
+            http2FailureStreak = 0
+            lastHTTP2FailureAt = nil
+            return true
+        }
+        nextHTTP2ProbeAt = Date().addingTimeInterval(Self.probeInterval(after: detectionsThisEpoch + 1))
+        return false
     }
 
     func recordHTTP2Success(

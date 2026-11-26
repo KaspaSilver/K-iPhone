@@ -3553,7 +3553,7 @@ struct ConnectionStatusDetailView: View {
     private var indexerStatusText: String {
         switch indexerState {
         case .connected:
-            return AppLocalization.string(KasiaAPIClient.shared.isDpiSuspected ? "Degraded" : "Connected")
+            return AppLocalization.string("Connected")  // DPI has its own row; requests are working
         case .degraded: return AppLocalization.string("Degraded")
         case .disconnected: return AppLocalization.string("Disconnected")
         case .notSet: return AppLocalization.string("Not set")
@@ -3563,7 +3563,7 @@ struct ConnectionStatusDetailView: View {
 
     private var indexerStatusColor: Color {
         switch indexerState {
-        case .connected: return KasiaAPIClient.shared.isDpiSuspected ? .orange : .green
+        case .connected: return .green
         case .degraded: return .orange
         case .disconnected: return .red
         case .notSet, nil: return .gray
