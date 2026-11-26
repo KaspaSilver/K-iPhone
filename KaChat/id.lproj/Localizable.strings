@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "Tidak dapat menghapus pesan. Coba lagi.";
 "%@ mentioned you in %@" = "%@ menyebut Anda di %@";
 "Arcade" = "Arcade";
+"Tap to view" = "Ketuk untuk melihat";
+"Add as Contact" = "Tambah ke Kontak";
+"Opens their posts and replies." = "Membuka postingan dan balasannya.";

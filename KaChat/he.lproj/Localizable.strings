@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "לא ניתן היה למחוק את ההודעה. נסו שוב.";
 "%@ mentioned you in %@" = "%@ הזכיר/ה אותך ב-%@";
 "Arcade" = "ארקייד";
+"Tap to view" = "הקש כדי לראות";
+"Add as Contact" = "הוסף לאנשי קשר";
+"Opens their posts and replies." = "פותח את הפוסטים והתגובות שלו.";

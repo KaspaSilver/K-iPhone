@@ -527,8 +527,10 @@ final class ContactsManager: ObservableObject {
 
     private static let photoUnlockDelay: TimeInterval = 600
 
-    /// The one rule for photos from someone, with no setting to change it: hidden until you have
-    /// both sent a message and 10 minutes have passed. nil until both of you have.
+    /// The one rule for photos from someone, with no setting to change it: until you have both
+    /// sent a message and 10 minutes have passed, each photo waits behind a Tap to View tile
+    /// (`HeldPhotoTile`; owner, 2026-11-26), then they show by themselves. nil until both of you
+    /// have.
     func photosUnlockDate(for address: String, messages: [ChatMessage]) -> Date? {
         if let stored = getContact(byAddress: address)?.photosUnlockDate { return stored }
         let sent = messages.filter {

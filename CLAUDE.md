@@ -99,7 +99,8 @@ newest first, of KaPosts activity, the wallet's (Kaspa and kUSDT received) and e
 of you in a public chat or group (owner, 2026-11-25: `GlobalNotificationCenter.recordMention`,
 source `.mention`, whatever the room's bell or the group's setting; a row opens the room at the
 message, `PublicChatJumpRoute`, or the group) (`KaPostsNotificationsView(allInOne: true)`), in a sheet with Done: no tabs, no settings gear, no
-back arrow (owner's calls). The dock badge on Profile adds both unseen counts up. Beside the avatar
+back arrow (owner's calls). A "followed you" row opens that person's profile over Profile itself,
+sliding in (`AllNotificationsView(onOpenProfile:)`, owner 2026-11-26), never the Posts feed first. The dock badge on Profile adds both unseen counts up. Beside the avatar
 is See All Posts (opens the KaPosts tab), and Profile has KaPosts' compose button. Neither the Wallet tab nor the KaPosts menu
 lists notifications any more; a push naming no post opens the bell (`NotificationsRoute`). Posts
 and Replies on a profile change only with the cycle button, fading as KaPost's feeds do (owner,
@@ -121,7 +122,8 @@ which K writes as the parent's author). Feed rows keep the full date under the a
 Tapping your own @ anywhere (rooms, KaPost posts, a member's View Profile) opens the dock's
 Profile tab, never a visitor's copy in Kaspa Hub (`KaPostsDeepLink.openProfile`, owner
 2026-11-25). The dock copy over KaPost's full-screen screens has a fade under it
-(`KaPostsDockFade`), so text doesn't run through its icons. A public room hidden behind another
+(`KaPostsDockFade`), so text doesn't run through its icons, and is spaced as the real dock is
+(`DockCopyItemsLayout`: Kaspa Hub's wider slot, medium labels; 2026-11-26). A public room hidden behind another
 tab keeps its rows for 2 minutes (`windowTrimWork`) and its scroll place: only a reader who was at
 the newest message is taken to the newest on return.
 Tapping the dock over KaPost's full-screen screens closes them through UIKit with no animation
@@ -129,6 +131,12 @@ Tapping the dock over KaPost's full-screen screens closes them through UIKit wit
 accounts shows the loading globe between the Log Out and the sign-in
 (`WalletManager.isSwitchingAccount`), never the sign-in screen. On someone else's profile
 Follow and Chat sit under the follow counts.
+**User Info** (`ChatInfoView`, owner 2026-11-26) opens with Profile's header: banner, avatar,
+See All Posts (their KaPost profile, posts and replies; yours opens the Profile tab), the name
+(still typed in place with the pencil and kept by Save, with or without a contact), Following and
+Followers (tap for the lists, `KaPostsFollowListView`; follows go through
+`KaPostsView.toggleFollow`), the bio, then Add as Contact (Edit Contact once saved) and Share.
+The old Add to Contacts row and the big Share Profile button are gone.
 **Rules from the 2026-11-21 audit (fixed 2026-11-22, AUDIT_2026-11-21.md):**
 - Public rooms: the block stream only covers rooms with no working indexer and the room open on
   Wi-Fi; other bell-on rooms come from the sweep (on the foreground beat) and push. With no such room the block handler
@@ -935,8 +943,10 @@ its messages, contacts and the bell's notifications from this device and revokes
 password the user pasted in when connecting; the encrypted files stay on the server.
 
 Incoming photos in a 1:1 chat have one rule and no setting (`ContactsManager.photosUnlockDate`):
-hidden until both sides have sent a message and 10 minutes have passed, with no way to reveal one
-early. While the app is open, every contact's profile is looked up again once an hour
+until both sides have sent a message and 10 minutes have passed, each one waits behind a Tap to
+View tile (`HeldPhotoTile`, owner 2026-11-26: it used to stay hidden with no way to see it early),
+on-chain photos and Nextcloud photo links alike; after that they show by themselves. A tapped one
+stays open while K runs (`HeldPhotoReveals`). While the app is open, every contact's profile is looked up again once an hour
 (`ContactsManager.startProfileRescans`).
 
 Switching accounts (owner, 2026-11-24): the glass chip beside Profile's title (your picture and

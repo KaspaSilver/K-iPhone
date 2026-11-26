@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "메시지를 삭제하지 못했습니다. 다시 시도하세요.";
 "%@ mentioned you in %@" = "%@님이 %@에서 회원님을 언급했습니다";
 "Arcade" = "아케이드";
+"Tap to view" = "탭하여 보기";
+"Add as Contact" = "연락처에 추가";
+"Opens their posts and replies." = "이 사용자의 게시물과 답글을 엽니다.";

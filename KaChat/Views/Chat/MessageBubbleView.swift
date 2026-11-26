@@ -1735,6 +1735,8 @@ struct LazyImageBubble: View {
     @State private var sharePayload: MessageImageSharePayload?
     @State private var isLoadingPreview = false
     @State private var showImagePreview = false
+    /// Tapped open while the 1:1 photos rule holds it (`HeldPhotoReveals`).
+    @State private var revealedHeld = false
 
     init(
         media: MediaFile,
@@ -1785,31 +1787,17 @@ struct LazyImageBubble: View {
     }
 
     var body: some View {
-        if photosBlocked {
-            hiddenBubble
+        if photosBlocked && !revealedHeld && !HeldPhotoReveals.isRevealed(txId) {
+            HeldPhotoTile(
+                senderName: senderDisplayName,
+                size: Self.thumbnailDisplaySize
+            ) {
+                HeldPhotoReveals.reveal(txId)
+                revealedHeld = true
+            }
         } else {
             unlockedBubble
         }
-    }
-
-    private var hiddenBubble: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "eye.slash")
-                .font(.scaled(size: 24, weight: .regular))
-                .foregroundColor(.secondary)
-            Text("\(senderDisplayName) sent a photo")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            Text("It shows 10 minutes after you have both sent a message.")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(12)
-        .frame(width: Self.thumbnailDisplaySize.width, height: Self.thumbnailDisplaySize.height)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var unlockedBubble: some View {

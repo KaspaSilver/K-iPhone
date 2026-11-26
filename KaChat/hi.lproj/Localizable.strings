@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "संदेश हटाया नहीं जा सका। फिर से कोशिश करें।";
 "%@ mentioned you in %@" = "%@ ने आपको %@ में मेंशन किया";
 "Arcade" = "आर्केड";
+"Tap to view" = "देखने के लिए टैप करें";
+"Add as Contact" = "संपर्क में जोड़ें";
+"Opens their posts and replies." = "उनकी पोस्ट और जवाब खोलता है।";

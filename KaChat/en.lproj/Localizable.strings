@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "Couldn't delete the message. Try again.";
 "%@ mentioned you in %@" = "%@ mentioned you in %@";
 "Arcade" = "Arcade";
+"Tap to view" = "Tap to view";
+"Add as Contact" = "Add as Contact";
+"Opens their posts and replies." = "Opens their posts and replies.";

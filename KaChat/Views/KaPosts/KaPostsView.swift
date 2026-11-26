@@ -3932,6 +3932,20 @@ struct KaPostsView: View {
     /// 02/03 (IOS-099). With none of those (no post names their key yet) the follow waits on this
     /// phone and goes on chain at a later sync, once one does (`KaPostsFollowStore.syncFromChain`).
     private func toggleFollowSubmitting(address: String, pubkey: String?) {
+        Self.toggleFollow(address: address, pubkey: pubkey) { text, txId, isFailure in
+            showActionToast(text, txId: txId, isFailure: isFailure)
+        }
+    }
+
+    /// Follow or unfollow someone: the local store at once, then the on-chain follow (shared
+    /// with User Info, which has no KaPostsView). `report` gets the toast's text, the txId ("" on
+    /// a failure) and whether it failed.
+    static func toggleFollow(
+        address: String,
+        pubkey: String?,
+        report: @escaping @MainActor (String, String, Bool) -> Void
+    ) {
+        let followStore = KaPostsFollowStore.shared
         guard let owner = WalletManager.shared.currentWallet?.publicAddress, address != owner else { return }
         // A follow or unfollow of this person still going out: more taps are ignored, so rapid
         // taps can't send several transactions.
@@ -3940,7 +3954,7 @@ struct KaPostsView: View {
         holds.beginFollow(address)
         let willFollow = !followStore.isFollowing(address)
         followStore.toggle(address)
-        Task {
+        Task { @MainActor in
             defer { holds.endFollow(address) }
             var key = pubkey ?? followStore.chainKeys[address]
             if key == nil {
@@ -3958,14 +3972,14 @@ struct KaPostsView: View {
             followStore.setAwaitingKey(address, following: false)
             do {
                 let txId = try await KaPostsAPIClient.shared.submitFollow(willFollow, followedPubkey: pubkey, expectedOwner: owner)
-                showActionToast(AppLocalization.string(willFollow ? "Follow posted to the network" : "Unfollow posted to the network"), txId: txId)
+                report(AppLocalization.string(willFollow ? "Follow posted to the network" : "Unfollow posted to the network"), txId, false)
             } catch {
                 AppLog.log("[KaPosts] Follow submit failed: %@", error.localizedDescription)
                 guard !(error is SendOutcomeUnknownError) else { return }
                 guard WalletManager.shared.currentWallet?.publicAddress == owner else { return }
                 if followStore.isFollowing(address) == willFollow { followStore.toggle(address) }
                 let action = AppLocalization.string(willFollow ? "Couldn't follow" : "Couldn't unfollow")
-                showActionToast(Self.failureText(action, error), txId: "", isFailure: true)
+                report(Self.failureText(action, error), "", true)
             }
         }
     }
@@ -4874,7 +4888,10 @@ struct KaPostsView: View {
             }
             // a sheet, so it has no back arrow (owner's call, 2026-11-21)
             .sheet(isPresented: $showAllNotifications) {
-                AllNotificationsView()
+                // a follower opens over Profile itself, not on the Posts feed
+                AllNotificationsView { address in
+                    kaPostsPresent { profileTarget = PosterProfileTarget(address: address) }
+                }
             }
             .onAppear {
                 if NotificationsRoute.pending {
@@ -11176,6 +11193,9 @@ struct KaPostsFollowListView: View {
 /// Shown only behind Profile's bell (`AllNotificationsView`): the wallet's notifications mixed in
 /// by time, as a sheet with a large title and Done - no gear, no back arrow, no KaPosts status bar.
 struct KaPostsNotificationsView: View {
+    /// Opens a follower's profile right where the bell is (Profile), sliding in over it, instead
+    /// of switching to the Posts feed first (owner, 2026-11-26). nil: the Posts tab opens it.
+    var onOpenProfile: ((String) -> Void)? = nil
     @ObservedObject private var walletCenter = GlobalNotificationCenter.shared
     @Environment(\.dismiss) private var dismiss
     /// `.kachat` names, banners and bios (`KachatLive.identityName` and friends) land on their own.
@@ -11380,7 +11400,12 @@ struct KaPostsNotificationsView: View {
             KaPostsDeepLink.pendingPostTxId = target
             NotificationCenter.default.post(name: .openKaPost, object: nil, userInfo: [:])
         } else if !item.actorAddress.isEmpty {
-            KaPostsDeepLink.openProfile(address: item.actorAddress)
+            if let onOpenProfile,
+               item.actorAddress.lowercased() != WalletManager.shared.currentWallet?.publicAddress.lowercased() {
+                onOpenProfile(item.actorAddress)
+            } else {
+                KaPostsDeepLink.openProfile(address: item.actorAddress)
+            }
         }
     }
 

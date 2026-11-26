@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "Mesaj silinemedi. Tekrar deneyin.";
 "%@ mentioned you in %@" = "%@ seni %@ içinde andı";
 "Arcade" = "Arcade";
+"Tap to view" = "Görmek için dokun";
+"Add as Contact" = "Kişilere Ekle";
+"Opens their posts and replies." = "Gönderilerini ve yanıtlarını açar.";

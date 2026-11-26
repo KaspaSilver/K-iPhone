@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "تعذّر حذف الرسالة. حاول مرة أخرى.";
 "%@ mentioned you in %@" = "أشار إليك %@ في %@";
 "Arcade" = "آركيد";
+"Tap to view" = "اضغط للعرض";
+"Add as Contact" = "إضافة إلى جهات الاتصال";
+"Opens their posts and replies." = "يفتح منشوراته وردوده.";

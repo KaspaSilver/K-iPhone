@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "Не удалось удалить сообщение. Попробуйте ещё раз.";
 "%@ mentioned you in %@" = "%@ упомянул(а) вас в %@";
 "Arcade" = "Аркада";
+"Tap to view" = "Нажмите, чтобы посмотреть";
+"Add as Contact" = "Добавить в контакты";
+"Opens their posts and replies." = "Открывает публикации и ответы.";

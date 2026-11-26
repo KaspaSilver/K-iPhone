@@ -590,7 +590,7 @@ struct ChatDetailView: View {
             .allowsHitTesting(false)
     }
 
-    /// Hides incoming photos until `ContactsManager.photosUnlockDate`. The tick redraws the chat
+    /// Holds incoming photos behind Tap to View until `ContactsManager.photosUnlockDate`. The tick redraws the chat
     /// the moment that passes with the chat open.
     private var incomingPhotosBlocked: Bool {
         _ = photosUnlockTick

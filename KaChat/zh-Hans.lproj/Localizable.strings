@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "无法删除这条消息。请重试。";
 "%@ mentioned you in %@" = "%@ 在 %@ 中提到了你";
 "Arcade" = "街机";
+"Tap to view" = "轻点查看";
+"Add as Contact" = "添加到联系人";
+"Opens their posts and replies." = "打开其帖子和回复。";

@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "メッセージを削除できませんでした。もう一度お試しください。";
 "%@ mentioned you in %@" = "%@さんが%@であなたをメンションしました";
 "Arcade" = "アーケード";
+"Tap to view" = "タップして表示";
+"Add as Contact" = "連絡先に追加";
+"Opens their posts and replies." = "この人の投稿と返信を開きます。";

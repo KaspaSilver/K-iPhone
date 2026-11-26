@@ -35,13 +35,17 @@ struct ChatInfoView: View {
     /// Add to Contacts, or the Contacts entry, full screen.
     @State private var showAddressBookEditor = false
     @State private var showAvatarPreview = false
-    @State private var isBioExpanded = false
     @State private var toastMessage: String?
     @State private var toastToken = UUID()
     @State private var toastStyle: ToastStyle = .success
     @State private var messageSent: Int = 0
     @State private var messageReceived: Int = 0
     @FocusState private var isEditing: Bool
+    /// Their KaPost key (nil until found, or when they've never posted) and follow counts.
+    @State private var kaPostsPubkey: String?
+    @State private var followingCount: Int?
+    @State private var followersCount: Int?
+    @State private var followListKind: KaPostsFollowListView.Kind?
 
     /// A KaChat bot's User Info is only its name and its address: nobody to share or manage.
     private var isBot: Bool { KaChatBot.isBot(contact.address) }
@@ -102,93 +106,13 @@ struct ChatInfoView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if !isBot {
-                    Section {
-                        shareButton
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
-                    }
-                }
-
+                // Laid out as Profile's header (owner, 2026-11-26): banner, avatar with See All
+                // Posts beside it, the name (still editable, pencil and Save), follow counts that
+                // open the lists, the bio, then Add to Contact and Share.
                 Section {
-                    if let kachatBanner {
-                        KNSBannerImageView(bannerURLString: kachatBanner, height: 110, cornerRadius: 10, fitsWidth: true)
-                    }
-
-                    HStack {
-                        Button {
-                            showAvatarPreview = true
-                        } label: {
-                            KNSAvatarView(
-                                avatarURLString: kachatAvatar,
-                                fallbackText: contactsManager.displayName(for: contact),
-                                size: 60,
-                                contactAddress: contact.address
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            // A bare TextField styled like a heading reads as a label, not
-                            // something you can change - the pencil is what says otherwise. It
-                            // focuses the field too, so it works as the affordance it looks like
-                            // rather than being decoration next to the real target.
-                            if isSelf {
-                                Text(verbatim: kachatLabel.map(KachatNameLabel.display) ?? contactsManager.displayName(for: contact))
-                                    .font(.headline)
-                                    .lineLimit(1)
-                            } else {
-                                HStack(spacing: 6) {
-                                    TextField("Name", text: $editedAlias)
-                                        .font(.headline)
-                                        .focused($isEditing)
-                                    Button {
-                                        isEditing = true
-                                    } label: {
-                                        Image(systemName: "pencil")
-                                            .font(.scaled(size: 13, weight: .semibold))
-                                            .foregroundColor(.accentColor)
-                                            .frame(width: 26, height: 26)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel(Text("Edit name"))
-                                }
-                            }
-
-                            // Matches Android: the plain contact-name card shows the address as a
-                            // fallback caption; once the contact owns any KNS domain, the fancier
-                            // profile card below takes over that spot with the bio instead.
-                            if let kachatBio {
-                                Text(verbatim: kachatBio)
-                                    .font(.subheadline)
-                                    .lineLimit(isBioExpanded ? nil : 5)
-                                    .onTapGesture {
-                                        withAnimation { isBioExpanded.toggle() }
-                                    }
-                                    .onLongPressGesture(minimumDuration: 0.45) {
-                                        copyProfileFieldValue(kachatBio, fieldName: "Bio")
-                                    }
-                                if let linktree = kachatProfile?.linktree, let url = URL(string: linktree) {
-                                    Link(destination: url) {
-                                        Label {
-                                            Text(verbatim: linktree.replacingOccurrences(of: "https://", with: ""))
-                                        } icon: {
-                                            Image(systemName: "link")
-                                        }
-                                        .font(.caption.weight(.semibold))
-                                    }
-                                }
-                            } else {
-                                Text(formatAddress(contact.address))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .padding(.leading, 8)
-                    }
-                    .padding(.vertical, 8)
+                    profileHeader
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                 }
 
                 if isBot {
@@ -218,7 +142,7 @@ struct ChatInfoView: View {
                         // On testnet: the address's .kachat names (its identity there, not KNS).
                         if KachatNamesService.isEnabled {
                             infoCard(
-                                ".kachat Names",
+                                "Usernames",
                                 systemImage: "at"
                             ) { activeSheet = .kachatNames }
                             .disabled(kachatNames.isEmpty)
@@ -232,11 +156,6 @@ struct ChatInfoView: View {
                                 "Aliases",
                                 systemImage: "number"
                             ) { activeSheet = .aliases }
-
-                            infoCard(
-                                addressBook.entry(for: contact.address) == nil ? localized("Add to Contacts") : localized("Contacts"),
-                                systemImage: addressBook.entry(for: contact.address) == nil ? "person.text.rectangle" : "person.text.rectangle.fill"
-                            ) { showAddressBookEditor = true }
 
                             infoCard(
                                 "Notifications",
@@ -279,6 +198,26 @@ struct ChatInfoView: View {
                     }
                 }
             }
+            .navigationDestination(isPresented: Binding(
+                get: { followListKind != nil },
+                set: { if !$0 { followListKind = nil } }
+            )) {
+                if let kind = followListKind {
+                    KaPostsFollowListView(
+                        kind: kind,
+                        localFollowing: KaPostsFollowStore.shared.following,
+                        // your own list when this is you (nil = the signed-in account's)
+                        targetPubkey: isSelf ? nil : kaPostsPubkey,
+                        onToggleFollow: { address, pubkey in
+                            KaPostsView.toggleFollow(address: address, pubkey: pubkey) { text, _, isFailure in
+                                showToast(text, style: isFailure ? .error : .success)
+                            }
+                        }
+                    )
+                    .environment(\.kaPostsBack, nil)
+                }
+            }
+            .task(id: contact.address) { await loadFollowCounts() }
             .navigationTitle("User Info")
             .navigationBarTitleDisplayMode(.inline)
             .fullScreenCover(isPresented: $showAvatarPreview) {
@@ -430,7 +369,7 @@ struct ChatInfoView: View {
                     .onLongPressGesture { copyProfileFieldValue("\(name).kachat", fieldName: "Domain") }
                 }
             }
-            .navigationTitle(".kachat Names")
+            .navigationTitle("Usernames")
             .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium, .large])
@@ -578,35 +517,211 @@ struct ChatInfoView: View {
     /// it previews with their name and avatar, opens a chat with them in KaChat, and offers the
     /// download to anyone without the app. The link alone, no text around it.
     @ViewBuilder
-    private var shareButton: some View {
-        if let url = KaChatInternalLink.profileShareURL(for: contact.address) {
-            ShareLink(
-                item: url,
-                preview: SharePreview(contactsManager.displayName(for: contact), image: Image("KaspaLogo"))
-            ) {
-                // the words are part of the button: tapping them shares too
-                VStack(spacing: 6) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.scaled(size: 22, weight: .semibold))
-                        .foregroundColor(.accentColor)
-                        .frame(width: 58, height: 58)
-                        .background(
-                            Circle()
-                                .fill(.regularMaterial)
-                                // a whole point, inside the edge: a 0.8pt stroke on the edge drew
-                                // faint on whichever sides fell between pixels
-                                .overlay(Circle().strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
-                        )
-                    Text("Share Profile")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.accentColor)
-                }
-                .contentShape(Rectangle())
+    // MARK: - Profile header
+
+    private var profileHeader: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let kachatBanner {
+                KNSBannerImageView(bannerURLString: kachatBanner, height: 140, cornerRadius: 14, fitsWidth: true)
+            } else {
+                LinearGradient(
+                    colors: [Color.accentColor.opacity(0.55), Color.accentColor.opacity(0.15)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text("Share this profile"))
-            .frame(maxWidth: .infinity)
+
+            HStack(alignment: .bottom) {
+                Button {
+                    showAvatarPreview = true
+                } label: {
+                    KNSAvatarView(
+                        avatarURLString: kachatAvatar,
+                        fallbackText: contactsManager.displayName(for: contact),
+                        size: 76,
+                        contactAddress: contact.address
+                    )
+                    .overlay(Circle().stroke(Color(uiColor: .systemGroupedBackground), lineWidth: 3))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, -38)
+                Spacer(minLength: 12)
+                if !isBot {
+                    Button {
+                        Haptics.impact(.light)
+                        openKaPostsProfile()
+                    } label: {
+                        headerButtonLabel("See All Posts", systemImage: "newspaper")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(Text("Opens their posts and replies."))
+                }
+            }
+            .padding(.horizontal, 12)
+
+            VStack(alignment: .leading, spacing: 6) {
+                nameRow
+                if !isBot {
+                    HStack(spacing: 16) {
+                        followCountButton(followingCount, label: "Following", kind: .following)
+                        followCountButton(followersCount, label: "Followers", kind: .followers)
+                    }
+                }
+                if let kachatBio, !kachatBio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    ExpandableBioText(bio: kachatBio)
+                        .padding(.top, 2)
+                    if let linktree = kachatProfile?.linktree, let url = URL(string: linktree) {
+                        Link(destination: url) {
+                            Label {
+                                Text(verbatim: linktree.replacingOccurrences(of: "https://", with: ""))
+                            } icon: {
+                                Image(systemName: "link")
+                            }
+                            .font(.caption.weight(.semibold))
+                        }
+                    }
+                } else {
+                    Text(formatAddress(contact.address))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                if !isBot {
+                    HStack(spacing: 10) {
+                        if !isSelf {
+                            let saved = addressBook.entry(for: contact.address) != nil
+                            Button {
+                                showAddressBookEditor = true
+                            } label: {
+                                headerButtonLabel(
+                                    saved ? "Edit Contact" : "Add as Contact",
+                                    systemImage: saved ? "person.text.rectangle.fill" : "person.text.rectangle"
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        if let url = KaChatInternalLink.profileShareURL(for: contact.address) {
+                            ShareLink(
+                                item: url,
+                                preview: SharePreview(contactsManager.displayName(for: contact), image: Image("KaspaLogo"))
+                            ) {
+                                headerButtonLabel("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Text("Share this profile"))
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
         }
+    }
+
+    /// Your own name as it reads everywhere; anyone else's is the name you give them, typed here
+    /// (the pencil focuses it) and kept by Save, with or without adding them to Contacts.
+    @ViewBuilder
+    private var nameRow: some View {
+        if isSelf {
+            Text(verbatim: kachatLabel.map(KachatNameLabel.display) ?? contactsManager.displayName(for: contact))
+                .font(.title3.weight(.bold))
+                .lineLimit(1)
+        } else {
+            HStack(spacing: 4) {
+                // The field is only as wide as the name, so the pencil sits right beside it
+                // (owner, 2026-11-26): the hidden copy of the text sets the width, a long name
+                // still truncates to the row.
+                Text(verbatim: (editedAlias.isEmpty ? contactsManager.displayName(for: contact) : editedAlias) + " ")
+                    .font(.title3.weight(.bold))
+                    .lineLimit(1)
+                    .hidden()
+                    .overlay(alignment: .leading) {
+                        // their name in full white until you type one of your own, as on Profile
+                        TextField(
+                            "",
+                            text: $editedAlias,
+                            prompt: Text(verbatim: contactsManager.displayName(for: contact)).foregroundColor(.primary)
+                        )
+                        .font(.title3.weight(.bold))
+                        .focused($isEditing)
+                    }
+                    .layoutPriority(1)
+                Button {
+                    isEditing = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.scaled(size: 15, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Edit name"))
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private func followCountButton(_ count: Int?, label: LocalizedStringKey, kind: KaPostsFollowListView.Kind) -> some View {
+        Button {
+            followListKind = kind
+        } label: {
+            HStack(spacing: 4) {
+                Text("\(count ?? 0)")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundColor(.primary)
+                Text(label)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        // someone who never posted has no KaPost key, so no list to show
+        .disabled(!isSelf && kaPostsPubkey == nil)
+    }
+
+    /// Profile's teal capsule (`KaPostsView.profileHeaderButtonLabel`).
+    private func headerButtonLabel(_ title: LocalizedStringKey, systemImage: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+            Text(title)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundColor(.accentColor)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+    }
+
+    /// Their KaPost profile (posts and replies); yours is the Profile tab.
+    private func openKaPostsProfile() {
+        let address = contact.address
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            KaPostsDeepLink.openProfile(address: address)
+        }
+    }
+
+    private func loadFollowCounts() async {
+        guard !isBot else { return }
+        let pubkey: String?
+        if isSelf {
+            pubkey = try? KaPostsAPIClient.shared.requesterPubkey()
+            followingCount = KaPostsFollowStore.shared.following.count
+        } else {
+            pubkey = await KaPostsView.resolveKaPostsPubkey(address: contact.address)
+        }
+        kaPostsPubkey = pubkey
+        guard let pubkey,
+              let details = try? await KaPostsAPIClient.shared.fetchUserDetails(pubkey: pubkey) else { return }
+        followersCount = details.followersCount
+        if !isSelf { followingCount = details.followingCount }
     }
 
     private func aliasRow(

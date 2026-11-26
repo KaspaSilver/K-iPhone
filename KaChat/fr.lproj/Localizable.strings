@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "Impossible de supprimer le message. Réessayez.";
 "%@ mentioned you in %@" = "%@ vous a mentionné dans %@";
 "Arcade" = "Arcade";
+"Tap to view" = "Touchez pour voir";
+"Add as Contact" = "Ajouter aux contacts";
+"Opens their posts and replies." = "Ouvre ses publications et réponses.";

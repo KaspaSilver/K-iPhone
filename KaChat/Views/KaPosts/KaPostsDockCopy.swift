@@ -54,7 +54,7 @@ struct KaPostsDockCopy: View {
     static let height: CGFloat = 62
 
     var body: some View {
-        HStack(spacing: 0) {
+        DockCopyItemsLayout {
             ForEach(layout.dock) { tab in
                 item(tab)
             }
@@ -98,13 +98,15 @@ struct KaPostsDockCopy: View {
                                 .offset(x: 10, y: -6)
                         }
                     }
+                // the real dock's label weight: semibold read heavier than it (2026-11-26)
                 Text(LocalizedStringKey(tab.label))
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 10, weight: .medium))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
             .foregroundColor(selected ? .accentColor : .primary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, DockCopyItemsLayout.itemPadding)
+            .frame(maxHeight: .infinity)
             .background {
                 if selected {
                     Capsule().fill(Color.primary.opacity(0.1))
@@ -126,11 +128,11 @@ struct KaPostsDockCopy: View {
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 22, height: 22)
+                .frame(width: 24, height: 24)
         } else {
             Image(systemName: tab.icon)
                 .symbolVariant(.fill)
-                .font(.system(size: 20, weight: .medium))
+                .font(.system(size: 22, weight: .medium))
                 // Settings carries the connection dot, Profile the backup dot, as on the real dock
                 .overlay(alignment: .topTrailing) {
                     if tab == .settings || (tab == .profile && backupStatus.isPending(WalletManager.shared.currentWallet?.publicAddress)) {
@@ -152,6 +154,50 @@ struct KaPostsDockCopy: View {
     private func accessibilityBadge(for tab: AppTab) -> Text {
         let count = AppTabBadge.unreadCount(for: tab)
         return count > 0 ? Text("\(count) unread") : Text("")
+    }
+}
+
+/// The real dock's spacing (iOS 26's tab bar): a tab whose label needs more than an equal share
+/// (Kaspa Hub) gets what it needs, and the others split the rest evenly. Equal fifths put the
+/// copy's icons a few points off the real ones, so the dock seemed to shift (owner, 2026-11-26).
+struct DockCopyItemsLayout: Layout {
+    static let itemPadding: CGFloat = 15
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let height = proposal.height ?? subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
+        return CGSize(width: proposal.width ?? widths(total: nil, subviews).reduce(0, +), height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        for (subview, width) in zip(subviews, widths(total: bounds.width, subviews)) {
+            subview.place(
+                at: CGPoint(x: x, y: bounds.minY),
+                proposal: ProposedViewSize(width: width, height: bounds.height)
+            )
+            x += width
+        }
+    }
+
+    private func widths(total: CGFloat?, _ subviews: Subviews) -> [CGFloat] {
+        let ideal = subviews.map { $0.sizeThatFits(.unspecified).width }
+        guard let total, !subviews.isEmpty else { return ideal }
+        var widths = Array(repeating: total / CGFloat(subviews.count), count: subviews.count)
+        // give the wide ones what they need, then share what is left among the rest
+        var fixed = Set<Int>()
+        while true {
+            let flexible = widths.indices.filter { !fixed.contains($0) }
+            guard !flexible.isEmpty else { break }
+            let left = total - fixed.reduce(0) { $0 + widths[$1] }
+            let share = left / CGFloat(flexible.count)
+            let grow = flexible.filter { ideal[$0] > share }
+            if grow.isEmpty {
+                for i in flexible { widths[i] = share }
+                break
+            }
+            for i in grow { widths[i] = min(ideal[i], total * 0.4); fixed.insert(i) }
+        }
+        return widths
     }
 }
 

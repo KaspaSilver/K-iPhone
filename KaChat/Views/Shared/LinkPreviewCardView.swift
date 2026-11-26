@@ -50,6 +50,11 @@ struct LinkPreviewCardView: View {
     /// Set when the user taps the tap-to-load placeholder of a non-`autoFetch` card - flips the
     /// `.task(id:)` below so the gated fetch runs exactly once, on demand.
     @State private var loadRequested = false
+    /// Tapped open while the 1:1 photos rule holds it (`HeldPhotoReveals`).
+    @State private var revealedHeld = false
+    private var photoHeld: Bool {
+        photosBlocked && !revealedHeld && !HeldPhotoReveals.isRevealed(txId)
+    }
     /// Non-nil while the full-screen Nextcloud media viewer is up (tap on a Nextcloud card).
     @State private var nextcloudViewerTarget: NextcloudViewerTarget?
     @Environment(\.openURL) private var openURL
@@ -96,8 +101,11 @@ struct LinkPreviewCardView: View {
             // `cardBody`, and started again the moment *any* unconditional view - even a plain
             // debug label - was added). `Color.clear` sized to zero keeps a stable, real view
             // identity for `.task` to attach to without taking up any visible space.
-            if photosBlocked {
-                hiddenPhotoTile
+            if photoHeld {
+                HeldPhotoTile(senderName: blockedSenderName, size: CGSize(width: 220, height: 160)) {
+                    HeldPhotoReveals.reveal(txId)
+                    revealedHeld = true
+                }
             } else if hasFinishedLoading, let preview {
                 cardBody(preview)
             } else if hasFinishedLoading, let fallbackText {
@@ -112,13 +120,14 @@ struct LinkPreviewCardView: View {
         // `loadRequested` is part of the id so tapping the gated placeholder re-runs this task
         // and performs the on-demand fetch (a `.task(id:)` body only re-executes when its id
         // changes).
-        .task(id: "\(url.absoluteString)|\(loadRequested)|\(photosBlocked)") {
+        .task(id: "\(url.absoluteString)|\(loadRequested)|\(photoHeld)") {
             // Already seeded synchronously from the cache in `init` - skip re-running the fetch
             // (which would flip `hasFinishedLoading` false then true again, causing exactly the
             // late height-change flicker this seeding exists to avoid). Non-`autoFetch` cards
             // additionally wait for an explicit tap before fetching anything. Blocked photos
-            // fetch nothing, tap or no tap; lifting the block re-runs this (it's in the id).
-            guard !photosBlocked, !hasFinishedLoading, autoFetch || loadRequested else { return }
+            // fetch nothing until tapped open; that, or the rule lifting, re-runs this (it's in
+            // the id).
+            guard !photoHeld, !hasFinishedLoading, autoFetch || loadRequested else { return }
             preview = await LinkPreviewService.shared.preview(for: url)
             hasFinishedLoading = true
         }
@@ -196,27 +205,6 @@ struct LinkPreviewCardView: View {
                 .frame(maxWidth: fillsWidth ? .infinity : 260, alignment: .leading)
                 .messageActions(title: "Link", preview: url.absoluteString) { menuActions() }
         }
-    }
-
-    /// `LazyImageBubble.hiddenBubble`'s tile: no URL, no tap target.
-    private var hiddenPhotoTile: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "eye.slash")
-                .font(.scaled(size: 24, weight: .regular))
-                .foregroundColor(.secondary)
-            Text("\(blockedSenderName) sent a photo")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            Text("It shows 10 minutes after you have both sent a message.")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(12)
-        .frame(width: 220, height: 160)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     /// Stand-in for a Nextcloud share the server no longer serves. Deliberately carries no URL,
@@ -772,4 +760,53 @@ private extension View {
             self
         }
     }
+}
+
+/// A photo from someone you only just started talking to (the 1:1 photos rule,
+/// `ContactsManager.photosUnlockDate`): until 10 minutes after you have both sent a message,
+/// each photo waits behind this tile and shows once tapped (owner, 2026-11-26; before, it stayed
+/// hidden with no way to see it early).
+struct HeldPhotoTile: View {
+    let senderName: String
+    let size: CGSize
+    let onReveal: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "eye.slash")
+                .font(.scaled(size: 24, weight: .regular))
+                .foregroundColor(.secondary)
+            Text("\(senderName) sent a photo")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            Text("Tap to view")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.accentColor)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(Color.accentColor.opacity(0.16)))
+        }
+        .padding(12)
+        .frame(width: size.width, height: size.height)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .onTapGesture {
+            Haptics.selection()
+            onReveal()
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint(Text("Tap to view"))
+    }
+}
+
+/// Held photos (`HeldPhotoTile`) tapped open, by txId, for as long as K runs. Once the 10
+/// minutes are up every photo shows anyway, so nothing needs saving.
+@MainActor
+enum HeldPhotoReveals {
+    private static var revealed = Set<String>()
+    static func isRevealed(_ txId: String) -> Bool { revealed.contains(txId) }
+    static func reveal(_ txId: String) { revealed.insert(txId) }
 }

@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "حذف پیام ممکن نشد. دوباره تلاش کنید.";
 "%@ mentioned you in %@" = "%@ شما را در %@ نام برد";
 "Arcade" = "آرکید";
+"Tap to view" = "برای دیدن ضربه بزنید";
+"Add as Contact" = "افزودن به مخاطبین";
+"Opens their posts and replies." = "پست‌ها و پاسخ‌هایش را باز می‌کند.";

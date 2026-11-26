@@ -3387,3 +3387,6 @@
 "Couldn't delete the message. Try again." = "Không thể xóa tin nhắn. Hãy thử lại.";
 "%@ mentioned you in %@" = "%@ đã nhắc đến bạn trong %@";
 "Arcade" = "Arcade";
+"Tap to view" = "Chạm để xem";
+"Add as Contact" = "Thêm vào danh bạ";
+"Opens their posts and replies." = "Mở bài đăng và trả lời của họ.";

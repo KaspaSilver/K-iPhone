@@ -266,8 +266,11 @@ struct AllNotificationsBadge {
 /// follows, tips...) and the wallet's (Kaspa and kUSDT received), newest first, no switch between
 /// them. A sheet from Profile's bell: no back arrow and no settings gear; swipe down or Done closes it.
 struct AllNotificationsView: View {
+    /// A follower's profile, opened by whoever shows the bell (`KaPostsNotificationsView`).
+    var onOpenProfile: ((String) -> Void)? = nil
+
     var body: some View {
-        KaPostsNotificationsView()
+        KaPostsNotificationsView(onOpenProfile: onOpenProfile)
             // seeing the list is seeing them, both kinds
             .onAppear {
                 KaPostsNotificationCenter.shared.markAllSeen()

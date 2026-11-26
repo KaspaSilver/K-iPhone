@@ -3390,3 +3390,6 @@
 "Couldn't delete the message. Try again." = "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.";
 "%@ mentioned you in %@" = "%@ hat dich in %@ erwähnt";
 "Arcade" = "Arcade";
+"Tap to view" = "Zum Ansehen tippen";
+"Add as Contact" = "Zu Kontakten hinzufügen";
+"Opens their posts and replies." = "Öffnet die Beiträge und Antworten.";
