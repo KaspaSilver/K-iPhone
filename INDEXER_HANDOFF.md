@@ -49,6 +49,9 @@ also goes there as its own `docs/<TOPIC>.md` ("For / From / Status", what to bui
   `report-bugs` to `k_vars['broadcast_channels']` in the panel now (re-read every 15 s), and to the
   three `DEFAULT_BROADCAST_CHANNELS` copies; keep `kachat-bugs` tracked until the other clients
   move. In the indexer repo as `docs/REPORT_BUGS_ROOM.md`.
+  Update the same day: K no longer moves anyone off `kachat-bugs` (`retiredChannels` is empty);
+  it's an ordinary room under More Rooms, so **keep tracking `kachat-bugs`** in
+  `broadcast_channels` for good.
 
 - **2026-11-23 - KaPlay arcade boards (Snake, 2048).** Committed (518fdc8c);
   spec ARCADE.md. The app stamps every finished game as a plaintext broadcast in the hidden room

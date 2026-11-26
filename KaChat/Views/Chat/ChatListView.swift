@@ -597,7 +597,8 @@ struct ChatListView: View {
         .accessibilityLabel(Text("New"))
     }
 
-    /// New Chat or New Group Chat, and then that screen at full height.
+    /// New Chat or New Group Chat, and then that screen at full height; on the Public Chats page,
+    /// New Public Chat alone.
     @ViewBuilder
     private var createSheet: some View {
         Group {
@@ -630,14 +631,16 @@ struct ChatListView: View {
                         .navigationTitle("New Public Chat")
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
+                            // only the Public Chats page's + opens it (owner, 2026-11-25), so
+                            // there's no New menu behind it to go back to
                             ToolbarItem(placement: .cancellationAction) {
-                                Button("Back") { resetCreateSheet() }
+                                Button("Cancel") { showCreateSheet = false }
                             }
                         }
                 }
             }
         }
-        .presentationDetents([Self.createMenuHeight, .large], selection: $createDetent)
+        .presentationDetents(createStep == .publicRoom ? [.large] : [Self.createMenuHeight, .large], selection: $createDetent)
         .presentationDragIndicator(.visible)
     }
 
@@ -663,16 +666,6 @@ struct ChatListView: View {
                 createDetent = .large
                 createStep = .group
             }
-            ActionSheetRow(
-                title: "New Public Chat",
-                subtitle: "Join a public room, or create one.",
-                systemImage: "number"
-            ) {
-                createRoomName = ""
-                createRoomError = nil
-                createDetent = .large
-                createStep = .publicRoom
-            }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
@@ -685,11 +678,12 @@ struct ChatListView: View {
         createDetent = Self.createMenuHeight
     }
 
-    private static let createMenuHeight: PresentationDetent = .height(330)
+    private static let createMenuHeight: PresentationDetent = .height(250)
 
     // MARK: - Public rooms
 
-    /// Join or create a public room, right in the New sheet. Joining opens the room.
+    /// Join or create a public room: the Public Chats page's + (the Chats page's New sheet has no
+    /// room row since 2026-11-25). Joining opens the room.
     private var createJoinRoom: some View {
         VStack(spacing: 12) {
             Text("Anyone who joins the same channel name can see and post messages there - there is no owner and no invite.")
@@ -753,7 +747,7 @@ struct ChatListView: View {
     private func joinRoomFromCreateSheet() {
         guard !createRoomNameIsEmpty else { return }
         let typed = PublicChatChannelName.normalize(createRoomName)
-        // a retired room's name opens the room that replaced it (audit 2026-11-25 C2)
+        // a retired room's name opens the room that replaced it (audit 2026-11-25 C2; none now)
         let normalized = PublicChatService.retiredChannels[typed] ?? typed
         guard PublicChatChannelName.isValid(normalized) else {
             createRoomError = String(format: AppLocalization.string("Channel names must be 1-%d characters with no spaces or colons."),
@@ -2305,10 +2299,7 @@ struct ConversationRow: View {
                             // the row - a chat that never pings otherwise looks like a chat
                             // nobody is using.
                             if conversation.contact.notificationModeOverride == .off {
-                                Image(systemName: "bell.slash.fill")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                                    .accessibilityLabel("Silenced")
+                                SilencedPill()
                             }
                         }
                     }
@@ -2605,10 +2596,7 @@ private struct ChatsRoomRow: View, Equatable {
                         .font(.headline)
                         .lineLimit(1)
                     if !room.channel.notifyEnabled {
-                        Image(systemName: "bell.slash.fill")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .accessibilityLabel("Notifications off")
+                        SilencedPill()
                     }
                     Spacer()
                     if let blockTime = room.lastBlockTime {
@@ -3133,3 +3121,18 @@ struct MessageRequestsView: View {
     }
 }
 
+/// The "Silenced" tag beside a chat's, group's or room's name in the Chats list (owner,
+/// 2026-11-25: a pill, plainer than the old bell-slash icon). Never squeezed: the name truncates
+/// first.
+struct SilencedPill: View {
+    var body: some View {
+        Text("Silenced")
+            .font(.scaled(size: 11, weight: .semibold))
+            .foregroundColor(.secondary)
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(Color.secondary.opacity(0.16)))
+            .fixedSize()
+    }
+}

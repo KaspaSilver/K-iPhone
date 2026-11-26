@@ -260,14 +260,15 @@ rooms by latest activity, pinned rooms as circles above them). The button's red 
 public chats' unread (rooms with their bell on) on either page; the dock's KaChat badge counts only
 chats and groups (owner, 2026-11-25). On the rooms page (`ChatListView`: Delete
 switches a default room off or leaves your own (either drops its pin), Mute, Pin, Mark as Read) the
-+ opens New Public Chat (join or create a room; on the Chats page it stays in the New sheet), the
-gear at the top left (only there) opens Edit Default Public Chats (`PublicChatsSettingsView` in
++ opens New Public Chat straight away (join or create a room; Cancel closes it), and the Chats
+page's + sheet has only New Chat and New Group Chat (owner, 2026-11-25). The gear at the top left
+(only there) opens Edit Default Public Chats (`PublicChatsSettingsView` in
 `Views/Chat/PublicChatRoomViews.swift`: each default room and the language rooms on or off), and
-there's no Select. A room link or push switches to the rooms page. The default rooms are #kaspa and
-#report-bugs, which replaced #kachat-bugs (owner, 2026-11-25): `PublicChatService.retiredChannels`
-moves an account that had the old room over once its store opens (bell, pin, on/off) and leaves
-the old one, and joining the old name opens the new room. The indexer must track `report-bugs`
-(INDEXER_HANDOFF.md). **Rooms added on the indexer** (owner, 2026-11-25): every room the app-wide
+Select works on both pages. A room link or push switches to the rooms page. The default rooms are
+#kaspa and #report-bugs. #kachat-bugs is an ordinary indexer room again, under More Rooms (owner,
+2026-11-25: it was retired for #report-bugs that morning, then brought back since the indexer still
+tracks it); `PublicChatService.retiredChannels`, which moves accounts off a retired room and
+redirects its name, is empty. The indexer must track `report-bugs` (INDEXER_HANDOFF.md). **Rooms added on the indexer** (owner, 2026-11-25): every room the app-wide
 indexer's `GET /broadcast-channels` reports (its panel's `broadcast_channels`) is a default room
 too (`PublicChatService.indexerDefaultChannels`, part of `curatedChannels`), with no app update:
 joined bell off, under More Rooms in Edit Default Public Chats. The machinery rooms
@@ -275,8 +276,10 @@ joined bell off, under More Rooms in Edit Default Public Chats. The machinery ro
 Edit Default Public Chats opens; a new list joins its rooms at once (`IndexerTrackedRooms.didChange`).
 A room the indexer drops stops being a default: kept as an ordinary room if on, left if switched off (its
 switched-off mark is kept 7 days, `droppedRoomGrace`, so one short answer doesn't turn it back on). Every room
-starts silenced, bell off (owner, 2026-11-24, for new downloads; accounts whose #kaspa and
-#kachat-bugs bells were already switched on keep them). Rooms with their bell on add to the title's cycle button and the app icon, not the dock. KaPosts
+starts silenced, bell off (owner, 2026-11-24). The 2026-11-25 build silences every account's rooms
+once, the first time its room store opens (`silenceRoomsOnceIfNeeded`,
+`kachat_rooms_silenced_once_v1_<wallet>`), including the #kaspa and #kachat-bugs bells older builds
+turned on; after that the bells are whatever the person picks, kept across updates. Rooms with their bell on add to the title's cycle button and the app icon, not the dock. KaPosts
 starts in Kaspa Hub with its own badge (`AppTabBadge`); both open from links and pushes
 (`KaPostsRoutes` in MainTabView; `.kaPost` and `.publicChatRoom` links open in the app), and the push
 registration sends their real fields again (PUSH_EXTENSIONS.md). The ported code calls the app
@@ -816,6 +819,9 @@ room. Registration needs no chat: the primary address alone (.kachat) or the Rec
 addresses are enough.
 
 ### Long-press menus
+
+A silenced chat, group or room shows a gray "Silenced" pill beside its name in the Chats list
+(`SilencedPill` in ChatListView.swift, owner 2026-11-25), not a bell icon.
 
 Chat and group rows have no long-press menu: swipe left for Delete, Silence and Pin (your own chat
 has only Silence), right for Mark as Read or Unread. Pinned chats and groups, being circles, keep the hold.

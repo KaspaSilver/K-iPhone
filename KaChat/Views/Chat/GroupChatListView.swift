@@ -177,10 +177,7 @@ struct GroupChatRow: View {
                         .lineLimit(1)
                     // Silenced: no banner from this group, mentioned or not.
                     if groupChatService.silentNotifications(for: group.id) {
-                        Image(systemName: "bell.slash.fill")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .accessibilityLabel("Silenced")
+                        SilencedPill()
                     }
 
                     Spacer()

@@ -18,11 +18,13 @@ final class PublicChatService: ObservableObject {
     /// main-actor UI - immutable Sendable value, safe from anywhere.
     nonisolated static let featuredChannels = ["kaspa", "report-bugs"]
 
-    /// Default rooms retired for a new name, old -> new (owner, 2026-11-25: #kachat-bugs is now
-    /// #report-bugs). An account that had the old room is moved over once its store opens
-    /// (`moveRetiredChannels`: bell, pin and switched-off state), and the old room is left.
-    /// Joining the old name (a link, the New Public Chat sheet) opens the new room.
-    nonisolated static let retiredChannels: [String: String] = ["kachat-bugs": "report-bugs"]
+    /// Default rooms retired for a new name, old -> new. An account that had the old room is
+    /// moved over once its store opens (`moveRetiredChannels`: bell, pin and switched-off state),
+    /// and the old room is left. Joining the old name (a link, the New Public Chat sheet) opens
+    /// the new room. Empty: #kachat-bugs was retired for #report-bugs on 2026-11-25, and the same
+    /// day the owner brought it back as a room of its own, since the indexer still tracks it: it's
+    /// an indexer room (`indexerDefaultChannels`), under More Rooms with its bell off.
+    nonisolated static let retiredChannels: [String: String] = [:]
 
     /// Curated per-language rooms, listed straight in Public Chats under the two featured rooms
     /// (KaPosts lists every default room; the customize button switches off the unwanted ones).
@@ -1001,8 +1003,31 @@ final class PublicChatService: ObservableObject {
         for name in curated where isCuratedChannelShown(name) {
             _ = store.joinChannel(name)
         }
+        silenceRoomsOnceIfNeeded()
         refreshChannels()
     }
+
+    /// Every room starts silenced (owner, 2026-11-25): the first time an account's room store opens
+    /// on this build, every bell that's on goes off, including the #kaspa and #kachat-bugs bells
+    /// that builds before 2026-11-24 turned on by themselves. It happens once per account; after that
+    /// the bells are whatever the person chooses, kept across updates. Bump the key's version only
+    /// to silence everyone again.
+    private func silenceRoomsOnceIfNeeded() {
+        guard store.isReady, store.currentWalletAddress == walletAddress, let key = roomsSilencedOnceKey,
+              !UserDefaults.standard.bool(forKey: key) else { return }
+        let ringing = store.joinedChannels().filter(\.notifyEnabled).map(\.channelName)
+        for name in ringing {
+            store.setNotifyEnabled(false, forChannel: name)
+        }
+        UserDefaults.standard.set(true, forKey: key)
+        guard !ringing.isEmpty else { return }
+        AppLog.log("%@", "[PublicChat] Silenced \(ringing.count) room(s) once for this update")
+        // the push service stops sending these rooms (the registration lists bell-on rooms)
+        Task { await PushNotificationManager.shared.updateWatchedAddresses() }
+        updateScanningStateIfNeeded()
+    }
+
+    private var roomsSilencedOnceKey: String? { walletAddress.map { "kachat_rooms_silenced_once_v1_\($0)" } }
 
     /// How long a switched-off room may be missing from the indexer's list before it's forgotten.
     private static let droppedRoomGrace: TimeInterval = 7 * 86_400
