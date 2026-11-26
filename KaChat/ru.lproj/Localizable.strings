@@ -3385,3 +3385,4 @@
 "Delete for Everyone?" = "Удалить для всех?";
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Сообщение исчезнет из этой комнаты для всех, кто пользуется K. Оно останется в сети Kaspa, где любой, кто читает блокчейн, всё ещё может его найти. Удаление стоит небольшой комиссии сети.";
 "Couldn't delete the message. Try again." = "Не удалось удалить сообщение. Попробуйте ещё раз.";
+"%@ mentioned you in %@" = "%@ упомянул(а) вас в %@";

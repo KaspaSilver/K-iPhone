@@ -5,6 +5,27 @@ import ImageIO
 import SwiftUI
 import UIKit
 
+/// One redraw signal for what names and pictures depend on: the `.kachat` registry, the social
+/// pictures and the Address Book, batched to at most one publish per quarter second, always after
+/// the change. Views that only read those stores to draw a name or a picture observe this instead
+/// of the stores, so a burst of lookups landing while a list scrolls costs one redraw, not one per
+/// name.
+@MainActor
+final class IdentityChangeTicker: ObservableObject {
+    static let shared = IdentityChangeTicker()
+    private var cancellable: AnyCancellable?
+
+    private init() {
+        cancellable = Publishers.Merge3(
+            KachatNamesRegistry.shared.objectWillChange.map { _ in () },
+            KachatSocialImageResolver.shared.objectWillChange.map { _ in () },
+            AddressBookManager.shared.objectWillChange.map { _ in () }
+        )
+        .collect(.byTime(RunLoop.main, .milliseconds(250)))
+        .sink { [weak self] _ in self?.objectWillChange.send() }
+    }
+}
+
 /// The one avatar view in the app. Resolution order, applied here so no call site ever
 /// re-implements it: the photo you assigned in Contacts -> KNS / `.kachat` avatar -> the photo
 /// carried in the chat backup -> person glyph. (KaChat no longer reads the phone's Contacts, so there is no Contacts-app photo.)
@@ -30,9 +51,13 @@ struct KNSAvatarView: View {
     @State private var lastLoadedIdentity: String?
     /// On testnet an address's avatar is its `.kachat` one (looked up from its profile's social
     /// link on this device); the KNS URL the caller passes is not used for an address there.
-    @ObservedObject private var kachatRegistry = KachatNamesRegistry.shared
-    @ObservedObject private var socialImages = KachatSocialImageResolver.shared
-    @ObservedObject private var addressBook = AddressBookManager.shared
+    // Read directly, redrawn through `IdentityChangeTicker` (a quarter-second batch): observing
+    // the three stores made every avatar on screen redraw several times per registry refresh,
+    // and once per name or picture landing while a list scrolled (2026-11-25 smoothness sweep).
+    @ObservedObject private var identityTicker = IdentityChangeTicker.shared
+    private var kachatRegistry: KachatNamesRegistry { .shared }
+    private var socialImages: KachatSocialImageResolver { .shared }
+    private var addressBook: AddressBookManager { .shared }
 
     /// The URL this avatar shows: the caller's, except for an address on testnet, where it is
     /// the `.kachat` profile's avatar (or none).

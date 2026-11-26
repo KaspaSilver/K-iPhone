@@ -3,7 +3,8 @@ import Foundation
 import SwiftUI
 
 /// The wallet's half of Profile's bell: Kaspa arriving in one of your own addresses - the
-/// chatting address or a spending address (fed by AddressActivityNotifier) - and tokens received.
+/// chatting address or a spending address (fed by AddressActivityNotifier) - and tokens received;
+/// and @mentions of you in public chats and groups (`recordMention`).
 /// Not group chats (they keep their own unread counts in the Chats tab). Entries are
 /// account-scoped, persisted, deduped by id, and capped; opening the list marks everything seen.
 @MainActor
@@ -22,6 +23,9 @@ final class GlobalNotificationCenter: ObservableObject {
             case kachat
             /// A token received (kUSDT); `targetId` is the token's id.
             case token
+            /// Someone @'d you in a public chat or a group (owner, 2026-11-25: every mention is in
+            /// the bell). `targetId` is "room:<name>|<txid>" or "group:<id>|<txid>".
+            case mention
 
             var label: String {
                 switch self {
@@ -31,6 +35,7 @@ final class GlobalNotificationCenter: ObservableObject {
                 case .wallet: return "Wallet"
                 case .kachat: return ".kachat"
                 case .token: return "Tokens"
+                case .mention: return "Mention"
                 }
             }
 
@@ -42,11 +47,12 @@ final class GlobalNotificationCenter: ObservableObject {
                 case .wallet: return "arrow.down.circle"
                 case .kachat: return "at"
                 case .token: return "dollarsign.circle"
+                case .mention: return "at"
                 }
             }
 
             /// What the Profile bell lists.
-            static let inBell: Set<Source> = [.wallet, .token]
+            static let inBell: Set<Source> = [.wallet, .token, .mention]
         }
 
         let id: String
@@ -150,6 +156,14 @@ final class GlobalNotificationCenter: ObservableObject {
         persist()
     }
 
+    /// Someone @'d you in a room or a group: a row in the bell (never a banner of its own; the
+    /// room's or group's own rules decide that). One row per message.
+    func recordMention(sender: String, place: String, preview: String, txId: String, blockTime: Int64, target: String) {
+        let title = String(format: AppLocalization.string("%@ mentioned you in %@"), locale: AppLocalization.locale, sender, place)
+        record(id: "mention-\(txId.lowercased())", source: .mention, title: title,
+               body: preview, timestamp: blockTime, targetId: "\(target)|\(txId)")
+    }
+
     func markAllSeen() {
         guard !loadedAddress.isEmpty else { return }
         lastSeenAt = Int64(Date().timeIntervalSince1970 * 1000)
@@ -195,6 +209,25 @@ final class GlobalNotificationCenter: ObservableObject {
                     NotificationCenter.default.post(name: .openOwnAddress, object: nil)
                 } else {
                     NotificationCenter.default.post(name: .openProfile, object: nil)
+                }
+            }
+        case .mention:
+            let parts = target.split(separator: "|", maxSplits: 1).map(String.init)
+            guard let place = parts.first else { return }
+            let txId = parts.count > 1 ? parts[1] : ""
+            dismiss()
+            if place.hasPrefix("room:") {
+                let room = String(place.dropFirst("room:".count))
+                // the room opens at the message (`PublicChatJumpRoute`)
+                if !txId.isEmpty { PublicChatJumpRoute.pending = (room, txId) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    NotificationCenter.default.post(name: .openPublicChat, object: nil, userInfo: ["channel": room])
+                }
+            } else if place.hasPrefix("group:") {
+                let groupId = String(place.dropFirst("group:".count))
+                GroupChatService.shared.pendingGroupNavigation = groupId
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    NotificationCenter.default.post(name: .openGroup, object: nil, userInfo: ["groupId": groupId])
                 }
             }
         case .token:
@@ -262,4 +295,11 @@ struct AllNotificationsBell: View {
         // push the poll is otherwise only every 5 minutes.
         .onAppear { KaPostsNotificationService.shared.pollForBell() }
     }
+}
+
+/// A public chat to open at one message (a mention in Profile's bell): the room's screen takes
+/// it as it appears and scrolls to the message if it's loaded.
+@MainActor
+enum PublicChatJumpRoute {
+    static var pending: (channel: String, txId: String)?
 }

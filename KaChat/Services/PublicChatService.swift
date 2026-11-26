@@ -639,7 +639,7 @@ final class PublicChatService: ObservableObject {
                 if changed { await reloadMessagesNow(for: channel) }
                 return true
             }
-            let inserted = await store.insertMessages(fresh)
+            let inserted = await insertRoomMessages(fresh)
             guard isCurrentWallet(generation) else { return true }
             guard !inserted.isEmpty else {
                 if changed { await reloadMessagesNow(for: channel) }
@@ -1209,12 +1209,7 @@ final class PublicChatService: ObservableObject {
               !Self.isControlEnvelope(content) else { return }
         let settings = AppSettings.load()
         guard settings.notificationsEnabled else { return }
-        let sender: String
-        if let assigned = ContactsManager.shared.getContact(byAddress: senderAddress)?.assignedName {
-            sender = assigned
-        } else {
-            sender = KachatLive.identityName(senderAddress) ?? Contact.generateDefaultAlias(from: senderAddress)
-        }
+        let sender = roomSenderName(senderAddress)
         InAppBanner.post(
             txId: txId,
             title: "#\(KaPostsMarkdown.strippingBidiControls(channel))",
@@ -1223,6 +1218,40 @@ final class PublicChatService: ObservableObject {
             threadIdentifier: "broadcast:\(channel)",
             sound: settings.incomingNotificationSoundEnabled
         )
+    }
+
+    /// `store.insertMessages`, then a row in Profile's bell for each new message that @'s you
+    /// (owner, 2026-11-25: every mention, whatever the room's bell; never a banner from here).
+    private func insertRoomMessages(
+        _ rows: [(id: String, channel: String, senderAddress: String, content: String, blockTime: Int64)]
+    ) async -> Set<String> {
+        let inserted = await store.insertMessages(rows)
+        if !inserted.isEmpty, UsernameMention.myName != nil,
+           let me = WalletManager.shared.currentWallet?.publicAddress.lowercased() {
+            for row in rows where inserted.contains(row.id) {
+                guard !Self.serviceChannels.contains(row.channel), !Self.hiddenIndexerRooms.contains(row.channel),
+                      row.senderAddress.lowercased() != me,
+                      !Self.isControlEnvelope(row.content) else { continue }
+                let preview = MessageReplyCodec.previewText(for: row.content)
+                guard UsernameMention.mentionsMe(preview),
+                      !store.hiddenSenderAddresses(forChannel: row.channel).contains(row.senderAddress) else { continue }
+                GlobalNotificationCenter.shared.recordMention(
+                    sender: KaPostsMarkdown.strippingBidiControls(roomSenderName(row.senderAddress)),
+                    place: "#\(KaPostsMarkdown.strippingBidiControls(row.channel))",
+                    preview: KaPostsMarkdown.strippingBidiControls(preview),
+                    txId: row.id, blockTime: row.blockTime, target: "room:\(row.channel)"
+                )
+            }
+        }
+        return inserted
+    }
+
+    /// Your name for them, else their .kachat name, else a short address.
+    private func roomSenderName(_ address: String) -> String {
+        if let assigned = ContactsManager.shared.getContact(byAddress: address)?.assignedName {
+            return assigned
+        }
+        return KachatLive.identityName(address) ?? Contact.generateDefaultAlias(from: address)
     }
 
     func wantsRoomPush(channel rawChannel: String) -> Bool {
@@ -1364,7 +1393,9 @@ final class PublicChatService: ObservableObject {
         if let editing = editingMessage, editing.channelName != normalized { editingMessage = nil }
         if let reply = replyingTo, reply.channelName != normalized { replyingTo = nil }
         ChatService.clearDeliveredNotifications(threadIdentifier: "broadcast:\(normalized)")
+        if liveViewRefCounts[normalized] == nil { firstMissRemovesChannels.insert(normalized) }
         liveViewRefCounts[normalized, default: 0] += 1
+        windowTrimWork.removeValue(forKey: normalized)?.cancel()
         Task { await store.pruneExpiredMessages() }
         loadMessages(for: normalized)
         // A room with no indexer has no history coming to wait for.
@@ -1691,7 +1722,7 @@ final class PublicChatService: ObservableObject {
         let rows = visible
             .filter { !Self.isControlEnvelope($0.content) }
             .map { (id: $0.txId, channel: channel, senderAddress: $0.senderAddress, content: $0.content, blockTime: $0.blockTime) }
-        var insertedCount = await store.insertMessages(rows).count
+        var insertedCount = await insertRoomMessages(rows).count
         guard isCurrentWallet(generation) else { return }
         if Self.serviceChannels.contains(channel) {
             // Rows this phone sent carry its own clock until the chain's time reaches us -
@@ -1719,23 +1750,23 @@ final class PublicChatService: ObservableObject {
         }
     }
 
-    /// A message a moderator removed from the indexer, or its sender deleted, is dropped here
-    /// too (owner, 2026-11-25). The indexer has no list of removals, so absence is the signal: a
-    /// page answers for the messages in the span between its own oldest and newest rows, so a
-    /// delivered row this phone holds inside that span that isn't on the page is gone. Only when
-    /// the evidence is solid (audit 2026-11-25, second review):
-    /// - the app-wide indexer only, for a room it tracks; never the machinery rooms (chess, bots,
-    ///   arcade) and never an empty page;
-    /// - never below the page's oldest row, even on its last page: an indexer holding less than
-    ///   this phone (rebuilt, newly tracking the room, another indexer) says nothing about older
-    ///   messages, which stay;
-    /// - a minute inside both edges (this phone's time for a row can differ from the indexer's),
-    ///   never the newest 3 minutes, never the oldest day of the 30-day window;
-    /// - never your own messages, nor pending or unconfirmed sends;
-    /// - a row must be missing from two reads before it goes (`absenceStrikes`);
-    /// - and if one read would remove more than a handful (over 3, and over a fifth of what it
-    ///   covers), nothing goes: that is an indexer problem, not a moderator, and it is logged.
-    /// `before` is the page's exclusive upper bound when it was asked for older history.
+    /// For a room the indexer tracks, the indexer is the truth (owner, 2026-11-25: "work like
+    /// KaPost"): what a read of it returns is what the room shows, and a delivered message this
+    /// phone holds in the span the read answers for, that the read doesn't have, goes - a
+    /// moderator's removal, its sender's delete, or anything else the indexer no longer serves.
+    /// The cache stays for drawing at once, the Chats list, outages and rooms with no indexer; it
+    /// no longer decides what exists. The span a read answers for:
+    /// - the newest page: from its oldest row (a minute in) up to 90 seconds ago, so the newest
+    ///   message goes too once deleted; the last 90 seconds are left for the indexer to catch up;
+    /// - an older page (`before`): between its oldest row and `before`, a minute inside both;
+    /// - never below the page's oldest row: an indexer holding less than this phone (rebuilt, newly
+    ///   tracking the room) says nothing about older messages, which stay; never the oldest day of
+    ///   the 30-day window (retention's edge).
+    /// Only the app-wide indexer, never the machinery rooms (chess, bots, arcade), never an empty
+    /// page or a failed read. Your own messages too, once 5 minutes old (sends still on their way
+    /// to the indexer stay). A row goes on its second miss (`absenceStrikes`), so one odd read
+    /// removes nothing. A message that's only missing, not deleted for everyone, comes back with
+    /// the read that has it again.
     private func dropRowsTheIndexerNoLongerHas(
         _ page: [PublicChatIndexerClient.IndexedPublicChat],
         before: Int64?,
@@ -1745,11 +1776,12 @@ final class PublicChatService: ObservableObject {
     ) async {
         guard PublicChatIndexerClient.isAppWideIndexer(base), Self.isIndexerTracked(channel),
               !Self.serviceChannels.contains(channel), !Self.hiddenIndexerRooms.contains(channel), !page.isEmpty,
-              let newest = page.map(\.blockTime).max(), let oldest = page.map(\.blockTime).min() else { return }
+              let oldest = page.map(\.blockTime).min() else { return }
         let now = Int64(Date().timeIntervalSince1970 * 1000)
         let margin: Int64 = 60_000
-        var upper = (before.map { $0 - 1 } ?? newest) - margin
-        upper = min(upper, now - 180_000)
+        // the newest page answers for everything up to now, less the indexer's catch-up time
+        var upper = before.map { $0 - 1 - margin } ?? (now - 90_000)
+        upper = min(upper, now - 90_000)
         var lower = oldest + margin
         lower = max(lower, now - PublicChatStore.indexerRetentionMillis + 86_400_000)
         guard lower <= upper else { return }
@@ -1757,7 +1789,14 @@ final class PublicChatService: ObservableObject {
         let onPage = Set(page.map { $0.txId.lowercased() })
         let held = await store.deliveredMessages(inChannel: channel, from: lower, to: upper)
         guard isCurrentWallet(generation) else { return }
-        let considered = held.filter { Self.isTxIdShaped($0.id.lowercased()) && $0.sender.lowercased() != me }
+        let considered = held.filter {
+            Self.isTxIdShaped($0.id.lowercased()) && ($0.sender.lowercased() != me || $0.blockTime < now - 300_000)
+        }
+        // The first read after the room opens, or a Rooms list check, removes on one miss: the
+        // reader is looking at it now, and a deleted message mustn't sit there until the next
+        // read. Background reads keep the second miss. One taken by mistake comes back with the
+        // next read that has it.
+        let needed = firstMissRemovesChannels.remove(channel) != nil ? 1 : 2
         var gone = Set<String>()
         for row in considered {
             let key = "\(channel)|\(row.id.lowercased())"
@@ -1767,18 +1806,48 @@ final class PublicChatService: ObservableObject {
             }
             let strikes = (absenceStrikes[key] ?? 0) + 1
             absenceStrikes[key] = strikes
-            if strikes >= 2 { gone.insert(row.id) }
+            if strikes >= needed { gone.insert(row.id) }
         }
         if absenceStrikes.count > 5_000 { absenceStrikes.removeAll() }
         guard !gone.isEmpty else { return }
-        guard gone.count <= 3 || gone.count * 5 <= considered.count else {
-            AppLog.log("%@", "[PublicChat] #\(channel): \(gone.count) of \(considered.count) cached messages missing from the indexer - left alone (looks like an indexer problem)")
-            return
-        }
         guard await store.deleteMessages(ids: gone, inChannel: channel), isCurrentWallet(generation) else { return }
         for id in gone { absenceStrikes["\(channel)|\(id.lowercased())"] = nil }
         AppLog.log("%@", "[PublicChat] #\(channel): \(gone.count) message(s) no longer on the indexer, removed here too")
         loadMessages(for: channel)
+    }
+
+    /// Rooms whose next indexer read removes a missing message on the first miss: a room just
+    /// opened, and the Rooms list's check (`checkListedRoomsAgainstIndexer`).
+    private var firstMissRemovesChannels: Set<String> = []
+    /// When the Rooms list last checked each room against the indexer.
+    private var listCheckedAt: [String: TimeInterval] = [:]
+    private var listCheckTask: Task<Void, Never>?
+
+    /// The Rooms list is on screen: each indexed room it shows that nothing else keeps current
+    /// (bell off, not open) is read from the indexer once, at most every 2 minutes, so a
+    /// message deleted there leaves the row's preview too (owner, 2026-11-25), and new
+    /// messages show. One at a time; bell-on rooms are on the foreground beat already.
+    func checkListedRoomsAgainstIndexer() {
+        guard store.isReady, listCheckTask == nil else { return }
+        let now = Date().timeIntervalSince1970
+        let due = listedChannels.filter { room in
+            let name = room.channelName
+            return !room.notifyEnabled && liveViewRefCounts[name] == nil
+                && Self.isIndexerTracked(name)
+                && !Self.serviceChannels.contains(name) && !Self.hiddenIndexerRooms.contains(name)
+                && now - (listCheckedAt[name] ?? 0) >= 120
+        }.map(\.channelName)
+        guard !due.isEmpty else { return }
+        listCheckTask = Task { [weak self] in
+            for name in due {
+                guard let self, !Task.isCancelled else { break }
+                self.listCheckedAt[name] = Date().timeIntervalSince1970
+                self.firstMissRemovesChannels.insert(name)
+                await self.fetchNewestAndMerge(channel: name)
+                self.firstMissRemovesChannels.remove(name)
+            }
+            self?.listCheckTask = nil
+        }
     }
 
     /// How many reads in a row each cached room message ("room|txid") was missing from, for
@@ -1823,6 +1892,9 @@ final class PublicChatService: ObservableObject {
         liveViewRefCounts[PublicChatChannelName.normalize(channel)] != nil
     }
 
+    /// A closed room's trim back to its summary, waiting (`release`).
+    private var windowTrimWork: [String: DispatchWorkItem] = [:]
+
     /// Call when a public chat channel screen disappears; pairs with `acquire`.
     func release(_ name: String) {
         let normalized = PublicChatChannelName.normalize(name)
@@ -1834,9 +1906,23 @@ final class PublicChatService: ObservableObject {
             stopIndexerPolling(channel: normalized)
             // Closed: back to its summary (`summaryWindowSize`), and "Load earlier messages"
             // starts over next time, so every room ever opened doesn't keep 400+ rows all session.
-            windowSizeByChannel.removeValue(forKey: normalized)
-            windowExhausted.remove(normalized)
-            if messagesByChannel[normalized] != nil { loadMessages(for: normalized) }
+            // Two minutes later, not now: a room only hidden behind another tab (a profile
+            // opened from it) comes back with its rows, so the reader's place holds (owner,
+            // 2026-11-25); trimming at once shrank the list under them and it jumped.
+            windowTrimWork.removeValue(forKey: normalized)?.cancel()
+            let generation = walletGeneration
+            let work = DispatchWorkItem { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, self.walletGeneration == generation,
+                          self.liveViewRefCounts[normalized] == nil else { return }
+                    self.windowTrimWork[normalized] = nil
+                    self.windowSizeByChannel.removeValue(forKey: normalized)
+                    self.windowExhausted.remove(normalized)
+                    if self.messagesByChannel[normalized] != nil { self.loadMessages(for: normalized) }
+                }
+            }
+            windowTrimWork[normalized] = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: work)
         } else {
             liveViewRefCounts[normalized] = count - 1
         }
@@ -3522,7 +3608,7 @@ final class PublicChatService: ObservableObject {
             await applyIncomingDeletes(deletes, channel: channel)
         }
         if !messageHits.isEmpty {
-            let inserted = await store.insertMessages(messageHits.map {
+            let inserted = await insertRoomMessages(messageHits.map {
                 (id: $0.txId, channel: $0.channel, senderAddress: $0.senderAddress, content: $0.content, blockTime: $0.blockTime)
             })
             for hit in messageHits {
@@ -3607,7 +3693,7 @@ final class PublicChatService: ObservableObject {
         let rows = found
             .filter { !hidden.contains($0.sender) }
             .map { (id: $0.txId, channel: arena, senderAddress: $0.sender, content: $0.content, blockTime: $0.blockTime) }
-        var changed = !(await store.insertMessages(rows)).isEmpty
+        var changed = !(await insertRoomMessages(rows)).isEmpty
         // Our own rows still on this phone's clock, or given up on, take the chain's time.
         for row in rows where localStampSentAt[row.id] != nil || droppedServiceRows.contains(row.id) {
             confirmLocalStamp(row.id)

@@ -241,159 +241,6 @@ enum VoiceNoteDurationCache {
     }
 }
 
-/// Plays back a single voice message. One instance per message bubble; the bubble shows the
-/// length read from the file's packets (`WebMOpusDecoder.duration(of:)`), and the audio is decoded
-/// only when Play is tapped. One note plays at a time (`VoicePlaybackCoordinator`).
-@MainActor
-final class PublicChatAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
-    @Published private(set) var isPlaying = false
-    /// The length is known: Play is on.
-    @Published private(set) var isReady = false
-    /// Decoding after Play was tapped.
-    @Published private(set) var isLoading = false
-    @Published private(set) var durationText = "0:00"
-
-    private var player: AVAudioPlayer?
-    private var decodedURL: URL?
-    private var data: Data?
-    private var isPreparing = false
-
-    func prepare(data: Data) {
-        self.data = data
-        guard !isReady, !isPreparing else { return }
-        isPreparing = true
-        Task.detached(priority: .utility) { [weak self] in
-            let duration = VoiceNoteDurationCache.duration(forKey: VoiceNoteDurationCache.key(for: data)) {
-                WebMOpusDecoder.duration(of: data)
-            }
-            await MainActor.run {
-                guard let self else { return }
-                self.isPreparing = false
-                guard let duration else {
-                    AppLog.log("[PublicChatAudioPlayer] Couldn't read a voice message's length")
-                    return
-                }
-                if self.player == nil { self.durationText = Self.formatDuration(duration) }
-                self.isReady = true
-            }
-        }
-    }
-
-    func toggle() {
-        if isPlaying {
-            pause()
-            return
-        }
-        if let player {
-            play(player)
-            return
-        }
-        guard let data, !isLoading else { return }
-        isLoading = true
-        Task.detached(priority: .userInitiated) { [weak self] in
-            var decodedURL: URL?
-            var player: AVAudioPlayer?
-            do {
-                let decoded = try WebMOpusDecoder.decodeToPCMFile(data: data)
-                decodedURL = decoded.url
-                player = try AVAudioPlayer(contentsOf: decoded.url, fileTypeHint: AVFileType.caf.rawValue)
-            } catch {
-                AppLog.log("[PublicChatAudioPlayer] Failed to decode voice message: %@", error.localizedDescription)
-            }
-            await MainActor.run { [player, decodedURL] in
-                guard let self else {
-                    if let decodedURL { try? FileManager.default.removeItem(at: decodedURL) }
-                    return
-                }
-                self.isLoading = false
-                guard let player, let decodedURL else {
-                    if let decodedURL { try? FileManager.default.removeItem(at: decodedURL) }
-                    return
-                }
-                self.decodedURL = decodedURL
-                player.delegate = self
-                player.prepareToPlay()
-                self.player = player
-                self.durationText = Self.formatDuration(player.duration)
-                self.play(player)
-            }
-        }
-    }
-
-    private func play(_ player: AVAudioPlayer) {
-        guard VoicePlaybackCoordinator.shared.willStart(self, stop: { [weak self] in self?.pause() }) else { return }
-        if player.currentTime >= player.duration { player.currentTime = 0 }
-        guard player.play() else {
-            VoicePlaybackCoordinator.shared.didStop(self)
-            return
-        }
-        isPlaying = true
-    }
-
-    private func pause() {
-        player?.pause()
-        isPlaying = false
-        VoicePlaybackCoordinator.shared.didStop(self)
-    }
-
-    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            self.isPlaying = false
-            VoicePlaybackCoordinator.shared.didStop(self)
-        }
-    }
-
-    private static func formatDuration(_ duration: TimeInterval) -> String {
-        let total = max(0, Int(duration.isFinite ? duration : 0))
-        return String(format: "%d:%02d", total / 60, total % 60)
-    }
-
-    deinit {
-        // A bubble dropped while playing: its audio stops with it, so give the session back.
-        VoicePlaybackCoordinator.shared.didStop(self)
-        if let decodedURL {
-            try? FileManager.default.removeItem(at: decodedURL)
-        }
-    }
-}
-
-/// A compact play/pause + duration bubble for a voice message, styled to match the surrounding
-/// text bubble's colors rather than Android's Material look.
-struct PublicChatAudioBubble: View {
-    let data: Data
-    let isOwnMessage: Bool
-    @StateObject private var player = PublicChatAudioPlayer()
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button {
-                player.toggle()
-            } label: {
-                Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.scaled(size: 26))
-            }
-            .disabled(!player.isReady || player.isLoading)
-
-            Text(player.durationText)
-                .font(.caption)
-                .monospacedDigit()
-
-            if !player.isReady || player.isLoading {
-                ProgressView()
-                    .controlSize(.mini)
-            }
-        }
-        .foregroundColor(isOwnMessage ? .white : .primary)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .frame(minWidth: 130, alignment: .leading)
-        .task {
-            player.prepare(data: data)
-        }
-    }
-}
-
 /// A long voice note's parts as the bubble plays them: the parts present, in index order.
 struct PublicChatVoiceNoteInput: Equatable {
     /// How many parts the note has in all.
@@ -427,6 +274,8 @@ final class PublicChatMultipartAudioPlayer: NSObject, ObservableObject, AVAudioP
     @Published private(set) var isLoading = false
     @Published private(set) var progress: Double = 0
     @Published private(set) var durationText = "0:00"
+    /// The note's shape for the waveform, as 1:1 chats draw it (`VoiceNoteInfoCache`).
+    @Published private(set) var waveformSamples: [Float] = []
 
     private var player: AVAudioPlayer?
     private var playbackURL: URL?
@@ -441,26 +290,43 @@ final class PublicChatMultipartAudioPlayer: NSObject, ObservableObject, AVAudioP
     /// from the parts' packets without decoding them (`WebMOpusDecoder.duration(ofParts:)`) and
     /// kept in `VoiceNoteDurationCache`, so scrolling a bubble back in costs nothing; the audio is
     /// decoded only on Play.
+    /// The length and waveform come from `VoiceNoteInfoCache` when this note was read before;
+    /// otherwise the parts are decoded once off the main thread (as a 1:1 voice note's are) and
+    /// cached, so scrolling the bubble back in costs nothing.
     func preload(_ input: PublicChatVoiceNoteInput) {
         let signature = input.signature
         guard loadedSignature != signature, !isPlaying else { return }
         loadedSignature = signature
+        let key = "room|" + VoiceNoteDurationCache.key(for: input)
+        if let info = VoiceNoteInfoCache.info(forKey: key) {
+            apply(info)
+            isLoading = false
+            return
+        }
         isLoading = duration == nil
         let contents = input.partContents
-        let key = VoiceNoteDurationCache.key(for: input)
         Task.detached(priority: .utility) { [weak self] in
-            let length = VoiceNoteDurationCache.duration(forKey: key) {
-                WebMOpusDecoder.duration(ofParts: PublicChatVoiceNoteInput.decodedParts(contents))
-            }
+            let decoded = try? WebMOpusDecoder.decodePartsToPCMFile(parts: PublicChatVoiceNoteInput.decodedParts(contents))
+            if let url = decoded?.url { try? FileManager.default.removeItem(at: url) }
+            let info = decoded.map { VoiceNoteInfoCache.Info(duration: $0.duration, waveform: $0.waveform) }
+            if let info { VoiceNoteInfoCache.store(info, forKey: key) }
             await MainActor.run {
                 guard let self, self.loadedSignature == signature else { return }
-                if let length, self.player == nil {
-                    self.duration = length
-                    self.durationText = Self.formatted(length)
+                if let info {
+                    self.apply(info)
+                } else if self.waveformSamples.isEmpty {
+                    self.waveformSamples = Array(repeating: 0.3, count: 40)
                 }
                 self.isLoading = false
             }
         }
+    }
+
+    private func apply(_ info: VoiceNoteInfoCache.Info) {
+        waveformSamples = info.waveform
+        guard player == nil else { return }
+        duration = info.duration
+        if !isPlaying { durationText = Self.formatted(info.duration) }
     }
 
     func toggle(_ input: PublicChatVoiceNoteInput) {
@@ -501,6 +367,7 @@ final class PublicChatMultipartAudioPlayer: NSObject, ObservableObject, AVAudioP
                     self.playbackSignature = signature
                     self.player = player
                     self.duration = decoded.duration
+                    self.waveformSamples = decoded.waveform
                     if let fraction = self.pendingSeekFraction {
                         player.currentTime = fraction * player.duration
                         self.pendingSeekFraction = nil
@@ -592,8 +459,9 @@ final class PublicChatMultipartAudioPlayer: NSObject, ObservableObject, AVAudioP
     }
 }
 
-/// The one bubble of a long voice note in a room: play, one scrubber across every part, the
-/// total length, and while parts are still on their way, "Receiving… 7 of 12".
+/// The one bubble of a voice note in a room, one part or many: play, the waveform as a scrubber
+/// across every part, the total length, and while parts are still on their way, "Receiving… 7 of
+/// 12". A one-part note is a long one with a single part.
 struct PublicChatVoiceNoteBubble: View {
     let input: PublicChatVoiceNoteInput
     let isOwnMessage: Bool
@@ -606,50 +474,49 @@ struct PublicChatVoiceNoteBubble: View {
             } label: {
                 if player.isLoading {
                     ProgressView()
-                        .controlSize(.small)
-                        .frame(width: 26, height: 26)
+                        .frame(width: 32, height: 32)
                 } else {
                     Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.scaled(size: 26))
+                        .font(.scaled(size: 32))
                 }
             }
             .disabled(player.isLoading)
 
+            // As a 1:1 voice note draws it (owner, 2026-11-25): the waveform, dragged to scrub.
             VStack(alignment: .leading, spacing: 4) {
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill((isOwnMessage ? Color.white : Color.secondary).opacity(0.3))
-                        Capsule()
-                            .fill(isOwnMessage ? Color.white : Color.accentColor)
-                            .frame(width: geometry.size.width * player.progress)
+                WaveformView(
+                    samples: player.waveformSamples,
+                    progress: player.progress,
+                    isOutgoing: isOwnMessage
+                )
+                .frame(height: 24)
+                .overlay {
+                    GeometryReader { geometry in
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        guard geometry.size.width > 0 else { return }
+                                        player.seek(toFraction: value.location.x / geometry.size.width)
+                                    }
+                            )
                     }
-                    .frame(height: 4)
-                    .frame(maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                guard geometry.size.width > 0 else { return }
-                                player.seek(toFraction: value.location.x / geometry.size.width)
-                            }
-                    )
                 }
-                .frame(height: 16)
 
-                HStack(spacing: 6) {
-                    Text(player.durationText)
-                        .monospacedDigit()
-                    if !input.isComplete {
-                        Text("Receiving… \(input.partContents.count) of \(input.count)")
-                    }
+                Text(player.durationText)
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundColor(isOwnMessage ? .white.opacity(0.8) : .secondary)
+                if !input.isComplete {
+                    Text("Receiving… \(input.partContents.count) of \(input.count)")
+                        .font(.caption2)
+                        .foregroundColor(isOwnMessage ? .white.opacity(0.8) : .secondary)
                 }
-                .font(.caption)
             }
-            .frame(minWidth: 120)
         }
         .foregroundColor(isOwnMessage ? .white : .primary)
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(minWidth: 180, alignment: .leading)
         .onAppear { player.preload(input) }

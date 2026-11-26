@@ -89,8 +89,10 @@ name, follows and bio, then your posts and replies; under the header Edit Profil
 (`ShareProfileSheet`: your Chatting Address's QR and Copy Share Link) and Log Out. Help moved to
 Settings. The old `ProfileView` screen is no longer a tab. **Every notification is behind Profile's
 bell** (top right, `AllNotificationsBell` → `AllNotificationsView`, since 2026-11-21): one list,
-newest first, of KaPosts activity and the wallet's (Kaspa and kUSDT received)
-(`KaPostsNotificationsView(allInOne: true)`), in a sheet with Done: no tabs, no settings gear, no
+newest first, of KaPosts activity, the wallet's (Kaspa and kUSDT received) and every @mention
+of you in a public chat or group (owner, 2026-11-25: `GlobalNotificationCenter.recordMention`,
+source `.mention`, whatever the room's bell or the group's setting; a row opens the room at the
+message, `PublicChatJumpRoute`, or the group) (`KaPostsNotificationsView(allInOne: true)`), in a sheet with Done: no tabs, no settings gear, no
 back arrow (owner's calls). The dock badge on Profile adds both unseen counts up. Beside the avatar
 is See All Posts (opens the KaPosts tab), and Profile has KaPosts' compose button. Neither the Wallet tab nor the KaPosts menu
 lists notifications any more; a push naming no post opens the bell (`NotificationsRoute`). Posts
@@ -110,6 +112,12 @@ then yours, then people you follow, then the rest, most liked first within each
 (`commentsExcludingThread`). A reply shown outside its conversation (a profile's Replies,
 Bookmarks) says "Replying to <name>" (`replyingToLabel`, from the reply's first signed mention,
 which K writes as the parent's author). Feed rows keep the full date under the actions.
+Tapping your own @ anywhere (rooms, KaPost posts, a member's View Profile) opens the dock's
+Profile tab, never a visitor's copy in Kaspa Hub (`KaPostsDeepLink.openProfile`, owner
+2026-11-25). The dock copy over KaPost's full-screen screens has a fade under it
+(`KaPostsDockFade`), so text doesn't run through its icons. A public room hidden behind another
+tab keeps its rows for 2 minutes (`windowTrimWork`) and its scroll place: only a reader who was at
+the newest message is taken to the newest on return.
 Tapping the dock over KaPost's full-screen screens closes them through UIKit with no animation
 (`closeAllCovers`), so the tab shows as from any other tab, never a slide down. Switching
 accounts shows the loading globe between the Log Out and the sign-in
@@ -235,15 +243,22 @@ bell, and your profile is the dock's Profile tab; Edit Profile's Username sectio
 .kachat tab;
 tips go through `ChatService.sendPayment(tip:)`) and Public Chats (`Views/Chat/PublicChat*`,
 `PublicChatService`, `PublicChatStore` in `KaChatBroadcasts-<hash>.sqlite`). Room messages are cached on the phone (`KaChatBroadcasts-<hash>.sqlite`; 30 days for indexer-tracked
-rooms, the room's setting up to 3 days otherwise). A message removed from the indexer (a moderator,
-or its sender's delete) goes from the cache too (owner, 2026-11-25, `dropRowsTheIndexerNoLongerHas`):
-a page answers for the span between its own oldest and newest rows, so a delivered row in it that
-isn't on the page is deleted, with its reactions and edits. Only from the app-wide indexer, for
-rooms it tracks, never the machinery rooms or an empty page, never below the page's oldest row
-(an indexer holding less than the phone says nothing about older messages), a minute inside both
-edges, not the newest 3 minutes or the oldest day, never your own messages; a row goes on its
-second miss, and a read that would remove more than a handful (over 3 and over a fifth) removes
-nothing and logs. **Delete for Everyone** (owner, 2026-11-25): your own delivered text message's
+rooms, the room's setting up to 3 days otherwise). **For a room the indexer tracks, the indexer is
+the truth** (owner, 2026-11-25: "work like KaPost", `dropRowsTheIndexerNoLongerHas`): what a read
+returns is what the room shows, and a delivered message the phone holds in the span the read
+answers for, that the read doesn't have, goes with its reactions and edits (a moderator's removal,
+its sender's delete, anything the indexer no longer serves). The newest page answers from its
+oldest row up to 90 seconds ago, so the newest message goes too (about 16 s with the room open, two
+8 s polls; the sweep beat for a closed bell-on room; on opening otherwise); an older page answers
+between its oldest row and `before`, a minute inside both. Never below the page's oldest row (an
+indexer holding less than the phone says nothing about older messages), never the oldest day of
+the 30 days, never the machinery rooms, an empty page or a failed read; only the app-wide indexer;
+your own messages once 5 minutes old; a row goes on its second miss, or its first on the first
+read after the room opens and in the Rooms list's check. That check
+(`checkListedRoomsAgainstIndexer`, when the Rooms page shows) reads each indexed room nothing else
+keeps current (bell off, not open) once, at most every 2 minutes, so previews are current too. No brake on how many go at
+once: if the indexer loses history, phones show that too, as KaPost would. The cache stays for
+drawing at once, the Chats list, outages and rooms with no indexer. **Delete for Everyone** (owner, 2026-11-25): your own delivered text message's
 menu in a room, after a confirmation, sends `{"type":"delete","targetTxId":...}` in the room
 (`MessageDeleteCodec`, `deletePublicChatMessage`); the message goes once the delete is sent, and
 stays (edits and reactions too) if it isn't. A delete counts only from the target's sender, in that
@@ -251,7 +266,9 @@ room, never in the machinery rooms (chess, bots, arcade); applied from pages, sw
 stream (`applyIncomingDeletes`) and remembered per account as room|txid|sender
 (`PublicChatStore.recordDelete`, `kachat_room_deletes_v2_<wallet>`, newest 2,000) so the message
 can't come back; never a row, banner or push. The indexer removes the target (indexer repo
-docs/ROOM_MESSAGE_DELETES.md). Room messages translate like KaPost posts:
+docs/ROOM_MESSAGE_DELETES.md). Room voice notes look like 1:1's (owner, 2026-11-25): the waveform, dragged to scrub, in
+`PublicChatVoiceNoteBubble` for one part or many (a one-part note is a long note of one part;
+length and waveform cached in `VoiceNoteInfoCache`). Room messages translate like KaPost posts:
 a Translate link under someone else's message in another language (owner, 2026-11-24), and in its
 long-press menu (`PostTranslationService`, served by the message indexer). Public rooms are the KaChat
 tab's second page (owner, 2026-11-25): the cycle button beside the KaChat title (`ListPage`,
@@ -794,6 +811,17 @@ reads the network without copying the settings, and `KachatNameLabel.showsEnding
 lays itself out in one pass (`KaPostActionRowLayout`: 18, 12 or 8 pt gaps, whichever fits; not
 ViewThatFits). The Chats list rebuilds coalesced (180 ms, never held past a second) and only writes
 a changed list.
+The 2026-11-25 sweep: names and pictures redraw through `IdentityChangeTicker` (KNSAvatarView.swift:
+the registry, social pictures and Address Book merged into one publish per quarter second), which
+`KNSAvatarView` and KaPostsView observe instead of the stores; KaPost's two hidden feeds don't redraw
+(`KaPostsHiddenFreeze`); a post's link checks (`textParts`), styled link text in chat bubbles,
+group @mention text, room @username scans (`UsernameMention.tokens`) and long voice notes' and
+multi-part photos' decoded parts (`PartsInputMemo`) are cached; a photo bubble shows a decoded
+thumbnail on its first frame (`cachedThumbnail`) and only a GIF's bytes are read to animate it.
+Opening a post uses the cover's own id on its first frame (it flashed "This post could not be
+loaded"); the slide's picture beneath is a full-resolution `snapshotView`; a swipe back that
+closes the post is never put back on screen (the pop check waits 0.15 s); a list's pan waits for
+the edge swipe to fail.
 
 ### @mentions (2026-11-24)
 

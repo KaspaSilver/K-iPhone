@@ -620,6 +620,26 @@ final class GroupChatService: ObservableObject {
         )
     }
 
+    /// A message that @'s you: a row in Profile's bell (owner, 2026-11-25), whatever the group's
+    /// notification setting. Not from a member you muted or hid, nor history from before you joined.
+    private func recordMentionIfAny(group: GroupChat, message: GroupMessage) {
+        guard !message.isOutgoing,
+              let me = WalletManager.shared.currentWallet?.publicAddress, !me.isEmpty,
+              message.timestamp >= group.createdAt.addingTimeInterval(-120),
+              GroupMentionCodec.mentions(me, in: MessageReplyCodec.unwrappedText(message.content)) else { return }
+        let sender = message.senderAddress ?? ""
+        if !sender.isEmpty, quietMemberAddresses(for: group.id).contains(sender) { return }
+        let preview = GroupMentionCodec.decodeForDisplay(
+            MessageReplyCodec.previewText(for: message.content),
+            members: group.members,
+            resolveDisplayName: { self.memberDisplayName($0, in: group) }
+        )
+        GlobalNotificationCenter.shared.recordMention(
+            sender: memberDisplayName(sender, in: group), place: group.name, preview: preview,
+            txId: message.txId, blockTime: message.blockTime, target: "group:\(group.id)"
+        )
+    }
+
     /// A message is personal when it replies to one of mine or @mentions me, by address or by my
     /// KNS name (the notification extension's mentions-only rule). No wallet: personal.
     private func isPersonalMessage(_ content: String) -> Bool {
@@ -2896,6 +2916,7 @@ final class GroupChatService: ObservableObject {
                 isOutgoing: senderAddress == WalletManager.shared.currentWallet?.publicAddress, deliveryStatus: .sent
             )
             groupMessages[group.id, default: []].append(message)
+            recordMentionIfAny(group: group, message: message)
             // Own message echoed back (sent from another device of this wallet, or self-stash
             // catch-up): keep the extension's own-txId list fresh so reactions to it are
             // recognized as personal in the push path. Rare (dedup drops re-served own sends

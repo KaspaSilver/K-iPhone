@@ -2692,7 +2692,13 @@ struct GroupChatDetailView: View {
     }
 
     /// The pieces of a long voice note's bubble: the parts present, in index order.
+    /// Memoized per set of parts (`PartsInputMemo`): every redraw of the row parsed each part's
+    /// envelope and decoded its bytes again (2026-11-25 smoothness sweep).
     private func groupVoicePartsInput(for group: GroupVoicePartGroup) -> VoiceNotePartsInput {
+        PartsInputMemo.voice(count: group.count, txIds: group.parts.map(\.txId)) { groupVoicePartsInputUncached(for: group) }
+    }
+
+    private func groupVoicePartsInputUncached(for group: GroupVoicePartGroup) -> VoiceNotePartsInput {
         var pieces: [VoiceNotePartsInput.Piece] = []
         for part in group.parts {
             guard let media = MediaFile.from(part.content, cacheKey: part.txId),
@@ -2705,7 +2711,13 @@ struct GroupChatDetailView: View {
     }
 
     /// The chunks of a multi-part photo's bubble: the parts present, in index order.
+    /// Memoized per set of parts (`PartsInputMemo`): every redraw of the row parsed each part's
+    /// envelope and decoded its bytes again (2026-11-25 smoothness sweep).
     private func groupPhotoPartsInput(for group: GroupVoicePartGroup) -> PhotoPartsInput {
+        PartsInputMemo.photo(count: group.count, txIds: group.parts.map(\.txId)) { groupPhotoPartsInputUncached(for: group) }
+    }
+
+    private func groupPhotoPartsInputUncached(for group: GroupVoicePartGroup) -> PhotoPartsInput {
         var pieces: [PhotoPartsInput.Piece] = []
         var mimeType = "image/jpeg"
         for part in group.parts {
@@ -2918,12 +2930,17 @@ private struct GroupMessageBubbleRow: View {
         return cache
     }()
 
+    /// The text itself and the names revision are in the key: an edit keeps the id (and often
+    /// the length), and renames or Show .kachat Endings change the decoded names (audit
+    /// 2026-11-24 #10).
+    private var memoKey: String {
+        let raw = replyQuote?.text ?? message.content
+        return "\(group.id)|\(message.id.uuidString)|\(groupMemoContentStamp(raw))|\(group.members.count)|\(KachatNamesRegistry.shared.identityRevision)|\(GroupDisplayNamesRevision.shared.value)"
+    }
+
     private var displayContent: String {
         let raw = replyQuote?.text ?? message.content
-        // The text itself and the names revision are in the key: an edit keeps the id (and
-        // often the length), and renames or Show .kachat Endings change the decoded names
-        // (audit 2026-11-24 #10).
-        let key = "\(group.id)|\(message.id.uuidString)|\(groupMemoContentStamp(raw))|\(group.members.count)|\(KachatNamesRegistry.shared.identityRevision)|\(GroupDisplayNamesRevision.shared.value)" as NSString
+        let key = memoKey as NSString
         if let cached = Self.displayMemo.object(forKey: key) { return cached as String }
         let text = GroupMentionCodec.decodeForDisplay(raw, members: group.members, resolveDisplayName: resolveDisplayName(for:))
         Self.displayMemo.setObject(text as NSString, forKey: key)
@@ -2943,8 +2960,24 @@ private struct GroupMessageBubbleRow: View {
     /// Members actually @mentioned in this message (their `@address` token is present in the raw text).
     private var mentionedMembers: [GroupMember] {
         let raw = replyQuote?.text ?? message.content
+        // a mention is "@kaspa:..." / "@kaspatest:...": most messages have none, and skip the
+        // per-member search (2026-11-25 smoothness sweep)
+        guard raw.contains("@kaspa") else { return [] }
         return group.members.filter { raw.contains("@\($0.address)") }
     }
+
+    private final class AttributedBox {
+        let value: AttributedString
+        init(_ value: AttributedString) { self.value = value }
+    }
+
+    /// `mentionAttributedContent` per message, names revision and side: it sorted the members,
+    /// rewrote the text, ran the link detector and walked it per member on every redraw.
+    private static let mentionMemo: NSCache<NSString, AttributedBox> = {
+        let cache = NSCache<NSString, AttributedBox>()
+        cache.countLimit = 400
+        return cache
+    }()
 
     /// Label to show for a mention: the person's KNS domain (what the user asked to see), else the
     /// friendly display name. Read from the synchronous KNS cache.
@@ -2956,6 +2989,14 @@ private struct GroupMessageBubbleRow: View {
     /// accent-coloured and TAPPABLE (a `kachat-mention://<address>` link the bubble's OpenURLAction
     /// resolves to a 1:1 chat).
     private func mentionAttributedContent() -> AttributedString {
+        let key = "\(memoKey)|\(message.isOutgoing)" as NSString
+        if let cached = Self.mentionMemo.object(forKey: key) { return cached.value }
+        let built = buildMentionAttributedContent()
+        Self.mentionMemo.setObject(AttributedBox(built), forKey: key)
+        return built
+    }
+
+    private func buildMentionAttributedContent() -> AttributedString {
         // Swap each @address → @label (longest address first for safety), like decodeForDisplay.
         var display = replyQuote?.text ?? message.content
         for m in group.members.sorted(by: { $0.address.count > $1.address.count }) {

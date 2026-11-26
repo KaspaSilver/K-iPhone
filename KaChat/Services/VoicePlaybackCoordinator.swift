@@ -7,7 +7,7 @@ import AVFoundation
 /// resumed. A player calls `willStart` right before it plays (the one playing before is stopped,
 /// and the session is set to `.playback` and made active) and `didStop` when it pauses, stops or
 /// finishes (the session is deactivated with `.notifyOthersOnDeactivation`). The players that do:
-/// room bubbles (`PublicChatAudioPlayer`), 1:1 and group bubbles (`AudioPlaybackHelper`,
+/// room bubbles (`PublicChatMultipartAudioPlayer`), 1:1 and group bubbles (`AudioPlaybackHelper`,
 /// `MultipartAudioPlaybackHelper` in MessageBubbleView.swift) and both composers' previews
 /// (ChatDetailView, `VoiceNoteRecorder`), and the Nextcloud viewer's video and audio
 /// (`NextcloudMediaPlayback`). Audio that doesn't go through here keeps the session as it leaves

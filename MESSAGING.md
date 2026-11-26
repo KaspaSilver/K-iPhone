@@ -625,9 +625,10 @@ delete is a room message of its own, sent in the same room:
     the target from that sender doesn't bring it back;
   - announce nothing for it. K's push extension silences one, like edits.
 - **The KaChat indexer** removes the target and its reactions and edits from the room's history,
-  and sends no push for the delete (indexer repo `docs/ROOM_MESSAGE_DELETES.md`). K also drops any
-  cached message the indexer no longer serves within a page's span, which covers moderator
-  removals too.
+  and sends no push for the delete (indexer repo `docs/ROOM_MESSAGE_DELETES.md`). For a room the
+  indexer tracks, the indexer is the truth: K drops any cached message the indexer no longer
+  serves within the span a read covers (the newest page up to 90 seconds ago), which covers
+  moderator removals and the newest message too.
 - **The chain:** the message stays on the Kaspa network. "Delete for everyone" means every K and
   the indexer stop showing it, not that it's erased.
 - **K:** Delete for Everyone in a room message's menu, on your own delivered text messages, after

@@ -23,9 +23,31 @@ enum UsernameMention {
         let name: String
     }
 
+    private final class TokensBox {
+        let tokens: [Token]
+        init(_ tokens: [Token]) { self.tokens = tokens }
+    }
+
+    /// Per text: a room's bubbles ask on every redraw (the outline, the styled text), and the
+    /// regex ran each time (2026-11-25 smoothness sweep). NSCache is thread-safe.
+    private static let tokenMemo: NSCache<NSString, TokensBox> = {
+        let cache = NSCache<NSString, TokensBox>()
+        cache.countLimit = 1_000
+        return cache
+    }()
+
     /// Every username-shaped @token in `text`. Cheap when there's no "@".
     static func tokens(in text: String) -> [Token] {
-        guard text.contains("@"), let regex = tokenRegex else { return [] }
+        guard text.contains("@") else { return [] }
+        let key = text as NSString
+        if let cached = tokenMemo.object(forKey: key) { return cached.tokens }
+        let found = scanTokens(in: text)
+        tokenMemo.setObject(TokensBox(found), forKey: key)
+        return found
+    }
+
+    private static func scanTokens(in text: String) -> [Token] {
+        guard let regex = tokenRegex else { return [] }
         let ns = text as NSString
         return regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).compactMap { match in
             let nameRange = match.range(at: 2)
@@ -71,15 +93,14 @@ enum UsernameMention {
         return query.lowercased()
     }
 
-    /// Opens the profile of whoever `name` belongs to (KaPost's profile sheet). Unknown names do
-    /// nothing.
+    /// Opens the profile of whoever `name` belongs to (KaPost's profile sheet; your own name, the
+    /// Profile tab). Unknown names do nothing.
     @MainActor
     static func openProfile(name: String) {
         Task { @MainActor in
             guard let resolution = NameServicesClient.primary(of: await NameServicesClient.shared.resolveEverywhere(name), typed: name),
                   let address = resolution.address else { return }
-            KaPostsDeepLink.pendingProfileAddress = address
-            NotificationCenter.default.post(name: .openKaPostsProfile, object: nil)
+            KaPostsDeepLink.openProfile(address: address)
         }
     }
 }

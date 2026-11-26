@@ -4279,7 +4279,13 @@ struct ChatDetailView: View {
     }
 
     /// The pieces of a long voice note's bubble: the parts present, in index order.
+    /// Memoized per set of parts (`PartsInputMemo`): every redraw of the row parsed each part's
+    /// envelope and decoded its bytes again (2026-11-25 smoothness sweep).
     private func voicePartsInput(for group: VoicePartGroup) -> VoiceNotePartsInput {
+        PartsInputMemo.voice(count: group.count, txIds: group.parts.map(\.txId)) { voicePartsInputUncached(for: group) }
+    }
+
+    private func voicePartsInputUncached(for group: VoicePartGroup) -> VoiceNotePartsInput {
         var pieces: [VoiceNotePartsInput.Piece] = []
         for part in group.parts {
             guard let media = MediaFile.from(part.content, cacheKey: part.txId),
@@ -4292,7 +4298,13 @@ struct ChatDetailView: View {
     }
 
     /// The chunks of a multi-part photo's bubble: the parts present, in index order.
+    /// Memoized per set of parts (`PartsInputMemo`): every redraw of the row parsed each part's
+    /// envelope and decoded its bytes again (2026-11-25 smoothness sweep).
     private func photoPartsInput(for group: VoicePartGroup) -> PhotoPartsInput {
+        PartsInputMemo.photo(count: group.count, txIds: group.parts.map(\.txId)) { photoPartsInputUncached(for: group) }
+    }
+
+    private func photoPartsInputUncached(for group: VoicePartGroup) -> PhotoPartsInput {
         var pieces: [PhotoPartsInput.Piece] = []
         var mimeType = "image/jpeg"
         for part in group.parts {

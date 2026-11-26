@@ -1429,6 +1429,13 @@ struct LinkifiedMessageTextView: UIViewRepresentable {
             self.parent = parent
         }
 
+        /// Styled message text shared by every coordinator (`makeAttributedText`).
+        private static let sharedAttributed: NSCache<NSString, NSAttributedString> = {
+            let cache = NSCache<NSString, NSAttributedString>()
+            cache.countLimit = 500
+            return cache
+        }()
+
         func isAssigned(_ attributed: NSAttributedString) -> Bool {
             assignedAttributedText === attributed
         }
@@ -1489,6 +1496,17 @@ struct LinkifiedMessageTextView: UIViewRepresentable {
 
             let baseColor = isSingleEmojiOnly ? UIColor.label : (isOutgoing ? UIColor.white : UIColor.label)
             let bodyFont = UIFont.preferredFont(forTextStyle: .body)
+            // A row coming back on screen has a new coordinator: the styled text is shared across
+            // them, so the link detector doesn't run again for every reappearance (2026-11-25
+            // smoothness sweep). The text size is in the key, for Dynamic Type.
+            let sharedKey = "\(isOutgoing)|\(isSingleEmojiOnly)|\(bodyFont.pointSize)|\(text)" as NSString
+            if let shared = Self.sharedAttributed.object(forKey: sharedKey) {
+                cachedText = text
+                cachedIsOutgoing = isOutgoing
+                cachedIsSingleEmojiOnly = isSingleEmojiOnly
+                cachedAttributedText = shared
+                return shared
+            }
             let baseFont = isSingleEmojiOnly ? bodyFont.withSize(bodyFont.pointSize * 5.0) : bodyFont
             let attributed = NSMutableAttributedString(
                 string: text,
@@ -1515,6 +1533,7 @@ struct LinkifiedMessageTextView: UIViewRepresentable {
             }
 
             let result = NSAttributedString(attributedString: attributed)
+            Self.sharedAttributed.setObject(result, forKey: sharedKey)
             cachedText = text
             cachedIsOutgoing = isOutgoing
             cachedIsSingleEmojiOnly = isSingleEmojiOnly
@@ -1741,6 +1760,28 @@ struct LazyImageBubble: View {
         self.onReply = onReply
         self.onDoubleTap = onDoubleTap
         self.onSelect = onSelect
+        // A thumbnail already decoded shows on the first frame, at its own shape: starting empty
+        // drew every photo at the placeholder's size and then resized it, so rows jumped as they
+        // came back on screen (2026-11-25 smoothness sweep).
+        if let cached = media.cachedThumbnail(cacheKey: imageCacheKey ?? txId) {
+            _thumbnailState = State(initialValue: (txId, cached))
+        }
+    }
+
+    /// A GIF: its bytes, checked off the main thread, so the bubble plays it. Only a real GIF
+    /// within the play limits; anything else keeps the still thumbnail. Only for a GIF's media
+    /// type: every photo used to decode its whole file here on every appearance, filling the
+    /// shared data cache that voice notes and photo parts read from (2026-11-25 sweep).
+    private func loadAnimationIfGIF() async {
+        guard media.mimeType.lowercased().contains("gif") else { return }
+        let media = media
+        let cacheKey = imageCacheKey
+        let animated = await Task.detached(priority: .utility) { () -> Data? in
+            guard let data = media.fileData(cacheKey: cacheKey), GIFPrep.isSafeToAnimate(data) else { return nil }
+            return data
+        }.value
+        guard !Task.isCancelled else { return }
+        if let animated { animatedState = (txId, animated) }
     }
 
     var body: some View {
@@ -1834,17 +1875,14 @@ struct LazyImageBubble: View {
                 return
             }
             thumbnailState = (txId, loadedThumbnail)
-            // A GIF: its bytes, checked off the main thread, so the bubble plays it. Only a real
-            // GIF within the play limits; anything else keeps the still thumbnail.
-            let media = media
-            let cacheKey = imageCacheKey
-            let animated = await Task.detached(priority: .utility) { () -> Data? in
-                guard let data = media.fileData(cacheKey: cacheKey), GIFPrep.isSafeToAnimate(data) else { return nil }
-                return data
-            }.value
-            guard !Task.isCancelled else { return }
-            if let animated { animatedState = (txId, animated) }
+            await loadAnimationIfGIF()
         }
+        // A thumbnail found at once (`init`) still plays if it's a GIF.
+        .task(id: "gif|\(txId)") {
+            guard animatedState?.txId != txId, thumbnailState?.txId == txId else { return }
+            await loadAnimationIfGIF()
+        }
+
         .fullScreenCover(isPresented: $showImagePreview) {
             if let previewImage, let sharePayload {
                 ImagePreviewView(
@@ -2081,6 +2119,12 @@ struct MediaFile: Codable {
             Self.imageCache.setObject(image, forKey: key, cost: Self.cacheCost(for: image))
         }
         return image
+    }
+
+    /// The thumbnail if it's already decoded in memory, without waiting (a bubble's first frame).
+    func cachedThumbnail(cacheKey: String?, maxPixelSize: CGFloat = 440) -> UIImage? {
+        guard isImage, let key = Self.thumbnailCacheKey(from: cacheKey, maxPixelSize: maxPixelSize) else { return nil }
+        return Self.thumbnailCache.object(forKey: key)
     }
 
     func thumbnailImage(cacheKey: String?, maxPixelSize: CGFloat = 440) async -> UIImage? {
@@ -2676,7 +2720,10 @@ struct PhotoPartsInput {
     }
     private static let joinedCache: NSCache<NSString, Box> = {
         let cache = NSCache<NSString, Box>()
-        cache.countLimit = 16
+        // 16 was fewer than a chat with photos holds on screen and just above it: a miss joins
+        // and base64-encodes the whole photo during a redraw (2026-11-25 smoothness sweep)
+        cache.countLimit = 48
+        cache.totalCostLimit = 40 * 1024 * 1024
         return cache
     }()
 
@@ -2689,7 +2736,7 @@ struct PhotoPartsInput {
         joined.reserveCapacity(parts.reduce(0) { $0 + $1.data.count })
         for part in parts { joined.append(part.data) }
         let media = MediaFile(name: mimeType.lowercased() == "image/gif" ? "animation.gif" : "photo.jpg", mimeType: mimeType, data: joined)
-        Self.joinedCache.setObject(Box(media), forKey: key)
+        Self.joinedCache.setObject(Box(media), forKey: key, cost: joined.count * 2)
         return media
     }
 }
@@ -2732,6 +2779,45 @@ struct PhotoPartsPlaceholderBubble: View {
 
 /// The parts of one long voice note that are on this device, for its single bubble
 /// (MESSAGING.md, "Long voice notes (multi-part)"). Built by `ChatDetailView` from the grouped rows.
+/// The decoded parts of long voice notes and multi-part photos, per set of parts: a part's
+/// content never changes once it's on chain, and the row's every redraw used to parse each part's
+/// envelope and decode its bytes on the main thread. Cost-limited by the bytes held.
+@MainActor
+enum PartsInputMemo {
+    private final class Box {
+        let voice: VoiceNotePartsInput?
+        let photo: PhotoPartsInput?
+        init(voice: VoiceNotePartsInput? = nil, photo: PhotoPartsInput? = nil) { self.voice = voice; self.photo = photo }
+    }
+
+    private static let cache: NSCache<NSString, Box> = {
+        let cache = NSCache<NSString, Box>()
+        cache.countLimit = 64
+        cache.totalCostLimit = 32 * 1024 * 1024
+        return cache
+    }()
+
+    private static func key(_ kind: String, _ count: Int, _ txIds: [String]) -> NSString {
+        "\(kind)|\(count)|\(txIds.joined(separator: ","))" as NSString
+    }
+
+    static func voice(count: Int, txIds: [String], build: () -> VoiceNotePartsInput) -> VoiceNotePartsInput {
+        let key = key("v", count, txIds)
+        if let hit = cache.object(forKey: key)?.voice { return hit }
+        let built = build()
+        cache.setObject(Box(voice: built), forKey: key, cost: built.parts.reduce(0) { $0 + $1.data.count })
+        return built
+    }
+
+    static func photo(count: Int, txIds: [String], build: () -> PhotoPartsInput) -> PhotoPartsInput {
+        let key = key("p", count, txIds)
+        if let hit = cache.object(forKey: key)?.photo { return hit }
+        let built = build()
+        cache.setObject(Box(photo: built), forKey: key, cost: built.parts.reduce(0) { $0 + $1.data.count })
+        return built
+    }
+}
+
 struct VoiceNotePartsInput {
     struct Piece {
         let index: Int
@@ -3097,7 +3183,8 @@ private struct MultipartAudioShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-private struct WaveformView: View {
+/// Not private: public chat voice notes draw the same one (`PublicChatVoiceNoteBubble`).
+struct WaveformView: View {
     let samples: [Float]
     let progress: Double
     let isOutgoing: Bool

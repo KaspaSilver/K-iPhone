@@ -88,6 +88,11 @@ struct PublicChatChannelView: View {
         var id: String { address }
     }
     @State private var isBottomAnchorVisible = true
+    /// Whether the list has been on screen before: coming back from another tab (a profile opened
+    /// from here, owner 2026-11-25) keeps the reader where they were, and only someone who was
+    /// at the newest message is taken to the newest again.
+    @State private var listHasAppeared = false
+    @State private var wasAtBottomWhenHidden = true
     @State private var bottomAnchorVisibilityWorkItem: DispatchWorkItem?
     @State private var feeEstimateSompi: UInt64?
     @State private var isEstimatingFee = false
@@ -167,6 +172,8 @@ struct PublicChatChannelView: View {
             }
         }
         .onDisappear {
+            // read before the bottom marker's own (delayed) disappear clears it
+            wasAtBottomWhenHidden = isBottomAnchorVisible
             ChatService.shared.setDraft(messageText, for: "room:\(PublicChatChannelName.normalize(channelName))")
             // Leaving the room mid-recording: nothing is sent, the file goes, and the audio
             // session is given back.
@@ -552,7 +559,16 @@ struct PublicChatChannelView: View {
                             proxy.scrollTo("top_anchor", anchor: .top)
                         }
                         .onAppear {
+                            defer { listHasAppeared = true }
+                            if takeJumpRoute(in: messages) { return }
+                            guard !listHasAppeared || wasAtBottomWhenHidden else { return }
                             scrollToBottom(using: proxy, animated: false)
+                        }
+                        // a mention in Profile's bell for this room, while it's already open
+                        .onReceive(NotificationCenter.default.publisher(for: .openPublicChat)) { _ in
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                _ = takeJumpRoute(in: publicChatService.messages(forChannel: channelName))
+                            }
                         }
                         // Tapping into the composer scrolls to the newest message rather than
                         // letting the keyboard rise over wherever you happened to be reading.
@@ -639,6 +655,18 @@ struct PublicChatChannelView: View {
                 }
             }
         }
+    }
+
+    /// A mention tapped in Profile's bell for this room (`PublicChatJumpRoute`): to that message,
+    /// once the list has laid out. False when there's none for this room.
+    private func takeJumpRoute(in messages: [PublicChatMessage]) -> Bool {
+        guard let route = PublicChatJumpRoute.pending,
+              PublicChatChannelName.normalize(route.channel) == PublicChatChannelName.normalize(channelName) else { return false }
+        PublicChatJumpRoute.pending = nil
+        // not in the loaded window (an older message): the room opens as usual
+        guard messages.contains(where: { $0.id == route.txId }) else { return false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { pendingJumpToTxId = route.txId }
+        return true
     }
 
     private func scrollToBottom(using proxy: ScrollViewProxy, animated: Bool) {
@@ -1466,8 +1494,7 @@ struct PublicChatChannelView: View {
 
     /// Their KaPosts profile, on the Feed tab (KaPostsView presents it).
     private func viewProfile(_ address: String) {
-        KaPostsDeepLink.pendingProfileAddress = address
-        NotificationCenter.default.post(name: .openKaPostsProfile, object: nil)
+        KaPostsDeepLink.openProfile(address: address)
     }
 }
 
@@ -1822,15 +1849,21 @@ private struct PublicChatMessageRow: View, Equatable {
 
     /// Someone else's message that @'s you by your username.
     private var mentionsMe: Bool {
-        MentionsFeature.enabled && !isOwnMessage && UsernameMention.mentionsMe(shownText)
+        // not a voice note's JSON (hashed and scanned for nothing on every redraw)
+        MentionsFeature.enabled && !isOwnMessage && displayText.first != "{" && UsernameMention.mentionsMe(shownText)
     }
 
     @ViewBuilder
     private func bubbleContent(voicePayload: VoiceMessageSniff.Payload?) -> some View {
         if let voiceNote {
             PublicChatVoiceNoteBubble(input: voiceNote, isOwnMessage: isOwnMessage)
-        } else if let voicePayload {
-            PublicChatAudioBubble(data: voicePayload.data, isOwnMessage: isOwnMessage)
+        } else if voicePayload != nil {
+            // A one-part note plays as a long one with a single part: the same bubble, with the
+            // waveform and its scrubber, as in 1:1 chats (owner, 2026-11-25).
+            PublicChatVoiceNoteBubble(
+                input: PublicChatVoiceNoteInput(count: 1, partContents: [displayText]),
+                isOwnMessage: isOwnMessage
+            )
         } else if shownText.utf8.count > Self.inlineTextTruncationThreshold {
             truncatedTextContent
         } else if MentionsFeature.enabled, let mentioned = UsernameMention.attributed(shownText, isOutgoing: isOwnMessage) {

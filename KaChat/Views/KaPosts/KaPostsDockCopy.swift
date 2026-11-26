@@ -154,3 +154,25 @@ struct KaPostsDockCopy: View {
         return count > 0 ? Text("\(count) unread") : Text("")
     }
 }
+
+/// The fade behind the dock copy over KaPosts' full-screen screens: the screen's background
+/// rises from the bottom edge to a little above the dock, so text scrolling under it softens out
+/// instead of running through the icons.
+struct KaPostsDockFade: View {
+    /// How far above the dock's top the fade starts.
+    static let rise: CGFloat = 26
+
+    var body: some View {
+        LinearGradient(
+            stops: [
+                .init(color: Color(.systemBackground).opacity(0), location: 0),
+                .init(color: Color(.systemBackground).opacity(0.8), location: 0.45),
+                .init(color: Color(.systemBackground).opacity(0.94), location: 1),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+}

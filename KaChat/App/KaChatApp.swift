@@ -1582,6 +1582,20 @@ enum KaPostsDeepLink {
     static var pendingProfileAddress: String?
     /// A pre-written post from another app, for the new-post composer.
     static var pendingComposeText: String?
+
+    /// Someone's KaPost profile, from anywhere (an @mention, a room member, the bell). Your own
+    /// opens the dock's Profile tab instead (owner, 2026-11-25), not a visitor's copy in Kaspa Hub.
+    @MainActor
+    static func openProfile(address: String) {
+        if let me = WalletManager.shared.currentWallet?.publicAddress,
+           me.lowercased() == address.lowercased() {
+            NotificationCenter.default.post(name: .kaPostsCloseCovers, object: nil)
+            NotificationCenter.default.post(name: .kaPostsSelectDockTab, object: AppTab.profile)
+            return
+        }
+        pendingProfileAddress = address
+        NotificationCenter.default.post(name: .openKaPostsProfile, object: nil)
+    }
 }
 
 extension Notification.Name {

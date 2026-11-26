@@ -3385,3 +3385,4 @@
 "Delete for Everyone?" = "حذف لدى الجميع؟";
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "تختفي من هذه الغرفة لدى كل من يستخدم K. لكنها تبقى على شبكة Kaspa، حيث يمكن لأي شخص يقرأ السلسلة أن يجدها. الحذف يكلّف رسوم شبكة بسيطة.";
 "Couldn't delete the message. Try again." = "تعذّر حذف الرسالة. حاول مرة أخرى.";
+"%@ mentioned you in %@" = "أشار إليك %@ في %@";

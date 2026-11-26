@@ -3385,3 +3385,4 @@
 "Delete for Everyone?" = "Xóa với mọi người?";
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Tin nhắn sẽ biến mất khỏi phòng này với mọi người dùng K. Nó vẫn còn trên mạng Kaspa, nơi bất kỳ ai đọc chuỗi vẫn có thể tìm thấy. Việc xóa tốn một khoản phí mạng nhỏ.";
 "Couldn't delete the message. Try again." = "Không thể xóa tin nhắn. Hãy thử lại.";
+"%@ mentioned you in %@" = "%@ đã nhắc đến bạn trong %@";

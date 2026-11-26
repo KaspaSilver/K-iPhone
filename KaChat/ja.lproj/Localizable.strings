@@ -3385,3 +3385,4 @@
 "Delete for Everyone?" = "全員から削除しますか？";
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "K を使う全員について、このルームから消えます。Kaspa ネットワーク上には残り、チェーンを読む人は誰でも見つけられます。削除には少額のネットワーク手数料がかかります。";
 "Couldn't delete the message. Try again." = "メッセージを削除できませんでした。もう一度お試しください。";
+"%@ mentioned you in %@" = "%@さんが%@であなたをメンションしました";

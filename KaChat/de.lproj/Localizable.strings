@@ -3388,3 +3388,4 @@
 "Delete for Everyone?" = "Für alle löschen?";
 "It goes from this room for everyone using K. It stays on the Kaspa network, where anyone reading the chain can still find it. Deleting costs a small network fee." = "Sie verschwindet für alle, die K nutzen, aus diesem Raum. Im Kaspa-Netzwerk bleibt sie, wo jeder, der die Chain liest, sie noch finden kann. Das Löschen kostet eine kleine Netzwerkgebühr.";
 "Couldn't delete the message. Try again." = "Die Nachricht konnte nicht gelöscht werden. Versuche es erneut.";
+"%@ mentioned you in %@" = "%@ hat dich in %@ erwähnt";

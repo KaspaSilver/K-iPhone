@@ -370,6 +370,9 @@ struct ChatListView: View {
         // room handed over by a tapped notification or a room link opens here.
         .onAppear {
             publicChats.ensureDefaultChannelsJoined()
+            // back on the Rooms page (from a room, another tab): its rows checked against the
+            // indexer, so a deleted message leaves a preview too
+            if listPage == .publicChats { publicChats.checkListedRoomsAgainstIndexer() }
             if let pending = publicChats.pendingPublicChatNavigation {
                 publicChats.pendingPublicChatNavigation = nil
                 DispatchQueue.main.async { openRoomFromHandoff(pending) }
@@ -386,9 +389,10 @@ struct ChatListView: View {
         }
         // Select is the chats page's: any page change (a room handoff included) ends it, or the
         // rooms page kept Select mode with no Cancel (audit 2026-11-25 C10).
-        .onChange(of: listPage) { _ in
+        .onChange(of: listPage) { page in
             if editMode == .active { editMode = .inactive }
             if !selectedEntryIDs.isEmpty { selectedEntryIDs = [] }
+            if page == .publicChats { publicChats.checkListedRoomsAgainstIndexer() }
         }
         .onChange(of: roomSummaries.pendingRoom) { newValue in
             guard let channel = newValue, publicChats.pendingPublicChatNavigation == channel else { return }

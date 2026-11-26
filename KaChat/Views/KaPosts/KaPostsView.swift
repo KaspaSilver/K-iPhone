@@ -153,8 +153,12 @@ private struct KaPostsUnavailableView: View {
 
 struct KaPostsView: View {
     /// `.kachat` names, banners and bios (`KachatLive.identityName` and friends) land on their own.
-    @ObservedObject private var kachatRegistry = KachatNamesRegistry.shared
-    @ObservedObject private var kachatSocialImages = KachatSocialImageResolver.shared
+    // Names and pictures redraw the screen through `IdentityChangeTicker` (one batch per quarter
+    // second): observing the stores redrew the whole KaPost screen, all three feeds, once per
+    // name or picture landing while the feed scrolled (2026-11-25 smoothness sweep).
+    @ObservedObject private var identityTicker = IdentityChangeTicker.shared
+    private var kachatRegistry: KachatNamesRegistry { .shared }
+    private var kachatSocialImages: KachatSocialImageResolver { .shared }
     private enum FeedTab: CaseIterable {
         case following
         case feed
@@ -746,7 +750,10 @@ struct KaPostsView: View {
                 ZStack {
                     ForEach(FeedTab.allCases, id: \.self) { tab in
                         let shown = selectedFeed == tab
-                        feedContent(for: tab)
+                        // A hidden feed isn't redrawn until it's picked again (`KaPostsHiddenFreeze`):
+                        // every update to the screen rebuilt all three (2026-11-25 smoothness sweep).
+                        KaPostsHiddenFreeze(shown: shown) { feedContent(for: tab) }
+                            .equatable()
                             .safeAreaInset(edge: .top, spacing: 0) { indexerDownNotice }
                             .opacity(shown ? 1 : 0)
                             .allowsHitTesting(shown)
@@ -811,10 +818,13 @@ struct KaPostsView: View {
             posterProfileSheet(for: target)
                 .kaPostsSlideCover { profileTarget = nil }
         }
-        .fullScreenCover(item: $detailTarget) { _ in
+        .fullScreenCover(item: $detailTarget) { target in
             // The TOP of the stack, not the item that triggered presentation - pushing a reply
-            // changes the stack without re-presenting the cover.
-            postDetailSheet(postId: threadStack.last ?? UUID())
+            // changes the stack without re-presenting the cover. But the cover's first frame
+            // can read the stack as it was before the tap (empty, or the last thread's): then
+            // it's the post that was tapped, or it flashed "This post could not be loaded" for a
+            // frame or two on every open (owner, 2026-11-25).
+            postDetailSheet(postId: threadStack.contains(target.id) ? (threadStack.last ?? target.id) : target.id)
                 .kaPostsSlideCover { popThread() }
         }
         // Half sheet rather than a confirmation dialog - see RepostActionsSheet.
@@ -2433,6 +2443,12 @@ struct KaPostsView: View {
     private func openMentionProfile(domain: String, signed: [String] = []) {
         Task {
             guard let address = await Self.mentionAddress(domain, signed: signed) else { return }
+            // your own @: the dock's Profile tab (owner, 2026-11-25), not a visitor's copy
+            if let me = WalletManager.shared.currentWallet?.publicAddress, me.lowercased() == address.lowercased() {
+                detailTarget = nil
+                KaPostsDeepLink.openProfile(address: address)
+                return
+            }
             let hadSheetUp = detailTarget != nil || quoteComposerTarget != nil
                 || threadQuoteComposerTarget != nil || profileQuoteComposerTarget != nil
                 || menuQuoteComposerTarget != nil || replyComposerTarget != nil
@@ -4895,7 +4911,7 @@ struct KaPostsView: View {
             .fullScreenCover(item: $profileDetailTarget) { target in
                 // The TOP of this surface's stack, not the item that presented it - pushing a
                 // comment or jumping to an ancestor swaps what is drawn without re-presenting.
-                postDetailSheet(postId: profileThreadStack.last ?? target.id)
+                postDetailSheet(postId: profileThreadStack.contains(target.id) ? (profileThreadStack.last ?? target.id) : target.id)
                     .kaPostsSlideCover { popThread() }
             }
             .fullScreenCover(item: $profileQuoteComposerTarget, onDismiss: { clearRestoredComposerDraft() }) { target in
@@ -5124,7 +5140,7 @@ struct KaPostsView: View {
             // NavigationStack so it stacks above the profile sheet (top-level $detailTarget can't).
             .fullScreenCover(item: $profileDetailTarget) { target in
                 // The TOP of this surface's stack - see the matching note on the own-profile sheet.
-                postDetailSheet(postId: profileThreadStack.last ?? target.id)
+                postDetailSheet(postId: profileThreadStack.contains(target.id) ? (profileThreadStack.last ?? target.id) : target.id)
                     .kaPostsSlideCover { popThread() }
             }
             // The feed's toast layer sits behind this cover, Undo included.
@@ -6473,8 +6489,33 @@ private struct KaPostCellView: View {
         let layoutText: String
     }
 
+    private final class TextPartsBox {
+        let value: TextParts
+        init(_ value: TextParts) { self.value = value }
+    }
+
+    /// `textParts` per text and fold state: a row coming back on screen ran the five link
+    /// matchers over up to 25,000 characters again (2026-11-25 smoothness sweep).
+    private static let textPartsMemo: NSCache<NSString, TextPartsBox> = {
+        let cache = NSCache<NSString, TextPartsBox>()
+        cache.countLimit = 400
+        return cache
+    }()
+
     private var textParts: TextParts {
         let displayed = displayedText
+        let key = "\(posterHasKachatName)|\(truncatesLongText)|\(isExpandedInline)|\(displayed)" as NSString
+        if let cached = Self.textPartsMemo.object(forKey: key) {
+            // its card's fetch is held to the allow-lists (idempotent)
+            if let link = cached.value.webLink { KaPostLinkPreviewPolicy.markForPreview(link.url) }
+            return cached.value
+        }
+        let parts = computeTextParts(displayed)
+        Self.textPartsMemo.setObject(TextPartsBox(parts), forKey: key)
+        return parts
+    }
+
+    private func computeTextParts(_ displayed: String) -> TextParts {
         var paymentLink: (request: PaymentRequest, matchedText: String)?
         var hubLink: (tab: AppTab, matchedText: String)?
         if let match = KaChatInternalLink.match(in: displayed) {
@@ -11324,8 +11365,7 @@ struct KaPostsNotificationsView: View {
             KaPostsDeepLink.pendingPostTxId = target
             NotificationCenter.default.post(name: .openKaPost, object: nil, userInfo: [:])
         } else if !item.actorAddress.isEmpty {
-            KaPostsDeepLink.pendingProfileAddress = item.actorAddress
-            NotificationCenter.default.post(name: .openKaPostsProfile, object: nil)
+            KaPostsDeepLink.openProfile(address: item.actorAddress)
         }
     }
 
@@ -11876,7 +11916,13 @@ enum KaPostsSlideSnapshot {
     /// next, a thread under the comment opened from it. The slide (and the drag) reveals the
     /// level right beneath, so backing out of a comment shows its thread, not the feed.
     private static var stack: [UIImage] = []
+    /// The same levels as full-resolution snapshot views (`snapshotView`, drawn by the render
+    /// server, no CPU render), for the slide. The 1x picture alone was blurry where the slide
+    /// shows it undimmed - the last frames of a swipe back - and then snapped to the sharp feed
+    /// (owner, 2026-11-25: "glitchy" sliding out of a post). nil where a snapshot wasn't given.
+    private static var views: [UIView?] = []
     static var image: UIImage? { stack.last }
+    static var view: UIView? { views.last ?? nil }
 
     static func capture() {
         guard let window = UIApplication.shared.connectedScenes
@@ -11887,16 +11933,31 @@ enum KaPostsSlideSnapshot {
         stack.append(renderer.image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
         })
+        views.append(window.snapshotView(afterScreenUpdates: false))
         if stack.count > 8 { stack.removeFirst(stack.count - 8) }
+        if views.count > 8 { views.removeFirst(views.count - 8) }
     }
 
     static func pop() {
         if !stack.isEmpty { stack.removeLast() }
+        if !views.isEmpty { views.removeLast() }
     }
 
     /// Every cover closed at once (the dock copy): no level is left to reveal.
     static func reset() {
         stack.removeAll()
+        views.removeAll()
+    }
+
+    /// What goes beneath a sliding cover: the full-resolution snapshot, else the picture.
+    static func beneathView() -> UIView {
+        if let view {
+            view.removeFromSuperview()
+            return view
+        }
+        let picture = UIImageView(image: image)
+        picture.contentMode = .scaleAspectFill
+        return picture
     }
 }
 
@@ -11957,11 +12018,13 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
     weak var handle: KaPostsSlideHandle?
     private weak var host: UIViewController?
     private weak var dim: UIView?
-    private weak var beneath: UIImageView?
+    private weak var beneath: UIView?
     private var attached = false
     /// The dock copy over this cover (`KaPostsDockCopy`), in the presentation container above
     /// the sliding view, so it holds still while the screen moves.
     private var dockHost: UIHostingController<KaPostsDockCopy>?
+    /// The fade under the dock copy (`KaPostsDockFade`).
+    private var fadeHost: UIHostingController<KaPostsDockFade>?
     /// How much the dock copy adds to the cover's bottom safe area, so the screen's last rows
     /// and its reply box sit above the dock instead of under it.
     private var dockSafeAreaInset: CGFloat = 0
@@ -11994,6 +12057,18 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
                                  width: container.bounds.width - 42,
                                  height: height)
         dock.view.autoresizingMask = [.flexibleTopMargin, .flexibleWidth]
+        // The screen fades out under the dock, as it does under the real one: without it the
+        // copy's glass showed posts' text running through the icons (owner, 2026-11-25).
+        let fade = UIHostingController(rootView: KaPostsDockFade())
+        if #available(iOS 16.4, *) { fade.safeAreaRegions = [] }
+        fade.view.backgroundColor = .clear
+        fade.view.isUserInteractionEnabled = false
+        let fadeTop = container.bounds.height - gap - height - KaPostsDockFade.rise
+        fade.view.frame = CGRect(x: 0, y: fadeTop, width: container.bounds.width,
+                                 height: container.bounds.height - fadeTop)
+        fade.view.autoresizingMask = [.flexibleTopMargin, .flexibleWidth]
+        container.addSubview(fade.view)
+        fadeHost = fade
         container.addSubview(dock.view)
         dockHost = dock
 
@@ -12015,7 +12090,11 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
 
     private func setDockHidden(_ hidden: Bool) {
         guard let dockView = dockHost?.view else { return }
-        UIView.animate(withDuration: 0.2) { dockView.alpha = hidden ? 0 : 1 }
+        let fadeView = fadeHost?.view
+        UIView.animate(withDuration: 0.2) {
+            dockView.alpha = hidden ? 0 : 1
+            fadeView?.alpha = hidden ? 0 : 1
+        }
         dockView.isUserInteractionEnabled = !hidden
         host?.additionalSafeAreaInsets.bottom = hidden ? 0 : dockSafeAreaInset
     }
@@ -12039,9 +12118,9 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
         host = controller
 
         let width = container.bounds.width
-        let picture = UIImageView(image: KaPostsSlideSnapshot.image)
+        let picture = KaPostsSlideSnapshot.beneathView()
         picture.frame = container.bounds
-        picture.contentMode = .scaleAspectFill
+        picture.transform = .identity
         picture.backgroundColor = .systemBackground
         picture.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         let shade = UIView(frame: container.bounds)
@@ -12064,9 +12143,12 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
         view.layer.shadowPath = UIBezierPath(rect: view.bounds).cgPath
 
         view.transform = CGAffineTransform(translationX: width, y: 0)
+        // the fade under the dock comes in with the screen, and leaves with it (`slideOut`)
+        fadeHost?.view.alpha = 0
         UIView.animate(withDuration: 0.28, delay: 0, options: [.curveEaseOut]) {
             view.transform = .identity
             shade.alpha = 0.3
+            self.fadeHost?.view.alpha = 1
         } completion: { _ in
             // The picture beneath is only for the slide; nothing sits under the cover once
             // it is in place (a drag puts it back for as long as the finger is down).
@@ -12110,15 +12192,21 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
         UIView.animate(withDuration: duration, delay: 0, options: [.curveEaseOut]) {
             view.transform = CGAffineTransform(translationX: width, y: 0)
             self.dim?.alpha = 0
+            self.fadeHost?.view.alpha = 0
         } completion: { _ in
             kaPostsDismiss { self.onBack() }
             // A thread popping one level swaps its content in place rather than closing: the
             // parent is drawn into this same view, and the picture that was showing beneath
             // the slide IS that parent - so it simply takes the view's place, no animation.
-            DispatchQueue.main.async {
+            // Checked a moment later, not on the next turn of the run loop: a cover that's
+            // closing hasn't started dismissing by then, so it was put back on screen for a
+            // frame before it went - the flash after every swipe back (owner, 2026-11-25). Until
+            // then the picture beneath, the same parent, is what shows.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 guard view.window != nil, controller.presentingViewController != nil,
                       controller.isBeingDismissed == false else { return }
                 view.transform = .identity
+                self.fadeHost?.view.alpha = 1
                 self.removeBeneath()
             }
         }
@@ -12133,9 +12221,9 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
 
     private func insertBeneath(in container: UIView, below view: UIView) {
         guard beneath == nil else { return }
-        let picture = UIImageView(image: KaPostsSlideSnapshot.image)
+        let picture = KaPostsSlideSnapshot.beneathView()
         picture.frame = container.bounds
-        picture.contentMode = .scaleAspectFill
+        picture.transform = .identity
         picture.backgroundColor = .systemBackground
         picture.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         let shade = UIView(frame: container.bounds)
@@ -12158,6 +12246,7 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
         case .changed:
             view.transform = CGAffineTransform(translationX: translation, y: 0)
             dim?.alpha = 0.3 * (1 - translation / width)
+            fadeHost?.view.alpha = 1 - translation / width
         case .ended, .cancelled:
             let velocity = pan.velocity(in: container).x
             if translation > width * 0.33 || velocity > 800 {
@@ -12167,6 +12256,7 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
                 UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseOut]) {
                     view.transform = .identity
                     self.dim?.alpha = 0.3
+                    self.fadeHost?.view.alpha = 1
                 } completion: { _ in
                     self.removeBeneath()
                 }
@@ -12180,6 +12270,28 @@ final class KaPostsSlideDriverView: UIView, UIGestureRecognizerDelegate {
                            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         true
     }
+
+    /// A list's own pan waits for the edge swipe to fail (it does at once for a touch that
+    /// didn't start at the edge), so the post doesn't scroll up and down while it's being swiped
+    /// back (owner, 2026-11-25).
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        gestureRecognizer is UIScreenEdgePanGestureRecognizer
+            && otherGestureRecognizer is UIPanGestureRecognizer
+            && otherGestureRecognizer.view is UIScrollView
+    }
+}
+
+/// A feed stacked under the one on screen (Following, Feed, Popular): kept alive so it keeps its
+/// place and posts, but not redrawn while hidden. Two hidden passes compare equal, so SwiftUI
+/// skips the subtree; the pass that shows it again redraws it with what changed meanwhile.
+private struct KaPostsHiddenFreeze<Content: View>: View, Equatable {
+    let shown: Bool
+    @ViewBuilder let content: () -> Content
+
+    static func == (lhs: Self, rhs: Self) -> Bool { !lhs.shown && !rhs.shown }
+
+    var body: some View { content() }
 }
 
 /// Redraws `content` when `object` changes. KaPostsView reads a store a single sheet shows
