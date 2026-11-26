@@ -42,7 +42,7 @@ check already matches.
 
 | Call | Returns | K shows |
 |---|---|---|
-| `requestAccounts()` | `["kaspa:q..."]`: the account's Chatting Address | Connect sheet (site, address). Approving it marks the site as connected for this browser session |
+| `requestAccounts()` | `["kaspa:q..."]`: the address the person picked | Connect sheet: the site, then which address to connect (see "Which address connects" below). Approving it marks the site as connected for this browser session |
 | `getAccounts()` | `[]` until connected, then the address | nothing |
 | `getNetwork()` | `"mainnet"` or `"testnet-10"` (`null` until connected) | nothing |
 | `getPublicKey()` | 33-byte compressed public key, hex (`"02..."` / `"03..."`) | nothing (connected only) |
@@ -62,10 +62,26 @@ schnorr_sign(privkey, blake2b-256(key = "PersonalMessageSigningHash", msg = utf8
 ```
 
 It is hex-encoded. Kasshi's `/api/wallet-auth/verify` already accepts this from the K extension,
-so nothing changes server-side. The key is the account's Chatting Address key, matching the
+so nothing changes server-side. The key is the connected address's own key, matching the
 address `requestAccounts()` returned and the key `getPublicKey()` returned.
 
 Text limit: 4,096 characters. The challenge from `/api/wallet-auth/challenge` is well under that.
+
+### Which address connects
+
+The Connect sheet asks the person which address to connect:
+- **Chatting Address** (the default): the address people message and pay in K.
+- **Choose an Address:** any other regular address of their K account, listed with its balance.
+  This keeps a Kasshi account apart from their K username and chats.
+
+A few rules follow from that:
+- Quantum-resistant addresses (P2SH) aren't offered: their key doesn't map to the address the way
+  Kasshi's signature check expects.
+- Everything after that uses the picked address: `getPublicKey`, `getBalance`, `signMessage`, the
+  sends' source, and where withdrawals land.
+- K remembers the last address picked for kasshi.io, per K account, and suggests it next time.
+- To change address, the person disconnects (Kasshi's Disconnect, or `disconnect()`) and
+  connects again. `accountsChanged` then fires with the new address.
 
 ### Sending
 
@@ -118,8 +134,9 @@ Nothing here needs new code. It is listed so Kasshi can check its assumptions.
 - **Phone layout.** It is the ordinary mobile page in an iOS `WKWebView`
   (`AppleWebKit`, no `Chrome` in the user agent). Kasshi's Safari detection (`VN`) will say
   Safari/Apple. Video and audio playback work as in Safari.
-- **Only the Chatting Address.** K connects the account's Chatting Address, the same address
-  people message and pay in K. There is no address picker.
+- **The person picks the address.** The Chatting Address or another address of their K account
+  (see "Which address connects"). One person can therefore sign in with different addresses on
+  different visits, and each address is a different Kasshi account to Kasshi.
 
 ## 4. Asks for Kasshi (small, optional)
 
@@ -150,7 +167,7 @@ d. **(Optional) "Open in K" button.** When kasshi.io is opened in mobile Safari,
 
 The K team will build:
 - the `window.kachat` provider in K's built-in browser, limited to kasshi.io at first;
-- the native Connect, Sign and Send sheets;
+- the native Connect (with the address choice), Sign and Send sheets;
 - `accountsChanged` on an account switch;
 - the `kachat.app/open?url=` link from ask (d).
 
