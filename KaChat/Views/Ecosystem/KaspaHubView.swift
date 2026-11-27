@@ -182,8 +182,9 @@ struct KaspaHubView: View {
     var body: some View {
         let open = openSection
         ZStack {
+            // no grid with the Hub as a menu (owner, 2026-11-26): the menu is the way in
             grid
-                .hubLayerHidden(open != nil)
+                .hubLayerHidden(open != nil || HubPresentation.asMenu)
             // Each section owns the whole screen with its own navigation bar, exactly as it looks
             // from its own dock slot; a hidden one's bar is hidden with it. Not animated: a
             // cross-fade dimmed the bar's balance.
@@ -609,5 +610,111 @@ struct KaspaHubLinkCard: View {
                 )
         )
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+// MARK: - Kaspa Hub as a menu (owner, 2026-11-26)
+
+/// Kaspa Hub as a menu: tapping it on the dock never shows a Hub screen. Its glass menu
+/// (`KaspaHubMenu`) rises over whatever tab is on screen; a section picked opens as a Hub section
+/// (the Kaspa Hub tab, lit, the dock in view), and tapping Kaspa Hub there brings the menu back.
+/// Off returns the Hub to its own tab and grid.
+enum HubPresentation {
+    static let asMenu = true
+}
+
+/// Kaspa Hub's menu (owner, 2026-11-26: "like when you click the + in iMessage"): a glass panel
+/// that rises from the dock's left side, about as wide as the first three dock icons and at most
+/// half the screen tall, with every section in a scrollable list. A tap anywhere else closes it;
+/// a section picked opens as a Hub section, the dock in view with Kaspa Hub lit.
+struct KaspaHubMenu: View {
+    @Binding var isPresented: Bool
+    let onPick: (AppTab) -> Void
+    @ObservedObject private var layout = DockLayout.shared
+
+    /// From the bottom of the safe area to just above the dock.
+    private static let dockClearance: CGFloat = 72
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .bottomLeading) {
+                if isPresented {
+                    // a tap outside, the dock included, closes it
+                    Color.black.opacity(0.18)
+                        .ignoresSafeArea()
+                        .onTapGesture { close() }
+                        .transition(.opacity)
+                    panel(maxHeight: geo.size.height * 0.5)
+                        .frame(width: min(geo.size.width * 0.64, 300))
+                        .padding(.leading, 16)
+                        .padding(.bottom, Self.dockClearance)
+                        .transition(.scale(scale: 0.4, anchor: .bottomLeading).combined(with: .opacity))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        }
+    }
+
+    private func close() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { isPresented = false }
+    }
+
+    private func panel(maxHeight: CGFloat) -> some View {
+        ScrollView {
+            VStack(spacing: 2) {
+                ForEach(layout.hub) { tab in
+                    Button {
+                        Haptics.impact(.light)
+                        close()
+                        // after the panel's close has started, so the two don't fight
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { onPick(tab) }
+                    } label: {
+                        HStack(spacing: 12) {
+                            AppTabIcon(tab: tab, size: 18)
+                                .frame(width: 34, height: 34)
+                                .background(Circle().fill(Color.accentColor.opacity(0.18)))
+                            Text(LocalizedStringKey(tab.label))
+                                .font(.body.weight(.medium))
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                            Spacer(minLength: 4)
+                            if let label = AppTabBadge.dockLabel(for: tab) {
+                                Text(verbatim: label)
+                                    .font(.scaled(size: 11, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, label.isEmpty ? 0 : 5)
+                                    .frame(minWidth: label.isEmpty ? 10 : 18, minHeight: label.isEmpty ? 10 : 18)
+                                    .background(Capsule().fill(Color.red))
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 6)
+        }
+        // its rows' height (about 48 pt each), at most half the screen, scrolling past that
+        .frame(height: min(CGFloat(layout.hub.count) * 48 + 16, maxHeight))
+        .background(menuGlass)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .shadow(color: Color.black.opacity(0.25), radius: 18, x: 0, y: 8)
+    }
+
+    @ViewBuilder
+    private var menuGlass: some View {
+        if #available(iOS 26.0, *) {
+            Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        } else {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                )
+        }
     }
 }

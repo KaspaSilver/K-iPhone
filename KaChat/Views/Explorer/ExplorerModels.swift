@@ -1,3 +1,4 @@
+import UIKit
 import Foundation
 import SwiftUI
 
@@ -314,6 +315,62 @@ struct ExplorerKActivity: Hashable {
 }
 
 /// What the explorer can open: a page each.
+/// The K Explorer setting's links (`KaspaExplorer.k`): `kachat://explorer-tx/<64 hex>` and
+/// `kachat://explorer-address/<kaspa address>`, which K opens from its own "View in Explorer"
+/// buttons and the system hands back to `KaChatApp.handleIncomingURL`. They open Kaspa Hub's
+/// Explorer on that transaction or address (owner, 2026-11-26). Only K writes them.
+enum ExplorerDeepLink {
+    static let txHost = "explorer-tx"
+    static let addressHost = "explorer-address"
+
+    /// The page to open, from one of these links; nil for anything else or a bad payload.
+    static func route(from url: URL) -> ExplorerRoute? {
+        guard url.scheme?.lowercased() == "kachat", let host = url.host?.lowercased() else { return nil }
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count == 1, let payload = parts.first?.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+        switch host {
+        case txHost:
+            let id = payload.lowercased()
+            guard id.count == 64, id.allSatisfy({ $0.isHexDigit }) else { return nil }
+            return .transaction(id)
+        case addressHost:
+            let address = payload.lowercased()
+            guard KaspaAddress.isValid(address) else { return nil }
+            return .address(address)
+        default:
+            return nil
+        }
+    }
+
+    /// The page waiting for the Explorer to show (a cold start, or the section not open yet).
+    @MainActor static var pending: ExplorerRoute?
+
+    /// Opens Kaspa Hub's Explorer on `route`. Most of these links are tapped in a sheet (a
+    /// payment's details, a message's menu): the sheets close first, or the Explorer would open
+    /// behind them.
+    @MainActor static func open(_ route: ExplorerRoute) {
+        pending = route
+        PendingTabRoute.pending = .explorer
+        let go = {
+            NotificationCenter.default.post(name: .openHubSection, object: nil)
+            NotificationCenter.default.post(name: .explorerDeepLink, object: nil)
+        }
+        let root = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first?.rootViewController
+        if let root, root.presentedViewController != nil {
+            root.dismiss(animated: true) { go() }
+        } else {
+            go()
+        }
+    }
+}
+
+extension Notification.Name {
+    /// `ExplorerDeepLink.open`: the Explorer, if it's already up, takes the waiting page.
+    static let explorerDeepLink = Notification.Name("explorerDeepLink")
+}
+
 enum ExplorerRoute: Hashable {
     case transaction(String)
     case block(String)

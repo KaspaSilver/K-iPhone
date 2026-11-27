@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "索引器保存的房间可在“添加房间”中重新添加。你创建的房间会连同消息从此设备删除。";
 "This room isn't in your Public Chats. Add it?" = "此房间不在你的公开聊天中。要添加吗？";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "索引器保存的房间。由你添加，K 上任何人都能在此发言。";
+"K Explorer" = "K 浏览器";

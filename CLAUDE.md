@@ -44,7 +44,18 @@ Customize Dock): Kaspa Hub, Wallet, KaChat (the `.chats` tab, labeled "KaChat" s
 the rebrand of the app as "K"), Profile, Settings (`AppTab.defaultDock`, `DockLayout`). The
 connection dot is only at the top of Settings and on the dock's Settings icon (`ConnectionHealth`,
 `SettingsDockIcon`: green connected, orange connecting, red after 8 s disconnected), on no other
-screen. Every other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
+screen. **Kaspa Hub is a menu** (owner, 2026-11-26, behind `HubPresentation.asMenu`): tapping it
+on the dock, from any tab or from a Hub section, never shows a Hub screen. A glass panel rises from
+the dock's left side, like iMessage's + (`KaspaHubMenu`: about the first three dock icons wide, up
+to half the screen tall, every section in a scrollable list with its badge; a tap outside closes
+it). A tap that only opens or closes the menu is caught on the tab bar before the bar sees it, so the dock's glass doesn't move (owner, 2026-11-27); any other Hub tap is caught in UIKit's `shouldSelect` / `shouldSelectTab` (`HubTabInterceptor`, MainTabView.swift), so nothing flashes. A section picked opens as a Hub section, the normal way: the dock in view with Kaspa Hub lit
+(`MainTabView.openHubSection`). The section you last picked is what Kaspa Hub then shows (owner,
+2026-11-27, `MainTabView.hubTapped`): from another tab, tapping Kaspa Hub goes straight back to
+it as you left it; tapping Kaspa Hub while in it brings up the menu to pick another; with nothing
+picked yet (or the menu up) the tap opens (or closes) the menu. Closing a section (Kasshi's X) goes back to the tab you came from
+(`tabBeforeHub`), never the grid. Hub links and `MainTabView.show` open the section the same way;
+Kaspa Hub on KaPost's dock copy opens the menu. With the switch off, every
+other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
 `Views/Ecosystem/KaspaHubView.swift`), where it opens full screen; tapping Kaspa Hub again goes back
 to the grid (`HubRouter`). Holding a card opens its half sheet (Copy Link, Open; 2026-11-25): the
 link is `https://kachat.app/hub/<slug>` (`AppTab.linkSlug`, fixed words: contacts, portfolio,
@@ -403,6 +414,13 @@ tags, the `kaposts` push thread) stay as they are.
 restored from git as it was when it left on 2026-10-24. KaChat Stats came back with it and left
 again on 2026-11-25 (owner): the Explorer's K Activity card replaces it (its real numbers will come
 from the same `GET /stats`, STATS_INDEXER.md); a saved Hub layout drops the gone tab by itself.
+**K Explorer is the default explorer** (owner, 2026-11-26): Settings > Kaspa Explorer lists K
+Explorer first (`KaspaExplorer.k`), then kaspa.stream and explorer.kaspa.org. Every "View in
+Explorer" link goes through `KaspaExplorer.txURL` / `addressURL`, which for K are
+`kachat://explorer-tx/<id>` and `kachat://explorer-address/<address>` (`ExplorerDeepLink`): they
+come back to `handleIncomingURL`, close any sheet, and open the Explorer on that page, on mainnet
+and testnet. It's the default for new installs, and everyone was moved to it once
+(`kExplorerDefaultMigration`, `kachat_k_explorer_default_migrated`); another pick sticks.
 **Explorer (2026-11-25):** K's own block explorer, so nothing opens a website: the `.explorer`
 tab in Kaspa Hub (`Views/Explorer/`). Data (owner: "wire it up to kaspa.stream"): kaspa.stream's
 REST API (`ExplorerAPI`; api.kaspa.stream, api-tn10.kaspa.stream on testnet; the open-source

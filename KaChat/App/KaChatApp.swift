@@ -297,6 +297,11 @@ struct KaChatApp: App {
     }
 
     private func handleIncomingURL(_ url: URL) {
+        // K's own Explorer (the K Explorer setting's links): the transaction or address there
+        if let route = ExplorerDeepLink.route(from: url) {
+            ExplorerDeepLink.open(route)
+            return
+        }
         // Every in-app target link - profiles and payment requests, in both their
         // `kachat://` and `https://kachat.app/...` forms - is parsed and validated in
         // ONE place (`KaChatInternalLink.parse`) and routed through ONE place

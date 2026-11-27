@@ -26,6 +26,10 @@ struct MainTabView: View {
     /// Debounces the off-chat-tab discovery pause/resume so rapid tab-flipping can't thrash it.
     @State private var tabWorkTask: Task<Void, Never>?
     @State private var showWelcomeGuide = false
+    /// Kaspa Hub's glass menu over the dock's left side (`KaspaHubMenu`, owner 2026-11-26).
+    @State private var showHubMenu = false
+    /// The dock tab you were on before a Hub section opened: where its close (Kasshi's X) goes back.
+    @State private var tabBeforeHub = AppTab.chats.tag
     @Environment(\.scenePhase) private var scenePhase
     /// Not observed. This view only CALLS into these two (start/stop polling, onboarding holds,
     /// pending routes) and renders nothing from them, but as @EnvironmentObjects every chat
@@ -96,6 +100,19 @@ struct MainTabView: View {
 
     var body: some View {
         dockTabView
+        // Kaspa Hub's glass menu, rising from the dock's left side like iMessage's + (owner,
+        // 2026-11-26); a section picked opens as a Hub section, the dock in view with Kaspa Hub
+        // lit, and Kaspa Hub tapped again brings the menu back
+        .overlay {
+            KaspaHubMenu(isPresented: $showHubMenu) { tab in
+                openHubSection(tab)
+            }
+        }
+        // a section closed (Kasshi's X): back to the tab you came from, never a Hub screen
+        .onReceive(HubRouter.shared.$openSection) { section in
+            guard HubPresentation.asMenu, section == nil, selectedTab == AppTab.hub.tag else { return }
+            handleTabSelectionChange(tabBeforeHub)
+        }
         // The dock badges, from whichever tab is showing. Its own modifier: inline, these pushed
         // the body past what the type checker can solve.
         .modifier(DockBadgeSync(selectedTab: selectedTab, dockTabs: layout.dock))
@@ -107,13 +124,17 @@ struct MainTabView: View {
         .modifier(KachatRegistrationPresenter())
         // the tab on screen left the dock: Kaspa Hub, where it now lives
         .onChange(of: layout.dock) { dock in
+            installHubTabInterceptor()
             if !dock.contains(where: { $0.tag == selectedTab }) {
-                selectedTab = AppTab.hub.tag
-                KaPostsDockRouter.shared.selectedTab = .hub
+                // with the Hub as a menu there's no Hub screen to land on: Chats
+                let landing: AppTab = HubPresentation.asMenu ? .chats : .hub
+                selectedTab = landing.tag
+                KaPostsDockRouter.shared.selectedTab = landing
             }
         }
         .onAppear {
             LaunchTrace.mark("main tabs on screen")
+            installHubTabInterceptor()
             // A hold with no guide to release it would strand the account: the branches below
             // that DON'T present a guide lift it explicitly, and this covers every other path in.
             if chatService.onboardingSyncHeld && !showWelcomeGuide && !walletManager.justCreatedNewWallet {
@@ -231,29 +252,114 @@ struct MainTabView: View {
     }
 
 
+    /// Kaspa Hub's dock tap answered before UIKit switches tabs, so nothing flashes. Installed
+    /// once the tab bar exists (a moment after the tabs appear) and again whenever the dock is
+    /// rebuilt; the binding's own Hub handling stays as the fallback.
+    private func installHubTabInterceptor() {
+        guard HubPresentation.asMenu else { return }
+        let interceptor = HubTabInterceptor.shared
+        interceptor.hubIndex = { layout.dock.firstIndex(of: .hub) }
+        interceptor.onHubTap = { _ = hubTapped() }
+        // the tap only opens or closes the menu: caught before the bar, so its glass stays put
+        interceptor.catchesTouch = {
+            showHubMenu || selectedTab == AppTab.hub.tag || HubRouter.shared.openSection == nil
+        }
+        for delay in [0.0, 0.3, 1.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { interceptor.install() }
+        }
+    }
+
+    /// Kaspa Hub tapped (the dock, or its copy over KaPost's screens). Owner, 2026-11-27: the
+    /// section you last picked is what Kaspa Hub shows, as any tab would, and tapping Kaspa Hub
+    /// while you're in it brings up the menu to pick another:
+    /// - menu up: it closes;
+    /// - on another tab, with a section picked before: back to that section, as you left it;
+    /// - in the section, or nothing picked yet: the menu.
+    /// Returns true when it went to the section (the tab bar is then really on the Hub's tab).
+    @discardableResult
+    private func hubTapped() -> Bool {
+        Haptics.impact(.light)
+        if showHubMenu {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showHubMenu = false }
+            return false
+        }
+        if selectedTab != AppTab.hub.tag, HubRouter.shared.openSection != nil {
+            tabBeforeHub = selectedTab
+            handleTabSelectionChange(AppTab.hub.tag)
+            return true
+        }
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { showHubMenu = true }
+        return false
+    }
+
     /// Puts `tab` on screen: its dock slot, or Kaspa Hub with it open there.
     private func show(_ tab: AppTab) {
-        if layout.dock.contains(tab) {
+        if HubPresentation.asMenu, tab == .hub {
+            // Kaspa Hub (the dock copy over KaPost's screens): as a dock tap, never a Hub screen
+            hubTapped()
+        } else if layout.dock.contains(tab) {
+            showHubMenu = false
             handleTabSelectionChange(tab.tag)
         } else {
-            // Not as a tap on Kaspa Hub: from inside the Hub (KaPlay's Share to KaPost) that
-            // read as "Hub tapped again" and closed the section just opened, back to the grid.
-            if selectedTab != AppTab.hub.tag { handleTabSelectionChange(AppTab.hub.tag) }
-            HubRouter.shared.open(tab)
+            openHubSection(tab)
         }
+    }
+
+    /// A Hub section on screen as a Hub section: the Kaspa Hub tab, lit on the dock, with it open.
+    /// Not as a tap on Kaspa Hub: from inside the Hub (KaPlay's Share to KaPost) that read as "Hub
+    /// tapped again" and closed the section just opened.
+    private func openHubSection(_ tab: AppTab) {
+        showHubMenu = false
+        if selectedTab != AppTab.hub.tag {
+            tabBeforeHub = selectedTab
+            handleTabSelectionChange(AppTab.hub.tag)
+        }
+        HubRouter.shared.open(tab)
     }
 
     private var tabSelection: Binding<Int> {
         Binding(
             get: { selectedTab },
             set: { newValue in
+                // Kaspa Hub tapped (only if `HubTabInterceptor` missed it): the last section, or
+                // the menu over the screen you're on, which stays (`hubTapped`)
+                if newValue == AppTab.hub.tag, HubPresentation.asMenu {
+                    let stay = selectedTab
+                    if !hubTapped() { keepTabBar(on: stay, after: newValue) }
+                    return
+                }
+                // The Hub menu is up and the tab on screen is tapped: that only closes the menu.
+                // (A tap on it read as "tapped again", flipping Chats to Public Chats, 2026-11-26.)
+                // Another tab tapped goes there, the menu closing with it.
+                if showHubMenu, newValue == selectedTab {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showHubMenu = false }
+                    return
+                }
                 handleTabSelectionChange(newValue)
             }
         )
     }
 
+    /// The tab bar moves to a tapped tab before K answers, so a tap K turns down (Kaspa Hub, which
+    /// opens its menu instead) left the bar, and the screen, on the Hub's tab while K stayed on the
+    /// one you were on: the old Hub grid showed (2026-11-26). The bar is moved there and back, so it
+    /// ends on your tab. The Hub tab draws nothing without a section open, so the moment it's
+    /// there shows nothing.
+    private func keepTabBar(on tab: Int, after refused: Int) {
+        guard refused != tab else { return }
+        var quiet = Transaction()
+        quiet.disablesAnimations = true
+        withTransaction(quiet) { selectedTab = refused }
+        DispatchQueue.main.async {
+            withTransaction(quiet) { selectedTab = tab }
+        }
+    }
+
     private func handleTabSelectionChange(_ newValue: Int) {
-        // Kaspa Hub tapped again: back to its grid, the way out of a section opened there
+        // another tab: the Hub's menu closes
+        if newValue != AppTab.hub.tag { showHubMenu = false }
+        // Kaspa Hub tapped again: back to its grid, the way out of a section opened there (only
+        // with the Hub as a screen: as a menu, a tap shows the menu and never gets here)
         if newValue == selectedTab, newValue == AppTab.hub.tag { HubRouter.shared.close() }
         // Chats tapped again: back out of an open chat, or switch Private / Public Chats
         if newValue == selectedTab, newValue == AppTab.chats.tag {
@@ -539,5 +645,154 @@ private struct DockBadgeSync: ViewModifier {
             // changes nothing (audit #35), compared with what this run last put on the icon.
             AppTabBadge.applyIconCount(AppTabBadge.appIconCount)
         }
+    }
+}
+
+// MARK: - Kaspa Hub's tap, caught before UIKit selects the tab
+
+/// Kaspa Hub on the dock opens its glass menu instead of being selected (owner, 2026-11-26).
+/// SwiftUI's TabView hears of a tap only after UIKit has switched tabs, so turning it down there
+/// flashed the empty Hub tab, and on iOS 26 the dock's glass slid to Kaspa Hub and back. Two
+/// layers, so neither happens:
+/// - a touch on Kaspa Hub that would only open or close the menu (`catchesTouch`) is taken by a
+///   tap recognizer on the tab bar before any of the bar's own handling sees it, so the glass
+///   never moves (owner, 2026-11-27);
+/// - any other Hub tap reaches UIKit's `shouldSelect` (both the iOS 18 `UITab` form and the
+///   older one), which runs `onHubTap` and keeps UIKit on the tab you're on; `onHubTap` itself
+///   moves to the saved section.
+/// Every other delegate call goes on to SwiftUI's own delegate untouched.
+@MainActor
+final class HubTabInterceptor: NSObject, UITabBarControllerDelegate, UIGestureRecognizerDelegate {
+    static let shared = HubTabInterceptor()
+
+    /// Which of the dock's tabs is Kaspa Hub's, by position.
+    var hubIndex: () -> Int? = { nil }
+    /// Whether a Hub tap now would only show or hide the menu (no section to go back to).
+    var catchesTouch: () -> Bool = { false }
+    var onHubTap: () -> Void = {}
+
+    private weak var original: UITabBarControllerDelegate?
+    private weak var installedOn: UITabBarController?
+    private var recognizer: UITapGestureRecognizer?
+
+    /// Puts the interceptor on the dock's tab bar controller, once it exists. Safe to call again.
+    func install() {
+        guard let tabs = Self.findTabBarController() else { return }
+        if tabs.delegate !== self {
+            original = tabs.delegate
+            tabs.delegate = self
+        }
+        if installedOn !== tabs || recognizer?.view !== tabs.tabBar {
+            if let old = recognizer { old.view?.removeGestureRecognizer(old) }
+            let tap = UITapGestureRecognizer(target: self, action: #selector(caughtTap(_:)))
+            tap.delegate = self
+            tap.cancelsTouchesInView = true
+            tap.delaysTouchesBegan = true
+            tabs.tabBar.addGestureRecognizer(tap)
+            recognizer = tap
+        }
+        installedOn = tabs
+    }
+
+    // MARK: The touch layer
+
+    @objc private func caughtTap(_ tap: UITapGestureRecognizer) {
+        guard tap.state == .ended else { return }
+        onHubTap()
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard gestureRecognizer === recognizer, catchesTouch(),
+              let bar = installedOn?.tabBar, let frame = hubItemFrame(in: bar) else { return false }
+        return frame.contains(touch.location(in: bar))
+    }
+
+    /// The bar's own recognizers (the iOS 26 glass among them) wait for this one, so a touch it
+    /// takes never reaches them.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer === recognizer, let bar = installedOn?.tabBar,
+              let view = other.view else { return false }
+        return view.isDescendant(of: bar)
+    }
+
+    /// Kaspa Hub's button on the bar: the bar's buttons, left to right, one per tab. Nil (and so
+    /// nothing caught) when they can't be told apart.
+    private func hubItemFrame(in bar: UITabBar) -> CGRect? {
+        guard let index = hubIndex(), let count = bar.items?.count, count > 0 else { return nil }
+        var buttons: [UIView] = []
+        var queue: [UIView] = [bar]
+        while let view = queue.popLast() {
+            if view !== bar, view is UIControl, !view.isHidden, view.alpha > 0.01,
+               view.bounds.width > 1, view.bounds.height > 1 {
+                buttons.append(view)
+                continue
+            }
+            queue.append(contentsOf: view.subviews)
+        }
+        // iOS 26 draws each button twice (the dock and the glass's copy over it): one per place
+        var frames: [CGRect] = []
+        for frame in buttons.map({ $0.convert($0.bounds, to: bar) }).sorted(by: { $0.midX < $1.midX }) {
+            if let last = frames.last, abs(last.midX - frame.midX) < 8 {
+                frames[frames.count - 1] = last.union(frame)
+            } else {
+                frames.append(frame)
+            }
+        }
+        guard frames.count == count, index < count else { return nil }
+        let layoutIndex = bar.effectiveUserInterfaceLayoutDirection == .rightToLeft ? count - 1 - index : index
+        return frames[layoutIndex]
+    }
+
+    // MARK: The selection layer
+
+    @available(iOS 18.0, *)
+    func tabBarController(_ tabBarController: UITabBarController, shouldSelectTab tab: UITab) -> Bool {
+        if let hub = hubIndex(), tabBarController.tabs.firstIndex(where: { $0 === tab }) == hub {
+            onHubTap()
+            return false
+        }
+        if let original, original.responds(to: #selector(UITabBarControllerDelegate.tabBarController(_:shouldSelectTab:))) {
+            return original.tabBarController?(tabBarController, shouldSelectTab: tab) ?? true
+        }
+        if let controller = tab.viewController {
+            return original?.tabBarController?(tabBarController, shouldSelect: controller) ?? true
+        }
+        return true
+    }
+
+    func tabBarController(_ tabBarController: UITabBarController,
+                          shouldSelect viewController: UIViewController) -> Bool {
+        if let hub = hubIndex(),
+           let index = tabBarController.viewControllers?.firstIndex(of: viewController),
+           index == hub {
+            onHubTap()
+            return false
+        }
+        return original?.tabBarController?(tabBarController, shouldSelect: viewController) ?? true
+    }
+
+    // Everything else goes to SwiftUI's delegate as before.
+    override func responds(to aSelector: Selector!) -> Bool {
+        super.responds(to: aSelector) || (original?.responds(to: aSelector) ?? false)
+    }
+
+    override func forwardingTarget(for aSelector: Selector!) -> Any? {
+        if let original, original.responds(to: aSelector) { return original }
+        return super.forwardingTarget(for: aSelector)
+    }
+
+    private static func findTabBarController() -> UITabBarController? {
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                var queue: [UIViewController] = window.rootViewController.map { [$0] } ?? []
+                while let controller = queue.popLast() {
+                    if let tabs = controller as? UITabBarController { return tabs }
+                    queue.append(contentsOf: controller.children)
+                }
+            }
+        }
+        return nil
     }
 }

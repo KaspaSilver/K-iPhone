@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "Las salas que guarda el indexador se pueden volver a añadir desde Añadir sala. Las salas que creaste se borran de este dispositivo con sus mensajes.";
 "This room isn't in your Public Chats. Add it?" = "Esta sala no está en tus chats públicos. ¿Añadirla?";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "Una sala que guarda el indexador. La añadiste tú, y cualquiera en K puede publicar en ella.";
+"K Explorer" = "Explorador de K";

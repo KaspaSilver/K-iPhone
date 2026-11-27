@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "Các phòng do indexer lưu có thể thêm lại từ Thêm phòng. Phòng bạn tạo sẽ bị xóa khỏi thiết bị này cùng tin nhắn.";
 "This room isn't in your Public Chats. Add it?" = "Phòng này không có trong Trò chuyện công khai của bạn. Thêm vào?";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "Một phòng do indexer lưu. Bạn đã thêm phòng này, và bất kỳ ai trên K đều có thể đăng ở đây.";
+"K Explorer" = "Trình khám phá K";

@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "Dizinleyicinin tuttuğu odalar Oda Ekle'den tekrar eklenebilir. Oluşturduğunuz odalar mesajlarıyla birlikte bu cihazdan silinir.";
 "This room isn't in your Public Chats. Add it?" = "Bu oda herkese açık sohbetlerinizde yok. Eklensin mi?";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "Dizinleyicinin tuttuğu bir oda. Siz eklediniz ve K'deki herkes buraya yazabilir.";
+"K Explorer" = "K Gezgini";

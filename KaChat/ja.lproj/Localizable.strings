@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "インデクサーが保存するルームは「ルームを追加」から再追加できます。自分で作成したルームはメッセージごとこの端末から削除されます。";
 "This room isn't in your Public Chats. Add it?" = "このルームは公開チャットにありません。追加しますか？";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "インデクサーが保存するルーム。あなたが追加したルームで、Kの誰でも投稿できます。";
+"K Explorer" = "Kエクスプローラー";

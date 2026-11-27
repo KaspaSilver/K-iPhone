@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "Комнаты, которые хранит индексатор, можно снова добавить через «Добавить комнату». Созданные вами комнаты удаляются с этого устройства вместе с сообщениями.";
 "This room isn't in your Public Chats. Add it?" = "Этой комнаты нет в ваших публичных чатах. Добавить?";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "Комната, которую хранит индексатор. Вы её добавили, и писать в ней может любой в K.";
+"K Explorer" = "Обозреватель K";

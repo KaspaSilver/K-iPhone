@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "인덱서가 보관하는 방은 방 추가에서 다시 추가할 수 있습니다. 직접 만든 방은 메시지와 함께 이 기기에서 삭제됩니다.";
 "This room isn't in your Public Chats. Add it?" = "이 방은 공개 채팅에 없습니다. 추가할까요?";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "인덱서가 보관하는 방입니다. 직접 추가했으며, K의 누구나 글을 올릴 수 있습니다.";
+"K Explorer" = "K 익스플로러";

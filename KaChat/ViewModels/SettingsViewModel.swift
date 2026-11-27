@@ -75,6 +75,23 @@ extension AppSettings {
         defaults.set(true, forKey: doneKey)
     }()
 
+    /// K's own Explorer for everyone on the update that added it (owner, 2026-11-26: "by default
+    /// all users are directed to K explorer, they can go in and change"). Once per install, before
+    /// the first read, as the migration above; a later pick of another explorer sticks.
+    private static let kExplorerDefaultMigration: Void = {
+        let defaults = UserDefaults.standard
+        let doneKey = "kachat_k_explorer_default_migrated"
+        guard !defaults.bool(forKey: doneKey) else { return }
+        if let data = defaults.data(forKey: "kachat_app_settings"),
+           var settings = try? JSONDecoder().decode(AppSettings.self, from: data) {
+            settings.kaspaExplorer = .k
+            if let updated = try? JSONEncoder().encode(settings) {
+                defaults.set(updated, forKey: "kachat_app_settings")
+            }
+        }
+        defaults.set(true, forKey: doneKey)
+    }()
+
     /// The network the app runs on: `load().networkType`, without the copy once settings are cached.
     static var activeNetwork: NetworkType {
         AppSettingsCache.shared.network() ?? load().networkType
@@ -84,6 +101,7 @@ extension AppSettings {
     /// `AppSettingsCache`.
     static func load() -> AppSettings {
         _ = accountLoginBiometricsOffMigration
+        _ = kExplorerDefaultMigration
         if let cached = AppSettingsCache.shared.get() { return cached }
         let userDefaults = UserDefaults.standard
         guard let data = userDefaults.data(forKey: "kachat_app_settings"),

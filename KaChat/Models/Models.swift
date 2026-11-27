@@ -2668,11 +2668,16 @@ enum AppTab: String, CaseIterable, Identifiable, Equatable, Hashable {
 
 /// Block explorer used for "view transaction" links, matching Android's KaspaExplorer enum.
 enum KaspaExplorer: String, Codable, CaseIterable {
+    /// K's own Explorer (Kaspa Hub > Explorer; owner, 2026-11-26): a link opens the transaction or
+    /// address there, through `kachat://explorer-tx/<id>` / `kachat://explorer-address/<address>`
+    /// (`ExplorerDeepLink`), on mainnet and testnet alike.
+    case k
     case kaspaStream
     case kaspaOrg
 
     var displayName: String {
         switch self {
+        case .k: return AppLocalization.string("K Explorer")
         case .kaspaStream: return "kaspa.stream"
         case .kaspaOrg: return "explorer.kaspa.org"
         }
@@ -2684,17 +2689,19 @@ enum KaspaExplorer: String, Codable, CaseIterable {
     private var isTestnet: Bool { AppSettings.load().networkType == .testnet }
 
     private var txBaseURL: String {
+        if self == .k { return "kachat://\(ExplorerDeepLink.txHost)/" }
         if isTestnet { return "https://tn10.kaspa.stream/transactions/" }
         switch self {
-        case .kaspaStream: return "https://kaspa.stream/transactions/"
+        case .k, .kaspaStream: return "https://kaspa.stream/transactions/"
         case .kaspaOrg: return "https://explorer.kaspa.org/txs/"
         }
     }
 
     private var addressBaseURL: String {
+        if self == .k { return "kachat://\(ExplorerDeepLink.addressHost)/" }
         if isTestnet { return "https://tn10.kaspa.stream/addresses/" }
         switch self {
-        case .kaspaStream: return "https://kaspa.stream/addresses/"
+        case .k, .kaspaStream: return "https://kaspa.stream/addresses/"
         case .kaspaOrg: return "https://explorer.kaspa.org/addresses/"
         }
     }
@@ -2708,8 +2715,10 @@ enum KaspaExplorer: String, Codable, CaseIterable {
         return URL(string: addressBaseURL + encoded)
     }
 
-    /// kaspa.stream first: the picker lists it first and a fresh install opens links there.
-    static let `default`: KaspaExplorer = .kaspaStream
+    /// K's own Explorer (owner, 2026-11-26): a fresh install opens links there, and everyone was
+    /// moved to it once (`AppSettings.kExplorerDefaultMigration`); kaspa.stream and
+    /// explorer.kaspa.org stay in the picker.
+    static let `default`: KaspaExplorer = .k
 }
 
 enum NotificationMode: String, Codable, CaseIterable {

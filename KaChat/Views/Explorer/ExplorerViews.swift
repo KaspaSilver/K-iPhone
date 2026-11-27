@@ -111,11 +111,23 @@ struct ExplorerView: View {
             .onScreenPresence(appear: { onScreen = true; updateLive() },
                               disappear: { onScreen = false; updateLive() })
             .onChange(of: scenePhase) { _ in updateLive() }
+            // a K Explorer link (`ExplorerDeepLink`): its transaction or address
+            .onAppear { takeDeepLink() }
+            .onReceive(NotificationCenter.default.publisher(for: .explorerDeepLink)) { _ in takeDeepLink() }
         }
         .environment(\.explorerPaused, !running)
     }
 
     private var running: Bool { onScreen && scenePhase == .active }
+
+    /// The page a K Explorer link asked for, on top of the Explorer's home.
+    private func takeDeepLink() {
+        guard let route = ExplorerDeepLink.pending else { return }
+        ExplorerDeepLink.pending = nil
+        query = ""
+        searchFocused = false
+        path = [route]
+    }
 
     private func updateLive() {
         if running { live.start() } else { live.stop() }

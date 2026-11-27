@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "يمكن إضافة الغرف التي يحفظها المفهرس مجددًا من إضافة غرفة. أما الغرف التي أنشأتها فتُحذف مع رسائلها من هذا الجهاز.";
 "This room isn't in your Public Chats. Add it?" = "هذه الغرفة ليست في دردشاتك العامة. هل تريد إضافتها؟";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "غرفة يحفظها المفهرس. أضفتها أنت، ويمكن لأي شخص على K النشر فيها.";
+"K Explorer" = "مستكشف K";

@@ -3498,3 +3498,4 @@
 "Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device." = "इंडेक्सर जिन रूम्स को रखता है, उन्हें रूम जोड़ें से दोबारा जोड़ा जा सकता है। आपके बनाए रूम उनके संदेशों के साथ इस डिवाइस से हट जाते हैं।";
 "This room isn't in your Public Chats. Add it?" = "यह रूम आपकी पब्लिक चैट में नहीं है। जोड़ें?";
 "A room the indexer keeps. You added it, and anyone on K can post to it." = "इंडेक्सर द्वारा रखा गया रूम। आपने इसे जोड़ा है, और K पर कोई भी इसमें पोस्ट कर सकता है।";
+"K Explorer" = "K एक्सप्लोरर";
