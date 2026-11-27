@@ -50,8 +50,8 @@ to the grid (`HubRouter`). Holding a card opens its half sheet (Copy Link, Open;
 link is `https://kachat.app/hub/<slug>` (`AppTab.linkSlug`, fixed words: contacts, portfolio,
 cold-storage, usernames, kapost, kaplay, websites, explorer, kasshi; also `kachat://hub/<slug>`), which opens
 that card for whoever taps it (`KaChatInternalLink.hubSection`, `.openHubSection`). **Kasshi** (owner, 2026-11-26) is its own card (`AppTab.kasshi`, slug `kasshi`), no longer
-one of the Websites: kasshi.io in `InAppBrowserScreen` with `powersDown: false` (the dock stays
-on screen, so the node and chats keep running; the X goes back to the grid). **K signs in to
+one of the Websites: kasshi.io in `InAppBrowserScreen` with `powersDown: false` (the node and chats keep running; the X goes back to the grid). It's just the
+site: no dock (`.toolbar(.hidden, for: .tabBar)`, owner 2026-11-26). **K signs in to
 Kasshi itself** (2026-11-26, KASSHI_INTEGRATION.md): `KaChatSiteWallet` puts the K browser
 extension's `window.kachat` provider (same calls, shapes and error codes, plus `platform: "ios"`)
 on allowed https origins only (`allowedHosts`: kasshi.io and subdomains; main frame, checked again
@@ -157,6 +157,12 @@ The old Add to Contacts row and the big Share Profile button are gone.
   address refuses new trades for 10 minutes or until the earlier trade shows on chain.
 - The in-app browser (Websites, explorer, faucet) keeps to its starting site, sends other sites to
   Safari, shows the live host, and uses a non-persistent data store.
+- Every in-app website (`InAppBrowserScreen`, Trestly, Buy Kaspa) has a refresh button at the top
+  right (owner, 2026-11-26: `WebPageRefreshButton`, `WebPageReloader`); it shows a spinner while the
+  page loads and still reloads a page stuck loading.
+- Their web views ignore the keyboard's safe area (`.ignoresSafeArea(.keyboard)`): WebKit moves the
+  page for the keyboard itself. SwiftUI resizing it too made Trestly's page jump on every tap in
+  Stripe's fields, so Paste, AutoFill and texted codes failed (2026-11-26).
 - `.kachat` social avatars resolve only for you, your contacts and chats, and profiles you opened
   (`KachatSocialImageResolver.mayLookUp`); identity lookups are batched (`/identity/batch`).
 - Delete Account removes every ported store (`WalletManager.removeLocalData`); Log Out keeps the
@@ -1127,7 +1133,8 @@ Owner, 2026-11-26. The Wallet tab's card under Your Usernames (`BuyKaspaCard`, t
 the left, mainnet only: Trestly sells by card on mainnet) opens one flow, `BuyKaspaView`
 (`Views/Tokens/BuyKaspaViews.swift`):
 1. "Where should your kUSDT land?": Fresh Address (the default, owner 2026-11-26: the next unused
-   regular address, `TokenWallet.freshReceiveAddress`, revealed on Continue) or the Chatting
+   regular address, `TokenWallet.freshReceiveAddress`, put on Manage Addresses' list only once an
+   order to it is paid, so leaving without paying uses nothing up) or the Chatting
    Address. No other address is offered.
 2. Trestly's buy page, `trestly.io/buy` (`CardBuyBrowserView`, in `TrestlyWebView`). Stripe sells
    USDC on Ethereum into the buyer's own Ethereum wallet. That wallet first signs one EIP-2612

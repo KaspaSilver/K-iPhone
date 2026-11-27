@@ -3429,3 +3429,4 @@
 "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "K 的以太坊地址由这个账户的助记词生成,和任何以太坊钱包生成的一样。";
 "A new address that has never been used, so this purchase stays apart from your username and chats." = "一个从未使用过的新地址,让这笔购买与你的用户名和聊天分开。";
 "The address people message and pay you on." = "别人给你发消息和付款的地址。";
+"Reload" = "重新加载";

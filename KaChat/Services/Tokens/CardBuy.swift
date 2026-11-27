@@ -459,15 +459,24 @@ final class CardBuyTracker: ObservableObject {
                 current.paidSeen = true
                 buy = current
                 save()
+                revealAddress(of: current)
             }
             return
         }
         buy = CardBuy(session: session, address: target.address, label: target.label,
                       spendingIndex: target.spendingIndex, startedAt: Date(), paidSeen: paid ? true : nil)
         save()
+        if paid, let buy { revealAddress(of: buy) }
         // the regular kUSDT look covers this address from now on
         TokenWallet.shared.noteReceiveAddressShown(target.address)
         ensurePolling()
+    }
+
+    /// A paid order's fresh address goes on Manage Addresses' list (Buy Kaspa only derives it, so
+    /// leaving without paying uses nothing up). Nothing for the Chatting Address or one already listed.
+    private func revealAddress(of buy: CardBuy) {
+        guard let index = buy.spendingIndex else { return }
+        Task { await TokenWallet.shared.revealFreshReceiveAddress(index) }
     }
 
     /// The card's X, or Swap to Kaspa: the purchase is no longer shown.
@@ -578,7 +587,10 @@ final class CardBuyTracker: ObservableObject {
         }
         guard buy?.session == current.session else { return }
         // only a real payment counts: Stripe's status, the USDC delivered, the bridge, a refund
-        if [.paid, .bridging, .arrived, .refunded].contains(next.stage) { next.paidSeen = true }
+        if [.paid, .bridging, .arrived, .refunded].contains(next.stage), next.paidSeen != true {
+            next.paidSeen = true
+            revealAddress(of: next)
+        }
         // never paid and Buy Kaspa closed: not followed any more, and nothing shows on the card
         if next.paidSeen != true, !screenOpen, [.waitingPayment, .signAgain, .expired].contains(next.stage) {
             clear()

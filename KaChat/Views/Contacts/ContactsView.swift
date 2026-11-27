@@ -2225,6 +2225,55 @@ struct TestnetFaucetClaimButton: View {
     }
 }
 
+/// The page's reload, for the refresh button at the top right of every in-app website (owner,
+/// 2026-11-26): `InAppBrowserScreen` (Websites, Kasshi, the explorer, the faucet) and
+/// `TrestlyWebView` (Trestly, Buy Kaspa). The web view registers itself when it's made.
+@MainActor
+final class WebPageReloader: ObservableObject {
+    weak var webView: WKWebView?
+    /// Where the page started, for a first load that never got anywhere (`reload()` needs a page).
+    var startURL: URL?
+
+    func reload() {
+        guard let webView else { return }
+        if webView.url == nil, let startURL {
+            webView.load(URLRequest(url: startURL))
+        } else {
+            webView.reload()
+        }
+    }
+}
+
+/// The top right of an in-app website: reload, showing a spinner while the page loads (still a
+/// button then, so a page stuck loading can be loaded again).
+struct WebPageRefreshButton: View {
+    let isLoading: Bool
+    var size: CGFloat = 34
+    var tint: Color = .primary
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            Haptics.impact(.light)
+            action()
+        } label: {
+            ZStack {
+                if isLoading {
+                    ProgressView()
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.scaled(size: 16, weight: .semibold))
+                }
+            }
+            .foregroundColor(tint)
+            .frame(width: size, height: size)
+            .background(Circle().fill(.regularMaterial))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Reload"))
+    }
+}
+
 /// Full-screen in-app browser: the X in the top-left is the ONLY way out (full-screen cover,
 /// so there's no slide-down to dismiss).
 ///
@@ -2236,13 +2285,13 @@ struct InAppBrowserScreen: View {
     let url: URL
     /// Optional strip under the top bar (Claim Testnet Kaspa: "your address is copied").
     var notice: String? = nil
-    /// Pause the node and chat polling while it's up, as for a backgrounded app. Off where the
-    /// dock stays on screen (Kasshi's Kaspa Hub card): there the connection dot would turn red,
-    /// and a tap on Chats must find live chats.
+    /// Pause the node and chat polling while it's up, as for a backgrounded app. Off for Kasshi's
+    /// Kaspa Hub card, which pays through K's wallet and goes back to the Hub, not a closed cover.
     var powersDown = true
     let onClose: () -> Void
 
     @State private var isLoading = true
+    @StateObject private var reloader = WebPageReloader()
     /// K as the page's wallet (`window.kachat`), on the sites `KaChatSiteWallet` allows (Kasshi).
     @StateObject private var siteWallet = KaChatSiteWallet()
     /// The site's request on screen. Kept apart from `siteWallet.pending` so a send's Sent screen
@@ -2298,13 +2347,7 @@ struct InAppBrowserScreen: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer()
-                if isLoading {
-                    ProgressView()
-                        .frame(width: 34, height: 34)
-                } else {
-                    Color.clear
-                        .frame(width: 34, height: 34)
-                }
+                WebPageRefreshButton(isLoading: isLoading) { reloader.reload() }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -2323,7 +2366,8 @@ struct InAppBrowserScreen: View {
             }
             Divider()
             InAppWebView(url: url, isLoading: $isLoading, currentURL: $currentURL,
-                         siteWallet: KaChatSiteWallet.isAllowed(host: url.host) ? siteWallet : nil)
+                         siteWallet: KaChatSiteWallet.isAllowed(host: url.host) ? siteWallet : nil,
+                         reloader: reloader)
                 .ignoresSafeArea(edges: .bottom)
         }
         .background(Color(uiColor: .systemBackground))
@@ -2357,6 +2401,8 @@ private struct InAppWebView: UIViewRepresentable {
     @Binding var currentURL: URL?
     /// K as the page's wallet, on an allowed site only.
     var siteWallet: KaChatSiteWallet? = nil
+    /// The header's refresh button.
+    var reloader: WebPageReloader? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -2371,6 +2417,8 @@ private struct InAppWebView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
         context.coordinator.observe(webView)
+        reloader?.webView = webView
+        reloader?.startURL = url
         webView.load(URLRequest(url: url))
         return webView
     }

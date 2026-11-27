@@ -112,10 +112,13 @@ struct AppTabContent: View {
         case .explorer:
             ExplorerView()
         case .kasshi:
-            // kasshi.io in the in-app browser, its X back to the grid
+            // kasshi.io in the in-app browser, its X back to the grid. Just the site: no dock
+            // (owner, 2026-11-26). The node and chats keep running (`powersDown: false`) so a
+            // payment Kasshi asks for goes straight out and chats are current on the way back.
             InAppBrowserScreen(url: URL(string: "https://kasshi.io")!, powersDown: false) {
                 HubRouter.shared.close()
             }
+            .toolbar(.hidden, for: .tabBar)
         case .apps:
             NavigationStack {
                 // ProfileAppsView sets its own title; only the shared header items are added.

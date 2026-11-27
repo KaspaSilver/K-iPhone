@@ -213,8 +213,8 @@ struct BuyKaspaView: View {
                 target = TrestlyTarget(label: String(format: AppLocalization.string("Address #%lld"),
                                                      WalletManager.addressNumber(forIndex: fresh.index)),
                                        address: fresh.address, spendingIndex: fresh.index)
-                // on Manage Addresses' list (and watched) from now on, so the next fresh one is another
-                Task { await TokenWallet.shared.revealFreshReceiveAddress(fresh.index) }
+                // not put on Manage Addresses' list yet: only once an order to it is paid
+                // (`CardBuyTracker`), so opening Buy Kaspa and leaving doesn't use up an address
             } else {
                 guard let address = WalletManager.shared.currentWallet?.publicAddress else { return }
                 target = TrestlyTarget(label: AppLocalization.string("Chatting Address"), address: address, spendingIndex: nil)
@@ -305,6 +305,7 @@ struct CardBuyBrowserView: View {
     @StateObject private var ethereum: CardBuyEthereumProvider
     @ObservedObject private var tracker = CardBuyTracker.shared
     @State private var isLoading = true
+    @StateObject private var reloader = WebPageReloader()
 
     init(target: TrestlyTarget, session: String?, ethereumAddress: String,
          onClose: @escaping () -> Void, onSwap: @escaping (CardBuy) -> Void) {
@@ -354,10 +355,7 @@ struct CardBuyBrowserView: View {
                 }
                 .foregroundColor(.secondary)
                 Spacer(minLength: 0)
-                Group {
-                    if isLoading { ProgressView() } else { Color.clear }
-                }
-                .frame(width: 40, height: 40)
+                WebPageRefreshButton(isLoading: isLoading, size: 40, tint: .accentColor) { reloader.reload() }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
@@ -370,6 +368,8 @@ struct CardBuyBrowserView: View {
                     .frame(width: 14, height: 14)
                 Text(verbatim: String(format: AppLocalization.string("kUSDT lands on: %@"), target.label))
                     .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 Text(verbatim: "\(target.address.prefix(14))...\(target.address.suffix(6))")
                     .font(.caption.monospaced())
                     .foregroundColor(.secondary)
@@ -380,7 +380,11 @@ struct CardBuyBrowserView: View {
             .padding(.vertical, 8)
             .background(Color.accentColor.opacity(0.12))
 
-            TrestlyWebView(url: url, provider: provider, ethereum: ethereum, isLoading: $isLoading)
+            TrestlyWebView(url: url, provider: provider, ethereum: ethereum, reloader: reloader, isLoading: $isLoading)
+                // the web view moves its own page for the keyboard; SwiftUI shrinking it as well made
+                // the page jump on every tap in Stripe's card and code fields, so Paste, AutoFill and
+                // a texted code couldn't land (owner, 2026-11-26)
+                .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .background(Color(.systemBackground))
         .safeAreaInset(edge: .bottom) {

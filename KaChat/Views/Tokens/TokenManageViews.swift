@@ -1193,6 +1193,7 @@ struct TrestlyBrowserView: View {
     let target: TrestlyTarget
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
+    @StateObject private var reloader = WebPageReloader()
     /// The page's wallet provider, kept for as long as the browser is open; its `approval` is the
     /// trade waiting for an answer.
     @StateObject private var provider: TrestlyProvider
@@ -1229,12 +1230,8 @@ struct TrestlyBrowserView: View {
                 }
                 .foregroundColor(.secondary)
                 Spacer(minLength: 0)
-                if isLoading {
-                    ProgressView()
-                        .frame(width: 44)
-                } else {
-                    Color.clear.frame(width: 44, height: 1)
-                }
+                WebPageRefreshButton(isLoading: isLoading, tint: .accentColor) { reloader.reload() }
+                    .frame(width: 44)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -1257,7 +1254,11 @@ struct TrestlyBrowserView: View {
             .padding(.vertical, 8)
             .background(Color.accentColor.opacity(0.12))
 
-            TrestlyWebView(url: Self.startURL, provider: provider, isLoading: $isLoading)
+            TrestlyWebView(url: Self.startURL, provider: provider, reloader: reloader, isLoading: $isLoading)
+                // the web view moves its own page for the keyboard; SwiftUI shrinking it as well made
+                // the page jump on every tap in Stripe's card and code fields, so Paste, AutoFill and
+                // a texted code couldn't land (owner, 2026-11-26)
+                .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .background(Color(.systemBackground))
         // a completed swap, over the page (`TrestlyProvider.announceSwap`)
@@ -1282,6 +1283,8 @@ struct TrestlyWebView: UIViewRepresentable {
     let url: URL
     let provider: TrestlyProvider
     var ethereum: CardBuyEthereumProvider? = nil
+    /// The header's refresh button.
+    var reloader: WebPageReloader? = nil
     @Binding var isLoading: Bool
 
     func makeCoordinator() -> Coordinator { Coordinator(isLoading: $isLoading, siteURL: url) }
@@ -1297,6 +1300,8 @@ struct TrestlyWebView: UIViewRepresentable {
         view.navigationDelegate = context.coordinator
         view.uiDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true
+        reloader?.webView = view
+        reloader?.startURL = url
         view.load(URLRequest(url: url))
         return view
     }

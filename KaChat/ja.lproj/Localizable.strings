@@ -3429,3 +3429,4 @@
 "K's Ethereum address comes from this account's words, as any Ethereum wallet would make it." = "KのEthereumアドレスは、どのEthereumウォレットでも同じように、このアカウントのワードから作られます。";
 "A new address that has never been used, so this purchase stays apart from your username and chats." = "一度も使われていない新しいアドレス。この購入をユーザー名やチャットと切り離せます。";
 "The address people message and pay you on." = "みんながあなたにメッセージや支払いを送るアドレスです。";
+"Reload" = "再読み込み";
