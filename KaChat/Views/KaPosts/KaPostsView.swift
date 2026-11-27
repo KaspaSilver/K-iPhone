@@ -324,6 +324,9 @@ struct KaPostsView: View {
     @State private var isCheckingForNewPosts = false
     /// Set when the pill is tapped; the feed's ScrollViewReader consumes it to jump to the top.
     @State private var pendingScrollToFeedTop = false
+    /// The feeds scrolled away from their top: their back-to-top button shows (owner, 2026-11-27,
+    /// as a chat's jump to the newest message does at the bottom).
+    @State private var feedsAwayFromTop: Set<FeedTab> = []
     /// The new-post composer on screen, carrying what it opens with. An item rather than a flag,
     /// so the text travels with the presentation itself: a flag's cover read the text from
     /// whichever body pass built it, and a link's post could open empty.
@@ -1179,6 +1182,10 @@ struct KaPostsView: View {
                     Color.clear
                         .frame(height: 0)
                         .id(Self.feedTopAnchor)
+                        // The lazy stack drops it once the top has scrolled out of view, and
+                        // draws it again on the way back: the back-to-top button follows that.
+                        .onAppear { if feedsAwayFromTop.contains(tab) { feedsAwayFromTop.remove(tab) } }
+                        .onDisappear { if !feedsAwayFromTop.contains(tab) { feedsAwayFromTop.insert(tab) } }
                     ForEach(visiblePosts) { post in
                         let identity = posterIdentity(post.posterAddress)
                         KaPostCellView(
@@ -1258,6 +1265,7 @@ struct KaPostsView: View {
             }
             .refreshable { await loadFeed() }
             .overlay(alignment: .top) { newPostsPill }
+            .overlay(alignment: .bottomTrailing) { backToTopButton(for: tab, using: feedProxy) }
             .onChange(of: pendingScrollToFeedTop) { shouldScroll in
                 guard shouldScroll else { return }
                 pendingScrollToFeedTop = false
@@ -1288,6 +1296,47 @@ struct KaPostsView: View {
     }
 
     private static let feedTopAnchor = "kaPostsFeedTop"
+
+    /// Back to the top of the feed (owner, 2026-11-27): the chat's jump-to-newest button turned
+    /// up, above the compose button, once the top has scrolled away.
+    @ViewBuilder
+    private func backToTopButton(for tab: FeedTab, using proxy: ScrollViewProxy) -> some View {
+        if feedsAwayFromTop.contains(tab) {
+            Button {
+                Haptics.impact(.light)
+                withAnimation(.easeOut(duration: 0.3)) {
+                    proxy.scrollTo(Self.feedTopAnchor, anchor: .top)
+                }
+                // The lazy feed only estimates the height of posts it hasn't drawn, so a long jump
+                // can land short of the top: jump again until the top is really there.
+                func settle(_ attempt: Int) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        guard attempt < 3, feedsAwayFromTop.contains(tab) else { return }
+                        proxy.scrollTo(Self.feedTopAnchor, anchor: .top)
+                        settle(attempt + 1)
+                    }
+                }
+                settle(0)
+            } label: {
+                Circle()
+                    .fill(.regularMaterial)
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
+                    .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Image(systemName: "chevron.up")
+                            .font(.scaled(size: 15, weight: .semibold))
+                            .foregroundColor(.primary)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Back to Top"))
+            // centred over the 56 pt compose button (20 pt from the edge), just above it
+            .padding(.trailing, 28)
+            .padding(.bottom, 16 + 56 + 12)
+            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+        }
+    }
 
     // MARK: - New posts
 

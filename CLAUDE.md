@@ -148,7 +148,9 @@ lists notifications any more; a push naming no post opens the bell (`Notificatio
 and Replies on a profile change only with the cycle button, fading as KaPost's feeds do (owner,
 2026-11-24: no sideways swipe). KaPost's three feeds
 (Following, Feed, Popular) are one see-through button beside the title (`feedCycleButton`, owner,
-2026-11-23): each tap fades to the next; no tabs and no sideways swipe. "View thread" (as on X, owner 2026-11-25) shows
+2026-11-23): each tap fades to the next; no tabs and no sideways swipe. Scrolled down, a feed shows
+a back-to-top button above the compose button (owner, 2026-11-27, `backToTopButton`, as a chat's
+jump to the newest message): it jumps to the top, again if the lazy feed landed short. "View thread" (as on X, owner 2026-11-25) shows
 only under a post whose poster replied to it themselves, and the Thread section holds only that
 poster's chain of posts (`loadSelfThreadChain`); anyone else's reply, even the only one, is a
 comment, listed below. The probe's saved answers moved to `_v2` keys, so posts wrongly
