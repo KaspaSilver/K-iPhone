@@ -233,6 +233,16 @@ final class CardBuyEthereumProvider: NSObject, ObservableObject, WKScriptMessage
         } catch let failure as EIP712.Failure {
             throw ProviderError(code: Code.invalid, message: failure.message)
         }
+        // Never more than the order paid for, once K knows its amount (audit 2026-11-27 L2): the
+        // USDC delivered is that amount less fees, and this address may be MetaMask's account 0
+        // for someone who imported their MetaMask words.
+        if let order = CardBuyTracker.shared.buy, order.address.lowercased() == target.address.lowercased(),
+           let dollars = order.dollars.flatMap(Double.init), dollars > 0 {
+            let cap = UInt64((dollars * 1.01 + 1) * 1_000_000)
+            guard request.valueUnits <= cap else {
+                throw ProviderError(code: Code.invalid, message: "This permit is for more than the order.")
+            }
+        }
         let approved = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
             request.answer = { continuation.resume(returning: $0) }
             pending = request
@@ -407,6 +417,10 @@ struct CardBuy: Codable, Equatable, Identifiable {
     var id: String { session }
 
     var isFinished: Bool { [.arrived, .rejected, .refunded, .expired].contains(stage) }
+    /// Still worth asking Trestly about: not over, and not stuck for a week (a paid order sitting
+    /// in signAgain, bridging or paid polled on every beat forever; audit 2026-11-27 M4). The card
+    /// keeps showing it, and opening it still goes to its page.
+    var isFollowed: Bool { !isFinished && Date().timeIntervalSince(startedAt) < 7 * 86_400 }
 
     var target: TrestlyTarget {
         TrestlyTarget(label: label, address: address, spendingIndex: spendingIndex)
@@ -436,7 +450,11 @@ final class CardBuyTracker: ObservableObject {
 
     private var account: String?
     private var loop: Task<Void, Never>?
+    /// Which loop owns `loop`: a cancelled loop finishing late never clears its successor's slot.
+    private var loopToken = 0
     private var pollNow: CheckedContinuation<Void, Never>?
+    /// The wait's timer, cancelled when the wait is cut short, so it never wakes a later wait.
+    private var sleeper: Task<Void, Never>?
     private let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 15
@@ -494,17 +512,35 @@ final class CardBuyTracker: ObservableObject {
         syncAccount()
         buy = nil
         save()
+        stopLoop()
+    }
+
+    /// Ends the loop: cancelled, its timer too, and its waiter let go so it actually exits
+    /// (cancelling alone never woke it; audit 2026-11-27 M4).
+    private func stopLoop() {
         loop?.cancel()
         loop = nil
+        sleeper?.cancel()
+        sleeper = nil
+        pollSoon()
+    }
+
+    /// Log Out: nothing of the last account's purchase keeps running.
+    func signedOut() {
+        stopLoop()
+        account = nil
+        buy = nil
     }
 
     /// Starts following again (the Wallet tab shows, Buy Kaspa opened), if there's anything to follow.
     func ensurePolling() {
         syncAccount()
-        guard let buy, !buy.isFinished else { return }
+        guard let buy, buy.isFollowed else { return }
         if loop == nil {
+            loopToken &+= 1
+            let token = loopToken
             loop = Task { @MainActor [weak self] in
-                await self?.run()
+                await self?.run(token: token)
             }
         } else {
             pollSoon()
@@ -517,12 +553,12 @@ final class CardBuyTracker: ObservableObject {
         waiting?.resume()
     }
 
-    private func run() async {
-        defer { loop = nil }
-        while !Task.isCancelled {
-            guard let current = buy, !current.isFinished else { return }
+    private func run(token: Int) async {
+        defer { if loopToken == token { loop = nil } }
+        while !Task.isCancelled, loopToken == token {
+            guard let current = buy, current.isFollowed else { return }
             await poll(current)
-            guard let after = buy, !after.isFinished else { return }
+            guard !Task.isCancelled, loopToken == token, let after = buy, after.isFollowed else { return }
             await wait()
         }
     }
@@ -531,15 +567,17 @@ final class CardBuyTracker: ObservableObject {
     private func wait() async {
         let open = screenOpen
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            // an earlier loop's waiter (cleared, then started again) is let go, never dropped
+            // an earlier waiter is let go, never dropped
             pollSoon()
             pollNow = continuation
-            Task { @MainActor [weak self] in
+            sleeper?.cancel()
+            sleeper = Task { @MainActor [weak self] in
                 if open {
                     try? await Task.sleep(nanoseconds: 8_000_000_000)
                 } else {
                     await ForegroundBeat.sleepUntilNextBeat(offset: 1.5)
                 }
+                guard !Task.isCancelled else { return }
                 self?.pollSoon()
             }
         }
@@ -663,8 +701,7 @@ final class CardBuyTracker: ObservableObject {
         let now = Self.currentAccount
         guard now != account else { return }
         account = now
-        loop?.cancel()
-        loop = nil
+        stopLoop()
         buy = Self.load(account: now)
     }
 

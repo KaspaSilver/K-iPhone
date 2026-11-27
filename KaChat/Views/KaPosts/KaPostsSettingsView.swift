@@ -267,7 +267,7 @@ struct KaPostsSettingsView: View {
                 }
                 }
             }
-            .navigationTitle(part == .tipping ? "Tipping" : (embedded ? "KaPost" : "KaPost Settings"))
+            .navigationTitle(AppLocalization.string(part == .tipping ? "Tipping" : "Posts"))
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 cooldownEnabled = settingsViewModel.settings.kaPostsCooldownEnabled

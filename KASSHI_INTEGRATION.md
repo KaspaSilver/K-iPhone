@@ -15,8 +15,12 @@ shapes and error codes match the extension. Kasshi's existing K code should ther
 the app with **no change**: the K tile shows "Installed", and the sign-in, deposit and withdraw
 flows run as they do on desktop.
 
-Each request opens a native K sheet: Connect, Sign or Send, with Approve and Decline. Kasshi's
-page never sees a key.
+Opened from Kaspa Hub, K first asks **which address to sign in with** ("Sign In to Kasshi"),
+before the page loads. The page's `requestAccounts` then answers with that address and no sheet,
+and its first `signMessage` within 2 minutes is signed with no sheet when it is exactly Kasshi's
+sign-in challenge for that address (header, address, a timestamp within 10 minutes, a hex nonce;
+on kasshi.io or www.kasshi.io only). Anything else opens a native K sheet: Connect, Sign or Send,
+with Approve and Decline. Every send asks. Kasshi's page never sees a key.
 
 The rest of this doc covers:
 - the exact contract, so Kasshi can check it against its code;
@@ -99,11 +103,11 @@ Errors are thrown as `Error`, with `code` set. The messages say "K".
 | code | Meaning | What Kasshi should do |
 |---|---|---|
 | `4001` | Declined in K. K refuses that site's requests for a few seconds afterwards | Show "Request rejected in K" (Kasshi's `Qy()` already does) |
-| `4002` | **May have been sent** (extension only; the app shows a failed send in K with Try Again, and closing it answers `4001`) | Don't retry blindly. Check the txid or the deposit address first |
+| `4002` | **May have been sent**: the send went out but K got no answer. The error has `txid`; the app also refuses new sends from the page for 10 minutes (`-32002`) | Don't retry. Check the txid or the deposit address first |
 | `4100` | Not connected yet | Call `requestAccounts()` |
 | `4200` | Method not supported | |
-| `4900` | K couldn't reach the network | Retry later |
-| `-32002` | A request from this site is already waiting in K | Wait |
+| `4900` | K couldn't do it: the network didn't answer, a balance couldn't be read, or the address's key couldn't be used (the message says which) | Retry later |
+| `-32002` | A request from this site is already waiting in K, or a send may still land (after `4002`) | Wait |
 | `-32602` | Bad parameters | |
 
 ## 2. Kasshi's flows, as they will run in the app
@@ -158,12 +162,6 @@ c. **(Optional) Silent re-sign-in.** If Kasshi wants returning K users signed in
    `getAccounts()` returns the same address, reuse it and refresh with `/api/wallet-auth/refresh`.
    The Connect sheet would still show once per browser session.
 
-e. **(Optional) Sign in on its own inside K.** When `window.kachat?.platform === "ios"` and
-   `getAccounts()` returns an address on load (or `accountsChanged` fires with one), the person
-   already picked it in K's "Sign In to Kasshi" sheet. Kasshi can run its wallet sign-in right
-   away (challenge, `signMessage`, verify) without its Create Account modal: K signs that first
-   challenge with no sheet, so the person goes from picking the address to signed in.
-
 d. **(Optional) "Open in K" button.** When kasshi.io is opened in mobile Safari, a button could
    open the same page inside K:
    ```
@@ -172,6 +170,12 @@ d. **(Optional) "Open in K" button.** When kasshi.io is opened in mobile Safari,
    K will open only https kasshi.io URLs through this link (any other URL is refused), in its
    built-in browser with the provider ready. Without K installed, the link lands on kachat.app's
    download page.
+
+e. **(Optional) Sign in on its own inside K.** When `window.kachat?.platform === "ios"` and
+   `getAccounts()` returns an address on load (or `accountsChanged` fires with one), the person
+   already picked it in K's "Sign In to Kasshi" sheet. Kasshi can run its wallet sign-in right
+   away (challenge, `signMessage`, verify) without its Create Account modal: K signs that first
+   challenge with no sheet, so the person goes from picking the address to signed in.
 
 ## 5. K's side (for reference)
 

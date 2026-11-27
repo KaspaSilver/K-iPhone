@@ -857,6 +857,12 @@ extension WalletManager {
         return "Address #\(Self.addressNumber(forIndex: index))"
     }
 
+    /// The name the person gave a spending address, if any (no default "Address #n").
+    func spendingAddressLabel(index: Int) -> String? {
+        let named = spendingLabels[index]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return named.isEmpty ? nil : named
+    }
+
     /// The number people see for a spending address. The Chatting Address is #0, so the legacy
     /// chain's first slot shows as #1; the quantum chain has no chatting address and starts at #0.
     nonisolated static func addressNumber(forIndex index: Int) -> Int {

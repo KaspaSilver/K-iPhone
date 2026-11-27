@@ -805,120 +805,6 @@ final class KachatNamesRegistry: ObservableObject {
         return Array(try readChainState().events.reversed().prefix(200))
     }
 
-    /// A count or amount over the last 24 hours, the last 7 days and all time.
-    struct Totals: Equatable {
-        var last24h: UInt64
-        var last7d: UInt64
-        var total: UInt64
-    }
-
-    /// How many .kachat transactions there were and what they paid, across the registry - for
-    /// KaChat Stats (back 2026-11-21) and the market's Activity page. An indexer reports both (`GET /stats/names`:
-    /// fees = what each transaction paid miners, the registry's price included, since that is
-    /// how the price is paid). Read from the chain instead, the walker counts its events and
-    /// prices each registration, extension and renewal at the registry's fixed prices.
-    /// `fees` is nil where they can't be worked out (an indexer too old to record them).
-    func activityTotals() async throws -> (transactions: Totals, fees: Totals?) {
-        let m = try await prepare()
-        switch source {
-        case .indexer(let base):
-            // `/names/activity/stats` first: a proxy may send /stats/* to a server without the
-            // names module (mainnet today). Neither answering, the activity feed is counted.
-            let stats: KachatNames.IndexerAPI.StatsJSON
-            if let j: KachatNames.IndexerAPI.StatsJSON = try? await Self.get(base, "/names/activity/stats") {
-                stats = j
-            } else if let j: KachatNames.IndexerAPI.StatsJSON = try? await Self.get(base, "/stats/names") {
-                stats = j
-            } else {
-                return Self.totals(of: try await allIndexerEvents(base), params: m.params)
-            }
-            let j = stats
-            let fees = j.fees.flatMap { f -> Totals? in
-                guard let t = UInt64(f.total), let d = UInt64(f.last24h), let w = UInt64(f.last7d) else { return nil }
-                return Totals(last24h: d, last7d: w, total: t)
-            }
-            if let t = j.transactions {
-                return (Totals(last24h: t.last24h, last7d: t.last7d, total: t.total), fees)
-            }
-            // an indexer from before `transactions`: the per-kind figures, added up (saturating:
-            // a server's numbers must never crash the app; audit 2026-11-21, #20)
-            let kinds = (j.activity ?? [:]).values
-            return (Totals(last24h: kinds.reduce(0) { Self.add($0, $1.last24h) },
-                           last7d: kinds.reduce(0) { Self.add($0, $1.last7d) },
-                           total: kinds.reduce(0) { Self.add($0, $1.total) }), fees)
-        default:
-            return Self.totals(of: try readChainState().events, params: m.params)
-        }
-    }
-
-    /// Every registry event an indexer's `/names/activity` holds, newest first, page by page.
-    /// Only when its stats endpoints don't answer, so at most `maxFallbackPages` pages of 200: a
-    /// registry with more throws, and Stats shows the `/stats` figures instead of paging through
-    /// all of it on every open (audit 2026-11-21, #35).
-    private static let maxFallbackPages = 10
-
-    private func allIndexerEvents(_ base: String) async throws -> [KachatNames.Event] {
-        var events: [KachatNames.Event] = []
-        var cursor: String?
-        for _ in 0..<Self.maxFallbackPages {
-            var path = "/names/activity?length=200"
-            if let cursor { path += "&cursor=\(cursor)" }
-            let page: KachatNames.IndexerAPI.EventsJSON = try await Self.get(base, path)
-            events += page.events.map(\.event)
-            guard let next = page.next, !next.isEmpty, !page.events.isEmpty else { return events }
-            cursor = next
-        }
-        throw URLError(.dataLengthExceedsMaximum)
-    }
-
-    /// `a + b`, stopping at the top instead of trapping on overflow (numbers from a server).
-    nonisolated static func add(_ a: UInt64, _ b: UInt64) -> UInt64 {
-        let (sum, overflow) = a.addingReportingOverflow(b)
-        return overflow ? .max : sum
-    }
-
-    /// `a * b`, stopping at the top instead of trapping on overflow.
-    nonisolated static func multiply(_ a: UInt64, _ b: UInt64) -> UInt64 {
-        let (product, overflow) = a.multipliedReportingOverflow(by: b)
-        return overflow ? .max : product
-    }
-
-    /// Counts and prices registry events (`activityTotals` without an indexer's figures), one per
-    /// transaction: registrations, extensions and renewals at the registry's fixed prices.
-    static func totals(of events: [KachatNames.Event], params: KachatNames.Params,
-                       nowMs: Int64 = KachatNames.nowMs()) -> (transactions: Totals, fees: Totals?) {
-        let d1 = nowMs - 86_400_000
-        let d7 = nowMs - 7 * 86_400_000
-        var at: [String: Int64] = [:]
-        var paid: [String: UInt64] = [:]
-        for e in events {
-            at[e.txId] = max(at[e.txId] ?? 0, e.at ?? 0)
-            // `years` can come from an indexer: a name holds a handful of periods, so anything
-            // past 1000 is nonsense, clamped before any math (audit 2026-11-21, #20)
-            guard let name = e.name, let rawYears = e.years, rawYears > 0 else { continue }
-            let years = min(rawYears, 1000)
-            let length = name.utf8.count
-            switch e.op {
-            case "register":
-                paid[e.txId] = add(paid[e.txId] ?? 0, params.registerCost(forLength: length, years: years))
-            case "extend", "renew":
-                paid[e.txId] = add(paid[e.txId] ?? 0, multiply(params.renewPrice(forLength: length), UInt64(years)))
-            default:
-                break
-            }
-        }
-        var transactions = Totals(last24h: 0, last7d: 0, total: 0)
-        var fees = Totals(last24h: 0, last7d: 0, total: 0)
-        for (tx, time) in at {
-            let fee = paid[tx] ?? 0
-            transactions.total += 1
-            fees.total = add(fees.total, fee)
-            if time > d7 { transactions.last7d += 1; fees.last7d = add(fees.last7d, fee) }
-            if time > d1 { transactions.last24h += 1; fees.last24h = add(fees.last24h, fee) }
-        }
-        return (transactions, fees)
-    }
-
     /// The fixed prices (registry v4, baked into the pinned templates): sompi for a name's first
     /// period, and for every further one, by length 1, 2, 3, 4, 5+ bytes. nil until a manifest loads.
     var registerPrices: [UInt64]? { service.manifest?.params.registerPrices }
@@ -2005,7 +1891,16 @@ final class KachatSocialImageResolver: ObservableObject {
 @MainActor
 final class KachatNamesNotifier {
     static let shared = KachatNamesNotifier()
-    private init() {}
+    /// Push registration decides which reminders the phone schedules itself (`pushCoversChatting`),
+    /// and it's false for a while after every launch and account switch: check again whenever it
+    /// changes, so the phone's reminders never double the pushes (audit 2026-11-27 L9).
+    private var registrationWatch: AnyCancellable?
+    private init() {
+        registrationWatch = PushNotificationManager.shared.$isRegistered
+            .removeDuplicates()
+            .dropFirst()
+            .sink { _ in Task { @MainActor in await KachatNamesNotifier.shared.check(rerunIfBusy: true) } }
+    }
 
     private struct Snapshot: Codable {
         struct Name: Codable {
@@ -2074,13 +1969,19 @@ final class KachatNamesNotifier {
         // Name rows reach the Profile bell since 2026-11-27; before, the bell refused them. Once
         // per wallet, a name already noted as in grace or up for renewal is noted again, so its
         // row lands now instead of never.
+        // A new account has nothing to catch up on (its first check is quiet), so it's marked
+        // done at once; the flag is set only after a whole check for the same account, or the
+        // catch-up rows of an interrupted one were lost (audit 2026-11-27 L8).
         let bellKey = "kachatNamesNotifier.bell.\(wallet)"
-        if old != nil, !UserDefaults.standard.bool(forKey: bellKey) {
+        var catchingUp = false
+        if old == nil {
+            UserDefaults.standard.set(true, forKey: bellKey)
+        } else if !UserDefaults.standard.bool(forKey: bellKey) {
+            catchingUp = true
             for name in old!.names.keys {
                 old!.names[name]?.graceNoted = false
                 old!.names[name]?.renewNoted = false
             }
-            UserDefaults.standard.set(true, forKey: bellKey)
         }
         let quiet = old == nil // the first check only records where things stand
         var new = Snapshot()
@@ -2182,7 +2083,10 @@ final class KachatNamesNotifier {
             }
         }
 
+        // signed out or switched while this ran: its rows weren't posted, so nothing is noted
+        guard KachatNamesActions.shared.myAddress == wallet else { return }
         if let data = try? JSONEncoder().encode(new) { UserDefaults.standard.set(data, forKey: key(wallet)) }
+        if catchingUp { UserDefaults.standard.set(true, forKey: bellKey) }
     }
 }
 

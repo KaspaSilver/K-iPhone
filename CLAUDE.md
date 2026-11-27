@@ -46,11 +46,11 @@ text "open Arcade > Chess"), in all 19 languages (`AppTab.label`). This replaces
 ("Share to KaPost", "Search KaPost", push titles) and code names are unchanged.
 
 **Dock and Kaspa Hub (phase 1, 2026-11-20):** the dock is fixed (owner's call, 2026-11-23: no
-Customize Dock): Kaspa Hub, Wallet, KaChat (the `.chats` tab, labeled "KaChat" since 2026-11-21 for
-the rebrand of the app as "K"), Profile, Settings (`AppTab.defaultDock`, `DockLayout`). The
+Customize Dock): Kaspa Hub, Wallet, Chats (the `.chats` tab; labeled "KaChat" from 2026-11-21
+to 2026-11-26), Profile, Settings (`AppTab.defaultDock`, `DockLayout`). The
 connection dot is only at the top of Settings and on the dock's Settings icon (`ConnectionHealth`,
 `SettingsDockIcon`: green connected, orange connecting, red after 8 s disconnected), on no other
-screen. **Kaspa Hub is a menu** (owner, 2026-11-26, behind `HubPresentation.asMenu`): tapping it
+screen. **Kaspa Hub is a menu** (owner, 2026-11-26): tapping it
 on the dock, from any tab or from a Hub section, never shows a Hub screen. A glass panel rises from
 the dock's left side, like iMessage's + (`KaspaHubMenu`: about the first three dock icons wide, up
 to half the screen tall, every section in a scrollable list with its badge, alphabetical by the name shown (owner, 2026-11-27,
@@ -64,22 +64,27 @@ away (owner, 2026-11-27, `HubRouter.rememberFor`): after more than a minute on o
 section is forgotten (`forgetIfStale`, its kept-alive screens with it) and the first tap on
 Kaspa Hub is the menu again, the glass not moving. Closing a section (Kasshi's X) goes back to the tab you came from
 (`tabBeforeHub`), never the grid. Hub links and `MainTabView.show` open the section the same way;
-Kaspa Hub on KaPost's dock copy opens the menu. With the switch off, every
-other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
-`Views/Ecosystem/KaspaHubView.swift`), where it opens full screen; tapping Kaspa Hub again goes back
-to the grid (`HubRouter`). Holding a card opens its half sheet (Copy Link, Open; 2026-11-25): the
-link is `https://kachat.app/hub/<slug>` (`AppTab.linkSlug`, fixed words: contacts, portfolio,
+Kaspa Hub on KaPost's dock copy opens the menu. There is no Hub grid (removed 2026-11-27 with
+`HubPresentation.asMenu`, and its hold sheet's Copy Link with it): `KaspaHubView`
+(`Views/Ecosystem/KaspaHubView.swift`) only draws the open section full screen, and the sections
+it doesn't keep alive (Kasshi, Websites) only while the Hub tab shows (`HubRouter.hubOnScreen`,
+audit 2026-11-27 L17). Signing out resets `HubRouter`. A section's link is
+`https://kachat.app/hub/<slug>` (`AppTab.linkSlug`, fixed words: contacts, portfolio,
 cold-storage, usernames, kapost, kaplay, websites, explorer, kasshi; also `kachat://hub/<slug>`), which opens
-that card for whoever taps it (`KaChatInternalLink.hubSection`, `.openHubSection`). **Kasshi** (owner, 2026-11-26) is its own card (`AppTab.kasshi`, slug `kasshi`), no longer
-one of the Websites: kasshi.io in `InAppBrowserScreen` with `powersDown: false` (the node and chats keep running; the X goes back to the grid). It's just the
+that section for whoever taps it (`KaChatInternalLink.hubSection`, `.openHubSection`). **Kasshi** (owner, 2026-11-26) is its own card (`AppTab.kasshi`, slug `kasshi`), no longer
+one of the Websites: kasshi.io in `InAppBrowserScreen` with `powersDown: false` (the node and chats keep running; the X goes back to the tab you came from). It's just the
 site: no dock (`.toolbar(.hidden, for: .tabBar)`, owner 2026-11-26). **K signs in to
 Kasshi itself** (2026-11-26, KASSHI_INTEGRATION.md): `KaChatSiteWallet` puts the K browser
 extension's `window.kachat` provider (same calls, shapes and error codes, plus `platform: "ios"`)
 on allowed https origins only (`allowedHosts`: kasshi.io and subdomains; main frame, checked again
 at the bridge). Kasshi from Kaspa Hub asks first (owner, 2026-11-27, `InAppBrowserScreen(signInFirst:)`):
 "Sign In to Kasshi", which address; then `KaChatSiteWallet.preConnect` connects it, so the site's
-`requestAccounts` answers with no sheet and its first `signMessage` within 2 minutes (the sign-in) is
-signed with no sheet; later signs and every send still ask. Cancel browses signed out. The
+`requestAccounts` answers with no sheet and its first `signMessage` within 2 minutes is signed
+with no sheet only when it is exactly Kasshi's sign-in challenge for that address (header, address,
+a timestamp within 10 minutes, a hex nonce; `isKasshiSignInChallenge`, on kasshi.io and www only,
+within the first page loads; audit 2026-11-27 M2); later signs and every send still ask. A send
+whose outcome is unknown answers 4002 with its txid and holds the page's sends for 10 minutes
+(`maybeSent`, M3). Cancel browses signed out; a failed sign-in says so (`signInError`). The
 browser's "closed" state is cleared whenever it shows (`reopen`) and set only when the web view is
 torn down: closing on onDisappear made a Kasshi brought back answer "K closed this page."
 Otherwise `requestAccounts` opens Connect (`SiteWalletSheets.swift`), where the person picks
@@ -140,7 +145,10 @@ newest first, of KaPosts activity, the wallet's (Kaspa and kUSDT received), your
 2026-11-27, before which the bell refused them) and every @mention
 of you in a public chat or group (owner, 2026-11-25: `GlobalNotificationCenter.recordMention`,
 source `.mention`, whatever the room's bell or the group's setting; a row opens the room at the
-message, `PublicChatJumpRoute`, or the group) (`KaPostsNotificationsView(allInOne: true)`), in a sheet with Done: no tabs, no settings gear, no
+message, `PublicChatJumpRoute`, or the group; a room's backfill adds only mentions since you joined
+it and under a week old, a room you haven't joined gets its row from the push
+(`recordMentionPush`), a message deleted for everyone takes its row and notification with it, and
+the bell keeps its 100 newest by time; audit 2026-11-27 M8, L10, L13) (`AllNotificationsView`), in a sheet with Done: no tabs, no settings gear, no
 back arrow (owner's calls). A "followed you" row opens that person's profile over Profile itself,
 sliding in (`AllNotificationsView(onOpenProfile:)`, owner 2026-11-26), never the Posts feed first. The dock badge on Profile adds both unseen counts up. Beside the avatar
 is See All Posts (opens the KaPosts tab), and Profile has KaPosts' compose button. Neither the Wallet tab nor the KaPosts menu
@@ -252,8 +260,7 @@ The old Add to Contacts row and the big Share Profile button are gone.
   held Android's kUSDT notice until an unrelated 10 KAS payment arrived (2026-11-22).
 - Cold Storage never shows a kpub as text (owner, 2026-11-22): not on the account list, not on
   the account screen, not under the kpub QR. The kpub QR (`ColdStorageKpubQRView`, "Watch This
-  Account") is laid out as every receive screen (`AddressReceiveView`, owner 2026-11-27). It is copied from the account's ⋮ (Copy kpub) or the
-  list's card. Fiat amounts are grouped ("$1,234.56", `formatFiatAmount`).
+  Account") is laid out as every receive screen (`AddressReceiveView`, owner 2026-11-27). It is copied from the account's card on the list (Copy kpub). Fiat amounts are grouped ("$1,234.56", `formatFiatAmount`).
 - **The Cold Storage list** (owner, 2026-11-27, `ColdStorageListView.accountCard`) shows each
   account on Manage Addresses' card look (`BalanceCardBackground`):
   - Its name and balance (its addresses summed: `lastKnownBalance` at once, then
@@ -282,7 +289,7 @@ The old Add to Contacts row and the big Share Profile button are gone.
   KasSigner v1.1's KCC-3 addresses ("Pay-to-Public-Key-Hash via P2SH", `<P> OP_CHECKSIG` at
   `m/22'/111111'/0'`, the same scheme and path as the hot wallet's KIP-22 quantum addresses). A
   unit never exports a `22'` kpub (it would show the keys the addresses hide), so each is added
-  by scan or paste from the unit's address screen (Address Actions > Add Quantum-Resistant
+  by scan or paste from the unit's address screen (the account screen's + > Quantum-Protected
   Address, `ColdQuantumAddressAddSheet`), with the unit's address number optional
   (`ColdStorageAccount.quantumAddresses`, `ColdQuantumAddress`). They list after the regular
   ones at index `ColdStorageManager.quantumIndexBase` + position (labels, hidden flags), with the
@@ -373,12 +380,12 @@ docs/ROOM_MESSAGE_DELETES.md). Room voice notes look like 1:1's (owner, 2026-11-
 `PublicChatVoiceNoteBubble` for one part or many (a one-part note is a long note of one part;
 length and waveform cached in `VoiceNoteInfoCache`). Room messages translate like KaPost posts:
 a Translate link under someone else's message in another language (owner, 2026-11-24), and in its
-long-press menu (`PostTranslationService`, served by the message indexer). Public rooms are the KaChat
-tab's second page (owner, 2026-11-25): the cycle button beside the KaChat title (`ListPage`,
+long-press menu (`PostTranslationService`, served by the message indexer). Public rooms are the Chats
+tab's second page (owner, 2026-11-25): the cycle button beside the Chats title (`ListPage`,
 `pageCycleButton`, or the dock's Chats tapped again, which first closes an open chat,
 `.chatsTabReselected`, 2026-11-26) switches Private Chats (chats, groups, bots, Message Requests; the pill read "Chats" until 2026-11-26) and Public Chats (the
 rooms by latest activity, pinned rooms as circles above them). The button's red count is the
-public chats' unread (rooms with their bell on) on either page; the dock's KaChat badge counts only
+public chats' unread (rooms with their bell on) on either page; the dock's Chats badge counts only
 chats and groups (owner, 2026-11-25). **Public Chats starts empty** (owner, 2026-11-26: nothing
 may feel added without the person's say): no room is joined for anyone, and once per account the
 first launch of that build leaves every room K had added (default, language and indexer rooms,
@@ -512,7 +519,8 @@ and screen are gone, owner 2026-11-25), price Portfolio's feed (CoinGecko, then 
 that price times the supply then, block reward the emission schedule. Search works as you type
 (`liveResults`): a .kachat username shows its address, an address (found anywhere in pasted text,
 checked with `KaspaAddress.isValid`) its name and balance, a 64-character id whether it's a
-transaction (with its K kind) or a block; tap the row to open it. From K's indexer (`ExplorerKStats`): the K Activity card
+transaction (with its K kind) or a block, asked only on Search or a tap (it could be a pasted
+private key; this wallet's own keys are refused, audit 2026-11-27 L5); tap the row to open it. From K's indexer (`ExplorerKStats`): the K Activity card
 reads `/stats` (24 Hours, 7 Days, All Time by protocol; no 30 Days, owner 2026-11-25) and leaves off
 what isn't served; the richer `/stats/activity?period=` (the window before, the bars) is asked for
 in INDEXER_HANDOFF.md (indexer docs/EXPLORER_STATS.md) and read as soon as it's served. **The
@@ -576,7 +584,7 @@ The app uses MVVM architecture with global singleton services injected via Swift
 | `KasiaTransactionBuilder` | Constructs signed Kaspa transactions |
 | `KachatNamesService` | `.kachat` names. **Live on both networks**: testnet-10, and **mainnet since 2026-10-09** ("mainnet v1", kachat-domains docs/MAINNET.md: registry `348bd2c8…75a4`, the audited v4 contracts with yearly periods, 90-day grace, 30-day renewal window, register 4000/2000/1000/250/35 KAS). `isLaunched` is true on both; `networkName` / `addressPrefix` pick the network's bundled manifest (`Resources/kachat-names-<network>.json`), pins and price tables (per network in `KachatNames.Manifest`), address prefix and cache folder, and a network switch resets the manifest and registry. Mainnet opened to everyone in the app on Friday 2026-10-16 8:00 AM Eastern; the countdown that gated it until then was removed (audit XP-028). **Before any registry switch on mainnet**, build the old-registry offer clean-up first: the app only reads its manifest's registry, so offers on the old one vanish and stay locked (audit IOS-066, left as is; KACHAT_NAMES.md warning at the top). **Address profiles are not registry data** (`profilesEnabled`, every network since 2026-10-05): a `kchat:1:profile:` self-send from the chatting address (`KachatNamesActions.profileSigner()`), so "Edit KaChat Profile" saves on mainnet too (primary name greyed out there), and mainnet identities are profile-only (`GET /profiles/{address}`; the indexer side is kachat-indexer `docs/KACHAT_PROFILES.md`). Any UI change must work on both networks. It loads and verifies the registry manifest (registry v4 or v5, `registryVersion`: fixed price tables baked into the gap and name, one genesis whose covenant-id binding is verified; v5 adds `import` from a migration snapshot of the previous registry). The name template hash and the price tables are pinned in the app (`Manifest.pinnedTemplateHashes` by version, `pinnedRegisterPrices` / `pinnedRenewPrices`), the v4 gap too; the offer and the v5 gap per deployment in `Manifest.deployedTemplateHashes`; an indexer-served manifest is accepted only when every template hash is pinned. The bundled `Resources/kachat-names-testnet-10.json` is the live testnet-10 v5 registry on the audited contracts since 2026-10-09 (audit C2): genesis `b6223f0f…e24f`, registry `1283f749…bfa2`, imported from the drill registry `fdc403f5…571d` (6 names; 24-hour periods, 6-hour grace, 2-hour renewal window). Register, renew, list, buy and offers are back in KaChat since 2026-11-21 (from KaPay: `KachatNamesActions`, `KachatNamesBuilder`); name transactions ask Face ID (`SwipeUpToSendScrollView.authReason`) |
 | `KachatNamesRegistry` | `.kachat` reads (lookup, by owner, a buyer's offers, identity) from the names indexer when `GET /names/status` matches the manifest's registry covenant id and the indexer is at most ~1 minute (600 DAA) behind the network - re-checked on every refresh - else from its own chain walker: the registry's live UTXOs kept from genesis, spends found via the REST API's `/addresses/{p2sh}/full-transactions`, decoded and verified against output scripts (`KachatNamesRegistryState.swift`, pure, tested by `scripts/test_kachat_names_registry.swift`) |
-| `KachatNamesActions` | What is left of the `.kachat` actions since the market moved to the KaChat wallet app: `saveProfile` and `profileFee` (the `kchat:1:profile:` record), `ownNamesAndOffers` (this wallet's names across its keys), `marketAddresses` (read-only, for names an older build's Buy From address holds) and `follow(txId:)`, which watches the mempool, then the REST API, so the receipt shows Sent / In a block / Updated in KaChat. Screens in `KaChat/Views/Ecosystem/KachatNamesLiveViews.swift` |
+| `KachatNamesActions` | The `.kachat` actions (the full market is back since 2026-11-21, from KaPay: register, renew, list, buy, offers, with `KachatNamesBuilder`): also `saveProfile` and `profileFee` (the `kchat:1:profile:` record), `ownNamesAndOffers` (this wallet's names across its keys), `ownNameKeys`, `marketAddresses` and `follow(txId:)`, which watches the mempool, then the REST API, so the receipt shows Sent / In a block / Updated in K. Screens in `KaChat/Views/Ecosystem/KachatNamesLiveViews.swift` |
 
 ### Messaging Protocol
 
@@ -1195,8 +1203,7 @@ Change these pieces rather than one screen, so the screens stay matched.
 ### Swap
 
 Back since 2026-11-23 (owner's call; it left for App Review guideline 3.1.5(iii) on 2026-10-01, which
-asked for exchange licensing per country): the Wallet tab's Swap button (beside Send, Receive and
-Request; it replaced the Swap Stablecoins card) opens `SwapView` full screen
+asked for exchange licensing per country): the Wallet tab's Buy and Sell buttons open `SwapView` full screen
 (`Views/Tokens/SwapView.swift`, `SwapService`, `SwapModels`, `ChangeNowAPIClient`).
 - Buy / sell words, step by step (owner, 2026-11-26): the Wallet's buttons are Send, Receive,
   **Buy** and **Sell** (Swap is gone; Request Payment and Buy/Sell History are cards in the list
@@ -1299,7 +1306,10 @@ page reports its session when the order is made and again when Stripe takes the 
 (`buy.paid:<session>`, the `?session=` address), and Trestly's Stripe status, delivered USDC,
 bridge or refund also count. An order not paid is dropped when Buy Kaspa closes (after one last
 look) and never shows on the card. Trestly's `"delivered": null` is not a delivery (it read as
-Paid before).
+Paid before). A paid order is followed for a week at most (`CardBuy.isFollowed`), one poll loop at a
+time (a per-loop token, its wait's timer cancelled; audit 2026-11-27 M4), and stops at Log Out
+(`CardBuyTracker.signedOut`). A refunded order opens on its page, where it's bridged again (M7). A
+permit is refused above the order's amount plus 1% (L2).
 
 ### Tokens (kUSDT)
 
@@ -1321,14 +1331,14 @@ Ported from KaPay on 2026-11-19 (KaPay's CLAUDE.md "Tokens (kUSDT)" is the full 
 | `MESSAGING.md` | Kasia messaging protocol - encryption, handshakes, message types |
 | `POOLS_v2.md` | gRPC node pool architecture - discovery, scoring, failover |
 | `PUSH_NOTIFICATIONS.md` | Push notification architecture and rollout notes |
-| `KAPOSTS_INDEXER.md` | Handoff/build guide for the KaChat-owned KaPosts indexer (protocol, API compatibility bar, required extensions). Server contract only: the feature left the app 2026-10-24 |
-| `KAPOSTS_REPLIES_FIX.md` | The short server ask: the two read endpoints that make reply threads complete (`get-post`, optionally `get-thread`). Hand this over on its own; `KAPOSTS_INDEXER.md` is the reference behind it. Server contract only: the feature left the app 2026-10-24 |
-| `PUBLIC_CHATS_INDEXER.md` | Handoff/build guide for the KaChat Public Chats indexer (curated room history incl. `chess-arena`, REST spec, push, Docker; code/API keep their `broadcast` identifiers). Server contract only: the feature left the app 2026-10-24 |
-| `TRANSLATION_SERVICE.md` | Handoff/build guide for the KaChat post translation endpoint (server-side translation of KaPosts, cached by txid; replaced the on-device Apple Translation / ML Kit path). Server contract only: the feature left the app 2026-10-24 |
+| `KAPOSTS_INDEXER.md` | Handoff/build guide for the KaChat-owned KaPosts indexer (protocol, API compatibility bar, required extensions). The feature is back in the app since 2026-11-21 (phases 3 and 4); this is its server contract |
+| `KAPOSTS_REPLIES_FIX.md` | The short server ask: the two read endpoints that make reply threads complete (`get-post`, optionally `get-thread`). Hand this over on its own; `KAPOSTS_INDEXER.md` is the reference behind it. The feature is back in the app since 2026-11-21 (phases 3 and 4); this is its server contract |
+| `PUBLIC_CHATS_INDEXER.md` | Handoff/build guide for the KaChat Public Chats indexer (curated room history incl. `chess-arena`, REST spec, push, Docker; code/API keep their `broadcast` identifiers). The feature is back in the app since 2026-11-21 (phases 3 and 4); this is its server contract |
+| `TRANSLATION_SERVICE.md` | Handoff/build guide for the KaChat post translation endpoint (server-side translation of KaPosts, cached by txid; replaced the on-device Apple Translation / ML Kit path). The feature is back in the app since 2026-11-21 (phases 3 and 4); this is its server contract |
 | `PUSH_EXTENSIONS.md` | Server handoff: remote push for public chats + KaPosts (registration fields, APNs payload specs, routing contracts). The app registers the public chat and KaPosts fields empty since 2026-10-24; §5 (call ringing) is retired since calls left on 2026-11-11 |
 | `GROUP_MESSAGES_INDEXER.md` | Server handoff: the batched group-message read (`POST /group-messages/by-blinded-group-ids`) and the `since` reads (`/group-messages/since`, `/group-control/since`) the app polls for live group traffic while open; both fall back to the older paths (per-member GETs, the block stream) on an indexer without them |
 | `ARCADE.md` | KaPlay's arcade (Snake, 2048): the `#kplay-arcade` stamp, SplitMix64 and both games' exact rules with test vectors (the indexer replays every stamp), the `/arcade/leaderboard` endpoint and `kachatarcade://` challenges |
-| `ONLINE_CHESS.md` | Online Chess (5.1): public 1v1 and 8-player knockout tournaments in Kaspa Hub > Chess Online, every move a transaction in the `chess-arena` room, no referee (deterministic rules in `ChessTournamentEngine`), chain-time clocks with allowances; leaderboard handoff for the indexer. Server contract only: the feature left the app 2026-10-24 |
+| `ONLINE_CHESS.md` | Online Chess (5.1): public 1v1 and 8-player knockout tournaments in Kaspa Hub > Chess Online, every move a transaction in the `chess-arena` room, no referee (deterministic rules in `ChessTournamentEngine`), chain-time clocks with allowances; leaderboard handoff for the indexer. The feature is back in the app since 2026-11-21 (phases 3 and 4); this is its server contract |
 | `KACHAT_APP_LINKS.md` | The kachat.app link site (`web_site/server/`): every shared link is `https://kachat.app/...` - Open Graph previews everywhere, Universal/App Links into the app, post-only page with download buttons without it |
 | `STATS_INDEXER.md` | Server handoff: `GET /stats`, the per-category transaction counts (messages, payments, groups, public chats, KaPosts, chess...) behind KaChat Stats. The iPhone screen left 2026-10-24, came back 2026-11-21 and left again 2026-11-25 for the Explorer's K Activity card, which will read this endpoint; home.kachat.app reads it too |
 | `STATS_WINDOWS_FIX.md` | The short server ask: 24h/7d windows for the six chat-side `/stats` categories (messages, handshakes, payments, groups, self-stash), which today send `total` only. Hand this over on its own; `STATS_INDEXER.md` is the contract behind it |

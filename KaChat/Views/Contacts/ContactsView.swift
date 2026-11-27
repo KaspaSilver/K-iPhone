@@ -1079,6 +1079,10 @@ struct WithdrawKaspaView: View {
     var onComplete: (() -> Void)? = nil
     /// After `onComplete` so a trailing closure still means `onComplete`.
     var onSent: ((String) -> Void)? = nil
+    /// The send went out but the network's answer was lost (`SendOutcomeUnknownError`): it may
+    /// land. A site's request is answered "may have been sent" (4002) with the txid, and Swap's
+    /// deposit is marked sent, so neither invites paying again (audit 2026-11-27 M1, M3).
+    var onOutcomeUnknown: ((String) -> Void)? = nil
 
     /// The request this send pays, if any (`paymentRequest`, or one pasted in).
     @State private var activeRequest: PaymentRequest?
@@ -1986,6 +1990,7 @@ struct WithdrawKaspaView: View {
                 await MainActor.run {
                     isSending = false
                     errorMessage = UserFacingError.message(for: error)
+                    if let unknown = error as? SendOutcomeUnknownError { onOutcomeUnknown?(unknown.txId) }
                     // nothing went out; Try Again goes back to a Review with the fee of today's coins
                     if error is SendFeeChangedError { feeRefresh += 1 }
                 }
@@ -2327,6 +2332,7 @@ struct InAppBrowserScreen: View {
 
     /// K's own sign-in sheet, up when the page opens (`signInFirst`).
     @State private var showSignIn = false
+    @State private var signInError: String?
     @State private var signInAsked = false
     @State private var isLoading = true
     @StateObject private var reloader = WebPageReloader()
@@ -2410,7 +2416,9 @@ struct InAppBrowserScreen: View {
         }
         .background(Color(uiColor: .systemBackground))
         .onChange(of: siteWallet.pending?.id) { _ in
-            if let request = siteWallet.pending {
+            // not while K's own sign-in sheet is up: it answers a connect itself, and anything
+            // else is shown once it closes (audit 2026-11-27 L1)
+            if let request = siteWallet.pending, !showSignIn {
                 siteWallet.sheetOpen = true
                 siteSheet = request
             }
@@ -2432,11 +2440,27 @@ struct InAppBrowserScreen: View {
                 showSignIn = true
             }
         }
-        .sheet(isPresented: $showSignIn) {
+        .sheet(isPresented: $showSignIn, onDismiss: {
+            // a request the page made while K's own sheet was up is shown now
+            if let request = siteWallet.pending, siteSheet == nil {
+                siteWallet.sheetOpen = true
+                siteSheet = request
+            }
+        }) {
             SiteConnectView(host: url.host ?? "", signIn: true, onConnect: { source in
-                try? siteWallet.preConnect(source: source, host: url.host?.lowercased() ?? "")
+                do {
+                    try siteWallet.preConnect(source: source, host: url.host?.lowercased() ?? "")
+                } catch {
+                    // nothing connected: say so, rather than a silent sign-in that never happened
+                    signInError = AppLocalization.string("K couldn't use this address to sign in. Try another one.")
+                }
                 showSignIn = false
             }, onDecline: { showSignIn = false })
+        }
+        .alert("Couldn't Sign In", isPresented: Binding(get: { signInError != nil }, set: { if !$0 { signInError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(signInError ?? "")
         }
         .onAppear { if powersDown { powerDownForBrowsing() } }
         .onDisappear { if powersDown { powerUpAfterBrowsing() } }

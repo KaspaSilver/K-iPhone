@@ -302,7 +302,9 @@ enum ExplorerAPI {
                                        network: network, full: full)
         // the fee is only known when every input's amount came back
         let resolved = !(tx.inputs ?? []).isEmpty && (tx.inputs ?? []).allSatisfy { $0.previous_outpoint_amount != nil }
-        let inSum = inputs.reduce(0) { $0 + $1.amount }, outSum = outputs.reduce(0) { $0 + $1.amount }
+        // third-party amounts: summed without trapping (audit 2026-11-27 L4)
+        let inSum = inputs.reduce(UInt64(0)) { $0.addingSaturated($1.amount) }
+        let outSum = outputs.reduce(UInt64(0)) { $0.addingSaturated($1.amount) }
         let fee: UInt64? = kind == .coinbase ? 0 : (resolved && inSum >= outSum ? inSum - outSum : nil)
         var confirmations = 0
         if tx.is_accepted == true, let accepted = tx.accepting_block_blue_score, let virtual = virtualBlueScore {
@@ -432,7 +434,7 @@ enum ExplorerAPI {
         // what the network accepted only: an unaccepted copy moved nothing
         for tx in txs where tx.time >= monthAgo && !tx.isNotAccepted {
             let net = tx.net(for: address)
-            if net.isIncoming { received += net.amount } else { sent += net.amount }
+            if net.isIncoming { received = received.addingSaturated(net.amount) } else { sent = sent.addingSaturated(net.amount) }
         }
         let coversMonth = next == nil || (txs.last.map { $0.time < monthAgo } ?? true)
         return ExplorerAddress(
@@ -1069,7 +1071,12 @@ final class ExplorerKStats: ObservableObject {
 
     private static func kinds(_ values: [String: Int]) -> [ExplorerTxKind: Int] {
         var counts: [ExplorerTxKind: Int] = [:]
-        for (key, kind) in categories { if let value = values[key] { counts[kind, default: 0] += value } }
+        for (key, kind) in categories {
+            guard let value = values[key] else { continue }
+            // a server's numbers never trap (audit 2026-11-27 L4)
+            let (sum, overflow) = counts[kind, default: 0].addingReportingOverflow(max(0, value))
+            counts[kind] = overflow ? .max : sum
+        }
         return counts
     }
 
@@ -1088,7 +1095,11 @@ final class ExplorerKStats: ObservableObject {
                     period: period,
                     counts: Self.kinds(value.categories),
                     bars: value.series?.sorted { $0.t < $1.t }.map(\.count),
-                    previousTotal: value.previous.map { Self.kinds($0).values.reduce(0, +) },
+                    previousTotal: value.previous.map { previous in
+                        Self.kinds(previous).values.reduce(0) { sum, count in
+                            sum.addingReportingOverflow(count).overflow ? .max : sum + count
+                        }
+                    },
                 )
             }
             guard started == generation else { return }

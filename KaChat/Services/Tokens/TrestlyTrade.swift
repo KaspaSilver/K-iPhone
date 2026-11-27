@@ -20,6 +20,8 @@ enum TrestlyTrade {
         /// The `prepare` the person approved (the last one, after any requote).
         let prepared: [String: Any]
         let fee: Any?
+        /// The account signed in when the trade started (its history gets it).
+        var account: String? = nil
     }
 
     /// K's network as Trestly's code names it.
@@ -51,6 +53,7 @@ enum TrestlyTrade {
                     native: Bool = false,
                     ask: (TrestlyApproval) async -> Bool,
                     isClosed: () -> Bool = { false }) async throws -> Done {
+        let startAccount = WalletManager.shared.currentWallet?.publicAddress.lowercased()
         if let minutes = await heldMinutes(for: target.address) {
             throw ProviderError(code: Code.busy, message: "Your last trade from this address gave no answer and may still go through. Check the address's history. K takes trades from it again once that one shows on the network, or in about \(minutes) min.")
         }
@@ -142,7 +145,7 @@ enum TrestlyTrade {
                     await TokenWallet.shared.refresh()
                 }
             }
-            return Done(result: result, prepared: prepared, fee: done["fee"])
+            return Done(result: result, prepared: prepared, fee: done["fee"], account: startAccount)
         }
     }
 
@@ -170,7 +173,7 @@ enum TrestlyTrade {
         // and in Buy/Sell History, with the ChangeNOW swaps (owner, 2026-11-27)
         SwapService.shared.recordKusdtSwap(txid: txid, bought: bought, amountIn: amountIn,
                                            amountOut: amountOut, address: target.address,
-                                           confirmed: confirmed)
+                                           confirmed: confirmed, forAccount: done.account)
         return text
     }
 

@@ -47,6 +47,8 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     struct SiteError: Error {
         let code: Int
         let message: String
+        /// With 4002 ("may have been sent"): the transaction that may land.
+        var txid: String? = nil
     }
 
     /// What the page is waiting on the person for, shown by `InAppBrowserScreen` as a sheet.
@@ -80,6 +82,14 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     /// `signMessage` on this host before this time is its sign-in, signed with no second sheet
     /// (owner, 2026-11-27: pick the address, then straight in).
     private var signInApproved: (host: String, until: Date)?
+    /// Page loads the approval may still see: one for the page still loading when the person
+    /// picked the address, none after that. A later navigation ends it (audit 2026-11-27 M2).
+    private var approvalLoadBudget = 0
+    /// The page K opened on has finished loading once.
+    private var initialLoadDone = false
+    /// A site send whose answer was lost may still land: no new send from this page until it shows
+    /// or this passes (audit 2026-11-27 M3), as `TrestlyTrade` holds a "maybe sent" trade.
+    private var sendHeldUntil: Date?
     private var declinedAt: Date?
     private var running = 0
     private var closed = false
@@ -109,6 +119,7 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     /// The browser closed: a sheet still up is declined, and nothing more is answered.
     func close() {
         closed = true
+        signInApproved = nil
         finish(.failure(SiteError(code: Code.rejected, message: "K closed this page.")))
         pending = nil
         connection = nil
@@ -238,9 +249,13 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
             guard text.count <= 4096 else {
                 throw SiteError(code: Code.invalid, message: "signMessage: messages are limited to 4096 characters.")
             }
-            // the sign-in the person already agreed to in K's own sheet: once, on this site
+            // The sign-in the person already agreed to in K's own sheet: once, only kasshi.io
+            // itself, and only Kasshi's own sign-in challenge for the connected address with a
+            // fresh timestamp. Anything else gets the Sign sheet (audit 2026-11-27 M2).
             if let approved = signInApproved, approved.host == Self.siteKey(host), Date() < approved.until,
-               pending == nil, answer == nil, !sheetOpen, let connection {
+               Self.signInHosts.contains(host.lowercased()),
+               pending == nil, answer == nil, !sheetOpen, let connection,
+               Self.isKasshiSignInChallenge(text, address: connection.address) {
                 signInApproved = nil
                 do {
                     return try Self.sign(text, source: connection.source, expecting: connection.address)
@@ -251,6 +266,9 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
             return try await ask(.sign(message: text), host: host)
         case "sendKaspa":
             guard connection != nil else { throw Self.notConnected }
+            if let until = sendHeldUntil, Date() < until {
+                throw SiteError(code: Code.busy, message: "Your last payment from this page may still go through. Check it before paying again; K takes payments from this page again in a few minutes.")
+            }
             let to = (params.first as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             guard KaspaAddress.isValidOnActiveNetwork(to) else {
                 let prefix = Self.networkName == "mainnet" ? "kaspa:" : "kaspatest:"
@@ -268,6 +286,27 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     }
 
     private static let notConnected = SiteError(code: Code.unauthorized, message: "Connect first: call kachat.requestAccounts().")
+
+    /// The hosts K's own sign-in sheet signs in to without a second sheet: the site itself, never
+    /// a subdomain (audit 2026-11-27 M2).
+    static let signInHosts: Set<String> = ["kasshi.io", "www.kasshi.io"]
+
+    /// Kasshi's sign-in challenge (`/api/wallet-auth/challenge`, checked 2026-11-27):
+    /// "Sign this message to authenticate with KasShi.\n\nAddress: <address>\nTimestamp: <ms>\nNonce: <hex>",
+    /// for the connected address, made within the last ten minutes.
+    static func isKasshiSignInChallenge(_ text: String, address: String) -> Bool {
+        let lines = text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+        guard lines.count == 5,
+              lines[0] == "Sign this message to authenticate with KasShi.", lines[1].isEmpty,
+              lines[2].hasPrefix("Address: "), lines[3].hasPrefix("Timestamp: "), lines[4].hasPrefix("Nonce: ") else { return false }
+        let shown = String(lines[2].dropFirst("Address: ".count)).lowercased()
+        guard shown == address.lowercased() else { return false }
+        guard let ms = Int64(lines[3].dropFirst("Timestamp: ".count)) else { return false }
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        guard abs(now - ms) < 600_000 else { return false }
+        let nonce = lines[4].dropFirst("Nonce: ".count)
+        return (8...128).contains(nonce.count) && nonce.allSatisfy { $0.isHexDigit }
+    }
 
     static var networkName: String {
         AppSettings.load().networkType == .mainnet ? "mainnet" : "testnet-10"
@@ -334,6 +373,13 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
         connection = connected
         Self.rememberPick(source, host: host)
         signInApproved = (Self.siteKey(host), Date().addingTimeInterval(120))
+        approvalLoadBudget = initialLoadDone ? 0 : 1
+        // The page asked to connect while K's own sheet was up: it gets the picked address now.
+        // Left waiting, every later request answered "busy" (audit 2026-11-27 L1).
+        if case .connect? = pending?.kind {
+            pending = nil
+            finish(.success([connected.address]))
+        }
         emit("accountsChanged", payload: [connected.address])
     }
 
@@ -341,8 +387,24 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     /// within the site): `accountsChanged` with the address, so a site that listens can start its
     /// sign-in by itself.
     func pageLoaded() {
+        // the sign-in approval lasts through the page it was given for, not a later navigation
+        if signInApproved != nil {
+            if approvalLoadBudget > 0 { approvalLoadBudget -= 1 } else { signInApproved = nil }
+        }
+        initialLoadDone = true
         guard !closed, let connection else { return }
         emit("accountsChanged", payload: [connection.address])
+    }
+
+    /// The site's send went out but its answer was lost: the page hears "may have been sent"
+    /// (4002) with the txid, never "rejected", and can't ask for another payment for ten minutes
+    /// (audit 2026-11-27 M3).
+    func maybeSent(txId: String) {
+        sendHeldUntil = Date().addingTimeInterval(600)
+        pending = nil
+        finish(.failure(SiteError(code: Code.maybeSent,
+                                  message: "This payment may have gone through. Check it before paying again.",
+                                  txid: txId)))
     }
 
     /// Sign approved: the connected address's key signs the text.
@@ -456,6 +518,8 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     }
 
     private static func errorAnswer(_ error: SiteError) -> [String: Any] {
-        ["error": ["code": error.code, "message": error.message]]
+        var body: [String: Any] = ["code": error.code, "message": error.message]
+        if let txid = error.txid { body["txid"] = txid }
+        return ["error": body]
     }
 }

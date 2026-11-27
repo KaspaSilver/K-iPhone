@@ -28,18 +28,6 @@ final class GlobalNotificationCenter: ObservableObject {
             /// the bell). `targetId` is "room:<name>|<txid>" or "group:<id>|<txid>".
             case mention
 
-            var label: String {
-                switch self {
-                case .kaposts: return "KaPost"
-                case .group: return "Group"
-                case .publicChat: return "Public Chat"
-                case .wallet: return "Wallet"
-                case .kachat: return ".kachat"
-                case .token: return "Tokens"
-                case .mention: return "Mention"
-                }
-            }
-
             var icon: String {
                 switch self {
                 case .kaposts: return "megaphone"
@@ -153,6 +141,9 @@ final class GlobalNotificationCenter: ObservableObject {
         guard !loadedAddress.isEmpty else { return }
         guard !id.isEmpty, !entries.contains(where: { $0.id == id }) else { return }
         entries.insert(Entry(id: id, source: source, title: title, body: body, timestamp: timestamp, targetId: targetId), at: 0)
+        // newest first by when it happened, so the trim drops the oldest, not whatever came in
+        // first (audit 2026-11-27 M8: a room's backfill pushed out yesterday's rows)
+        entries.sort { $0.timestamp > $1.timestamp }
         if entries.count > maxEntries { entries = Array(entries.prefix(maxEntries)) }
         persist()
     }
@@ -163,6 +154,14 @@ final class GlobalNotificationCenter: ObservableObject {
         let title = String(format: AppLocalization.string("%@ mentioned you in %@"), locale: AppLocalization.locale, sender, place)
         record(id: "mention-\(txId.lowercased())", source: .mention, title: title,
                body: preview, timestamp: blockTime, targetId: "\(target)|\(txId)")
+    }
+
+    /// A room message deleted by its sender: its mention row goes too (audit 2026-11-27 L10).
+    func removeMention(txId: String) {
+        let id = "mention-\(txId.lowercased())"
+        guard entries.contains(where: { $0.id == id }) else { return }
+        entries.removeAll { $0.id == id }
+        persist()
     }
 
     func markAllSeen() {

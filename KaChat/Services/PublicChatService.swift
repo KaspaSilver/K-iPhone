@@ -1035,7 +1035,11 @@ final class PublicChatService: ObservableObject {
     /// The rooms this account has in its list (joined) that the indexer's `/broadcast-channels`
     /// listed, per account: the ones that leave when the indexer drops them. A room off the list
     /// and not joined is forgotten, so joining it later by name makes it an ordinary room.
-    private var indexerListedKey: String? { walletAddress.map { "kachat_rooms_indexer_listed_v1_\($0)" } }
+    private var indexerListedKey: String? {
+        // per indexer once it isn't the default one (audit 2026-11-27 L12)
+        let source = IndexerTrackedRooms.indexerSuffix(AppSettings.load().publicChatIndexerURL)
+        return walletAddress.map { "kachat_rooms_indexer_listed_v1_\($0)" + source }
+    }
     /// Before 2026-11-26: only the rooms K joined for the person. Read once, into the new set.
     private var legacyAutoJoinedKey: String? { walletAddress.map { "kachat_rooms_auto_joined_v1_\($0)" } }
 
@@ -1206,8 +1210,17 @@ final class PublicChatService: ObservableObject {
         let inserted = await store.insertMessages(rows)
         if !inserted.isEmpty, UsernameMention.myName != nil,
            let me = WalletManager.shared.currentWallet?.publicAddress.lowercased() {
+            // A room's history loads on joining (30 days): only mentions since you joined, and at
+            // most a week old, become rows (audit 2026-11-27 M8: joining #kaspa flooded the bell).
+            let weekAgo = Int64(Date().addingTimeInterval(-7 * 86_400).timeIntervalSince1970 * 1000)
+            func cutoff(_ room: String) -> Int64 {
+                let joined = channels.first { $0.channelName == room }?.joinedAt
+                    .map { Int64($0.timeIntervalSince1970 * 1000) } ?? 0
+                return max(weekAgo, joined)
+            }
             for row in rows where inserted.contains(row.id) {
                 guard !Self.serviceChannels.contains(row.channel), !Self.hiddenIndexerRooms.contains(row.channel),
+                      row.blockTime >= cutoff(row.channel),
                       row.senderAddress.lowercased() != me,
                       !Self.isControlEnvelope(row.content) else { continue }
                 let preview = MessageReplyCodec.previewText(for: row.content)
@@ -1222,6 +1235,28 @@ final class PublicChatService: ObservableObject {
             }
         }
         return inserted
+    }
+
+    /// A push that @'s you from a room you haven't joined: nothing loads that room's messages, so
+    /// the push itself becomes the bell's row, when it shows, is tapped, or is found waiting in
+    /// Notification Center as K opens (audit 2026-11-27 L13). One row per message, as always.
+    func recordMentionPush(_ content: UNNotificationContent, identifier: String) {
+        let thread = content.threadIdentifier
+        let flag = content.userInfo["mention"]
+        let mentioned = (flag as? Bool) ?? ((flag as? NSNumber).map { $0.intValue != 0 }
+            ?? ((flag as? String).map { $0.lowercased() == "true" || $0 == "1" } ?? false))
+        guard mentioned, thread.hasPrefix("broadcast:"), UsernameMention.myName != nil,
+              let room = KaChatInternalLink.normalizeAndValidateChannel(String(thread.dropFirst("broadcast:".count))),
+              !Self.serviceChannels.contains(room), !Self.hiddenIndexerRooms.contains(room),
+              !channels.contains(where: { $0.channelName == room }) else { return }
+        let txId = ((content.userInfo["tx_id"] as? String) ?? identifier).lowercased()
+        guard Self.isTxIdShaped(txId), !content.body.isEmpty else { return }
+        GlobalNotificationCenter.shared.recordMention(
+            sender: KaPostsMarkdown.strippingBidiControls(content.subtitle),
+            place: "#\(room)",
+            preview: KaPostsMarkdown.strippingBidiControls(content.body),
+            txId: txId, blockTime: Int64(Date().timeIntervalSince1970 * 1000), target: "room:\(room)"
+        )
     }
 
     /// Your name for them, else their .kachat name, else a short address.
@@ -2012,14 +2047,30 @@ final class PublicChatService: ObservableObject {
                 guard held.senderAddress.lowercased() == delete.sender.lowercased() else { continue }
                 gone.insert(delete.target)
             }
-            // held from that sender, or not here (yet): remembered either way
-            store.recordDelete(targetTxId: delete.target, channel: channel, by: delete.sender)
+            // held from that sender, or not here (yet): remembered either way (capped when not held)
+            store.recordDelete(targetTxId: delete.target, channel: channel, by: delete.sender, held: held != nil)
         }
         guard !gone.isEmpty, await store.deleteMessages(ids: gone, inChannel: channel) else { return false }
+        Self.forgetNotices(of: gone)
         loadMessages(for: channel)
         loadEdits(for: channel)
         loadReactions(for: channel)
         return true
+    }
+
+    /// Deleted messages leave the Profile bell and the lock screen too: a mention row, a push or
+    /// a banner that's still showing (audit 2026-11-27 L10).
+    private static func forgetNotices(of txIds: Set<String>) {
+        let lowered = Set(txIds.map { $0.lowercased() })
+        for id in lowered { GlobalNotificationCenter.shared.removeMention(txId: id) }
+        let center = UNUserNotificationCenter.current()
+        center.getDeliveredNotifications { notes in
+            let ids = notes.filter { note in
+                lowered.contains(note.request.identifier.lowercased())
+                    || ((note.request.content.userInfo["tx_id"] as? String).map { lowered.contains($0.lowercased()) } ?? false)
+            }.map(\.request.identifier)
+            if !ids.isEmpty { center.removeDeliveredNotifications(withIdentifiers: ids) }
+        }
     }
 
     // MARK: - Delete for everyone
@@ -4202,9 +4253,23 @@ enum IndexerTrackedRooms {
     private static var reported: Set<String> = []
     private static var served: [String: TimeInterval] = [:]
 
+    /// Per network, and per indexer once it isn't the default one: another indexer's list is
+    /// its own, so changing the URL never leaves rooms the old one listed (audit 2026-11-27 L12).
     private static var suffix: String {
-        AppSettings.load().networkType == .mainnet ? "" : ".testnet"
+        let settings = AppSettings.load()
+        return (settings.networkType == .mainnet ? "" : ".testnet") + indexerSuffix(settings.publicChatIndexerURL)
     }
+
+    /// "" for the default indexer (and none), else "@host".
+    static func indexerSuffix(_ url: String) -> String {
+        var base = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        while base.hasSuffix("/") { base.removeLast() }
+        guard !base.isEmpty, base.lowercased() != AppSettings.defaultPublicChatIndexerURL.lowercased() else { return "" }
+        return "@" + (URL(string: base)?.host?.lowercased() ?? base.lowercased())
+    }
+
+    /// A big drop from the list waits for a second answer saying the same (in memory).
+    private static var pendingShrink: Set<String>?
     private static func reportedKey(_ suffix: String) -> String { "kachat_indexer_tracked_rooms.reported" + suffix }
     private static func servedKey(_ suffix: String) -> String { "kachat_indexer_tracked_rooms.served" + suffix }
 
@@ -4244,6 +4309,18 @@ enum IndexerTrackedRooms {
         let names = Set(channels.map(PublicChatChannelName.normalize).filter { !$0.isEmpty })
         lock.lock()
         loadIfNeeded()
+        // An empty list, or one missing more than half the rooms, is believed only when the next
+        // answer says the same: one bad answer used to make every joined indexer room leave two
+        // hours later (audit 2026-11-27 L12).
+        let bigShrink = reported.count >= 2 && reported.subtracting(names).count * 2 > reported.count
+        if (names.isEmpty && !reported.isEmpty) || bigShrink {
+            guard pendingShrink == names else {
+                pendingShrink = names
+                lock.unlock()
+                return
+            }
+        }
+        pendingShrink = nil
         let changed = names != reported
         if changed {
             reported = names

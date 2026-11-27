@@ -759,16 +759,13 @@ final class SwapService: ObservableObject {
         }
     }
 
-    func refreshSwapStatus(id: String) {
-        Task { _ = await refreshSwapStatusAsync(id: id) }
-    }
-
     /// A kUSDT swap through Trestly's pool, into Buy/Sell History (owner, 2026-11-27). Amounts as
     /// people type them ("10", "0.26"); "finished" once the network accepted it, "sending" while
     /// it may still land (Refresh Status checks the network, not ChangeNOW).
     func recordKusdtSwap(txid: String, bought: Bool, amountIn: UInt64, amountOut: UInt64,
-                         address: String, confirmed: Bool) {
-        guard account != nil, !history.contains(where: { $0.id == txid }) else { return }
+                         address: String, confirmed: Bool, forAccount: String? = nil) {
+        let owner = (forAccount ?? account)?.lowercased()
+        guard let owner else { return }
         let kas = KaspaUnit.plain(bought ? amountIn : amountOut)
         let kusdt = TokenAmount.typed(bought ? amountOut : amountIn, token: .kusdt)
         let swap = SwapTransaction(
@@ -782,6 +779,18 @@ final class SwapService: ObservableObject {
             kasSendTxId: txid,
             provider: SwapTransaction.trestly
         )
+        // Accounts switched while the trade ran: it goes into the history of the account that
+        // made it, never the one now signed in (audit 2026-11-27 L3).
+        guard owner == account else {
+            var stored = Self.loadStoredHistory(account: owner)
+            guard !stored.contains(where: { $0.id == txid }) else { return }
+            stored.insert(swap, at: 0)
+            if let data = try? JSONEncoder().encode(stored) {
+                UserDefaults.standard.set(data, forKey: Self.historyKey(account: owner))
+            }
+            return
+        }
+        guard !history.contains(where: { $0.id == txid }) else { return }
         history.insert(swap, at: 0)
         saveHistory()
     }
@@ -800,11 +809,26 @@ final class SwapService: ObservableObject {
         }
         guard let response = try? await ChangeNowAPIClient.shared.getTransactionStatus(id: id),
               let status = response.status else { return nil }
-        if let index = history.firstIndex(where: { $0.id == id }) {
+        // only a change is written: each write republished the history and re-saved all of it,
+        // every 10 s on the deposit screen (audit 2026-11-27 L18)
+        if let index = history.firstIndex(where: { $0.id == id }), history[index].status != status {
             history[index].status = status
             saveHistory()
         }
         return status
+    }
+
+    /// K sent the deposit for this swap ("Send KAS from K"): kept on the swap, so the screen stops
+    /// offering a second payment (audit 2026-11-27 M1).
+    func recordDepositSent(swapId: String, txId: String) {
+        guard let index = history.firstIndex(where: { $0.id == swapId }) else { return }
+        history[index].kasSendTxId = txId
+        saveHistory()
+    }
+
+    /// A ChangeNOW status after which nothing more happens.
+    static func isEndStatus(_ status: String) -> Bool {
+        ["finished", "failed", "refunded", "expired"].contains(status.lowercased())
     }
 
     func deleteSwap(id: String) {

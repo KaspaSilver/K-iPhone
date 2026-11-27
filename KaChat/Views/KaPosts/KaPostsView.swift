@@ -137,7 +137,7 @@ private struct KaPostsUnavailableView: View {
             Image(systemName: "text.bubble")
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundColor(.secondary)
-            Text("KaPost isn't available on Testnet yet")
+            Text("Posts aren't available on Testnet yet")
                 .font(.headline)
                 .multilineTextAlignment(.center)
             Text("There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet.")

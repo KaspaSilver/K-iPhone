@@ -112,7 +112,7 @@ struct KachatSetupGuideView: View {
             }
             bulletList([
                 "People can find you by typing your name.",
-                "They can send you Kaspa to yourname.kachat instead of a long address.",
+                "They can send you Kaspa to @yourname instead of a long address.",
                 "Your profile link shows your name."
             ])
 

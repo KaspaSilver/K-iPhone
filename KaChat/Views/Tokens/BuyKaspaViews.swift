@@ -7,7 +7,7 @@ enum DebitCardBuy {
     static var isOffered: Bool { AppSettings.load().networkType == .mainnet }
 
     /// Buy Kaspa with Debit Card tapped: a paid order whose kUSDT arrived goes on to Buy Kaspa with
-    /// that kUSDT (`openSwap(.form)`); one still on its way opens on its page; anything else
+    /// that kUSDT (`openSwap(.form)`); one still on its way, or refunded, opens on its page; anything else
     /// starts a new order (`openPage`).
     @MainActor static func open(openSwap: (SwapView.Start) -> Void, openPage: (CardBuy?) -> Void) {
         if let buy = shownOrder {
@@ -17,7 +17,8 @@ enum DebitCardBuy {
                 openSwap(.form)
                 return
             }
-            if !buy.isFinished {
+            // a refunded one too: its page is where the USDC is bridged again (audit 2026-11-27 M7)
+            if !buy.isFinished || buy.stage == .refunded {
                 openPage(buy)
                 return
             }

@@ -1429,7 +1429,7 @@ struct PublicChatChannelView: View {
 
             ActionSheetRow(
                 title: "View Profile",
-                subtitle: "Their KaPost profile: posts, replies and followers.",
+                subtitle: "Their profile: posts, replies and followers.",
                 systemImage: "person.crop.circle"
             ) {
                 dismissThen { viewProfile(address) }

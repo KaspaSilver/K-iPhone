@@ -110,7 +110,7 @@ struct MainTabView: View {
         }
         // a section closed (Kasshi's X): back to the tab you came from, never a Hub screen
         .onReceive(HubRouter.shared.$openSection) { section in
-            guard HubPresentation.asMenu, section == nil, selectedTab == AppTab.hub.tag else { return }
+            guard section == nil, selectedTab == AppTab.hub.tag else { return }
             handleTabSelectionChange(tabBeforeHub)
         }
         // The dock badges, from whichever tab is showing. Its own modifier: inline, these pushed
@@ -126,8 +126,8 @@ struct MainTabView: View {
         .onChange(of: layout.dock) { dock in
             installHubTabInterceptor()
             if !dock.contains(where: { $0.tag == selectedTab }) {
-                // with the Hub as a menu there's no Hub screen to land on: Chats
-                let landing: AppTab = HubPresentation.asMenu ? .chats : .hub
+                // Kaspa Hub is a menu, with no screen of its own to land on: Chats
+                let landing: AppTab = .chats
                 selectedTab = landing.tag
                 KaPostsDockRouter.shared.selectedTab = landing
             }
@@ -256,7 +256,6 @@ struct MainTabView: View {
     /// once the tab bar exists (a moment after the tabs appear) and again whenever the dock is
     /// rebuilt; the binding's own Hub handling stays as the fallback.
     private func installHubTabInterceptor() {
-        guard HubPresentation.asMenu else { return }
         let interceptor = HubTabInterceptor.shared
         interceptor.hubIndex = { layout.dock.firstIndex(of: .hub) }
         interceptor.onHubTap = { _ = hubTapped() }
@@ -298,7 +297,7 @@ struct MainTabView: View {
 
     /// Puts `tab` on screen: its dock slot, or Kaspa Hub with it open there.
     private func show(_ tab: AppTab) {
-        if HubPresentation.asMenu, tab == .hub {
+        if tab == .hub {
             // Kaspa Hub (the dock copy over KaPost's screens): as a dock tap, never a Hub screen
             hubTapped()
         } else if layout.dock.contains(tab) {
@@ -327,7 +326,7 @@ struct MainTabView: View {
             set: { newValue in
                 // Kaspa Hub tapped (only if `HubTabInterceptor` missed it): the last section, or
                 // the menu over the screen you're on, which stays (`hubTapped`)
-                if newValue == AppTab.hub.tag, HubPresentation.asMenu {
+                if newValue == AppTab.hub.tag {
                     let stay = selectedTab
                     if !hubTapped() { keepTabBar(on: stay, after: newValue) }
                     return
@@ -368,9 +367,10 @@ struct MainTabView: View {
         } else if selectedTab == AppTab.hub.tag {
             HubRouter.shared.noteLeft()
         }
-        // Kaspa Hub tapped again: back to its grid, the way out of a section opened there (only
-        // with the Hub as a screen: as a menu, a tap shows the menu and never gets here)
-        if newValue == selectedTab, newValue == AppTab.hub.tag { HubRouter.shared.close() }
+        // A section the Hub doesn't keep alive (Kasshi, a website) isn't drawn while another tab
+        // shows: its page kept running behind it (audit 2026-11-27 L17). Kaspa Hub still goes back
+        // to it, opened fresh.
+        HubRouter.shared.setHubOnScreen(newValue == AppTab.hub.tag)
         // Chats tapped again: back out of an open chat, or switch Private / Public Chats
         if newValue == selectedTab, newValue == AppTab.chats.tag {
             NotificationCenter.default.post(name: .chatsTabReselected, object: nil)
@@ -699,6 +699,14 @@ final class HubTabInterceptor: NSObject, UITabBarControllerDelegate, UIGestureRe
     private weak var original: UITabBarControllerDelegate?
     private weak var installedOn: UITabBarController?
     private var recognizer: UITapGestureRecognizer?
+
+    /// A sign-out: the closures holding the last session's tab view go (audit 2026-11-27 L22);
+    /// the next session's tabs install their own.
+    func reset() {
+        hubIndex = { nil }
+        catchesTouch = { false }
+        onHubTap = {}
+    }
 
     /// Puts the interceptor on the dock's tab bar controller, once it exists. Safe to call again.
     func install() {

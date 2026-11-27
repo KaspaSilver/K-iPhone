@@ -1169,11 +1169,11 @@ struct KaChatInternalLinkCardView: View {
 
     private var eyebrow: String {
         switch match.link {
-        case .profile: return "KaChat Profile"
-        case .paymentRequest: return "Payment Request"
-        case .kaPost: return "KaPost"
-        case .publicChatRoom: return "Public Chat Room"
-        case .hubSection: return "Kaspa Hub"
+        case .profile: return AppLocalization.string("KaChat Profile")
+        case .paymentRequest: return AppLocalization.string("Payment Request")
+        case .kaPost: return AppLocalization.string("Post")
+        case .publicChatRoom: return AppLocalization.string("Public Chat Room")
+        case .hubSection: return AppLocalization.string("Kaspa Hub")
         }
     }
 

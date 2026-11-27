@@ -20,7 +20,6 @@
 "All Nodes" = "全部节点";
 "Anyone with your 12 or 24 words can access your account. Never share them with anyone." = "任何拥有你这 12 或 24 个单词的人都能访问你的账户。切勿与任何人分享。";
 "Audio" = "音频";
-"Auto Search for Nodes" = "自动搜索节点";
 "Avatar" = "阿凡达";
 "Balance" = "余额";
 "Balance copied to clipboard." = "余额已复制到剪贴板。";
@@ -46,7 +45,6 @@
 "Clear connection pool?" = "清除连接池？";
 "Close" = "关闭";
 "Confirm" = "确认";
-"Connect Your Own Node" = "连接您自己的节点";
 "Connect to a Node" = "连接到节点";
 "Connected Node" = "已连接节点";
 "Connected only to this node" = "仅连接到此节点";
@@ -87,7 +85,6 @@
 "Emoji picker" = "表情符号选择器";
 "Encoding…" = "正在编码…";
 "Enter a new name for this saved account." = "为此已保存的账户输入新名称。";
-"Enter a node address you trust" = "输入您信任的节点地址";
 "Error" = "错误";
 "Explorer" = "浏览器";
 "Export Chat History" = "导出聊天记录";
@@ -99,7 +96,6 @@
 "From" = "发件人";
 "Fund Your Chatting Address" = "为您的聊天地址充值";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "在下方生成一个地址,以便从与您聊天所用地址不同的地址发送付款。";
-"Give this address a label to help you recognize it." = "给这个地址加个标签,方便您识别。";
 "Group Info" = "群组信息";
 "Hidden Users" = "隐藏的用户";
 "Hide User" = "隐藏用户";
@@ -118,7 +114,6 @@
 "KAS" = "KAS";
 "KaChat" = "KaChat";
 "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network. 5 Kaspa lets you send around 2,500 messages." = "K 让您可以直接在 Kaspa 网络上发送和接收消息。发送消息时需要使用 Kaspa 支付手续费。您支付的手续费将支付给保护网络安全的矿工。5 Kaspa 大约可以发送 2,500 条消息。";
-"K needs to connect to a node. How would you like to connect?" = "K 需要连接到一个节点。您希望如何连接?";
 "Kaspa Explorer" = "Kaspa 浏览器";
 "Kaspa Explorer API" = "Kaspa Explorer API";
 "Kaspa Node" = "Kaspa 节点";
@@ -139,7 +134,6 @@
 "Message" = "信息";
 "Message retention" = "消息保留";
 "More options" = "更多选项";
-"Most taxing on the device, not as reliable - depends on where you live" = "对设备负担最大，可靠性也较低 - 取决于您所在的地区";
 "Name" = "名称";
 "Network Fee" = "网络手续费";
 "New message" = "新消息";
@@ -236,7 +230,6 @@
 "Sent domain transfer" = "已发送域名转移";
 "Settings" = "设置";
 "Show More" = "显示更多";
-"Show QR Code" = "显示二维码";
 "Sign In Failed" = "登录失败";
 "Skip" = "跳过";
 "Something Went Wrong" = "出错了";
@@ -349,8 +342,6 @@
 "%@ wants to chat with you." = "%@ 想和你聊天。";
 "No new requests" = "没有新请求";
 
-/* Welcome Guide: .kachat and Message Requests */
-"5 Kaspa is enough for about 2500 messages." = "5 Kaspa 大约可发送 2500 条消息。";
 "Nextcloud is off while Testnet is on." = "测试网开启时，Nextcloud 处于关闭状态。";
 "Cancelled." = "已取消。";
 "Confirm this .kachat transaction" = "确认这笔 .kachat 交易";
@@ -731,7 +722,6 @@
 
 /* Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses */
 "Quantum-safe" = "抗量子";
-"Key revealed by a spend" = "密钥已因支出而公开";
 
 /* Edit KaChat Profile: Clear Profile */
 "Clear Profile" = "清除资料";
@@ -881,7 +871,6 @@
 "Default (Recommended)" = "默认（推荐）";
 "Automatic Scan" = "自动扫描";
 "Label (optional)" = "标签（可选）";
-"host:port or grpcs://host" = "host:port 或 grpcs://host";
 "Delete saved address" = "删除已保存的地址";
 "Node connections appear blocked on this network. You can still receive and read messages through the indexer, but sending messages and payments needs a node connection." = "此网络上的节点连接似乎被屏蔽了。你仍可通过索引器接收和阅读消息，但发送消息和付款需要连接节点。";
 "%lld ms" = "%lld ms";
@@ -1005,9 +994,7 @@
 "Notify on receive" = "收到时通知";
 "When a spending address receives Kaspa from someone else." = "当支出地址收到别人发来的 Kaspa 时。";
 "Checking address #%lld" = "正在检查地址 #%lld";
-"Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding." = "无论中间有无空档，都会检查前一千个地址，之后只要还能找到就继续检查。";
 "%lld found so far" = "目前已找到 %lld 个";
-"Close and Keep Scanning" = "关闭并继续扫描";
 "Contains domain" = "包含域名";
 "Tap anywhere to copy" = "轻点任意位置即可复制";
 "Anyone with this address's private key can spend its funds. Never share it with anyone." = "任何拥有此地址私钥的人都能动用其中的资金。请绝不要告诉任何人。";
@@ -1028,9 +1015,6 @@
 "Enter your 12 or 24 words" = "输入你的 12 或 24 个单词";
 "More reactions" = "更多回应";
 "Storage problem" = "存储问题";
-"Your chats and history are up to date." = "你的聊天和历史记录都是最新的。";
-"Setting up your account" = "正在设置你的账户";
-"Downloading everything this account has on chain. It only takes this long once." = "正在下载此账户在链上的全部内容。只有这一次需要这么久。";
 "Continue anyway" = "仍然继续";
 "Preparing a fresh address" = "正在准备一个全新的地址";
 "Share Profile" = "分享个人资料";
@@ -1168,7 +1152,6 @@
 "Invited you to a game of chess" = "邀请你下一盘国际象棋";
 "Handshake completed" = "通信请求已完成";
 "%@ sent a photo" = "%@ 发送了一张照片";
-"It shows 10 minutes after you have both sent a message." = "你们双方都发过消息后 10 分钟显示。";
 "Voice message unavailable" = "语音消息不可用";
 "Tap to retry" = "轻点重试";
 "Loading…" = "正在加载…";
@@ -1278,7 +1261,6 @@
 "Asks to open an encrypted conversation." = "请求开启加密会话。";
 "Casual" = "休闲";
 "Changes the text. Everyone sees the new version." = "更改文本。所有人都会看到新版本。";
-"Check off every address you want on the list, in one sitting." = "一次勾选所有你想放进列表的地址。";
 "Clear %@?" = "清除%@？";
 "Clear All Cache?" = "清除全部缓存？";
 "Clears the unread badge on this group." = "清除此群组的未读标记。";
@@ -1294,10 +1276,8 @@
 "Finished" = "已完成";
 "Finishing up..." = "正在收尾...";
 "Frees %@. Your messages, contacts and keys are not touched." = "释放 %@。你的消息、联系人和密钥不受影响。";
-"Full screen, for scanning with another device." = "全屏显示，供其他设备扫描。";
 "Get notified for their messages again." = "重新接收对方消息的通知。";
 "Gives this account a name of your own." = "为此账户取一个你自己的名称。";
-"Gives this address a label of your own." = "为此地址添加一个你自己的标签。";
 "Hide Address" = "隐藏地址";
 "Invite this contact to a game on chain." = "邀请此联系人进行一局链上对弈。";
 "KaChat Link" = "KaChat 链接";
@@ -1331,7 +1311,6 @@
 "Preparing..." = "正在准备...";
 "Private key copied. Clipboard will clear in 30s." = "私钥已复制。剪贴板将在 30 秒后清除。";
 "Public key copied" = "公钥已复制";
-"Puts the full address on the clipboard." = "将完整地址放到剪贴板。";
 "Puts the unread badge back so you come across it again." = "恢复未读标记，以便你再次看到它。";
 "Quotes this message above your reply." = "在你的回复上方引用此消息。";
 "Re-fetching handshakes..." = "正在重新获取握手...";
@@ -1400,7 +1379,6 @@
 
 /* Settings > Customization: .kachat name endings */
 "Show .kachat Endings" = "显示 .kachat 后缀";
-"Turn off to show names like alice instead of alice.kachat. A name you gave someone yourself never has the ending." = "关闭后，名称会显示为 alice，而不是 alice.kachat。你自己给别人起的名字永远不会带这个后缀。";
 
 /* Chat composers: camera or microphone access is off (MediaAccess) */
 "Microphone Access Required" = "需要麦克风访问权限";
@@ -1451,13 +1429,11 @@
 "%d hidden: they still count in the total." = "已隐藏 %d 个：仍计入总额。";
 "A brand-new address of yours, never used or handed out: this payment can't be tied to your name." = "一个全新的地址，从未使用或给出：这笔付款无法与你的名字关联。";
 "A quantum-resistant address: its key stays hidden until it spends." = "抗量子地址：在花费前密钥一直隐藏。";
-"A regular address, like Receive gives you. Works with everything, kUSDT included." = "普通地址，和“收款”给出的一样。适用于一切，包括 kUSDT。";
 "A spending address of yours: a payment here isn't tied to your name." = "你的一个支出地址：付款到这里不会与你的名字关联。";
 "About %@" = "关于 %@";
 "Add %@ More" = "再添加 %@";
 "Add %@ for Fee and Change Coin" = "添加 %@ 用于手续费和找零币";
 "Add %@ for the Network Fee" = "添加 %@ 用于网络费";
-"Adds a brand-new regular address of yours to this list." = "向此列表添加一个全新的普通地址。";
 "Amount (%@)" = "金额（%@）";
 "Available: %@" = "可用：%@";
 "Back to This Address" = "退回此地址";
@@ -1466,7 +1442,6 @@
 "Bridged by %@" = "由 %@ 跨链";
 "Building the transaction…" = "正在创建交易…";
 "Check Again" = "重新检查";
-"Check off which addresses holding kUSDT are on the list." = "勾选要在列表中显示的持有 kUSDT 的地址。";
 "Checking address #%d" = "正在检查地址 #%d";
 "Checking your %@..." = "正在核对你的 %@…";
 "Coins Combined" = "已合并币";
@@ -1481,11 +1456,9 @@
 "Every %@ coin holds %@. Combining them into one coin gives the extra KAS back to this address as regular KAS, less the network fee. Your %@ stays the same." = "每个 %@ 币都持有 %@。将它们合并为一个币后，多出的 KAS 会扣除网络费，以普通 KAS 退回此地址。你的 %@ 数量不变。";
 "Every %@ coin holds %@. It goes to the recipient with the %@, so the KAS isn't lost." = "每枚 %@ 含有 %@。这些 KAS 会随 %@ 一起转给收款人，因此不会丢失。";
 "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "每枚 kUSDT 含有 1.5 KAS。发送 kUSDT 时，这些 KAS 会一起发送。";
-"Finds your addresses holding kUSDT." = "查找你持有 kUSDT 的地址。";
 "Found %d addresses with %@." = "找到 %1$d 个持有 %2$@ 的地址。";
 "Generate New Address" = "生成新地址";
 "Generate Non-Quantum Address" = "生成非量子地址";
-"Generate Quantum-Resistant Address" = "生成抗量子地址";
 "Goes With It" = "随附";
 "Held On" = "存放于";
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "款项进入此账户，计入你的支出总额。除 .kachat 名称外都可使用。";
@@ -1494,7 +1467,6 @@
 "KAS for a %@ send" = "用于 %@ 发送的 KAS";
 "Kaspa" = "Kaspa";
 "Kaspa, and kUSDT on Kaspa, can be sent here." = "可向此处发送 Kaspa，以及 Kaspa 上的 kUSDT。";
-"Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it." = "在花费前一直隐藏密钥。仅限 Kaspa：无法从此地址交易 kUSDT。";
 "Manage %@" = "管理 %@";
 "Manage %@ starts over with only your Chatting Address. Nothing is lost: bring any address back here, and its %@ still counts in your total." = "“管理 %1$@”将重新开始，只保留你的聊天地址。不会丢失任何东西：可在这里恢复任意地址，其 %2$@ 仍计入你的总额。";
 "Merges its coins into one and gives the extra KAS back." = "将其币合并为一个，并退回多出的 KAS。";
@@ -1915,7 +1887,6 @@
 "Drag a portfolio to change the order its card appears in." = "拖动投资组合以更改其卡片的显示顺序。";
 "Import failed. Check the CSV format" = "导入失败。请检查 CSV 格式";
 "Notes (optional)" = "备注（可选）";
-"Network Hashrate" = "网络算力";
 "Value" = "价值";
 "24h change not available yet" = "24 小时变化暂不可用";
 "Rank" = "排名";
@@ -1927,7 +1898,6 @@
 "Converter" = "换算器";
 "Waiting for a price..." = "正在等待价格...";
 "Kaspa Network" = "Kaspa 网络";
-"About Hashrate" = "关于算力";
 "Mining Estimate" = "挖矿估算";
 "Enter your hashrate to estimate earnings." = "输入你的算力以估算收益。";
 "Transaction Details" = "交易详情";
@@ -1958,8 +1928,6 @@
 "YTD" = "年初至今";
 "1Y" = "1年";
 "Block Reward" = "区块奖励";
-"Next Block Reward" = "下一次区块奖励";
-"Next Block Reward Reduction" = "下一次区块奖励减少";
 "At %@ network hashrate and a %@ block reward. Before pool fees, power and luck, and both figures move." = "按网络算力 %@、区块奖励 %@ 计算。未扣除矿池费用、电费和运气因素，且两个数值都会变化。";
 "Imported 1 transaction" = "已导入 1 笔交易";
 "Imported %lld transactions" = "已导入 %lld 笔交易";
@@ -2012,16 +1980,8 @@
 "Dark" = "深色";
 "Selected: %@ (1 UTXO)" = "已选: %@（1 个 UTXO）";
 "Selected: %@ (%lld UTXOs)" = "已选: %@（%lld 个 UTXO）";
-"No used addresses yet" = "暂无已使用的地址";
 "Reveals the next unused address in this account." = "显示此账户中下一个未使用的地址。";
-"Puts the extended public key on the clipboard." = "将扩展公钥复制到剪贴板。";
-"Show kpub QR" = "显示 kpub 二维码";
 "Scan it into another device to watch this account there." = "在另一台设备上扫描，即可在那里查看此账户。";
-"Changes the name shown for this account." = "更改此账户显示的名称。";
-"Turn Off Receive Notifications" = "关闭收款通知";
-"Turn On Receive Notifications" = "开启收款通知";
-"Stops notifying when this account receives Kaspa. Other accounts keep theirs." = "此账户收到 Kaspa 时不再通知。其他账户保持不变。";
-"Notifies you when this account receives Kaspa." = "此账户收到 Kaspa 时通知你。";
 "For how long?" = "要多长时间?";
 "Swipe up to Claim" = "向上滑动领取";
 "Swipe up to Confirm" = "向上滑动确认";
@@ -2154,7 +2114,6 @@
 "$" = "$";
 "Continue to App" = "进入应用";
 "Join" = "加入";
-"Join or Create a Channel" = "加入或创建频道";
 "Menu" = "菜单";
 "Pay in Kaspa" = "用 Kaspa 支付";
 "Record voice message" = "录制语音消息";
@@ -2309,7 +2268,6 @@
 "6 hours" = "6 小时";
 "7 days" = "7 天";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses." = "公共聊天存在于 Kaspa blockDAG 上，因此任何监视同一网络的索引器都会提供同一个房间。你可以把这个房间指向任何你想要的索引器，无论是自己的还是别人的，而不会改变其他房间使用的索引器。";
-"A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time." = "关闭的房间不再显示在公共聊天中，也不会发送通知。你可以随时重新开启。";
 "A room you added. Anyone who knows the name can post to it." = "你添加的房间。知道名称的任何人都可以在其中发帖。";
 "About this room" = "关于此房间";
 "Accounts you follow will show up here." = "你关注的账户会显示在这里。";
@@ -2318,7 +2276,6 @@
 "Add option" = "添加选项";
 "Add to thread" = "添加到串";
 "Adds your own words above it." = "在其上方添加你自己的话。";
-"Anyone who joins the same channel name can see and post messages there - there is no owner and no invite." = "任何加入同名频道的人都可以在其中查看和发布消息。没有所有者，也不需要邀请。";
 "Blocked accounts are removed everywhere and can't interact with you." = "被屏蔽的账户会在所有地方被移除，也无法与你互动。";
 "Blocked. Undo it in the Feed's menu, under Blocked." = "已屏蔽。可在信息流菜单的“已屏蔽”中撤销。";
 "Bookmarks" = "书签";
@@ -2340,7 +2297,6 @@
 "Edit Post" = "编辑帖子";
 "Edit Profile" = "编辑个人资料";
 "Every message cached for this room on this device is deleted. This cannot be undone - rejoining later starts with no history." = "此设备上缓存的该房间的所有消息都会被删除。此操作无法撤销，之后重新加入时将没有历史记录。";
-"Every reply is in the conversation above." = "所有回复都在上方的对话中。";
 "Find posts by what they say, and people by their name or domain. Only people who have posted appear." = "按内容查找帖子，按名称或域名查找用户。只有发过帖子的用户才会出现。";
 "Follow Back" = "回关";
 "Followers" = "粉丝";
@@ -2373,7 +2329,6 @@
 "New Post" = "发布新帖";
 "New messages here don't notify you. The room still updates when you open it." = "这里的新消息不会通知你。打开房间时仍会更新。";
 "No bookmarks yet" = "还没有书签";
-"No comments yet - be the first to reply." = "还没有评论，来做第一个回复的人吧。";
 "No drafts" = "没有草稿";
 "No notification for new messages in this room." = "此房间的新消息不会通知你。";
 "No one can see your messages in here unless they are also active in the room at the same time." = "除非同时也在该房间中活跃，否则没有人能看到你在这里的消息。";
@@ -2390,7 +2345,6 @@
 "Notifications on" = "通知已开启";
 "Notifies you of new messages while the app is open." = "应用打开期间，有新消息时会通知你。";
 "Notifies you of new messages, even when the app is closed." = "即使应用已关闭，有新消息时也会通知你。";
-"Off takes every language room out of Public Chats. On, switch off the ones you don't want." = "关闭后，所有语言房间都会从公共聊天中移除。开启后，再关闭你不想要的房间。";
 "One of the pasted words isn't a valid word. Check your copy and try again." = "粘贴的单词中有一个无效。请检查你的副本后重试。";
 "Opens Send Kaspa to pay it." = "打开“发送 Kaspa”进行支付。";
 "Opens it in your browser." = "在浏览器中打开。";
@@ -2480,14 +2434,11 @@
 "Not counted on the post" = "不计入帖子";
 "Tip asks whether to send Kaspa or kUSDT each time." = "每次打赏都会询问发送 Kaspa 还是 kUSDT。";
 "The account changed, so this wasn't sent." = "账户已切换，因此未发送。";
-"KaPost isn't available on Testnet yet" = "KaPost 暂不支持测试网";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "测试网还没有 KaPost 索引器。在“设置 > 连接”中关闭测试网，即可在主网阅读和发帖。";
 "KaChat Profile" = "KaChat 主页";
 "Your post is ready to go out. Open K to send it." = "你的帖子已准备好发送。打开 K 即可发送。";
-"KaPost Settings" = "KaPost 设置";
 "Search KaPost" = "搜索 KaPost";
 "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "分享会发送一个在 K 中打开此房间的链接，以及供没有安装它的人使用的网页链接。隐藏仅对单个房间有效：在这里被隐藏的人仍会显示在其他所有房间中。";
-"Their KaPost profile: posts, replies and followers." = "对方的 KaPost 个人资料：帖子、回复和粉丝。";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPost 服务器没有响应。正在显示已保存的帖子和来自网络的新帖子。";
@@ -2497,12 +2448,8 @@
 
 "%lld unread" = "%lld 条未读";
 
-/* Public rooms in Chats (2026-11-21) */
-"Join a public room, or create one." = "加入公共聊天室，或创建一个。";
 "Delete #%@?" = "删除 #%@？";
 
-"Edit Default Public Chats" = "编辑默认公开聊天";
-"Turn the default rooms and the language rooms on or off." = "开启或关闭默认聊天室和语言聊天室。";
 "#%@ is off - turn it back on in Edit Default Public Chats" = "#%@ 已关闭 - 可在“编辑默认公开聊天”中重新开启";
 "Channel names must be 1-%d characters with no spaces or colons." = "频道名称须为 1-%d 个字符，不含空格或冒号。";
 "channel-name" = "频道名称";
@@ -2792,56 +2739,14 @@
 /* KaChat Stats and Kaspa Websites (back 2026-11-21) */
 "KaChat Stats" = "KaChat 统计";
 "Stats" = "统计";
-"What counts" = "统计范围";
 "24 Hours" = "24 小时";
 "All Time" = "全部时间";
-"KaChat transactions in the last 24 hours" = "过去 24 小时的 KaChat 交易";
-"KaChat transactions in the last 7 days" = "过去 7 天的 KaChat 交易";
-"KaChat transactions on Kaspa, all time" = "Kaspa 上的 KaChat 交易（全部时间）";
-"Direct Messages" = "私信";
-"New Chats" = "新聊天";
 "Payments" = "付款";
 "Group Messages" = "群组消息";
-"Group Updates" = "群组变更";
-"KaPost Activity" = "KaPost 动态";
 "Chess Moves" = "国际象棋着法";
-"Chess Games" = "国际象棋对局";
-"Saved Records" = "已保存记录";
-"1:1 texts, voice notes, reactions and 1:1 chess" = "1:1 文字、语音、回应和 1:1 国际象棋";
-"Handshakes that start a 1:1 chat" = "开启 1:1 聊天的握手";
-"KAS sent in chats" = "在聊天中发送的 KAS";
-"Messages in group chats" = "群聊中的消息";
-"Creating groups, invites and other changes" = "创建群组、邀请及其他变更";
-"Messages in public rooms" = "公共房间中的消息";
-"Posts, replies, quotes and polls" = "帖子、回复、引用和投票";
-"Votes, follows, edits and deletes" = "点赞、关注、编辑和删除";
-"Moves played in Chess Online" = "在 Chess Online 中走的棋";
-"Games started in Chess Online" = "在 Chess Online 中开始的对局";
-"Chat keys and contact notes saved to your own account" = "保存到你自己账户的聊天密钥和联系人备注";
-"No indexer is set for this network" = "此网络未设置索引器";
-"Add one in Settings > Connection Settings to see KaChat stats." = "请在 设置 > 连接设置 中添加一个以查看 KaChat 统计。";
-"Stats aren't available yet" = "统计暂不可用";
-"Your indexer doesn't report KaChat stats yet. They'll show here once it does." = "你的索引器尚未提供 KaChat 统计。一旦提供就会显示在这里。";
-"Couldn't refresh. Showing the last numbers." = "无法刷新。显示的是上次的数据。";
 "Updated %@" = "更新于%@";
 "Counting since %@" = "自 %@ 起统计";
-"Every KaChat action is its own Kaspa transaction. These totals come from KaChat's indexer, counting what it has seen on chain - nothing is read from your phone." = "KaChat 中的每个操作都是一笔独立的 Kaspa 交易。这些总数来自 KaChat 的索引器，统计的是它在链上看到的内容——不会读取你手机上的任何数据。";
-"1:1 messages are encrypted, so voice notes, reactions and 1:1 chess moves count as direct messages: nobody, the indexer included, can tell them apart." = "1:1 消息是加密的，因此语音、回应和 1:1 国际象棋着法都计为私信：任何人，包括索引器，都无法区分它们。";
-"Names Registered" = "已注册名称";
-"Name Renewals" = "名称续期";
-"Name Sales" = "名称出售";
-"Name Offers" = "名称报价";
-"Name Activity" = "名称动态";
-".kachat names claimed" = "已认领的 .kachat 名称";
-".kachat names extended or renewed" = "已延长或续期的 .kachat 名称";
-".kachat names bought from a listing or through an accepted offer" = "通过挂牌或接受报价购买的 .kachat 名称";
-"Offers made on .kachat names" = "对 .kachat 名称的报价";
-"Listings, transfers, releases, reclaims and returned offers" = "挂牌、转让、释放、回收和退回的报价";
 "Fees" = "费用";
-"Transactions on the .kachat registry" = ".kachat 注册表上的交易";
-"Paid for registrations and renewals" = "注册和续费支付的金额";
-"Fees aren't available yet" = "暂无费用数据";
-"Your indexer doesn't report them yet. They'll show here once it does." = "你的索引器尚未提供这些数据。提供后会显示在这里。";
 "Kaspa Websites" = "Kaspa 网站";
 "Websites" = "网站";
 
@@ -2853,7 +2758,7 @@
 "The price goes to the network's miners, not to K." = "费用付给网络矿工，而不是 K。";
 "Make it your name" = "让它成为你的名字";
 "Set it as your primary name and it's how you appear everywhere in K." = "设为主名称后，你在 K 各处都以它显示。";
-"They can send you Kaspa to yourname.kachat instead of a long address." = "他们可以把 Kaspa 发到 yourname.kachat，而不是一长串地址。";
+"They can send you Kaspa to @yourname instead of a long address." = "他们可以把 Kaspa 发到 @yourname，而不是一长串地址。";
 "Your profile link shows your name." = "你的个人资料链接显示你的名称。";
 "Renew before it expires. It shows when, on each name." = "请在到期前续期。每个名称都会显示到期时间。";
 "After it expires there's a grace period to renew it before anyone else can claim it." = "到期后还有宽限期，在他人能认领前你仍可续期。";
@@ -2902,8 +2807,6 @@
 "To %@" = "至 %@";
 "Change %@ to %@" = "找零 %@ 至 %@";
 
-/* Cold Storage Address Actions (2026-11-22) */
-"Puts this account's kpub on the clipboard. It reveals all its addresses." = "将此账户的 kpub 复制到剪贴板。它会暴露该账户的所有地址。";
 
 /* Cold Storage Paste kpub (2026-11-22) */
 "Not a valid kpub" = "不是有效的 kpub";
@@ -2917,20 +2820,16 @@
 
 /* Swap with ChangeNOW and Trestly (2026-11-23) */
 "Swap" = "兑换";
-"Swap started" = "兑换已开始";
 "Couldn't read this swap's amounts" = "无法读取此次兑换的金额";
 "Added to %@" = "已添加到 %@";
 "This only removes it from your local history - it doesn't affect the actual exchange." = "这只会把它从你的本地历史中移除，不影响实际的兑换。";
 "Swap History" = "兑换历史";
 "You Send" = "你支付";
-"Switch direction" = "切换方向";
 "You Get" = "你获得";
 "Receive %@ at" = "接收 %@ 的地址";
-"Receiving KAS At" = "接收 KAS 的地址";
 "Powered by Trestly" = "由 Trestly 提供支持";
 "Powered by ChangeNOW" = "由 ChangeNOW 提供支持";
 "Rate" = "汇率";
-"Go to Spending Addresses" = "前往支出地址";
 "Send %@ to this address" = "向此地址发送 %@";
 "ChangeNOW Exchange ID" = "ChangeNOW 兑换 ID";
 "Exchange ID copied" = "兑换 ID 已复制";
@@ -2939,14 +2838,6 @@
 "Change" = "更换";
 "No swaps yet." = "还没有兑换记录。";
 "Swap Details" = "兑换详情";
-"A swap pays out to an address you have not used before, so the payout cannot be tied to your earlier activity. Generate one if none are free." = "兑换会支付到一个你从未用过的地址，这样这笔收款就无法与你之前的活动关联。如果没有空闲地址，请生成一个。";
-"Every address here has been used. Generate a new one above." = "这里的每个地址都已用过。请在上方生成一个新地址。";
-"Unused Addresses" = "未使用的地址";
-"Choose Address" = "选择地址";
-"Check its history before you send a swap to it." = "向它发送兑换前，请先查看它的历史记录。";
-"Use for This Swap" = "用于此次兑换";
-"ChangeNOW pays the swapped KAS out to this address." = "ChangeNOW 会把兑换得到的 KAS 支付到此地址。";
-"Choose Coin" = "选择币种";
 "Swap uses two services K doesn't run. Read and agree to both before you continue." = "兑换使用两项并非由 K 运营的服务。继续之前，请阅读并同意两者。";
 "Coins on other networks" = "其他网络上的币";
 "Swaps between Kaspa and coins on other networks (Bitcoin, Ethereum, USDC, USDT and others) are made by ChangeNOW, a third-party exchange. K only asks ChangeNOW for a quote and a deposit address and shows the swap's status; ChangeNOW does the exchange and sends the coins. K isn't responsible for failed, delayed or lost swaps. If one doesn't go through, contact ChangeNOW's support." = "Kaspa 与其他网络上的币（Bitcoin、Ethereum、USDC、USDT 等）之间的兑换由第三方交易所 ChangeNOW 完成。K 只向 ChangeNOW 获取报价和充值地址，并显示兑换状态；兑换和发币都由 ChangeNOW 完成。K 不对失败、延迟或丢失的兑换负责。如果兑换没有成功，请联系 ChangeNOW 客服。";
@@ -3052,7 +2943,6 @@
 "Delete this swap?" = "删除此兑换？";
 "Deposit Address" = "充值地址";
 "Status: %@" = "状态：%@";
-"Get Deposit Address" = "获取充值地址";
 "Swap failed" = "兑换失败";
 "Already holds this swap - adding it again double-counts it." = "已包含此兑换——再次添加会重复计算。";
 "The swap lands in this portfolio." = "此兑换将计入该投资组合。";
@@ -3191,7 +3081,6 @@
 "Room info for #%@" = "#%@ 房间信息";
 "No hidden users in #%@. Long-press a message to hide its sender." = "#%@ 中没有隐藏的用户。长按一条消息即可隐藏其发送者。";
 "Hidden Users - #%@" = "隐藏的用户 - #%@";
-"A curated room, always in your list. Anyone on K can post to it." = "精选房间，始终在你的列表中。K 上的任何人都可以在其中发帖。";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses. Leave it blank to follow %@." = "公开聊天存在于 Kaspa blockDAG 上，因此任何关注同一网络的索引器都提供同一个房间。你可以把这个房间指向任意索引器（你自己的或他人的），而不改变其他房间使用的索引器。留空则跟随 %@。";
 "Indexer updated for #%@." = "已更新 #%@ 的索引器。";
 "Could not reach it: %@" = "无法连接：%@";
@@ -3242,12 +3131,11 @@
 "kaspa:qr... or username" = "kaspa:qr... 或用户名";
 "Looking up username..." = "正在查找用户名...";
 "Kaspa Address or Username" = "Kaspa 地址或用户名";
-"Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat)." = "输入 Kaspa 地址（kaspa:...）或用户名（例如 alice.kachat）。";
+"Enter a Kaspa address (kaspa:...) or a username (e.g. @alice)." = "输入 Kaspa 地址（kaspa:...）或用户名（例如 @alice）。";
 "Pick people from your contacts, or add anyone by Kaspa address or username." = "从联系人中选择，或通过 Kaspa 地址或用户名添加任何人。";
 "Use Their Username" = "使用对方的用户名";
-"Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "输入 Kaspa 地址或用户名，例如 name.kachat。该地址上每笔收到的交易都记为买入，每笔发出的交易都记为卖出，按当天的历史 KAS 价格计价。之后再次添加同一地址，只会导入自上次导入以来的交易。";
+"Enter a Kaspa address or a username like @name. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "输入 Kaspa 地址或用户名，例如 @name。该地址上每笔收到的交易都记为买入，每笔发出的交易都记为卖出，按当天的历史 KAS 价格计价。之后再次添加同一地址，只会导入自上次导入以来的交易。";
 "No addresses with a balance or username yet" = "尚无有余额或用户名的地址";
-"Finds addresses holding a balance or a username." = "查找有余额或用户名的地址。";
 "No addresses with a balance or username found." = "未找到有余额或用户名的地址。";
 "Found 1 address with a balance or username." = "找到 1 个有余额或用户名的地址。";
 "Found %lld addresses with a balance or username." = "找到 %lld 个有余额或用户名的地址。";
@@ -3302,11 +3190,8 @@
 "Checking…" = "正在检查…";
 "gRPC nodes can't be reached right now, so K is using a public node over wss." = "当前无法连接 gRPC 节点，因此 K 正在通过 wss 使用公共节点。";
 "Search public chats" = "搜索公共聊天";
-"No Public Chats" = "没有公共聊天";
-"Tap + to join or create a public room." = "轻点 + 加入或创建一个公共聊天室。";
 "Switches between your chats and public chats" = "在你的聊天和公共聊天之间切换";
 "More Rooms" = "更多聊天室";
-"Rooms added on the indexer K reads public chats from." = "在 K 读取公共聊天的索引器上添加的聊天室。";
 
 /* Kaspa Hub card links (2026-11-25) */
 "Link copied" = "链接已复制";
@@ -3330,19 +3215,15 @@
 "That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "这不是抗量子地址。请扫描 KasSigner 显示的 KCC-3 地址。";
 "That address is already in this account." = "该地址已在此账户中。";
 "Quantum-resistant address added." = "已添加抗量子地址。";
-"Add Quantum-Resistant Address" = "添加抗量子地址";
 "Scan a KCC-3 address from KasSigner's address screen." = "从 KasSigner 的地址界面扫描一个 KCC-3 地址。";
 "Stop Watching" = "停止监视";
 "Removes this quantum address from the account. Scan it again to add it back." = "从账户中移除这个量子地址。再次扫描即可重新添加。";
 "Quantum-Resistant Address" = "抗量子地址";
 "On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "在 KasSigner 上打开你要的 KCC-3 地址并扫描其二维码。在该地址花费之前，其密钥一直留在设备上。";
 "Address Number on KasSigner" = "KasSigner 上的地址编号";
-"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "KasSigner 为此地址显示的编号。有了它，设备签名时能立即找到密钥；没有它，设备会搜索密钥。";
 "Add Quantum Address" = "添加量子地址";
 "The address number must be a whole number." = "地址编号必须是整数。";
 "Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "需要 KasSigner v1.1 或更高版本，它可以签署抗量子（KCC-3）地址。";
-"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "找零会回到这个地址，而这次发送会把它的密钥公开到链上。从 KasSigner 再添加一个量子地址，可让找零保持抗量子。";
-"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "找零会转到此账户一个未使用的量子地址，因为这次发送会把这个地址的密钥公开到链上。";
 "kaspa:pq..." = "kaspa:pq...";
 "KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner 没有返回这个抗量子地址的密钥脚本，因此不会广播。请检查设备运行的是 KasSigner v1.1 或更高版本，并且持有这个地址。";
 "The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "签名后的交易添加了这次发送从未要求的契约条款，因此不会广播。";
@@ -3379,7 +3260,6 @@
 /* Public Chats Select (2026-11-25) */
 "Delete 1 Public Chat?" = "删除 1 个公共聊天？";
 "Delete %lld Public Chats?" = "删除 %lld 个公共聊天？";
-"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "默认公共聊天会被关闭（可在“编辑默认公开聊天”中重新打开）。你添加的房间会连同其消息从此设备上删除。";
 
 /* Room Delete for Everyone (2026-11-25) */
 "Delete for Everyone" = "为所有人删除";
@@ -3433,7 +3313,6 @@
 "Tap to View History" = "轻点查看历史记录";
 "Quantum Protected" = "抗量子保护";
 "Not Quantum Protected" = "无抗量子保护";
-"New Quantum-Protected Address" = "新的抗量子保护地址";
 "New Address" = "新地址";
 "Regular Address" = "普通地址";
 "Works with everything: Kaspa and kUSDT." = "适用于一切：Kaspa 和 kUSDT。";
@@ -3501,7 +3380,6 @@
 "K Explorer" = "K 浏览器";
 "An address holding Kaspa stays on the list." = "持有 Kaspa 的地址会保留在列表中。";
 "Remove Account" = "移除账户";
-"Stops watching it here. KasSigner is untouched." = "在这里停止关注。KasSigner 不受影响。";
 "kpub QR" = "kpub 二维码";
 "Alerts On" = "通知已开";
 "Alerts Off" = "通知已关";
@@ -3521,3 +3399,12 @@
 "Swapped Through" = "兑换渠道";
 "Trestly's kUSDT pool on Kaspa" = "Trestly 在 Kaspa 上的 kUSDT 池";
 "Couldn't reach the network - try again" = "无法连接网络，请重试";
+"Balance increased by %@" = "余额增加了 %@";
+"%lld of your addresses" = "你的 %lld 个地址";
+"Chatting address %@" = "聊天地址 %@";
+"Spending address %@" = "支出地址 %@";
+"tipped your post: %@" = "打赏了你的帖子：%@";
+"Back to Top" = "回到顶部";
+"1 KAS = %@%@" = "1 KAS = %@%@";
+"Posts aren't available on Testnet yet" = "测试网暂不支持帖子";
+"Their profile: posts, replies and followers." = "其主页：帖子、回复和关注者。";

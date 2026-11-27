@@ -68,7 +68,9 @@ final class HubRouter: ObservableObject {
     func open(_ tab: AppTab) {
         guard tab != .hub else { return }
         openSection = tab
-        leftAt = nil
+        // Opened while another tab shows (a link, a push): its clock starts now, so it can still be
+        // forgotten; going to the Hub clears it (audit 2026-11-27 L15).
+        leftAt = hubOnScreen ? nil : Date()
     }
 
     func close() {
@@ -79,6 +81,17 @@ final class HubRouter: ObservableObject {
     /// The Hub's tab was left for another; `entered` when it's back on screen.
     func noteLeft() { if openSection != nil, leftAt == nil { leftAt = Date() } }
     func noteEntered() { leftAt = nil }
+
+    /// The Kaspa Hub tab is the one showing. Sections not kept alive are drawn only then.
+    @Published private(set) var hubOnScreen = false
+    func setHubOnScreen(_ shown: Bool) { if hubOnScreen != shown { hubOnScreen = shown } }
+
+    /// A sign-out: nothing of the last account's Hub is kept (audit 2026-11-27 L15).
+    func reset() {
+        openSection = nil
+        leftAt = nil
+        forgetCount &+= 1
+    }
 
     /// The section was left more than `rememberFor` ago.
     var isStale: Bool {
@@ -174,14 +187,6 @@ struct KaspaHubView: View {
     /// a dock slot (audit 2026-11-21 #28). In the order they were first opened.
     @State private var keptSections: [AppTab] = []
 
-    /// The card held down: its half sheet (Copy Link, Open).
-    @State private var heldCard: AppTab?
-    /// "Link copied", shown over the Hub after Copy Link.
-    @State private var toastMessage: String?
-    /// Which copy the toast belongs to, so a second copy within its 1.6 s isn't cleared early
-    /// by the first one's timer.
-    @State private var toastToken = 0
-
     /// The sections kept alive when left. Each was checked for what it does while on screen:
     /// KaPost's feed polls only while it shows (`KaPostsDockRouter.kaPostsOnScreen`), and the
     /// chess screens watch the arena through `onScreenPresence`, which counts a hidden section as
@@ -191,9 +196,6 @@ struct KaspaHubView: View {
     private static let keptAlive: Set<AppTab> = [
         .kaposts, .portfolio, .games, .kachatNames, .coldStorage, .explorer,
     ]
-
-    /// Three across, so the tiles line up the same way whatever the count.
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 3)
 
     /// The section on screen, if it's still one of the Hub's.
     private var openSection: AppTab? {
@@ -213,9 +215,9 @@ struct KaspaHubView: View {
     var body: some View {
         let open = openSection
         ZStack {
-            // no grid with the Hub as a menu (owner, 2026-11-26): the menu is the way in
-            grid
-                .hubLayerHidden(open != nil || HubPresentation.asMenu)
+            // No grid: Kaspa Hub is a menu (owner, 2026-11-26, `KaspaHubMenu`), the way into
+            // every section; the grid and its hold sheet were removed (audit 2026-11-27).
+            Color.clear
             // Each section owns the whole screen with its own navigation bar, exactly as it looks
             // from its own dock slot; a hidden one's bar is hidden with it. Not animated: a
             // cross-fade dimmed the bar's balance.
@@ -224,15 +226,10 @@ struct KaspaHubView: View {
                     .hubLayerHidden(tab != open)
                     .environment(\.hubSectionHidden, tab != open)
             }
-            if let open, !Self.keptAlive.contains(open) {
+            // not kept alive: drawn only while the Hub tab shows (audit 2026-11-27 L17)
+            if let open, !Self.keptAlive.contains(open), router.hubOnScreen {
                 AppTabContent(tab: open)
             }
-        }
-        // On the Hub itself, not the grid: the grid is hidden while a section is open, and Open
-        // in the sheet opens one, so the sheet and its toast would go with it.
-        .toast(message: toastMessage)
-        .sheet(item: $heldCard) { tab in
-            cardActionSheet(for: tab)
         }
         .onAppear { keep(router.openSection) }
         .onChange(of: router.openSection) { section in keep(section) }
@@ -256,131 +253,6 @@ struct KaspaHubView: View {
         guard let section, Self.keptAlive.contains(section), layout.hub.contains(section),
               !keptSections.contains(section) else { return }
         keptSections.append(section)
-    }
-
-    private var grid: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 14) {
-                    ForEach(layout.hub) { tab in
-                        tile(tab)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-            }
-            .navigationTitle(Text(LocalizedStringKey(AppTab.hub.label)))
-            // large, like every section, so the bar doesn't change height when one opens
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    BalanceToolbarLabel()
-                }
-            }
-        }
-    }
-
-    private func tile(_ tab: AppTab) -> some View {
-        Button {
-            // A hold that opened the half sheet can also end as a tap on a device; the card
-            // opening behind its own sheet isn't what was asked for (as the chat circles guard).
-            guard heldCard == nil else { return }
-            Haptics.impact(.light)
-            router.open(tab)
-        } label: {
-            // a square from the column, the label laid over it, so every tile is the same size
-            Color.clear
-                .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .overlay {
-                    VStack(spacing: 10) {
-                        AppTabIcon(tab: tab, size: 26)
-                            .frame(height: 30)
-                        Text(LocalizedStringKey(tab.label))
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .padding(.horizontal, 8)
-                }
-                // the badge the dock would show for it, so moving a tab here never hides one
-                .overlay(alignment: .topTrailing) {
-                    if let label = AppTabBadge.dockLabel(for: tab) {
-                        Text(verbatim: label)
-                            .font(.scaled(size: 11, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, label.isEmpty ? 0 : 5)
-                            .frame(minWidth: label.isEmpty ? 12 : 20, minHeight: label.isEmpty ? 12 : 20)
-                            .background(Capsule().fill(Color.red))
-                            .offset(x: 6, y: -6)
-                    }
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.regularMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.white.opacity(0.15), lineWidth: 0.8)
-                        )
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        // Hold: its half sheet, with the card's link to copy (2026-11-25). A Button label needs
-        // simultaneousGesture, as the chat circles do.
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.4).onEnded { _ in
-                guard tab.linkSlug != nil else { return }
-                Haptics.impact(.medium)
-                heldCard = tab
-            }
-        )
-        .accessibilityHint(Text("Hold for options"))
-    }
-
-    /// A held card's half sheet, as every long-press menu in the app (tiles): Copy Link, whose
-    /// `https://kachat.app/hub/<slug>` opens this card in K for whoever taps it, and Open.
-    private func cardActionSheet(for tab: AppTab) -> some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                AppTabIcon(tab: tab, size: 18)
-                Text(LocalizedStringKey(tab.label))
-                    .font(.headline)
-                    .lineLimit(1)
-            }
-            .padding(.top, 20)
-            .padding(.bottom, 4)
-
-            ActionSheetTiles {
-                ActionSheetRow(title: "Copy Link", subtitle: "A link that opens this card in K.", systemImage: "link") {
-                    heldCard = nil
-                    guard let url = KaChatInternalLink.hubSectionShareURL(for: tab) else { return }
-                    UIPasteboard.general.string = url.absoluteString
-                    Haptics.success()
-                    toastToken &+= 1
-                    let token = toastToken
-                    withAnimation(.easeOut(duration: 0.2)) { toastMessage = AppLocalization.string("Link copied") }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-                        // only the latest copy's timer takes the toast down
-                        guard token == toastToken else { return }
-                        withAnimation(.easeIn(duration: 0.2)) { toastMessage = nil }
-                    }
-                }
-                ActionSheetRow(title: "Open", subtitle: "Opens this card.", systemImage: "arrow.up.forward.app") {
-                    heldCard = nil
-                    router.open(tab)
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .presentationDetents([.height(ActionSheetTileMetrics.sheetHeight(tiles: 2))])
-        .presentationDragIndicator(.visible)
     }
 }
 
@@ -650,14 +522,6 @@ struct KaspaHubLinkCard: View {
 }
 
 // MARK: - Kaspa Hub as a menu (owner, 2026-11-26)
-
-/// Kaspa Hub as a menu: tapping it on the dock never shows a Hub screen. Its glass menu
-/// (`KaspaHubMenu`) rises over whatever tab is on screen; a section picked opens as a Hub section
-/// (the Kaspa Hub tab, lit, the dock in view), and tapping Kaspa Hub there brings the menu back.
-/// Off returns the Hub to its own tab and grid.
-enum HubPresentation {
-    static let asMenu = true
-}
 
 /// Kaspa Hub's menu (owner, 2026-11-26: "like when you click the + in iMessage"): a glass panel
 /// that rises from the dock's left side, about as wide as the first three dock icons and at most

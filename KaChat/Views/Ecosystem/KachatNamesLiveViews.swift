@@ -627,7 +627,13 @@ struct KachatTxDoneSheet: View {
                 .padding(.top, 18)
 
             Button {
-                browserURL = explorerURL
+                // K Explorer (the default) is a `kachat://` link K opens itself; the web browser
+                // only takes http(s) and showed a blank page (audit 2026-11-27 M9)
+                if let url = explorerURL, url.scheme?.lowercased() == "kachat" {
+                    UIApplication.shared.open(url)
+                } else {
+                    browserURL = explorerURL
+                }
             } label: {
                 HStack(spacing: 6) {
                     Text(verbatim: done.txId)
@@ -3887,25 +3893,52 @@ final class KachatExpiredNamesModel: ObservableObject {
     private static func key(_ n: KachatNames.NameInfo) -> String { "\(n.name)@\(n.expiresAt)" }
     private var storeKey: String? { KachatNamesActions.shared.myAddress.map { "kachatExpiredBannerDismissed.\($0)" } }
 
-    func load() async {
-        guard KachatNamesService.isLaunched, let me = KachatNamesActions.shared.myKey, let storeKey else {
-            expired = []
+    /// The account the list belongs to: another account's names never show (audit 2026-11-27 M5).
+    private var loadedFor: String?
+    private var loading = false
+    private var lastLoad: (at: Date, revision: Int)?
+
+    /// Loads this account's names in grace. One at a time, and not again within a minute unless
+    /// the registry changed or `force` (audit 2026-11-27 L19).
+    func load(force: Bool = false) async {
+        let wallet = KachatNamesActions.shared.myAddress
+        if wallet != loadedFor {
+            // another account (or none): nothing of the last one stays on screen
+            loadedFor = wallet
+            if !expired.isEmpty { expired = [] }
+            dismissed = []
+            lastLoad = nil
+        }
+        guard KachatNamesService.isLaunched, let wallet, let me = KachatNamesActions.shared.myKey, let storeKey else {
+            if !expired.isEmpty { expired = [] }
             return
         }
+        let registry = KachatNamesRegistry.shared
+        if !force, let last = lastLoad, last.revision == registry.revision, Date().timeIntervalSince(last.at) < 60 { return }
+        guard !loading else { return }
+        loading = true
+        defer { loading = false }
         let stored = Set(UserDefaults.standard.stringArray(forKey: storeKey) ?? [])
         if stored != dismissed { dismissed = stored }
-        let registry = KachatNamesRegistry.shared
         // Five minutes, as the other screens' loads: a shorter window here refreshed in between
         // and restarted every task keyed on the registry's revision.
         await registry.refreshIfStale(maxAge: 300)
         let grace = registry.graceMs
         let now = KachatNames.nowMs()
-        // a failed read keeps the banner as it is
-        guard let owned = try? await registry.names(owner: me, includeInactive: true) else { return }
+        // Every address of the account that holds a name, as Your Usernames lists them (a name
+        // on a spending address too). A failed read keeps the list as it is.
+        var owned: [KachatNames.NameInfo] = []
+        for key in await KachatNamesActions.shared.ownNameKeys() {
+            guard let names = try? await registry.names(owner: key, includeInactive: true) else { return }
+            owned += names
+        }
+        // the account changed while this read ran: not this account's list
+        guard KachatNamesActions.shared.myAddress == wallet, loadedFor == wallet else { return }
         var inGrace = owned.filter { $0.status(graceMs: grace, nowMs: now) == .grace }.sorted { $0.expiresAt < $1.expiresAt }
         #if DEBUG
         if let fake = Self.debugGraceName(owner: me, graceMs: grace) { inGrace.insert(fake, at: 0) }
         #endif
+        lastLoad = (Date(), registry.revision)
         // assigned only on a change: each assignment redraws the whole Wallet scroll
         if inGrace != expired { expired = inGrace }
     }

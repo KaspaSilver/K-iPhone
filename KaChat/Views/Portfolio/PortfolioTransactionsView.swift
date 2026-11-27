@@ -732,7 +732,7 @@ private struct AddPortfolioAddressSheet: View {
                         }
                         .buttonStyle(.borderless)
                     } footer: {
-                        Text("Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import.")
+                        Text("Enter a Kaspa address or a username like @name. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import.")
                     }
                 }
             }

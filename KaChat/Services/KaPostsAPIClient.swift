@@ -66,7 +66,7 @@ final class KaPostsAPIClient: ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .noIndexer: return "KaPost isn't available on Testnet yet"
+            case .noIndexer: return AppLocalization.string("Posts aren't available on Testnet yet")
             case .tooLong: return AppLocalization.string("This post is too long for one transaction. Shorten it and try again.")
             case .badURL: return "Invalid KaPost indexer URL"
             case .api(_, let message): return message
@@ -1880,18 +1880,21 @@ final class KaPostsNotificationService {
         guard !InAppBanner.pushArrived("kaposts:" + ledgerKey), KaPostsBannerLedger.claim(ledgerKey) else { return }
 
         let action: String
+        // in the app's language (audit 2026-11-27 M10)
+        let L = AppLocalization.string
         switch kind {
-        case "like": action = "liked your post"
-        case "dislike": action = "disliked your post"
+        case "like": action = L("liked your post")
+        case "dislike": action = L("disliked your post")
         case "tip":
-            action = notification.tipAmountSompi.map { "tipped your post: \(KaspaUnit.plain($0)) \(KaspaUnit.symbol)" }
-                ?? "tipped your post"
-        case "reply": action = "replied to your post"
-        case "quote": action = "quoted your post"
-        case "repost": action = "reposted your post"
-        case "follow": action = "followed you"
-        case "mention": action = "mentioned you in a post"
-        default: action = "interacted with your post"
+            action = notification.tipAmountSompi.map {
+                String(format: L("tipped your post: %@"), "\(KaspaUnit.plain($0)) \(KaspaUnit.symbol)")
+            } ?? L("tipped your post")
+        case "reply": action = L("replied to your post")
+        case "quote": action = L("quoted your post")
+        case "repost": action = L("reposted your post")
+        case "follow": action = L("followed you")
+        case "mention": action = L("mentioned you in a post")
+        default: action = L("interacted with your post")
         }
 
         let content = UNMutableNotificationContent()

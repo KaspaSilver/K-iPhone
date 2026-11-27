@@ -914,9 +914,8 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
                 HStack(spacing: 6) {
                     if isRenaming, let rename {
                         InlineRenameField(placeholder: rename.placeholder, draft: $draft, focused: $nameFocused) {
-                            isRenaming = false
+                            finishRename()
                         }
-                        .onChange(of: draft) { rename.onChange($0) }
                     } else {
                         Text(verbatim: name)
                             .font(.headline)
@@ -998,8 +997,19 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
         .background(BalanceCardBackground())
         // The keyboard going away (Done, return, a tap elsewhere) ends the rename.
         .onChange(of: nameFocused) { focused in
-            if !focused { isRenaming = false }
+            if !focused { finishRename() }
         }
+        // scrolled away or the screen closed mid-rename: what was typed is kept
+        .onDisappear { finishRename() }
+    }
+
+    /// The rename ends (Done, return, the keyboard going away): the name typed is saved once,
+    /// here, not on every keystroke, which re-saved and redrew the list each time (audit
+    /// 2026-11-27 L20). The field shows it as it's typed.
+    private func finishRename() {
+        guard isRenaming else { return }
+        isRenaming = false
+        if let rename, draft != rename.current { rename.onChange(draft) }
     }
 
     @ViewBuilder
@@ -1056,8 +1066,8 @@ struct AddressCardActionButton: View {
 }
 
 /// A card's in-place rename (owner, 2026-11-27: no pop-up): the name it has now ("" for the
-/// default), the default shown while the field is empty, and where each keystroke is saved
-/// (an empty name goes back to the default).
+/// default), the default shown while the field is empty, and where the name is saved when the
+/// rename ends (an empty name goes back to the default).
 struct InlineRename {
     let current: String
     let placeholder: String

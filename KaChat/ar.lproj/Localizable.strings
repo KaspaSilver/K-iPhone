@@ -20,7 +20,6 @@
 "All Nodes" = "جميع العقد";
 "Anyone with your 12 or 24 words can access your account. Never share them with anyone." = "أي شخص لديه كلماتك الـ 12 أو 24 يمكنه الوصول إلى حسابك. لا تشاركها مع أي شخص أبدًا.";
 "Audio" = "صوت";
-"Auto Search for Nodes" = "البحث التلقائي عن العقد";
 "Avatar" = "الصورة الرمزية";
 "Balance" = "الرصيد";
 "Balance copied to clipboard." = "تم نسخ الرصيد إلى الحافظة.";
@@ -46,7 +45,6 @@
 "Clear connection pool?" = "مسح مجموعة الاتصالات؟";
 "Close" = "إغلاق";
 "Confirm" = "تأكيد";
-"Connect Your Own Node" = "اتصل بعقدتك الخاصة";
 "Connect to a Node" = "الاتصال بعقدة";
 "Connected Node" = "العقدة المتصلة";
 "Connected only to this node" = "متصل بهذه العقدة فقط";
@@ -87,7 +85,6 @@
 "Emoji picker" = "منتقي الإيموجي";
 "Encoding…" = "جاري الترميز…";
 "Enter a new name for this saved account." = "أدخل اسمًا جديدًا لهذا الحساب المحفوظ.";
-"Enter a node address you trust" = "أدخل عنوان عقدة تثق بها";
 "Error" = "خطأ";
 "Explorer" = "المستكشف";
 "Export Chat History" = "تصدير سجل المحادثات";
@@ -99,7 +96,6 @@
 "From" = "من";
 "Fund Your Chatting Address" = "قم بتمويل عنوان الدردشة الخاص بك";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "أنشئ واحدًا أدناه لبدء إرسال المدفوعات من عنوان منفصل عن الذي تتحدث منه.";
-"Give this address a label to help you recognize it." = "أعطِ هذا العنوان تسمية لمساعدتك على التعرف عليه.";
 "Group Info" = "معلومات المجموعة";
 "Hidden Users" = "المستخدمون المخفيون";
 "Hide User" = "إخفاء المستخدم";
@@ -118,7 +114,6 @@
 "KAS" = "KAS";
 "KaChat" = "KaChat";
 "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network. 5 Kaspa lets you send around 2,500 messages." = "يتيح لك K إرسال واستقبال الرسائل مباشرة عبر شبكة Kaspa نفسها. يلزم استخدام Kaspa لدفع الرسوم عند إرسال رسائلك. تذهب الرسوم التي تدفعها إلى المعدّنين الذين يؤمّنون الشبكة. تتيح لك 5 كاسبا إرسال نحو 2,500 رسالة.";
-"K needs to connect to a node. How would you like to connect?" = "يحتاج K إلى الاتصال بعقدة. كيف تريد الاتصال؟";
 "Kaspa Explorer" = "مستكشف كاسبا";
 "Kaspa Explorer API" = "Kaspa Explorer API";
 "Kaspa Node" = "عقدة كاسبا";
@@ -139,7 +134,6 @@
 "Message" = "رسالة";
 "Message retention" = "الاحتفاظ بالرسالة";
 "More options" = "مزيد من الخيارات";
-"Most taxing on the device, not as reliable - depends on where you live" = "الأكثر إرهاقًا للجهاز، وأقل موثوقية - يعتمد على مكان إقامتك";
 "Name" = "الاسم";
 "Network Fee" = "رسوم الشبكة";
 "New message" = "رسالة جديدة";
@@ -236,7 +230,6 @@
 "Sent domain transfer" = "تم إرسال نقل النطاق";
 "Settings" = "الإعدادات";
 "Show More" = "عرض المزيد";
-"Show QR Code" = "عرض رمز QR";
 "Sign In Failed" = "فشل تسجيل الدخول";
 "Skip" = "تخطي";
 "Something Went Wrong" = "حدث خطأ ما";
@@ -349,8 +342,6 @@
 "%@ wants to chat with you." = "يريد %@ الدردشة معك.";
 "No new requests" = "لا توجد طلبات جديدة";
 
-/* Welcome Guide: .kachat and Message Requests */
-"5 Kaspa is enough for about 2500 messages." = "تكفي 5 Kaspa لنحو 2500 رسالة.";
 "Nextcloud is off while Testnet is on." = "Nextcloud متوقف أثناء تشغيل الشبكة التجريبية.";
 "Cancelled." = "تم الإلغاء.";
 "Confirm this .kachat transaction" = "تأكيد معاملة .kachat هذه";
@@ -731,7 +722,6 @@
 
 /* Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses */
 "Quantum-safe" = "آمن كموميًا";
-"Key revealed by a spend" = "انكشف المفتاح بعملية إنفاق";
 
 /* Edit KaChat Profile: Clear Profile */
 "Clear Profile" = "مسح الملف الشخصي";
@@ -881,7 +871,6 @@
 "Default (Recommended)" = "افتراضي (موصى به)";
 "Automatic Scan" = "فحص تلقائي";
 "Label (optional)" = "تسمية (اختياري)";
-"host:port or grpcs://host" = "host:port or grpcs://host";
 "Delete saved address" = "حذف العنوان المحفوظ";
 "Node connections appear blocked on this network. You can still receive and read messages through the indexer, but sending messages and payments needs a node connection." = "تبدو اتصالات العقد محظورة على هذه الشبكة. لا يزال بإمكانك استلام الرسائل وقراءتها عبر المفهرس، لكن إرسال الرسائل والمدفوعات يحتاج إلى اتصال بعقدة.";
 "%lld ms" = "%lld ms";
@@ -1005,9 +994,7 @@
 "Notify on receive" = "إشعار عند الاستلام";
 "When a spending address receives Kaspa from someone else." = "عندما يستلم عنوان إنفاق Kaspa من شخص آخر.";
 "Checking address #%lld" = "جارٍ فحص العنوان رقم %lld";
-"Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding." = "يفحص أول ألف عنوان مهما كانت الفجوات، ثم يواصل ما دام يجد المزيد.";
 "%lld found so far" = "تم العثور على %lld حتى الآن";
-"Close and Keep Scanning" = "إغلاق ومواصلة الفحص";
 "Contains domain" = "يحتوي على نطاق";
 "Tap anywhere to copy" = "اضغط في أي مكان للنسخ";
 "Anyone with this address's private key can spend its funds. Never share it with anyone." = "يمكن لأي شخص يملك المفتاح الخاص لهذا العنوان إنفاق أمواله. لا تشاركه مع أي شخص أبدًا.";
@@ -1028,9 +1015,6 @@
 "Enter your 12 or 24 words" = "أدخل كلماتك الـ 12 أو 24";
 "More reactions" = "المزيد من التفاعلات";
 "Storage problem" = "مشكلة في التخزين";
-"Your chats and history are up to date." = "محادثاتك وسجلها محدّثة.";
-"Setting up your account" = "جارٍ إعداد حسابك";
-"Downloading everything this account has on chain. It only takes this long once." = "جارٍ تنزيل كل ما لدى هذا الحساب على السلسلة. يستغرق هذا وقتًا طويلًا مرة واحدة فقط.";
 "Continue anyway" = "المتابعة على أي حال";
 "Preparing a fresh address" = "جارٍ تجهيز عنوان جديد";
 "Share Profile" = "مشاركة الملف الشخصي";
@@ -1168,7 +1152,6 @@
 "Invited you to a game of chess" = "دعاك إلى لعبة شطرنج";
 "Handshake completed" = "اكتملت المصافحة";
 "%@ sent a photo" = "أرسل %@ صورة";
-"It shows 10 minutes after you have both sent a message." = "يظهر بعد 10 دقائق من إرسال كل منكما رسالة.";
 "Voice message unavailable" = "الرسالة الصوتية غير متاحة";
 "Tap to retry" = "اضغط لإعادة المحاولة";
 "Loading…" = "جارٍ التحميل…";
@@ -1278,7 +1261,6 @@
 "Asks to open an encrypted conversation." = "يطلب فتح محادثة مشفرة.";
 "Casual" = "ودّية";
 "Changes the text. Everyone sees the new version." = "يغيّر النص. يرى الجميع النسخة الجديدة.";
-"Check off every address you want on the list, in one sitting." = "حدد دفعة واحدة كل عنوان تريده في القائمة.";
 "Clear %@?" = "مسح %@؟";
 "Clear All Cache?" = "مسح كل ذاكرة التخزين المؤقت؟";
 "Clears the unread badge on this group." = "يزيل شارة غير المقروء من هذه المجموعة.";
@@ -1294,10 +1276,8 @@
 "Finished" = "اكتمل";
 "Finishing up..." = "جارٍ الإنهاء...";
 "Frees %@. Your messages, contacts and keys are not touched." = "يحرر %@. لن تتأثر رسائلك وجهات اتصالك ومفاتيحك.";
-"Full screen, for scanning with another device." = "ملء الشاشة، للمسح بجهاز آخر.";
 "Get notified for their messages again." = "تلقَّ الإشعارات عن رسائله مجددًا.";
 "Gives this account a name of your own." = "يمنح هذا الحساب اسمًا من اختيارك.";
-"Gives this address a label of your own." = "يمنح هذا العنوان تسمية من اختيارك.";
 "Hide Address" = "إخفاء العنوان";
 "Invite this contact to a game on chain." = "ادعُ جهة الاتصال هذه إلى لعبة على السلسلة.";
 "KaChat Link" = "رابط KaChat";
@@ -1331,7 +1311,6 @@
 "Preparing..." = "جارٍ التجهيز...";
 "Private key copied. Clipboard will clear in 30s." = "تم نسخ المفتاح الخاص. ستُمسح الحافظة خلال 30 ثانية.";
 "Public key copied" = "تم نسخ المفتاح العام";
-"Puts the full address on the clipboard." = "يضع العنوان الكامل في الحافظة.";
 "Puts the unread badge back so you come across it again." = "يعيد شارة غير المقروء لتصادفها مرة أخرى.";
 "Quotes this message above your reply." = "يقتبس هذه الرسالة فوق ردك.";
 "Re-fetching handshakes..." = "جارٍ إعادة جلب المصافحات...";
@@ -1400,7 +1379,6 @@
 
 /* Settings > Customization: .kachat name endings */
 "Show .kachat Endings" = "إظهار لاحقة ‎.kachat";
-"Turn off to show names like alice instead of alice.kachat. A name you gave someone yourself never has the ending." = "أوقفه لعرض الأسماء مثل alice بدلاً من alice.kachat. الاسم الذي أعطيته أنت لشخص ما لا يحمل اللاحقة أبداً.";
 
 /* Chat composers: camera or microphone access is off (MediaAccess) */
 "Microphone Access Required" = "مطلوب الوصول إلى الميكروفون";
@@ -1451,13 +1429,11 @@
 "%d hidden: they still count in the total." = "%d مخفية: ما زالت تُحسب في الإجمالي.";
 "A brand-new address of yours, never used or handed out: this payment can't be tied to your name." = "عنوان جديد تمامًا لك، لم يُستخدم ولم يُشارك قط: لا يمكن ربط هذه الدفعة باسمك.";
 "A quantum-resistant address: its key stays hidden until it spends." = "عنوان مقاوم للحوسبة الكمّية: يبقى مفتاحه مخفيًا حتى يُنفق منه.";
-"A regular address, like Receive gives you. Works with everything, kUSDT included." = "عنوان عادي، مثل الذي يعطيه الاستلام. يعمل مع كل شيء، بما في ذلك kUSDT.";
 "A spending address of yours: a payment here isn't tied to your name." = "أحد عناوين الإنفاق لديك: الدفع هنا لا يرتبط باسمك.";
 "About %@" = "حول %@";
 "Add %@ More" = "إضافة %@ أخرى";
 "Add %@ for Fee and Change Coin" = "إضافة %@ للرسوم وعملة الباقي";
 "Add %@ for the Network Fee" = "إضافة %@ لرسوم الشبكة";
-"Adds a brand-new regular address of yours to this list." = "يضيف إلى هذه القائمة عنوانًا عاديًا جديدًا تمامًا لك.";
 "Amount (%@)" = "المبلغ (%@)";
 "Available: %@" = "المتاح: %@";
 "Back to This Address" = "يعود إلى هذا العنوان";
@@ -1466,7 +1442,6 @@
 "Bridged by %@" = "عبر جسر %@";
 "Building the transaction…" = "جارٍ إنشاء المعاملة…";
 "Check Again" = "التحقق مرة أخرى";
-"Check off which addresses holding kUSDT are on the list." = "حدّد أي العناوين التي تحمل kUSDT تظهر في القائمة.";
 "Checking address #%d" = "جارٍ فحص العنوان #%d";
 "Checking your %@..." = "جارٍ التحقق من %@ لديك…";
 "Coins Combined" = "تم دمج العملات";
@@ -1481,11 +1456,9 @@
 "Every %@ coin holds %@. Combining them into one coin gives the extra KAS back to this address as regular KAS, less the network fee. Your %@ stays the same." = "كل عملة %@ تحمل %@. عند دمجها في عملة واحدة يعود KAS الزائد إلى هذا العنوان كـ KAS عادي بعد خصم رسوم الشبكة. يبقى رصيد %@ كما هو.";
 "Every %@ coin holds %@. It goes to the recipient with the %@, so the KAS isn't lost." = "كل عملة %@ تحمل %@. تنتقل هذه الـ KAS إلى المستلم مع %@، لذا لا تضيع.";
 "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "كل عملة kUSDT تحمل 1.5 KAS. تنتقل مع kUSDT عند إرسالها.";
-"Finds your addresses holding kUSDT." = "يجد عناوينك التي تحمل kUSDT.";
 "Found %d addresses with %@." = "تم العثور على %1$d عناوين بها %2$@.";
 "Generate New Address" = "إنشاء عنوان جديد";
 "Generate Non-Quantum Address" = "إنشاء عنوان غير كمّي";
-"Generate Quantum-Resistant Address" = "إنشاء عنوان مقاوم للحوسبة الكمّية";
 "Goes With It" = "يُرسل معها";
 "Held On" = "محفوظ على";
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "يصل إلى هذا الحساب ويُحسب في إجمالي الإنفاق. استخدمه لكل شيء عدا أسماء ‎.kachat.";
@@ -1494,7 +1467,6 @@
 "KAS for a %@ send" = "KAS لإرسال %@";
 "Kaspa" = "Kaspa";
 "Kaspa, and kUSDT on Kaspa, can be sent here." = "يمكن إرسال Kaspa، وkUSDT على Kaspa، إلى هنا.";
-"Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it." = "يبقي مفتاحه مخفيًا حتى يُنفق منه. لـ Kaspa فقط: لا يمكن تداول kUSDT منه.";
 "Manage %@" = "إدارة %@";
 "Manage %@ starts over with only your Chatting Address. Nothing is lost: bring any address back here, and its %@ still counts in your total." = "ستبدأ إدارة %1$@ من جديد بعنوان الدردشة فقط. لا شيء يضيع: أعد أي عنوان من هنا، ويبقى %2$@ الخاص به محسوبًا في إجماليك.";
 "Merges its coins into one and gives the extra KAS back." = "يدمج عملاته في عملة واحدة ويعيد KAS الزائد.";
@@ -1915,7 +1887,6 @@
 "Drag a portfolio to change the order its card appears in." = "اسحب محفظة لتغيير ترتيب ظهور بطاقتها.";
 "Import failed. Check the CSV format" = "فشل الاستيراد. تحقق من تنسيق ملف CSV";
 "Notes (optional)" = "ملاحظات (اختياري)";
-"Network Hashrate" = "معدل التجزئة للشبكة";
 "Value" = "القيمة";
 "24h change not available yet" = "تغيّر 24 ساعة غير متاح بعد";
 "Rank" = "الترتيب";
@@ -1927,7 +1898,6 @@
 "Converter" = "المحوّل";
 "Waiting for a price..." = "في انتظار السعر...";
 "Kaspa Network" = "شبكة Kaspa";
-"About Hashrate" = "حول معدل التجزئة";
 "Mining Estimate" = "تقدير التعدين";
 "Enter your hashrate to estimate earnings." = "أدخل معدل التجزئة الخاص بك لتقدير الأرباح.";
 "Transaction Details" = "تفاصيل المعاملة";
@@ -1958,8 +1928,6 @@
 "YTD" = "YTD";
 "1Y" = "سنة";
 "Block Reward" = "مكافأة الكتلة";
-"Next Block Reward" = "مكافأة الكتلة التالية";
-"Next Block Reward Reduction" = "التخفيض التالي لمكافأة الكتلة";
 "At %@ network hashrate and a %@ block reward. Before pool fees, power and luck, and both figures move." = "بمعدل تجزئة للشبكة يبلغ %@ ومكافأة كتلة قدرها %@. قبل رسوم المجمّع والكهرباء والحظ، وكلا الرقمين يتغيران.";
 "Imported 1 transaction" = "تم استيراد معاملة واحدة";
 "Imported %lld transactions" = "تم استيراد المعاملات: %lld";
@@ -2012,16 +1980,8 @@
 "Dark" = "داكن";
 "Selected: %@ (1 UTXO)" = "المحدد: %@ (UTXO واحد)";
 "Selected: %@ (%lld UTXOs)" = "المحدد: %@ (%lld من UTXO)";
-"No used addresses yet" = "لا توجد عناوين مستخدمة بعد";
 "Reveals the next unused address in this account." = "يعرض العنوان غير المستخدم التالي في هذا الحساب.";
-"Puts the extended public key on the clipboard." = "ينسخ المفتاح العام الموسّع إلى الحافظة.";
-"Show kpub QR" = "عرض رمز QR لـ kpub";
 "Scan it into another device to watch this account there." = "امسحه بجهاز آخر لمتابعة هذا الحساب هناك.";
-"Changes the name shown for this account." = "يغيّر الاسم الظاهر لهذا الحساب.";
-"Turn Off Receive Notifications" = "إيقاف إشعارات الاستلام";
-"Turn On Receive Notifications" = "تشغيل إشعارات الاستلام";
-"Stops notifying when this account receives Kaspa. Other accounts keep theirs." = "يتوقف عن الإشعار عندما يستلم هذا الحساب Kaspa. تحتفظ الحسابات الأخرى بإشعاراتها.";
-"Notifies you when this account receives Kaspa." = "يُعلمك عندما يستلم هذا الحساب Kaspa.";
 "For how long?" = "لأي مدة؟";
 "Swipe up to Claim" = "اسحب لأعلى للحجز";
 "Swipe up to Confirm" = "اسحب لأعلى للتأكيد";
@@ -2154,7 +2114,6 @@
 "$" = "$";
 "Continue to App" = "المتابعة إلى التطبيق";
 "Join" = "انضمام";
-"Join or Create a Channel" = "الانضمام إلى قناة أو إنشاؤها";
 "Menu" = "القائمة";
 "Pay in Kaspa" = "الدفع بكاسبا";
 "Record voice message" = "تسجيل رسالة صوتية";
@@ -2309,7 +2268,6 @@
 "6 hours" = "٦ ساعات";
 "7 days" = "٧ أيام";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses." = "تعيش المحادثة العامة على Kaspa blockDAG، لذا يقدّم أي مفهرس يراقب الشبكة نفسها الغرفة نفسها. وجّه هذه الغرفة إلى أي مفهرس تريده - مفهرسك أو مفهرس غيرك - دون تغيير المفهرس الذي تستخدمه كل الغرف الأخرى.";
-"A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time." = "الغرفة المُوقَفة لا تظهر في المحادثات العامة ولا ترسل أي إشعار. يمكنك تشغيلها مجددًا في أي وقت.";
 "A room you added. Anyone who knows the name can post to it." = "غرفة أضفتها. يمكن لأي شخص يعرف الاسم النشر فيها.";
 "About this room" = "حول هذه الغرفة";
 "Accounts you follow will show up here." = "الحسابات التي تتابعها ستظهر هنا.";
@@ -2318,7 +2276,6 @@
 "Add option" = "إضافة خيار";
 "Add to thread" = "إضافة إلى السلسلة";
 "Adds your own words above it." = "تضيف كلماتك فوقه.";
-"Anyone who joins the same channel name can see and post messages there - there is no owner and no invite." = "يمكن لأي شخص ينضم إلى اسم القناة نفسه رؤية الرسائل ونشرها هناك - لا يوجد مالك ولا دعوة.";
 "Blocked accounts are removed everywhere and can't interact with you." = "الحسابات المحظورة تُزال من كل مكان ولا يمكنها التفاعل معك.";
 "Blocked. Undo it in the Feed's menu, under Blocked." = "تم الحظر. يمكنك التراجع من قائمة الخلاصة، تحت المحظورين.";
 "Bookmarks" = "العلامات المرجعية";
@@ -2340,7 +2297,6 @@
 "Edit Post" = "تعديل المنشور";
 "Edit Profile" = "تعديل الملف الشخصي";
 "Every message cached for this room on this device is deleted. This cannot be undone - rejoining later starts with no history." = "تُحذف كل رسالة مخزنة لهذه الغرفة على هذا الجهاز. لا يمكن التراجع عن ذلك - الانضمام لاحقًا يبدأ بلا سجل.";
-"Every reply is in the conversation above." = "كل الردود في المحادثة أعلاه.";
 "Find posts by what they say, and people by their name or domain. Only people who have posted appear." = "ابحث عن المنشورات بما تقوله، وعن الأشخاص باسمهم أو نطاقهم. يظهر فقط من نشروا.";
 "Follow Back" = "متابعة بالمثل";
 "Followers" = "المتابِعون";
@@ -2373,7 +2329,6 @@
 "New Post" = "منشور جديد";
 "New messages here don't notify you. The room still updates when you open it." = "الرسائل الجديدة هنا لا ترسل لك إشعارات. تتحدث الغرفة عند فتحها.";
 "No bookmarks yet" = "لا توجد علامات مرجعية بعد";
-"No comments yet - be the first to reply." = "لا تعليقات بعد - كن أول من يرد.";
 "No drafts" = "لا مسودات";
 "No notification for new messages in this room." = "لا إشعار للرسائل الجديدة في هذه الغرفة.";
 "No one can see your messages in here unless they are also active in the room at the same time." = "لا أحد يستطيع رؤية رسائلك هنا إلا إذا كان نشطًا في الغرفة في الوقت نفسه.";
@@ -2390,7 +2345,6 @@
 "Notifications on" = "الإشعارات مفعّلة";
 "Notifies you of new messages while the app is open." = "يُعلمك بالرسائل الجديدة أثناء فتح التطبيق.";
 "Notifies you of new messages, even when the app is closed." = "يُعلمك بالرسائل الجديدة، حتى عندما يكون التطبيق مغلقًا.";
-"Off takes every language room out of Public Chats. On, switch off the ones you don't want." = "إيقافه يُخرج كل غرف اللغات من المحادثات العامة. عند تشغيله، أوقف الغرف التي لا تريدها.";
 "One of the pasted words isn't a valid word. Check your copy and try again." = "إحدى الكلمات الملصقة ليست كلمة صالحة. تحقق من نسختك وحاول مرة أخرى.";
 "Opens Send Kaspa to pay it." = "يفتح إرسال Kaspa للدفع.";
 "Opens it in your browser." = "يفتحه في متصفحك.";
@@ -2480,14 +2434,11 @@
 "Not counted on the post" = "لا تُحتسب على المنشور";
 "Tip asks whether to send Kaspa or kUSDT each time." = "تسأل الإكرامية في كل مرة: Kaspa أم kUSDT.";
 "The account changed, so this wasn't sent." = "تغيّر الحساب، لذلك لم يُرسَل هذا.";
-"KaPost isn't available on Testnet yet" = "منشورات KaPost غير متاحة على الشبكة التجريبية بعد";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "لا يوجد مفهرس KaPost للشبكة التجريبية. أوقف الشبكة التجريبية من الإعدادات > الاتصال للقراءة والنشر على الشبكة الرئيسية.";
 "KaChat Profile" = "ملف KaChat الشخصي";
 "Your post is ready to go out. Open K to send it." = "منشورك جاهز للإرسال. افتح K لإرساله.";
-"KaPost Settings" = "إعدادات KaPost";
 "Search KaPost" = "البحث في KaPost";
 "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "تؤدي المشاركة إلى إرسال رابط يفتح هذه الغرفة في K، ورابط ويب لمن لا يملكه. الإخفاء يخص كل غرفة على حدة: من أخفيته هنا يظهر في كل غرفة أخرى.";
-"Their KaPost profile: posts, replies and followers." = "الملف الشخصي لهذا الحساب في KaPost: المنشورات والردود والمتابعون.";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "خادم KaPost لا يستجيب. يتم عرض المنشورات المحفوظة والمنشورات الجديدة من الشبكة.";
@@ -2497,12 +2448,8 @@
 
 "%lld unread" = "%lld غير مقروءة";
 
-/* Public rooms in Chats (2026-11-21) */
-"Join a public room, or create one." = "انضم إلى غرفة عامة أو أنشئ واحدة.";
 "Delete #%@?" = "حذف #%@؟";
 
-"Edit Default Public Chats" = "تعديل المحادثات العامة الافتراضية";
-"Turn the default rooms and the language rooms on or off." = "شغّل الغرف الافتراضية وغرف اللغات أو أوقفها.";
 "#%@ is off - turn it back on in Edit Default Public Chats" = "تم إيقاف #%@ - أعد تشغيلها من تعديل المحادثات العامة الافتراضية";
 "Channel names must be 1-%d characters with no spaces or colons." = "يجب أن تكون أسماء القنوات من 1 إلى %d حرفًا بلا مسافات أو نقطتين.";
 "channel-name" = "اسم-القناة";
@@ -2792,56 +2739,14 @@
 /* KaChat Stats and Kaspa Websites (back 2026-11-21) */
 "KaChat Stats" = "إحصاءات KaChat";
 "Stats" = "الإحصاءات";
-"What counts" = "ما الذي يُحتسب";
 "24 Hours" = "24 ساعة";
 "All Time" = "كل الأوقات";
-"KaChat transactions in the last 24 hours" = "معاملات KaChat في آخر 24 ساعة";
-"KaChat transactions in the last 7 days" = "معاملات KaChat في آخر 7 أيام";
-"KaChat transactions on Kaspa, all time" = "معاملات KaChat على Kaspa، طوال الوقت";
-"Direct Messages" = "الرسائل المباشرة";
-"New Chats" = "محادثات جديدة";
 "Payments" = "المدفوعات";
 "Group Messages" = "رسائل المجموعات";
-"Group Updates" = "تغييرات المجموعات";
-"KaPost Activity" = "نشاط KaPosts";
 "Chess Moves" = "نقلات الشطرنج";
-"Chess Games" = "مباريات الشطرنج";
-"Saved Records" = "السجلات المحفوظة";
-"1:1 texts, voice notes, reactions and 1:1 chess" = "نصوص 1:1 والرسائل الصوتية والتفاعلات وشطرنج 1:1";
-"Handshakes that start a 1:1 chat" = "مصافحات تبدأ محادثة 1:1";
-"KAS sent in chats" = "KAS المرسلة في المحادثات";
-"Messages in group chats" = "الرسائل في محادثات المجموعات";
-"Creating groups, invites and other changes" = "إنشاء المجموعات والدعوات وتغييرات أخرى";
-"Messages in public rooms" = "الرسائل في الغرف العامة";
-"Posts, replies, quotes and polls" = "المنشورات والردود والاقتباسات والاستطلاعات";
-"Votes, follows, edits and deletes" = "التصويتات والمتابعات والتعديلات والحذف";
-"Moves played in Chess Online" = "النقلات الملعوبة في Chess Online";
-"Games started in Chess Online" = "المباريات التي بدأت في Chess Online";
-"Chat keys and contact notes saved to your own account" = "مفاتيح المحادثات وملاحظات جهات الاتصال المحفوظة في حسابك";
-"No indexer is set for this network" = "لم يتم تعيين مفهرس لهذه الشبكة";
-"Add one in Settings > Connection Settings to see KaChat stats." = "أضف واحدًا في الإعدادات > إعدادات الاتصال لرؤية إحصاءات KaChat.";
-"Stats aren't available yet" = "الإحصاءات غير متاحة بعد";
-"Your indexer doesn't report KaChat stats yet. They'll show here once it does." = "المفهرس الخاص بك لا يقدم إحصاءات KaChat بعد. ستظهر هنا عندما يفعل.";
-"Couldn't refresh. Showing the last numbers." = "تعذّر التحديث. تُعرض آخر الأرقام.";
 "Updated %@" = "تم التحديث %@";
 "Counting since %@" = "يُحتسب منذ %@";
-"Every KaChat action is its own Kaspa transaction. These totals come from KaChat's indexer, counting what it has seen on chain - nothing is read from your phone." = "كل إجراء في KaChat هو معاملة Kaspa مستقلة. تأتي هذه المجاميع من مفهرس KaChat الذي يحصي ما رآه على السلسلة - لا يُقرأ أي شيء من هاتفك.";
-"1:1 messages are encrypted, so voice notes, reactions and 1:1 chess moves count as direct messages: nobody, the indexer included, can tell them apart." = "رسائل 1:1 مشفرة، لذا تُحتسب الرسائل الصوتية والتفاعلات ونقلات شطرنج 1:1 رسائل مباشرة: لا يستطيع أحد، بما في ذلك المفهرس، التمييز بينها.";
-"Names Registered" = "الأسماء المسجلة";
-"Name Renewals" = "تجديدات الأسماء";
-"Name Sales" = "مبيعات الأسماء";
-"Name Offers" = "عروض الأسماء";
-"Name Activity" = "نشاط الأسماء";
-".kachat names claimed" = "أسماء .kachat المُطالب بها";
-".kachat names extended or renewed" = "أسماء .kachat الممدّدة أو المجدّدة";
-".kachat names bought from a listing or through an accepted offer" = "أسماء .kachat المشتراة من إدراج أو عبر عرض مقبول";
-"Offers made on .kachat names" = "العروض المقدّمة على أسماء .kachat";
-"Listings, transfers, releases, reclaims and returned offers" = "الإدراجات والنقل والتحرير والاسترداد والعروض المُعادة";
 "Fees" = "الرسوم";
-"Transactions on the .kachat registry" = "المعاملات على سجل ‎.kachat";
-"Paid for registrations and renewals" = "المدفوع مقابل التسجيلات والتجديدات";
-"Fees aren't available yet" = "الرسوم غير متاحة بعد";
-"Your indexer doesn't report them yet. They'll show here once it does." = "المفهرس لديك لا يعرضها بعد. ستظهر هنا عندما يفعل.";
 "Kaspa Websites" = "مواقع Kaspa";
 "Websites" = "المواقع";
 
@@ -2853,7 +2758,7 @@
 "The price goes to the network's miners, not to K." = "السعر يذهب إلى معدّني الشبكة، لا إلى K.";
 "Make it your name" = "اجعله اسمك";
 "Set it as your primary name and it's how you appear everywhere in K." = "عيّنه اسمًا أساسيًا وسيظهر به اسمك في كل مكان في K.";
-"They can send you Kaspa to yourname.kachat instead of a long address." = "يمكنهم إرسال Kaspa إلى yourname.kachat بدل عنوان طويل.";
+"They can send you Kaspa to @yourname instead of a long address." = "يمكنهم إرسال Kaspa إلى @yourname بدل عنوان طويل.";
 "Your profile link shows your name." = "رابط ملفك الشخصي يُظهر اسمك.";
 "Renew before it expires. It shows when, on each name." = "جدّده قبل أن ينتهي. يظهر الموعد على كل اسم.";
 "After it expires there's a grace period to renew it before anyone else can claim it." = "بعد انتهائه توجد فترة سماح لتجديده قبل أن يحجزه أي شخص آخر.";
@@ -2902,8 +2807,6 @@
 "To %@" = "إلى %@";
 "Change %@ to %@" = "الباقي %@ إلى %@";
 
-/* Cold Storage Address Actions (2026-11-22) */
-"Puts this account's kpub on the clipboard. It reveals all its addresses." = "ينسخ kpub هذا الحساب إلى الحافظة. يكشف كل عناوينه.";
 
 /* Cold Storage Paste kpub (2026-11-22) */
 "Not a valid kpub" = "ليس kpub صالحًا";
@@ -2917,20 +2820,16 @@
 
 /* Swap with ChangeNOW and Trestly (2026-11-23) */
 "Swap" = "مبادلة";
-"Swap started" = "بدأت المبادلة";
 "Couldn't read this swap's amounts" = "تعذّرت قراءة مبالغ هذه المبادلة";
 "Added to %@" = "أُضيفت إلى %@";
 "This only removes it from your local history - it doesn't affect the actual exchange." = "هذا يزيلها من سجلك المحلي فقط - ولا يؤثر على عملية التبادل الفعلية.";
 "Swap History" = "سجل المبادلات";
 "You Send" = "أنت ترسل";
-"Switch direction" = "عكس الاتجاه";
 "You Get" = "أنت تحصل على";
 "Receive %@ at" = "استلام %@ على";
-"Receiving KAS At" = "استلام KAS على";
 "Powered by Trestly" = "بدعم من Trestly";
 "Powered by ChangeNOW" = "بدعم من ChangeNOW";
 "Rate" = "سعر الصرف";
-"Go to Spending Addresses" = "الانتقال إلى عناوين الإنفاق";
 "Send %@ to this address" = "أرسل %@ إلى هذا العنوان";
 "ChangeNOW Exchange ID" = "معرّف مبادلة ChangeNOW";
 "Exchange ID copied" = "تم نسخ معرّف المبادلة";
@@ -2939,14 +2838,6 @@
 "Change" = "تغيير";
 "No swaps yet." = "لا توجد مبادلات بعد.";
 "Swap Details" = "تفاصيل المبادلة";
-"A swap pays out to an address you have not used before, so the payout cannot be tied to your earlier activity. Generate one if none are free." = "تدفع المبادلة إلى عنوان لم تستخدمه من قبل، فلا يمكن ربط الدفعة بنشاطك السابق. أنشئ عنوانًا إن لم يكن هناك عنوان متاح.";
-"Every address here has been used. Generate a new one above." = "جميع العناوين هنا مستخدمة. أنشئ عنوانًا جديدًا في الأعلى.";
-"Unused Addresses" = "عناوين غير مستخدمة";
-"Choose Address" = "اختيار العنوان";
-"Check its history before you send a swap to it." = "تحقّق من سجله قبل أن ترسل إليه مبادلة.";
-"Use for This Swap" = "استخدامه لهذه المبادلة";
-"ChangeNOW pays the swapped KAS out to this address." = "يدفع ChangeNOW عملات KAS المُبادلة إلى هذا العنوان.";
-"Choose Coin" = "اختيار العملة";
 "Swap uses two services K doesn't run. Read and agree to both before you continue." = "تستخدم المبادلة خدمتين لا يديرهما K. اقرأ الاثنتين ووافق عليهما قبل المتابعة.";
 "Coins on other networks" = "عملات على شبكات أخرى";
 "Swaps between Kaspa and coins on other networks (Bitcoin, Ethereum, USDC, USDT and others) are made by ChangeNOW, a third-party exchange. K only asks ChangeNOW for a quote and a deposit address and shows the swap's status; ChangeNOW does the exchange and sends the coins. K isn't responsible for failed, delayed or lost swaps. If one doesn't go through, contact ChangeNOW's support." = "تتم المبادلات بين Kaspa والعملات على الشبكات الأخرى (Bitcoin وEthereum وUSDC وUSDT وغيرها) عبر ChangeNOW، وهي منصة تبادل تابعة لطرف ثالث. يطلب K من ChangeNOW عرض سعر وعنوان إيداع فقط، ويعرض حالة المبادلة؛ أما ChangeNOW فينفذ التبادل ويرسل العملات. K غير مسؤول عن المبادلات الفاشلة أو المتأخرة أو المفقودة. إذا لم تكتمل مبادلة، فتواصل مع دعم ChangeNOW.";
@@ -3052,7 +2943,6 @@
 "Delete this swap?" = "حذف هذه المبادلة؟";
 "Deposit Address" = "عنوان الإيداع";
 "Status: %@" = "الحالة: %@";
-"Get Deposit Address" = "الحصول على عنوان الإيداع";
 "Swap failed" = "فشلت المبادلة";
 "Already holds this swap - adding it again double-counts it." = "تحتوي على هذه المبادلة بالفعل - إضافتها مجددًا تحسبها مرتين.";
 "The swap lands in this portfolio." = "تُضاف المبادلة إلى هذه المحفظة.";
@@ -3191,7 +3081,6 @@
 "Room info for #%@" = "معلومات الغرفة #%@";
 "No hidden users in #%@. Long-press a message to hide its sender." = "لا يوجد مستخدمون مخفيون في #%@. اضغط مطولًا على رسالة لإخفاء مرسلها.";
 "Hidden Users - #%@" = "المستخدمون المخفيون - #%@";
-"A curated room, always in your list. Anyone on K can post to it." = "غرفة مختارة، موجودة دائمًا في قائمتك. يمكن لأي شخص على K النشر فيها.";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses. Leave it blank to follow %@." = "تعيش الدردشة العامة على BlockDAG الخاص بـ Kaspa، لذا يقدّم أي مفهرس يراقب الشبكة نفسها الغرفة نفسها. وجّه هذه الغرفة إلى أي مفهرس تريده (مفهرسك أو مفهرس شخص آخر) دون تغيير المفهرس الذي تستخدمه الغرف الأخرى. اتركه فارغًا لاتباع %@.";
 "Indexer updated for #%@." = "تم تحديث المفهرس لـ #%@.";
 "Could not reach it: %@" = "تعذّر الوصول إليه: %@";
@@ -3242,12 +3131,11 @@
 "kaspa:qr... or username" = "kaspa:qr... أو اسم مستخدم";
 "Looking up username..." = "جارٍ البحث عن اسم المستخدم...";
 "Kaspa Address or Username" = "عنوان Kaspa أو اسم مستخدم";
-"Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat)." = "أدخل عنوان Kaspa (kaspa:...) أو اسم مستخدم (مثل alice.kachat).";
+"Enter a Kaspa address (kaspa:...) or a username (e.g. @alice)." = "أدخل عنوان Kaspa (kaspa:...) أو اسم مستخدم (مثل @alice).";
 "Pick people from your contacts, or add anyone by Kaspa address or username." = "اختر أشخاصًا من جهات اتصالك، أو أضف أي شخص بعنوان Kaspa أو اسم مستخدم.";
 "Use Their Username" = "استخدام اسم المستخدم الخاص به";
-"Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "أدخل عنوان Kaspa أو اسم مستخدم مثل name.kachat. تصبح كل معاملة مستلمة على هذا العنوان عملية شراء، وكل معاملة مُرسلة عملية بيع، بسعر KAS التاريخي في ذلك اليوم. إعادة إضافة العنوان نفسه لاحقًا تستورد فقط المعاملات التي وُجدت منذ آخر استيراد.";
+"Enter a Kaspa address or a username like @name. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "أدخل عنوان Kaspa أو اسم مستخدم مثل @name. تصبح كل معاملة مستلمة على هذا العنوان عملية شراء، وكل معاملة مُرسلة عملية بيع، بسعر KAS التاريخي في ذلك اليوم. إعادة إضافة العنوان نفسه لاحقًا تستورد فقط المعاملات التي وُجدت منذ آخر استيراد.";
 "No addresses with a balance or username yet" = "لا توجد عناوين بها رصيد أو اسم مستخدم بعد";
-"Finds addresses holding a balance or a username." = "يعثر على العناوين التي بها رصيد أو اسم مستخدم.";
 "No addresses with a balance or username found." = "لم يُعثر على عناوين بها رصيد أو اسم مستخدم.";
 "Found 1 address with a balance or username." = "تم العثور على عنوان واحد به رصيد أو اسم مستخدم.";
 "Found %lld addresses with a balance or username." = "عدد العناوين التي بها رصيد أو اسم مستخدم: %lld.";
@@ -3302,11 +3190,8 @@
 "Checking…" = "جارٍ التحقق…";
 "gRPC nodes can't be reached right now, so K is using a public node over wss." = "تعذّر الوصول إلى عقد gRPC الآن، لذا يستخدم K عقدة عامة عبر wss.";
 "Search public chats" = "البحث في المحادثات العامة";
-"No Public Chats" = "لا توجد محادثات عامة";
-"Tap + to join or create a public room." = "اضغط + للانضمام إلى غرفة عامة أو إنشاء واحدة.";
 "Switches between your chats and public chats" = "يبدّل بين محادثاتك والمحادثات العامة";
 "More Rooms" = "غرف أخرى";
-"Rooms added on the indexer K reads public chats from." = "غرف أُضيفت على المفهرس الذي يقرأ منه K المحادثات العامة.";
 
 /* Kaspa Hub card links (2026-11-25) */
 "Link copied" = "تم نسخ الرابط";
@@ -3330,19 +3215,15 @@
 "That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "هذا ليس عنوانًا مقاومًا للحوسبة الكمّية. امسح عنوان KCC-3 الذي يعرضه KasSigner.";
 "That address is already in this account." = "هذا العنوان موجود بالفعل في هذا الحساب.";
 "Quantum-resistant address added." = "تمت إضافة العنوان المقاوم للحوسبة الكمّية.";
-"Add Quantum-Resistant Address" = "إضافة عنوان مقاوم للحوسبة الكمّية";
 "Scan a KCC-3 address from KasSigner's address screen." = "امسح عنوان KCC-3 من شاشة العناوين في KasSigner.";
 "Stop Watching" = "إيقاف المراقبة";
 "Removes this quantum address from the account. Scan it again to add it back." = "يزيل هذا العنوان الكمّي من الحساب. امسحه مرة أخرى لإعادة إضافته.";
 "Quantum-Resistant Address" = "عنوان مقاوم للحوسبة الكمّية";
 "On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "على KasSigner، افتح عنوان KCC-3 الذي تريده وامسح رمز QR الخاص به. يبقى مفتاحه على الجهاز حتى يُنفَق من العنوان.";
 "Address Number on KasSigner" = "رقم العنوان على KasSigner";
-"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "الرقم الذي يعرضه KasSigner لهذا العنوان. به يجد الجهاز المفتاح فورًا عند التوقيع، ومن دونه يبحث عنه.";
 "Add Quantum Address" = "إضافة عنوان كمّي";
 "The address number must be a whole number." = "يجب أن يكون رقم العنوان عددًا صحيحًا.";
 "Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "يتطلب KasSigner الإصدار 1.1 أو أحدث، الذي يوقّع العناوين المقاومة للحوسبة الكمّية (KCC-3).";
-"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "يعود الباقي إلى هذا العنوان، الذي يضع هذا الإرسال مفتاحه على السلسلة. أضف عنوانًا كمّيًا آخر من KasSigner ليبقى الباقي آمنًا كموميًا.";
-"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "يذهب الباقي إلى عنوان كمّي غير مستخدم في هذا الحساب، لأن هذا الإرسال يضع مفتاح هذا العنوان على السلسلة.";
 "kaspa:pq..." = "kaspa:pq...";
 "KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "لم يُرجع KasSigner سكربت المفتاح لهذا العنوان المقاوم للحوسبة الكمّية، لذا لن تُبث المعاملة. تأكد أن الجهاز يعمل بـ KasSigner الإصدار 1.1 أو أحدث وأنه يحمل هذا العنوان.";
 "The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "المعاملة الموقّعة تضيف شروط عقد لم يطلبها هذا الإرسال، لذا لن تُبث.";
@@ -3379,7 +3260,6 @@
 /* Public Chats Select (2026-11-25) */
 "Delete 1 Public Chat?" = "حذف محادثة عامة واحدة؟";
 "Delete %lld Public Chats?" = "حذف %lld من المحادثات العامة؟";
-"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "يتم إيقاف المحادثات العامة الافتراضية (أعد تشغيلها من تعديل المحادثات العامة الافتراضية). أما الغرف التي أضفتها فتُحذف مع رسائلها من هذا الجهاز.";
 
 /* Room Delete for Everyone (2026-11-25) */
 "Delete for Everyone" = "حذف لدى الجميع";
@@ -3433,7 +3313,6 @@
 "Tap to View History" = "اضغط لعرض السجل";
 "Quantum Protected" = "محمي من الكم";
 "Not Quantum Protected" = "غير محمي من الكم";
-"New Quantum-Protected Address" = "عنوان جديد محمي من الكم";
 "New Address" = "عنوان جديد";
 "Regular Address" = "عنوان عادي";
 "Works with everything: Kaspa and kUSDT." = "يعمل مع كل شيء: كاسبا وkUSDT.";
@@ -3501,7 +3380,6 @@
 "K Explorer" = "مستكشف K";
 "An address holding Kaspa stays on the list." = "يبقى العنوان الذي يحتوي على كاسبا في القائمة.";
 "Remove Account" = "إزالة الحساب";
-"Stops watching it here. KasSigner is untouched." = "يتوقف عن متابعته هنا. لا يتغير شيء على KasSigner.";
 "kpub QR" = "رمز QR لـ kpub";
 "Alerts On" = "التنبيهات مفعّلة";
 "Alerts Off" = "التنبيهات متوقفة";
@@ -3521,3 +3399,12 @@
 "Swapped Through" = "تم التبديل عبر";
 "Trestly's kUSDT pool on Kaspa" = "مجمع kUSDT من Trestly على كاسبا";
 "Couldn't reach the network - try again" = "تعذّر الوصول إلى الشبكة - حاول مجدداً";
+"Balance increased by %@" = "زاد الرصيد بمقدار %@";
+"%lld of your addresses" = "%lld من عناوينك";
+"Chatting address %@" = "عنوان الدردشة %@";
+"Spending address %@" = "عنوان الإنفاق %@";
+"tipped your post: %@" = "أرسل إكرامية على منشورك: %@";
+"Back to Top" = "العودة إلى الأعلى";
+"1 KAS = %@%@" = "1 KAS = %@%@";
+"Posts aren't available on Testnet yet" = "المنشورات غير متاحة على الشبكة التجريبية بعد";
+"Their profile: posts, replies and followers." = "ملفه الشخصي: المنشورات والردود والمتابعون.";

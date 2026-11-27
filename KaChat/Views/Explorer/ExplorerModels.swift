@@ -104,8 +104,8 @@ enum ExplorerTxKind: String, CaseIterable, Sendable {
         case .kachatName: return "A .kachat username registered, renewed or traded on the registry."
         case .kusdtTransfer: return "kUSDT, a dollar token on Kaspa, moved between addresses."
         case .kusdtSwap: return "KAS and kUSDT swapped through Trestly's pool."
-        case .chessMove: return "A move in an online chess game, played in KaPlay."
-        case .arcadeStamp: return "A KaPlay arcade score, stamped on chain so anyone can replay it."
+        case .chessMove: return "A move in an online chess game, played in Arcade."
+        case .arcadeStamp: return "An Arcade score, stamped on chain so anyone can replay it."
         case .coinbase: return "New KAS paid to miners for the blocks they found."
         case .other: return "A Kaspa transaction."
         }
@@ -155,7 +155,7 @@ struct ExplorerTransaction: Identifiable, Hashable, Sendable {
         let away = outputs.filter { $0.address != from }
         // a self-send (a message, a post) moves its first output's amount
         if away.isEmpty { return outputs.first?.amount ?? 0 }
-        return away.reduce(0) { $0 + $1.amount }
+        return away.reduce(UInt64(0)) { $0.addingSaturated($1.amount) }
     }
 
     /// What it did to `address`: what came to it less what it spent, as a direction and an
@@ -302,7 +302,7 @@ struct ExplorerKActivity: Hashable {
     /// Made-up numbers (the design-stage demo).
     var isDemo = false
 
-    var total: Int { counts.values.reduce(0, +) }
+    var total: Int { counts.values.reduce(0) { $0.addingReportingOverflow($1).overflow ? .max : $0 + $1 } }
     /// Percent up (or down) on the window before.
     var change: Double? {
         guard let previousTotal, previousTotal > 0 else { return nil }
@@ -358,7 +358,16 @@ enum ExplorerDeepLink {
         let root = UIApplication.shared.connectedScenes
             .compactMap { ($0 as? UIWindowScene)?.keyWindow }
             .first?.rootViewController
-        if let root, root.presentedViewController != nil {
+        // A sheet that can't be swiped away (a send under way, the backup steps, a site's
+        // payment) is never closed by a link, which any app can send: the Explorer opens behind
+        // it and shows once it's closed (audit 2026-11-27 L6).
+        var presented = root?.presentedViewController
+        var locked = false
+        while let sheet = presented {
+            if sheet.isModalInPresentation { locked = true; break }
+            presented = sheet.presentedViewController
+        }
+        if let root, root.presentedViewController != nil, !locked {
             root.dismiss(animated: true) { go() }
         } else {
             go()
@@ -595,7 +604,7 @@ enum ExplorerDemo {
     private static let posts = [
         "Kaspa at 10 blocks a second still feels unreal.",
         "Just claimed my .kachat username!",
-        "Who's up for a game of chess on KaPlay?",
+        "Who's up for a game of chess in Arcade?",
         "gm from the BlockDAG",
     ]
 
@@ -671,7 +680,7 @@ enum ExplorerDemo {
         return ExplorerAddress(
             address: address,
             username: isOwn ? nil : (r.int(0...2) == 0 ? r.pick(["alice", "dag", "satoshi"]) : nil),
-            balance: coins.reduce(0) { $0 + $1.amount },
+            balance: coins.reduce(UInt64(0)) { $0.addingSaturated($1.amount) },
             kusdtUnits: r.int(0...1) == 0 ? UInt64(r.int(1...900)) * 1_000_000 + 500_000 : nil,
             received30d: UInt64(r.int(100...90_000)) * 10_000_000,
             sent30d: UInt64(r.int(50...60_000)) * 10_000_000,
@@ -702,5 +711,14 @@ enum ExplorerDemo {
             return .route(.address(r.address()))
         }
         return .notFound
+    }
+}
+
+extension UInt64 {
+    /// `self + other`, or the largest value instead of trapping: amounts from an API are summed
+    /// with it (audit 2026-11-27 L4).
+    func addingSaturated(_ other: UInt64) -> UInt64 {
+        let (sum, overflow) = addingReportingOverflow(other)
+        return overflow ? .max : sum
     }
 }

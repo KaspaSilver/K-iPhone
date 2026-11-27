@@ -20,7 +20,6 @@
 "All Nodes" = "सभी नोड";
 "Anyone with your 12 or 24 words can access your account. Never share them with anyone." = "जिसके पास आपके 12 या 24 शब्द हैं, वह आपके खाते तक पहुँच सकता है। इन्हें कभी किसी से साझा न करें।";
 "Audio" = "ऑडियो";
-"Auto Search for Nodes" = "नोड्स की स्वतः खोज करें";
 "Avatar" = "अवतार";
 "Balance" = "बैलेंस";
 "Balance copied to clipboard." = "बैलेंस क्लिपबोर्ड पर कॉपी किया गया।";
@@ -46,7 +45,6 @@
 "Clear connection pool?" = "कनेक्शन पूल साफ़ करें?";
 "Close" = "बंद करें";
 "Confirm" = "पुष्टि करें";
-"Connect Your Own Node" = "अपना खुद का नोड कनेक्ट करें";
 "Connect to a Node" = "एक नोड से कनेक्ट करें";
 "Connected Node" = "कनेक्टेड नोड";
 "Connected only to this node" = "केवल इस नोड से जुड़ा हुआ";
@@ -87,7 +85,6 @@
 "Emoji picker" = "इमोजी पिकर";
 "Encoding…" = "एन्कोडिंग…";
 "Enter a new name for this saved account." = "इस सहेजे गए खाते के लिए एक नया नाम दर्ज करें।";
-"Enter a node address you trust" = "एक नोड पता दर्ज करें जिस पर आप भरोसा करते हैं";
 "Error" = "त्रुटि";
 "Explorer" = "एक्सप्लोरर";
 "Export Chat History" = "चैट इतिहास निर्यात करें";
@@ -99,7 +96,6 @@
 "From" = "से";
 "Fund Your Chatting Address" = "अपना चैटिंग पता फंड करें";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "जिस पते से आप चैट करते हैं उससे अलग पते से भुगतान भेजना शुरू करने के लिए नीचे एक जनरेट करें।";
-"Give this address a label to help you recognize it." = "इसे पहचानने में मदद के लिए इस पते को एक लेबल दें।";
 "Group Info" = "समूह जानकारी";
 "Hidden Users" = "छिपे हुए उपयोगकर्ता";
 "Hide User" = "उपयोगकर्ता छिपाएं";
@@ -118,7 +114,6 @@
 "KAS" = "KAS";
 "KaChat" = "KaChat";
 "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network. 5 Kaspa lets you send around 2,500 messages." = "K आपको सीधे Kaspa नेटवर्क पर संदेश भेजने और प्राप्त करने देता है। अपने संदेश भेजते समय शुल्क चुकाने के लिए Kaspa आवश्यक है। आप जो शुल्क चुकाते हैं वह नेटवर्क को सुरक्षित रखने वाले माइनर्स के पास जाता है। 5 कैस्पा से आप लगभग 2,500 संदेश भेज सकते हैं।";
-"K needs to connect to a node. How would you like to connect?" = "K को एक नोड से जुड़ने की आवश्यकता है। आप कैसे कनेक्ट करना चाहेंगे?";
 "Kaspa Explorer" = "कास्पा एक्सप्लोरर";
 "Kaspa Explorer API" = "Kaspa Explorer API";
 "Kaspa Node" = "कास्पा नोड";
@@ -139,7 +134,6 @@
 "Message" = "संदेश";
 "Message retention" = "संदेश प्रतिधारण";
 "More options" = "अधिक विकल्प";
-"Most taxing on the device, not as reliable - depends on where you live" = "डिवाइस पर सबसे अधिक बोझ, उतना विश्वसनीय नहीं - यह इस पर निर्भर करता है कि आप कहां रहते हैं";
 "Name" = "नाम";
 "Network Fee" = "नेटवर्क शुल्क";
 "New message" = "नया संदेश";
@@ -236,7 +230,6 @@
 "Sent domain transfer" = "डोमेन ट्रांसफर भेजा";
 "Settings" = "सेटिंग्स";
 "Show More" = "अधिक दिखाएं";
-"Show QR Code" = "QR कोड दिखाएं";
 "Sign In Failed" = "साइन इन विफल";
 "Skip" = "छोड़ें";
 "Something Went Wrong" = "कुछ गलत हो गया";
@@ -349,8 +342,6 @@
 "%@ wants to chat with you." = "%@ आपसे चैट करना चाहते हैं।";
 "No new requests" = "कोई नया अनुरोध नहीं";
 
-/* Welcome Guide: .kachat and Message Requests */
-"5 Kaspa is enough for about 2500 messages." = "5 Kaspa लगभग 2500 मैसेज के लिए काफ़ी हैं।";
 "Nextcloud is off while Testnet is on." = "टेस्टनेट चालू रहने तक Nextcloud बंद है।";
 "Cancelled." = "रद्द हो गया।";
 "Confirm this .kachat transaction" = "इस .kachat लेन-देन की पुष्टि करें";
@@ -731,7 +722,6 @@
 
 /* Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses */
 "Quantum-safe" = "क्वांटम-सुरक्षित";
-"Key revealed by a spend" = "खर्च से चाबी उजागर";
 
 /* Edit KaChat Profile: Clear Profile */
 "Clear Profile" = "प्रोफ़ाइल साफ़ करें";
@@ -881,7 +871,6 @@
 "Default (Recommended)" = "डिफ़ॉल्ट (अनुशंसित)";
 "Automatic Scan" = "स्वचालित स्कैन";
 "Label (optional)" = "लेबल (वैकल्पिक)";
-"host:port or grpcs://host" = "host:port or grpcs://host";
 "Delete saved address" = "सहेजा गया पता हटाएं";
 "Node connections appear blocked on this network. You can still receive and read messages through the indexer, but sending messages and payments needs a node connection." = "इस नेटवर्क पर नोड कनेक्शन ब्लॉक लगते हैं। आप इंडेक्सर के ज़रिए संदेश पा और पढ़ सकते हैं, लेकिन संदेश और भुगतान भेजने के लिए नोड कनेक्शन चाहिए।";
 "%lld ms" = "%lld ms";
@@ -1005,9 +994,7 @@
 "Notify on receive" = "प्राप्त होने पर सूचित करें";
 "When a spending address receives Kaspa from someone else." = "जब किसी खर्च पते को किसी और से Kaspa मिलता है।";
 "Checking address #%lld" = "पता #%lld जांचा जा रहा है";
-"Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding." = "पहले एक हज़ार पते जांचता है, चाहे बीच में खाली पते हों, फिर जब तक कुछ मिलता रहता है तब तक आगे बढ़ता रहता है।";
 "%lld found so far" = "अब तक %lld मिले";
-"Close and Keep Scanning" = "बंद करें और स्कैन जारी रखें";
 "Contains domain" = "डोमेन शामिल है";
 "Tap anywhere to copy" = "कॉपी करने के लिए कहीं भी टैप करें";
 "Anyone with this address's private key can spend its funds. Never share it with anyone." = "इस पते की प्राइवेट की जिसके पास है, वह इसके फंड खर्च कर सकता है। इसे कभी किसी के साथ साझा न करें।";
@@ -1028,9 +1015,6 @@
 "Enter your 12 or 24 words" = "अपने 12 या 24 शब्द दर्ज करें";
 "More reactions" = "और प्रतिक्रियाएं";
 "Storage problem" = "स्टोरेज की समस्या";
-"Your chats and history are up to date." = "आपकी चैट और हिस्ट्री अप-टू-डेट हैं।";
-"Setting up your account" = "आपका खाता सेट किया जा रहा है";
-"Downloading everything this account has on chain. It only takes this long once." = "इस खाते का चेन पर जो कुछ भी है, उसे डाउनलोड किया जा रहा है। इसमें इतना समय सिर्फ़ एक बार लगता है।";
 "Continue anyway" = "फिर भी जारी रखें";
 "Preparing a fresh address" = "नया पता तैयार किया जा रहा है";
 "Share Profile" = "प्रोफ़ाइल साझा करें";
@@ -1168,7 +1152,6 @@
 "Invited you to a game of chess" = "शतरंज खेलने का आमंत्रण";
 "Handshake completed" = "संचार अनुरोध पूरा हुआ";
 "%@ sent a photo" = "%@ ने एक फ़ोटो भेजी";
-"It shows 10 minutes after you have both sent a message." = "यह तब दिखता है जब आप दोनों संदेश भेज चुके हों, उसके 10 मिनट बाद।";
 "Voice message unavailable" = "वॉइस संदेश उपलब्ध नहीं";
 "Tap to retry" = "फिर कोशिश करने के लिए टैप करें";
 "Loading…" = "लोड हो रहा है…";
@@ -1278,7 +1261,6 @@
 "Asks to open an encrypted conversation." = "एन्क्रिप्टेड बातचीत शुरू करने का अनुरोध करता है।";
 "Casual" = "कैज़ुअल";
 "Changes the text. Everyone sees the new version." = "टेक्स्ट बदलता है। सभी को नया संस्करण दिखता है।";
-"Check off every address you want on the list, in one sitting." = "सूची में जो भी पते चाहिए, उन्हें एक बार में चुन लें।";
 "Clear %@?" = "%@ साफ़ करें?";
 "Clear All Cache?" = "पूरा कैश साफ़ करें?";
 "Clears the unread badge on this group." = "इस समूह का अपठित बैज हटाता है।";
@@ -1294,10 +1276,8 @@
 "Finished" = "पूरा हुआ";
 "Finishing up..." = "पूरा किया जा रहा है...";
 "Frees %@. Your messages, contacts and keys are not touched." = "%@ खाली करता है। आपके संदेश, संपर्क और कुंजियाँ नहीं छुए जाते।";
-"Full screen, for scanning with another device." = "पूरी स्क्रीन, किसी दूसरे डिवाइस से स्कैन करने के लिए।";
 "Get notified for their messages again." = "उनके संदेशों की सूचनाएँ फिर से पाएँ।";
 "Gives this account a name of your own." = "इस खाते को अपनी पसंद का नाम देता है।";
-"Gives this address a label of your own." = "इस पते को अपनी पसंद का लेबल देता है।";
 "Hide Address" = "पता छिपाएं";
 "Invite this contact to a game on chain." = "इस संपर्क को ऑन-चेन खेल के लिए आमंत्रित करें।";
 "KaChat Link" = "KaChat लिंक";
@@ -1331,7 +1311,6 @@
 "Preparing..." = "तैयार हो रहा है...";
 "Private key copied. Clipboard will clear in 30s." = "निजी कुंजी कॉपी की गई। क्लिपबोर्ड 30 सेकंड में साफ़ हो जाएगा।";
 "Public key copied" = "सार्वजनिक कुंजी कॉपी की गई";
-"Puts the full address on the clipboard." = "पूरा पता क्लिपबोर्ड पर रखता है।";
 "Puts the unread badge back so you come across it again." = "अपठित बैज वापस लगाता है ताकि यह आपको फिर दिखे।";
 "Quotes this message above your reply." = "इस संदेश को आपके जवाब के ऊपर उद्धृत करता है।";
 "Re-fetching handshakes..." = "हैंडशेक फिर से लाए जा रहे हैं...";
@@ -1400,7 +1379,6 @@
 
 /* Settings > Customization: .kachat name endings */
 "Show .kachat Endings" = ".kachat अंत दिखाएँ";
-"Turn off to show names like alice instead of alice.kachat. A name you gave someone yourself never has the ending." = "बंद करने पर नाम alice.kachat की जगह alice दिखेंगे। जो नाम आपने खुद किसी को दिया है, उसमें यह अंत कभी नहीं होता।";
 
 /* Chat composers: camera or microphone access is off (MediaAccess) */
 "Microphone Access Required" = "माइक्रोफ़ोन एक्सेस आवश्यक";
@@ -1451,13 +1429,11 @@
 "%d hidden: they still count in the total." = "%d छिपे हैं: फिर भी कुल में गिने जाते हैं।";
 "A brand-new address of yours, never used or handed out: this payment can't be tied to your name." = "आपका बिल्कुल नया पता, कभी इस्तेमाल या साझा नहीं हुआ: यह भुगतान आपके नाम से नहीं जोड़ा जा सकता।";
 "A quantum-resistant address: its key stays hidden until it spends." = "एक क्वांटम-प्रतिरोधी पता: खर्च होने तक इसकी कुंजी छिपी रहती है।";
-"A regular address, like Receive gives you. Works with everything, kUSDT included." = "एक साधारण पता, जैसा प्राप्त करें देता है। kUSDT समेत हर चीज़ के साथ काम करता है।";
 "A spending address of yours: a payment here isn't tied to your name." = "आपका एक खर्च वाला पता: यहाँ भुगतान आपके नाम से नहीं जुड़ता।";
 "About %@" = "%@ के बारे में";
 "Add %@ More" = "%@ और जोड़ें";
 "Add %@ for Fee and Change Coin" = "शुल्क और बचे कॉइन के लिए %@ जोड़ें";
 "Add %@ for the Network Fee" = "नेटवर्क शुल्क के लिए %@ जोड़ें";
-"Adds a brand-new regular address of yours to this list." = "इस सूची में आपका एक बिल्कुल नया साधारण पता जोड़ता है।";
 "Amount (%@)" = "राशि (%@)";
 "Available: %@" = "उपलब्ध: %@";
 "Back to This Address" = "इस पते पर वापस";
@@ -1466,7 +1442,6 @@
 "Bridged by %@" = "%@ द्वारा ब्रिज किया गया";
 "Building the transaction…" = "लेन-देन बनाया जा रहा है…";
 "Check Again" = "फिर से जांचें";
-"Check off which addresses holding kUSDT are on the list." = "चुनें कि kUSDT वाले कौन-से पते सूची में दिखें।";
 "Checking address #%d" = "पता #%d जाँच रहे हैं";
 "Checking your %@..." = "आपके %@ जाँच रहे हैं…";
 "Coins Combined" = "कॉइन मिल गए";
@@ -1481,11 +1456,9 @@
 "Every %@ coin holds %@. Combining them into one coin gives the extra KAS back to this address as regular KAS, less the network fee. Your %@ stays the same." = "हर %@ कॉइन में %@ रहता है। इन्हें एक कॉइन में मिलाने पर बचा KAS, नेटवर्क शुल्क घटाकर, साधारण KAS के रूप में इस पते पर लौट आता है। आपका %@ उतना ही रहता है।";
 "Every %@ coin holds %@. It goes to the recipient with the %@, so the KAS isn't lost." = "हर %@ कॉइन में %@ होता है। यह KAS %@ के साथ प्राप्तकर्ता तक जाता है, इसलिए खोता नहीं।";
 "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "हर kUSDT कॉइन में 1.5 KAS होता है। जब आप kUSDT भेजते हैं, तो यह उसके साथ जाता है।";
-"Finds your addresses holding kUSDT." = "kUSDT रखने वाले आपके पते खोजता है।";
 "Found %d addresses with %@." = "%2$@ वाले %1$d पते मिले।";
 "Generate New Address" = "नया पता जनरेट करें";
 "Generate Non-Quantum Address" = "नॉन-क्वांटम पता बनाएँ";
-"Generate Quantum-Resistant Address" = "क्वांटम-प्रतिरोधी पता बनाएँ";
 "Goes With It" = "साथ जाता है";
 "Held On" = "कहाँ रखा है";
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "यह इस खाते में आता है और आपके खर्च वाले कुल में दिखता है। .kachat नामों के अलावा हर चीज़ के लिए इस्तेमाल करें।";
@@ -1494,7 +1467,6 @@
 "KAS for a %@ send" = "%@ भेजने के लिए KAS";
 "Kaspa" = "Kaspa";
 "Kaspa, and kUSDT on Kaspa, can be sent here." = "यहाँ Kaspa, और Kaspa पर kUSDT, भेजे जा सकते हैं।";
-"Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it." = "खर्च करने तक अपनी कुंजी छिपाकर रखता है। सिर्फ़ Kaspa के लिए: इससे kUSDT का ट्रेड नहीं हो सकता।";
 "Manage %@" = "%@ प्रबंधित करें";
 "Manage %@ starts over with only your Chatting Address. Nothing is lost: bring any address back here, and its %@ still counts in your total." = "%1$@ प्रबंधित करें सिर्फ़ आपके चैटिंग पते से फिर शुरू होगा। कुछ नहीं खोता: कोई भी पता यहाँ वापस लाएँ, और उसका %2$@ आपके कुल में गिना जाता रहेगा।";
 "Merges its coins into one and gives the extra KAS back." = "इसके कॉइन एक में मिलाता है और बचा KAS लौटाता है।";
@@ -1915,7 +1887,6 @@
 "Drag a portfolio to change the order its card appears in." = "कार्ड के दिखने का क्रम बदलने के लिए पोर्टफोलियो को खींचें।";
 "Import failed. Check the CSV format" = "आयात विफल रहा। CSV फ़ॉर्मेट जाँचें";
 "Notes (optional)" = "नोट्स (वैकल्पिक)";
-"Network Hashrate" = "नेटवर्क हैशरेट";
 "Value" = "मूल्य";
 "24h change not available yet" = "24 घंटे का बदलाव अभी उपलब्ध नहीं है";
 "Rank" = "रैंक";
@@ -1927,7 +1898,6 @@
 "Converter" = "कनवर्टर";
 "Waiting for a price..." = "कीमत की प्रतीक्षा की जा रही है...";
 "Kaspa Network" = "Kaspa नेटवर्क";
-"About Hashrate" = "हैशरेट के बारे में";
 "Mining Estimate" = "माइनिंग अनुमान";
 "Enter your hashrate to estimate earnings." = "कमाई का अनुमान लगाने के लिए अपना हैशरेट दर्ज करें।";
 "Transaction Details" = "लेन-देन का विवरण";
@@ -1958,8 +1928,6 @@
 "YTD" = "YTD";
 "1Y" = "1Y";
 "Block Reward" = "ब्लॉक रिवॉर्ड";
-"Next Block Reward" = "अगला ब्लॉक रिवॉर्ड";
-"Next Block Reward Reduction" = "अगली ब्लॉक रिवॉर्ड कटौती";
 "At %@ network hashrate and a %@ block reward. Before pool fees, power and luck, and both figures move." = "%@ नेटवर्क हैशरेट और %@ ब्लॉक रिवॉर्ड पर। पूल शुल्क, बिजली और किस्मत से पहले, और दोनों आंकड़े बदलते रहते हैं।";
 "Imported 1 transaction" = "1 लेनदेन आयात किया गया";
 "Imported %lld transactions" = "%lld लेनदेन आयात किए गए";
@@ -2012,16 +1980,8 @@
 "Dark" = "डार्क";
 "Selected: %@ (1 UTXO)" = "चुना गया: %@ (1 UTXO)";
 "Selected: %@ (%lld UTXOs)" = "चुना गया: %@ (%lld UTXO)";
-"No used addresses yet" = "अभी तक कोई इस्तेमाल किया गया पता नहीं";
 "Reveals the next unused address in this account." = "इस खाते का अगला इस्तेमाल न हुआ पता दिखाता है।";
-"Puts the extended public key on the clipboard." = "विस्तारित सार्वजनिक कुंजी क्लिपबोर्ड पर कॉपी करता है।";
-"Show kpub QR" = "kpub QR दिखाएं";
 "Scan it into another device to watch this account there." = "इसे दूसरे डिवाइस पर स्कैन करें ताकि वहां यह खाता देख सकें।";
-"Changes the name shown for this account." = "इस खाते के लिए दिखने वाला नाम बदलता है।";
-"Turn Off Receive Notifications" = "प्राप्ति सूचनाएं बंद करें";
-"Turn On Receive Notifications" = "प्राप्ति सूचनाएं चालू करें";
-"Stops notifying when this account receives Kaspa. Other accounts keep theirs." = "इस खाते में Kaspa आने पर सूचना देना बंद करता है। बाकी खातों की सूचनाएं बनी रहती हैं।";
-"Notifies you when this account receives Kaspa." = "इस खाते में Kaspa आने पर आपको सूचित करता है।";
 "For how long?" = "कितने समय के लिए?";
 "Swipe up to Claim" = "क्लेम करने के लिए ऊपर स्वाइप करें";
 "Swipe up to Confirm" = "पुष्टि के लिए ऊपर स्वाइप करें";
@@ -2154,7 +2114,6 @@
 "$" = "$";
 "Continue to App" = "ऐप पर जारी रखें";
 "Join" = "शामिल हों";
-"Join or Create a Channel" = "चैनल में शामिल हों या बनाएं";
 "Menu" = "मेनू";
 "Pay in Kaspa" = "कास्पा में भुगतान करें";
 "Record voice message" = "वॉइस मैसेज रिकॉर्ड करें";
@@ -2309,7 +2268,6 @@
 "6 hours" = "6 घंटे";
 "7 days" = "7 दिन";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses." = "पब्लिक चैट Kaspa blockDAG पर रहती है, इसलिए उसी नेटवर्क को देखने वाला कोई भी इंडेक्सर वही रूम दिखाता है। इसे जहाँ चाहें वहाँ सेट करें - अपना या किसी और का - बाकी सभी रूम जो इंडेक्सर इस्तेमाल करते हैं उसे बदले बिना।";
-"A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time." = "बंद किया गया रूम अब पब्लिक चैट में नहीं दिखता और कभी सूचना नहीं भेजता। इसे कभी भी फिर से चालू करें।";
 "A room you added. Anyone who knows the name can post to it." = "आपका जोड़ा हुआ रूम। जो भी इसका नाम जानता है वह इसमें पोस्ट कर सकता है।";
 "About this room" = "इस रूम के बारे में";
 "Accounts you follow will show up here." = "जिन खातों को आप फ़ॉलो करते हैं वे यहाँ दिखेंगे।";
@@ -2318,7 +2276,6 @@
 "Add option" = "विकल्प जोड़ें";
 "Add to thread" = "थ्रेड में जोड़ें";
 "Adds your own words above it." = "इसके ऊपर आपके अपने शब्द जोड़ता है।";
-"Anyone who joins the same channel name can see and post messages there - there is no owner and no invite." = "जो कोई भी उसी चैनल नाम से जुड़ता है वह वहाँ संदेश देख और पोस्ट कर सकता है - कोई मालिक नहीं है और कोई आमंत्रण नहीं।";
 "Blocked accounts are removed everywhere and can't interact with you." = "ब्लॉक किए गए खाते हर जगह से हटा दिए जाते हैं और आपसे इंटरैक्ट नहीं कर सकते।";
 "Blocked. Undo it in the Feed's menu, under Blocked." = "ब्लॉक किया गया। इसे फ़ीड के मेनू में, ब्लॉक किए गए के अंतर्गत पूर्ववत करें।";
 "Bookmarks" = "बुकमार्क";
@@ -2340,7 +2297,6 @@
 "Edit Post" = "पोस्ट संपादित करें";
 "Edit Profile" = "प्रोफ़ाइल संपादित करें";
 "Every message cached for this room on this device is deleted. This cannot be undone - rejoining later starts with no history." = "इस डिवाइस पर इस रूम के लिए कैश किया गया हर संदेश हटा दिया जाता है। इसे पूर्ववत नहीं किया जा सकता - बाद में फिर जुड़ने पर कोई इतिहास नहीं होगा।";
-"Every reply is in the conversation above." = "हर जवाब ऊपर की बातचीत में है।";
 "Find posts by what they say, and people by their name or domain. Only people who have posted appear." = "पोस्ट को उनमें लिखी बात से खोजें, और लोगों को उनके नाम या डोमेन से। केवल वही लोग दिखते हैं जिन्होंने पोस्ट किया है।";
 "Follow Back" = "वापस फ़ॉलो करें";
 "Followers" = "फ़ॉलोअर्स";
@@ -2373,7 +2329,6 @@
 "New Post" = "नई पोस्ट";
 "New messages here don't notify you. The room still updates when you open it." = "यहाँ के नए संदेश आपको सूचित नहीं करते। रूम खोलने पर फिर भी अपडेट हो जाता है।";
 "No bookmarks yet" = "अभी कोई बुकमार्क नहीं";
-"No comments yet - be the first to reply." = "अभी कोई टिप्पणी नहीं - सबसे पहले जवाब दें।";
 "No drafts" = "कोई ड्राफ़्ट नहीं";
 "No notification for new messages in this room." = "इस रूम के नए संदेशों की कोई सूचना नहीं।";
 "No one can see your messages in here unless they are also active in the room at the same time." = "यहाँ आपके संदेश कोई नहीं देख सकता, जब तक वह भी उसी समय रूम में सक्रिय न हो।";
@@ -2390,7 +2345,6 @@
 "Notifications on" = "सूचनाएं चालू";
 "Notifies you of new messages while the app is open." = "ऐप खुला होने पर नए संदेशों की सूचना देता है।";
 "Notifies you of new messages, even when the app is closed." = "नए संदेशों की सूचना देता है, ऐप बंद होने पर भी।";
-"Off takes every language room out of Public Chats. On, switch off the ones you don't want." = "बंद करने पर हर भाषा का रूम पब्लिक चैट से हट जाता है। चालू होने पर, जो नहीं चाहिए उन्हें बंद कर दें।";
 "One of the pasted words isn't a valid word. Check your copy and try again." = "चिपकाए गए शब्दों में से एक मान्य शब्द नहीं है। अपनी कॉपी जाँचें और फिर से कोशिश करें।";
 "Opens Send Kaspa to pay it." = "भुगतान करने के लिए Send Kaspa खोलता है।";
 "Opens it in your browser." = "इसे आपके ब्राउज़र में खोलता है।";
@@ -2480,14 +2434,11 @@
 "Not counted on the post" = "पोस्ट पर गिनी नहीं जाती";
 "Tip asks whether to send Kaspa or kUSDT each time." = "टिप हर बार पूछती है कि Kaspa भेजें या kUSDT।";
 "The account changed, so this wasn't sent." = "खाता बदल गया, इसलिए यह नहीं भेजा गया।";
-"KaPost isn't available on Testnet yet" = "KaPost अभी टेस्टनेट पर उपलब्ध नहीं है";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "टेस्टनेट के लिए कोई KaPost इंडेक्सर नहीं है। मेननेट पर पढ़ने और पोस्ट करने के लिए सेटिंग्स > कनेक्शन में टेस्टनेट बंद करें।";
 "KaChat Profile" = "KaChat प्रोफ़ाइल";
 "Your post is ready to go out. Open K to send it." = "आपकी पोस्ट भेजने के लिए तैयार है। भेजने के लिए K खोलें।";
-"KaPost Settings" = "KaPost सेटिंग्स";
 "Search KaPost" = "KaPost में खोजें";
 "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "शेयर करने पर एक लिंक जाता है जो इस रूम को K में खोलता है, और जिनके पास ऐप नहीं है उनके लिए एक वेब लिंक। छिपाना हर रूम के हिसाब से होता है: यहाँ छिपाया गया व्यक्ति बाकी हर रूम में फिर भी दिखता है।";
-"Their KaPost profile: posts, replies and followers." = "उनकी KaPost प्रोफ़ाइल: पोस्ट, जवाब और फ़ॉलोअर्स।";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPost का सर्वर जवाब नहीं दे रहा। सहेजी गई पोस्ट और नेटवर्क से नई पोस्ट दिखाई जा रही हैं।";
@@ -2497,12 +2448,8 @@
 
 "%lld unread" = "%lld अपठित";
 
-/* Public rooms in Chats (2026-11-21) */
-"Join a public room, or create one." = "किसी सार्वजनिक रूम से जुड़ें या नया बनाएँ।";
 "Delete #%@?" = "#%@ हटाएं?";
 
-"Edit Default Public Chats" = "डिफ़ॉल्ट सार्वजनिक चैट बदलें";
-"Turn the default rooms and the language rooms on or off." = "डिफ़ॉल्ट रूम और भाषा रूम चालू या बंद करें।";
 "#%@ is off - turn it back on in Edit Default Public Chats" = "#%@ बंद है - डिफ़ॉल्ट सार्वजनिक चैट बदलें में इसे फिर चालू करें";
 "Channel names must be 1-%d characters with no spaces or colons." = "चैनल का नाम 1-%d अक्षरों का हो, बिना स्पेस या कोलन के।";
 "channel-name" = "चैनल-नाम";
@@ -2792,56 +2739,14 @@
 /* KaChat Stats and Kaspa Websites (back 2026-11-21) */
 "KaChat Stats" = "KaChat आँकड़े";
 "Stats" = "आँकड़े";
-"What counts" = "क्या गिना जाता है";
 "24 Hours" = "24 घंटे";
 "All Time" = "अब तक";
-"KaChat transactions in the last 24 hours" = "पिछले 24 घंटों में KaChat लेन-देन";
-"KaChat transactions in the last 7 days" = "पिछले 7 दिनों में KaChat लेन-देन";
-"KaChat transactions on Kaspa, all time" = "Kaspa पर अब तक के KaChat लेन-देन";
-"Direct Messages" = "डायरेक्ट मैसेज";
-"New Chats" = "नई चैट";
 "Payments" = "भुगतान";
 "Group Messages" = "ग्रुप मैसेज";
-"Group Updates" = "ग्रुप बदलाव";
-"KaPost Activity" = "KaPost गतिविधि";
 "Chess Moves" = "शतरंज की चालें";
-"Chess Games" = "शतरंज के खेल";
-"Saved Records" = "सहेजे गए रिकॉर्ड";
-"1:1 texts, voice notes, reactions and 1:1 chess" = "1:1 टेक्स्ट, वॉइस नोट, प्रतिक्रियाएँ और 1:1 शतरंज";
-"Handshakes that start a 1:1 chat" = "1:1 चैट शुरू करने वाले हैंडशेक";
-"KAS sent in chats" = "चैट में भेजे गए KAS";
-"Messages in group chats" = "ग्रुप चैट के मैसेज";
-"Creating groups, invites and other changes" = "ग्रुप बनाना, आमंत्रण और अन्य बदलाव";
-"Messages in public rooms" = "सार्वजनिक रूम के मैसेज";
-"Posts, replies, quotes and polls" = "पोस्ट, जवाब, कोट और पोल";
-"Votes, follows, edits and deletes" = "वोट, फ़ॉलो, संपादन और हटाना";
-"Moves played in Chess Online" = "Chess Online में चली गई चालें";
-"Games started in Chess Online" = "Chess Online में शुरू हुए खेल";
-"Chat keys and contact notes saved to your own account" = "आपके अपने खाते में सहेजी गई चैट कुंजियाँ और संपर्क नोट";
-"No indexer is set for this network" = "इस नेटवर्क के लिए कोई इंडेक्सर सेट नहीं है";
-"Add one in Settings > Connection Settings to see KaChat stats." = "KaChat आँकड़े देखने के लिए सेटिंग्स > कनेक्शन सेटिंग्स में एक जोड़ें।";
-"Stats aren't available yet" = "आँकड़े अभी उपलब्ध नहीं हैं";
-"Your indexer doesn't report KaChat stats yet. They'll show here once it does." = "आपका इंडेक्सर अभी KaChat आँकड़े नहीं देता। जैसे ही देगा, वे यहाँ दिखेंगे।";
-"Couldn't refresh. Showing the last numbers." = "रीफ़्रेश नहीं हो सका। पिछले आँकड़े दिखाए जा रहे हैं।";
 "Updated %@" = "अपडेट किया गया %@";
 "Counting since %@" = "%@ से गिनती";
-"Every KaChat action is its own Kaspa transaction. These totals come from KaChat's indexer, counting what it has seen on chain - nothing is read from your phone." = "KaChat की हर क्रिया अपने आप में एक Kaspa लेन-देन है। ये कुल KaChat के इंडेक्सर से आते हैं, जो चेन पर देखी गई चीज़ें गिनता है - आपके फ़ोन से कुछ भी नहीं पढ़ा जाता।";
-"1:1 messages are encrypted, so voice notes, reactions and 1:1 chess moves count as direct messages: nobody, the indexer included, can tell them apart." = "1:1 मैसेज एन्क्रिप्टेड होते हैं, इसलिए वॉइस नोट, प्रतिक्रियाएँ और 1:1 शतरंज की चालें डायरेक्ट मैसेज में गिनी जाती हैं: इंडेक्सर समेत कोई भी इन्हें अलग नहीं कर सकता।";
-"Names Registered" = "पंजीकृत नाम";
-"Name Renewals" = "नाम नवीनीकरण";
-"Name Sales" = "नाम बिक्री";
-"Name Offers" = "नाम ऑफ़र";
-"Name Activity" = "नाम गतिविधि";
-".kachat names claimed" = "दावा किए गए .kachat नाम";
-".kachat names extended or renewed" = "बढ़ाए या नवीनीकृत .kachat नाम";
-".kachat names bought from a listing or through an accepted offer" = "लिस्टिंग से या स्वीकार किए गए ऑफ़र से खरीदे गए .kachat नाम";
-"Offers made on .kachat names" = ".kachat नामों पर दिए गए ऑफ़र";
-"Listings, transfers, releases, reclaims and returned offers" = "लिस्टिंग, ट्रांसफ़र, रिलीज़, वापसी और लौटाए गए ऑफ़र";
 "Fees" = "शुल्क";
-"Transactions on the .kachat registry" = ".kachat रजिस्ट्री पर लेन-देन";
-"Paid for registrations and renewals" = "पंजीकरण और नवीनीकरण के लिए भुगतान";
-"Fees aren't available yet" = "शुल्क अभी उपलब्ध नहीं हैं";
-"Your indexer doesn't report them yet. They'll show here once it does." = "आपका इंडेक्सर अभी इन्हें नहीं बताता। बताते ही ये यहाँ दिखेंगे।";
 "Kaspa Websites" = "Kaspa वेबसाइटें";
 "Websites" = "वेबसाइटें";
 
@@ -2853,7 +2758,7 @@
 "The price goes to the network's miners, not to K." = "कीमत नेटवर्क के माइनरों को जाती है, K को नहीं।";
 "Make it your name" = "इसे अपना नाम बनाएँ";
 "Set it as your primary name and it's how you appear everywhere in K." = "इसे प्राथमिक नाम बनाएँ, फिर K में हर जगह आप इसी नाम से दिखेंगे।";
-"They can send you Kaspa to yourname.kachat instead of a long address." = "वे लंबे पते की जगह yourname.kachat पर Kaspa भेज सकते हैं।";
+"They can send you Kaspa to @yourname instead of a long address." = "वे लंबे पते की जगह @yourname पर Kaspa भेज सकते हैं।";
 "Your profile link shows your name." = "आपकी प्रोफ़ाइल लिंक आपका नाम दिखाती है।";
 "Renew before it expires. It shows when, on each name." = "समाप्त होने से पहले नवीनीकरण करें। हर नाम पर तारीख दिखती है।";
 "After it expires there's a grace period to renew it before anyone else can claim it." = "समाप्ति के बाद एक ग्रेस अवधि होती है जिसमें कोई और क्लेम करने से पहले आप नवीनीकरण कर सकते हैं।";
@@ -2902,8 +2807,6 @@
 "To %@" = "%@ को";
 "Change %@ to %@" = "बाक़ी %@ गया %@ को";
 
-/* Cold Storage Address Actions (2026-11-22) */
-"Puts this account's kpub on the clipboard. It reveals all its addresses." = "इस खाते का kpub क्लिपबोर्ड पर रखता है। यह इसके सभी पते दिखा देता है।";
 
 /* Cold Storage Paste kpub (2026-11-22) */
 "Not a valid kpub" = "मान्य kpub नहीं है";
@@ -2917,20 +2820,16 @@
 
 /* Swap with ChangeNOW and Trestly (2026-11-23) */
 "Swap" = "स्वैप";
-"Swap started" = "स्वैप शुरू हुआ";
 "Couldn't read this swap's amounts" = "इस स्वैप की राशियाँ पढ़ी नहीं जा सकीं";
 "Added to %@" = "%@ में जोड़ा गया";
 "This only removes it from your local history - it doesn't affect the actual exchange." = "यह इसे सिर्फ़ आपके लोकल इतिहास से हटाता है - असली एक्सचेंज पर कोई असर नहीं पड़ता।";
 "Swap History" = "स्वैप इतिहास";
 "You Send" = "आप भेजते हैं";
-"Switch direction" = "दिशा बदलें";
 "You Get" = "आपको मिलेगा";
 "Receive %@ at" = "%@ यहाँ प्राप्त करें";
-"Receiving KAS At" = "KAS यहाँ प्राप्त होंगे";
 "Powered by Trestly" = "Trestly द्वारा संचालित";
 "Powered by ChangeNOW" = "ChangeNOW द्वारा संचालित";
 "Rate" = "दर";
-"Go to Spending Addresses" = "खर्च वाले पतों पर जाएँ";
 "Send %@ to this address" = "इस पते पर %@ भेजें";
 "ChangeNOW Exchange ID" = "ChangeNOW एक्सचेंज ID";
 "Exchange ID copied" = "एक्सचेंज ID कॉपी हो गई";
@@ -2939,14 +2838,6 @@
 "Change" = "बदलें";
 "No swaps yet." = "अभी तक कोई स्वैप नहीं।";
 "Swap Details" = "स्वैप विवरण";
-"A swap pays out to an address you have not used before, so the payout cannot be tied to your earlier activity. Generate one if none are free." = "स्वैप ऐसे पते पर भुगतान करता है जिसे आपने पहले कभी इस्तेमाल नहीं किया, ताकि भुगतान को आपकी पिछली गतिविधि से जोड़ा न जा सके। कोई खाली न हो तो एक बनाएँ।";
-"Every address here has been used. Generate a new one above." = "यहाँ हर पता इस्तेमाल हो चुका है। ऊपर एक नया बनाएँ।";
-"Unused Addresses" = "इस्तेमाल न हुए पते";
-"Choose Address" = "पता चुनें";
-"Check its history before you send a swap to it." = "इस पर स्वैप भेजने से पहले इसका इतिहास जाँच लें।";
-"Use for This Swap" = "इस स्वैप के लिए इस्तेमाल करें";
-"ChangeNOW pays the swapped KAS out to this address." = "ChangeNOW स्वैप किए गए KAS इसी पते पर भेजता है।";
-"Choose Coin" = "कॉइन चुनें";
 "Swap uses two services K doesn't run. Read and agree to both before you continue." = "स्वैप दो ऐसी सेवाओं का इस्तेमाल करता है जिन्हें K नहीं चलाता। आगे बढ़ने से पहले दोनों को पढ़ें और सहमति दें।";
 "Coins on other networks" = "दूसरे नेटवर्क के कॉइन";
 "Swaps between Kaspa and coins on other networks (Bitcoin, Ethereum, USDC, USDT and others) are made by ChangeNOW, a third-party exchange. K only asks ChangeNOW for a quote and a deposit address and shows the swap's status; ChangeNOW does the exchange and sends the coins. K isn't responsible for failed, delayed or lost swaps. If one doesn't go through, contact ChangeNOW's support." = "Kaspa और दूसरे नेटवर्क के कॉइन (Bitcoin, Ethereum, USDC, USDT और अन्य) के बीच स्वैप ChangeNOW करता है, जो एक थर्ड-पार्टी एक्सचेंज है। K, ChangeNOW से सिर्फ़ एक कोट और एक डिपॉज़िट पता माँगता है और स्वैप की स्थिति दिखाता है; एक्सचेंज ChangeNOW करता है और कॉइन भी वही भेजता है। विफल, देरी से हुए या खोए हुए स्वैप के लिए K ज़िम्मेदार नहीं है। अगर कोई स्वैप पूरा न हो, तो ChangeNOW सपोर्ट से संपर्क करें।";
@@ -3052,7 +2943,6 @@
 "Delete this swap?" = "यह स्वैप हटाएं?";
 "Deposit Address" = "जमा पता";
 "Status: %@" = "स्थिति: %@";
-"Get Deposit Address" = "जमा पता पाएं";
 "Swap failed" = "स्वैप विफल रहा";
 "Already holds this swap - adding it again double-counts it." = "इसमें यह स्वैप पहले से है - फिर से जोड़ने पर यह दो बार गिना जाएगा।";
 "The swap lands in this portfolio." = "स्वैप इस पोर्टफोलियो में जाएगा।";
@@ -3191,7 +3081,6 @@
 "Room info for #%@" = "#%@ रूम की जानकारी";
 "No hidden users in #%@. Long-press a message to hide its sender." = "#%@ में कोई छिपा हुआ उपयोगकर्ता नहीं है। भेजने वाले को छिपाने के लिए किसी संदेश को देर तक दबाएं।";
 "Hidden Users - #%@" = "छिपे हुए उपयोगकर्ता - #%@";
-"A curated room, always in your list. Anyone on K can post to it." = "एक चुना हुआ रूम, हमेशा आपकी सूची में। K पर कोई भी इसमें पोस्ट कर सकता है।";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses. Leave it blank to follow %@." = "सार्वजनिक चैट Kaspa blockDAG पर रहती है, इसलिए एक ही नेटवर्क देखने वाला कोई भी इंडेक्सर वही रूम दिखाता है। बाकी रूम के इंडेक्सर को बदले बिना इसे जहां चाहें (अपना या किसी और का) सेट करें। %@ का पालन करने के लिए खाली छोड़ें।";
 "Indexer updated for #%@." = "#%@ के लिए इंडेक्सर अपडेट किया गया।";
 "Could not reach it: %@" = "उस तक नहीं पहुंच सके: %@";
@@ -3242,12 +3131,11 @@
 "kaspa:qr... or username" = "kaspa:qr... या उपयोगकर्ता नाम";
 "Looking up username..." = "उपयोगकर्ता नाम खोजा जा रहा है...";
 "Kaspa Address or Username" = "Kaspa पता या उपयोगकर्ता नाम";
-"Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat)." = "कोई Kaspa पता (kaspa:...) या उपयोगकर्ता नाम दर्ज करें (जैसे alice.kachat)।";
+"Enter a Kaspa address (kaspa:...) or a username (e.g. @alice)." = "कोई Kaspa पता (kaspa:...) या उपयोगकर्ता नाम दर्ज करें (जैसे @alice)।";
 "Pick people from your contacts, or add anyone by Kaspa address or username." = "अपने संपर्कों से लोग चुनें, या Kaspa पते या उपयोगकर्ता नाम से किसी को भी जोड़ें।";
 "Use Their Username" = "उनका उपयोगकर्ता नाम इस्तेमाल करें";
-"Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "कोई Kaspa पता या name.kachat जैसा उपयोगकर्ता नाम दर्ज करें। इस पते पर हर प्राप्त लेन-देन एक खरीद और हर भेजा गया लेन-देन एक बिक्री बनता है, उस दिन के ऐतिहासिक KAS मूल्य पर। बाद में वही पता फिर से जोड़ने पर सिर्फ़ पिछले इम्पोर्ट के बाद मिले लेन-देन इम्पोर्ट होते हैं।";
+"Enter a Kaspa address or a username like @name. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "कोई Kaspa पता या @name जैसा उपयोगकर्ता नाम दर्ज करें। इस पते पर हर प्राप्त लेन-देन एक खरीद और हर भेजा गया लेन-देन एक बिक्री बनता है, उस दिन के ऐतिहासिक KAS मूल्य पर। बाद में वही पता फिर से जोड़ने पर सिर्फ़ पिछले इम्पोर्ट के बाद मिले लेन-देन इम्पोर्ट होते हैं।";
 "No addresses with a balance or username yet" = "अभी तक बैलेंस या उपयोगकर्ता नाम वाला कोई पता नहीं";
-"Finds addresses holding a balance or a username." = "बैलेंस या उपयोगकर्ता नाम वाले पते ढूँढता है।";
 "No addresses with a balance or username found." = "बैलेंस या उपयोगकर्ता नाम वाला कोई पता नहीं मिला।";
 "Found 1 address with a balance or username." = "बैलेंस या उपयोगकर्ता नाम वाला 1 पता मिला।";
 "Found %lld addresses with a balance or username." = "बैलेंस या उपयोगकर्ता नाम वाले %lld पते मिले।";
@@ -3302,11 +3190,8 @@
 "Checking…" = "जाँच हो रही है…";
 "gRPC nodes can't be reached right now, so K is using a public node over wss." = "अभी gRPC नोड तक नहीं पहुँचा जा सकता, इसलिए K wss पर एक सार्वजनिक नोड का उपयोग कर रहा है।";
 "Search public chats" = "सार्वजनिक चैट खोजें";
-"No Public Chats" = "कोई सार्वजनिक चैट नहीं";
-"Tap + to join or create a public room." = "किसी सार्वजनिक रूम से जुड़ने या नया बनाने के लिए + टैप करें।";
 "Switches between your chats and public chats" = "आपकी चैट और सार्वजनिक चैट के बीच बदलता है";
 "More Rooms" = "और रूम";
-"Rooms added on the indexer K reads public chats from." = "उस इंडेक्सर पर जोड़े गए रूम जिससे K सार्वजनिक चैट पढ़ता है।";
 
 /* Kaspa Hub card links (2026-11-25) */
 "Link copied" = "लिंक कॉपी हुआ";
@@ -3330,19 +3215,15 @@
 "That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "यह क्वांटम-प्रतिरोधी पता नहीं है। KasSigner जो KCC-3 पता दिखाता है, उसे स्कैन करें।";
 "That address is already in this account." = "यह पता पहले से इस खाते में है।";
 "Quantum-resistant address added." = "क्वांटम-प्रतिरोधी पता जोड़ा गया।";
-"Add Quantum-Resistant Address" = "क्वांटम-प्रतिरोधी पता जोड़ें";
 "Scan a KCC-3 address from KasSigner's address screen." = "KasSigner की पता स्क्रीन से एक KCC-3 पता स्कैन करें।";
 "Stop Watching" = "वॉच करना बंद करें";
 "Removes this quantum address from the account. Scan it again to add it back." = "यह क्वांटम पता खाते से हटाता है। इसे वापस जोड़ने के लिए फिर से स्कैन करें।";
 "Quantum-Resistant Address" = "क्वांटम-प्रतिरोधी पता";
 "On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "KasSigner पर अपना चाहा हुआ KCC-3 पता खोलें और उसका QR कोड स्कैन करें। जब तक इस पते से खर्च नहीं होता, इसकी कुंजी डिवाइस पर ही रहती है।";
 "Address Number on KasSigner" = "KasSigner पर पता संख्या";
-"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "वह संख्या जो KasSigner इस पते के लिए दिखाता है। इसके साथ डिवाइस साइन करते समय कुंजी तुरंत ढूँढ लेता है; इसके बिना डिवाइस उसे खोजता है।";
 "Add Quantum Address" = "क्वांटम पता जोड़ें";
 "The address number must be a whole number." = "पता संख्या एक पूर्ण संख्या होनी चाहिए।";
 "Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "KasSigner v1.1 या बाद का संस्करण चाहिए, जो क्वांटम-प्रतिरोधी (KCC-3) पतों पर साइन करता है।";
-"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "चेंज इसी पते पर लौटता है, जिसकी कुंजी यह भेजना चेन पर डाल देता है। चेंज को क्वांटम-सुरक्षित रखने के लिए KasSigner से एक और क्वांटम पता जोड़ें।";
-"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "चेंज इस खाते के एक अप्रयुक्त क्वांटम पते पर जाता है, क्योंकि यह भेजना इस पते की कुंजी चेन पर डाल देता है।";
 "kaspa:pq..." = "kaspa:pq...";
 "KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner ने इस क्वांटम-प्रतिरोधी पते की कुंजी स्क्रिप्ट नहीं लौटाई, इसलिए इसे ब्रॉडकास्ट नहीं किया जाएगा। जाँचें कि डिवाइस पर KasSigner v1.1 या बाद का संस्करण चल रहा है और उसमें यह पता है।";
 "The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "साइन किया गया लेन-देन ऐसी कॉवनेंट शर्तें जोड़ता है जो इस भेजने में कभी माँगी नहीं गईं, इसलिए इसे ब्रॉडकास्ट नहीं किया जाएगा।";
@@ -3379,7 +3260,6 @@
 /* Public Chats Select (2026-11-25) */
 "Delete 1 Public Chat?" = "1 सार्वजनिक चैट हटाएं?";
 "Delete %lld Public Chats?" = "%lld सार्वजनिक चैट हटाएं?";
-"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "डिफ़ॉल्ट सार्वजनिक चैट बंद कर दी जाती हैं (उन्हें डिफ़ॉल्ट सार्वजनिक चैट बदलें में फिर से चालू करें)। आपके जोड़े गए रूम उनके मैसेज के साथ इस डिवाइस से हटा दिए जाते हैं।";
 
 /* Room Delete for Everyone (2026-11-25) */
 "Delete for Everyone" = "सभी के लिए हटाएं";
@@ -3433,7 +3313,6 @@
 "Tap to View History" = "इतिहास देखने के लिए टैप करें";
 "Quantum Protected" = "क्वांटम सुरक्षित";
 "Not Quantum Protected" = "क्वांटम सुरक्षित नहीं";
-"New Quantum-Protected Address" = "नया क्वांटम सुरक्षित पता";
 "New Address" = "नया पता";
 "Regular Address" = "सामान्य पता";
 "Works with everything: Kaspa and kUSDT." = "हर चीज़ के साथ काम करता है: कैस्पा और kUSDT।";
@@ -3501,7 +3380,6 @@
 "K Explorer" = "K एक्सप्लोरर";
 "An address holding Kaspa stays on the list." = "जिस पते पर Kaspa है, वह सूची में रहता है।";
 "Remove Account" = "खाता हटाएँ";
-"Stops watching it here. KasSigner is untouched." = "यहाँ इसे देखना बंद करता है। KasSigner पर कुछ नहीं बदलता।";
 "kpub QR" = "kpub QR";
 "Alerts On" = "अलर्ट चालू";
 "Alerts Off" = "अलर्ट बंद";
@@ -3521,3 +3399,12 @@
 "Swapped Through" = "इसके ज़रिए बदला गया";
 "Trestly's kUSDT pool on Kaspa" = "Kaspa पर Trestly का kUSDT पूल";
 "Couldn't reach the network - try again" = "नेटवर्क तक नहीं पहुँच सके - फिर से कोशिश करें";
+"Balance increased by %@" = "बैलेंस %@ बढ़ा";
+"%lld of your addresses" = "आपके %lld पते";
+"Chatting address %@" = "चैटिंग पता %@";
+"Spending address %@" = "खर्च पता %@";
+"tipped your post: %@" = "ने आपकी पोस्ट पर टिप दी: %@";
+"Back to Top" = "ऊपर जाएँ";
+"1 KAS = %@%@" = "1 KAS = %@%@";
+"Posts aren't available on Testnet yet" = "टेस्टनेट पर पोस्ट अभी उपलब्ध नहीं हैं";
+"Their profile: posts, replies and followers." = "उनकी प्रोफ़ाइल: पोस्ट, जवाब और फ़ॉलोअर्स।";

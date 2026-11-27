@@ -20,7 +20,6 @@
 "All Nodes" = "Semua Node";
 "Anyone with your 12 or 24 words can access your account. Never share them with anyone." = "Siapa pun yang memiliki 12 atau 24 kata Anda dapat mengakses akun Anda. Jangan pernah membagikannya kepada siapa pun.";
 "Audio" = "Audio";
-"Auto Search for Nodes" = "Cari Node Otomatis";
 "Avatar" = "Avatar";
 "Balance" = "Saldo";
 "Balance copied to clipboard." = "Saldo disalin ke papan klip.";
@@ -46,7 +45,6 @@
 "Clear connection pool?" = "Kosongkan kumpulan koneksi?";
 "Close" = "Tutup";
 "Confirm" = "Konfirmasi";
-"Connect Your Own Node" = "Hubungkan Node Anda Sendiri";
 "Connect to a Node" = "Hubungkan ke Node";
 "Connected Node" = "Node Terhubung";
 "Connected only to this node" = "Hanya terhubung ke node ini";
@@ -87,7 +85,6 @@
 "Emoji picker" = "Pemilih emoji";
 "Encoding…" = "Mengenkode…";
 "Enter a new name for this saved account." = "Masukkan nama baru untuk akun tersimpan ini.";
-"Enter a node address you trust" = "Masukkan alamat node yang Anda percayai";
 "Error" = "Kesalahan";
 "Explorer" = "Penjelajah";
 "Export Chat History" = "Ekspor Riwayat Obrolan";
@@ -99,7 +96,6 @@
 "From" = "Dari";
 "Fund Your Chatting Address" = "Isi Saldo Alamat Obrolan Anda";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "Buat di bawah ini untuk mulai mengirim pembayaran dari alamat terpisah dari alamat yang Anda gunakan untuk mengobrol.";
-"Give this address a label to help you recognize it." = "Beri label alamat ini untuk membantu Anda mengenalinya.";
 "Group Info" = "Info Grup";
 "Hidden Users" = "Pengguna Tersembunyi";
 "Hide User" = "Sembunyikan Pengguna";
@@ -118,7 +114,6 @@
 "KAS" = "KAS";
 "KaChat" = "KaChat";
 "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network. 5 Kaspa lets you send around 2,500 messages." = "K memungkinkan Anda mengirim dan menerima pesan di jaringan Kaspa itu sendiri. Kaspa diperlukan untuk membayar biaya saat mengirim pesan. Biaya yang Anda bayar diberikan kepada penambang yang mengamankan jaringan. 5 Kaspa cukup untuk mengirim sekitar 2.500 pesan.";
-"K needs to connect to a node. How would you like to connect?" = "K perlu terhubung ke sebuah node. Bagaimana Anda ingin terhubung?";
 "Kaspa Explorer" = "Penjelajah Kaspa";
 "Kaspa Explorer API" = "API Penjelajah Kaspa";
 "Kaspa Node" = "Node Kaspa";
@@ -139,7 +134,6 @@
 "Message" = "Pesan";
 "Message retention" = "Retensi pesan";
 "More options" = "Opsi lainnya";
-"Most taxing on the device, not as reliable - depends on where you live" = "Paling membebani perangkat, kurang andal - bergantung pada lokasi Anda";
 "Name" = "Nama";
 "Network Fee" = "Biaya Jaringan";
 "New message" = "Pesan baru";
@@ -236,7 +230,6 @@
 "Sent domain transfer" = "Mengirim transfer domain";
 "Settings" = "Pengaturan";
 "Show More" = "Tampilkan Lebih Banyak";
-"Show QR Code" = "Tampilkan Kode QR";
 "Sign In Failed" = "Gagal Masuk";
 "Skip" = "Lewati";
 "Something Went Wrong" = "Terjadi Kesalahan";
@@ -349,8 +342,6 @@
 "%@ wants to chat with you." = "%@ ingin mengobrol denganmu.";
 "No new requests" = "Tidak ada permintaan baru";
 
-/* Welcome Guide: .kachat and Message Requests */
-"5 Kaspa is enough for about 2500 messages." = "5 Kaspa cukup untuk sekitar 2500 pesan.";
 "Nextcloud is off while Testnet is on." = "Nextcloud nonaktif selama Testnet aktif.";
 "Cancelled." = "Dibatalkan.";
 "Confirm this .kachat transaction" = "Konfirmasi transaksi .kachat ini";
@@ -731,7 +722,6 @@
 
 /* Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses */
 "Quantum-safe" = "Aman kuantum";
-"Key revealed by a spend" = "Kunci terungkap oleh pengeluaran";
 
 /* Edit KaChat Profile: Clear Profile */
 "Clear Profile" = "Hapus Profil";
@@ -881,7 +871,6 @@
 "Default (Recommended)" = "Default (Disarankan)";
 "Automatic Scan" = "Pindai Otomatis";
 "Label (optional)" = "Label (opsional)";
-"host:port or grpcs://host" = "host:port atau grpcs://host";
 "Delete saved address" = "Hapus alamat tersimpan";
 "Node connections appear blocked on this network. You can still receive and read messages through the indexer, but sending messages and payments needs a node connection." = "Koneksi node tampaknya diblokir di jaringan ini. Anda tetap bisa menerima dan membaca pesan lewat indexer, tetapi mengirim pesan dan pembayaran membutuhkan koneksi node.";
 "%lld ms" = "%lld md";
@@ -1005,9 +994,7 @@
 "Notify on receive" = "Beri tahu saat menerima";
 "When a spending address receives Kaspa from someone else." = "Saat alamat pengeluaran menerima Kaspa dari orang lain.";
 "Checking address #%lld" = "Memeriksa alamat #%lld";
-"Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding." = "Memeriksa seribu alamat pertama meskipun ada celah, lalu terus berlanjut selama masih ada yang ditemukan.";
 "%lld found so far" = "%lld ditemukan sejauh ini";
-"Close and Keep Scanning" = "Tutup dan Lanjutkan Memindai";
 "Contains domain" = "Mengandung domain";
 "Tap anywhere to copy" = "Ketuk di mana saja untuk menyalin";
 "Anyone with this address's private key can spend its funds. Never share it with anyone." = "Siapa pun yang memiliki kunci privat alamat ini dapat membelanjakan dananya. Jangan pernah membagikannya kepada siapa pun.";
@@ -1028,9 +1015,6 @@
 "Enter your 12 or 24 words" = "Masukkan 12 atau 24 kata Anda";
 "More reactions" = "Reaksi lainnya";
 "Storage problem" = "Masalah penyimpanan";
-"Your chats and history are up to date." = "Obrolan dan riwayat Anda sudah terbaru.";
-"Setting up your account" = "Menyiapkan akun Anda";
-"Downloading everything this account has on chain. It only takes this long once." = "Mengunduh semua yang dimiliki akun ini di chain. Selama ini hanya terjadi sekali.";
 "Continue anyway" = "Tetap lanjutkan";
 "Preparing a fresh address" = "Menyiapkan alamat baru";
 "Share Profile" = "Bagikan Profil";
@@ -1168,7 +1152,6 @@
 "Invited you to a game of chess" = "Mengundang Anda bermain catur";
 "Handshake completed" = "Handshake selesai";
 "%@ sent a photo" = "%@ mengirim foto";
-"It shows 10 minutes after you have both sent a message." = "Muncul 10 menit setelah Anda berdua mengirim pesan.";
 "Voice message unavailable" = "Pesan suara tidak tersedia";
 "Tap to retry" = "Ketuk untuk mencoba lagi";
 "Loading…" = "Memuat…";
@@ -1278,7 +1261,6 @@
 "Asks to open an encrypted conversation." = "Meminta untuk membuka percakapan terenkripsi.";
 "Casual" = "Santai";
 "Changes the text. Everyone sees the new version." = "Mengubah teks. Semua orang melihat versi barunya.";
-"Check off every address you want on the list, in one sitting." = "Centang sekaligus setiap alamat yang Anda inginkan di daftar.";
 "Clear %@?" = "Bersihkan %@?";
 "Clear All Cache?" = "Bersihkan Semua Cache?";
 "Clears the unread badge on this group." = "Menghapus lencana belum dibaca pada grup ini.";
@@ -1294,10 +1276,8 @@
 "Finished" = "Selesai";
 "Finishing up..." = "Menyelesaikan...";
 "Frees %@. Your messages, contacts and keys are not touched." = "Mengosongkan %@. Pesan, kontak, dan kunci Anda tidak tersentuh.";
-"Full screen, for scanning with another device." = "Layar penuh, untuk dipindai dengan perangkat lain.";
 "Get notified for their messages again." = "Dapatkan notifikasi lagi untuk pesan mereka.";
 "Gives this account a name of your own." = "Memberi akun ini nama pilihan Anda.";
-"Gives this address a label of your own." = "Memberi alamat ini label pilihan Anda.";
 "Hide Address" = "Sembunyikan Alamat";
 "Invite this contact to a game on chain." = "Undang kontak ini bermain di on-chain.";
 "KaChat Link" = "Tautan KaChat";
@@ -1331,7 +1311,6 @@
 "Preparing..." = "Menyiapkan...";
 "Private key copied. Clipboard will clear in 30s." = "Kunci pribadi disalin. Papan klip akan dibersihkan dalam 30 detik.";
 "Public key copied" = "Kunci publik disalin";
-"Puts the full address on the clipboard." = "Menaruh alamat lengkap di papan klip.";
 "Puts the unread badge back so you come across it again." = "Mengembalikan lencana belum dibaca agar Anda menemukannya lagi.";
 "Quotes this message above your reply." = "Mengutip pesan ini di atas balasan Anda.";
 "Re-fetching handshakes..." = "Mengambil ulang handshake...";
@@ -1400,7 +1379,6 @@
 
 /* Settings > Customization: .kachat name endings */
 "Show .kachat Endings" = "Tampilkan Akhiran .kachat";
-"Turn off to show names like alice instead of alice.kachat. A name you gave someone yourself never has the ending." = "Matikan untuk menampilkan nama seperti alice, bukan alice.kachat. Nama yang Anda berikan sendiri kepada seseorang tidak pernah memakai akhiran ini.";
 
 /* Chat composers: camera or microphone access is off (MediaAccess) */
 "Microphone Access Required" = "Akses Mikrofon Diperlukan";
@@ -1451,13 +1429,11 @@
 "%d hidden: they still count in the total." = "%d disembunyikan: tetap dihitung dalam total.";
 "A brand-new address of yours, never used or handed out: this payment can't be tied to your name." = "Alamat baru milikmu, belum pernah dipakai atau dibagikan: pembayaran ini tak bisa dikaitkan dengan namamu.";
 "A quantum-resistant address: its key stays hidden until it spends." = "Alamat tahan kuantum: kuncinya tetap tersembunyi sampai membelanjakan.";
-"A regular address, like Receive gives you. Works with everything, kUSDT included." = "Alamat biasa, seperti yang diberikan Terima. Bisa untuk semuanya, termasuk kUSDT.";
 "A spending address of yours: a payment here isn't tied to your name." = "Alamat belanja milikmu: pembayaran ke sini tak terkait dengan namamu.";
 "About %@" = "Tentang %@";
 "Add %@ More" = "Tambah %@ Lagi";
 "Add %@ for Fee and Change Coin" = "Tambah %@ untuk Biaya dan Koin Kembalian";
 "Add %@ for the Network Fee" = "Tambah %@ untuk Biaya Jaringan";
-"Adds a brand-new regular address of yours to this list." = "Menambahkan alamat biasa milikmu yang baru ke daftar ini.";
 "Amount (%@)" = "Jumlah (%@)";
 "Available: %@" = "Tersedia: %@";
 "Back to This Address" = "Kembali ke Alamat Ini";
@@ -1466,7 +1442,6 @@
 "Bridged by %@" = "Di-bridge oleh %@";
 "Building the transaction…" = "Membuat transaksi…";
 "Check Again" = "Periksa Lagi";
-"Check off which addresses holding kUSDT are on the list." = "Centang alamat ber-kUSDT mana yang tampil di daftar.";
 "Checking address #%d" = "Memeriksa alamat #%d";
 "Checking your %@..." = "Memeriksa %@ kamu…";
 "Coins Combined" = "Koin Digabungkan";
@@ -1481,11 +1456,9 @@
 "Every %@ coin holds %@. Combining them into one coin gives the extra KAS back to this address as regular KAS, less the network fee. Your %@ stays the same." = "Setiap koin %@ menyimpan %@. Jika digabung jadi satu koin, sisa KAS kembali ke alamat ini sebagai KAS biasa, dikurangi biaya jaringan. %@ milikmu tetap sama.";
 "Every %@ coin holds %@. It goes to the recipient with the %@, so the KAS isn't lost." = "Setiap koin %@ menyimpan %@. KAS itu ikut ke penerima bersama %@, jadi tidak hilang.";
 "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "Setiap koin kUSDT menyimpan 1.5 KAS. KAS itu ikut terkirim bersama kUSDT saat kamu mengirimnya.";
-"Finds your addresses holding kUSDT." = "Menemukan alamatmu yang menyimpan kUSDT.";
 "Found %d addresses with %@." = "Ditemukan %d alamat dengan %@.";
 "Generate New Address" = "Buat Alamat Baru";
 "Generate Non-Quantum Address" = "Buat Alamat Non-Kuantum";
-"Generate Quantum-Resistant Address" = "Buat Alamat Tahan Kuantum";
 "Goes With It" = "Ikut Terkirim";
 "Held On" = "Disimpan di";
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "Masuk ke akun ini dan terhitung di total belanjamu. Pakai untuk semua hal kecuali nama .kachat.";
@@ -1494,7 +1467,6 @@
 "KAS for a %@ send" = "KAS untuk pengiriman %@";
 "Kaspa" = "Kaspa";
 "Kaspa, and kUSDT on Kaspa, can be sent here." = "Kaspa, dan kUSDT di Kaspa, bisa dikirim ke sini.";
-"Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it." = "Menyembunyikan kuncinya sampai membelanjakan. Hanya untuk Kaspa: kUSDT tidak bisa diperdagangkan dari sini.";
 "Manage %@" = "Kelola %@";
 "Manage %@ starts over with only your Chatting Address. Nothing is lost: bring any address back here, and its %@ still counts in your total." = "Kelola %1$@ dimulai ulang hanya dengan alamat chat kamu. Tak ada yang hilang: kembalikan alamat mana pun di sini, dan %2$@-nya tetap dihitung dalam totalmu.";
 "Merges its coins into one and gives the extra KAS back." = "Menggabungkan koinnya jadi satu dan mengembalikan sisa KAS.";
@@ -1915,7 +1887,6 @@
 "Drag a portfolio to change the order its card appears in." = "Seret portofolio untuk mengubah urutan kartunya.";
 "Import failed. Check the CSV format" = "Impor gagal. Periksa format CSV";
 "Notes (optional)" = "Catatan (opsional)";
-"Network Hashrate" = "Hashrate Jaringan";
 "Value" = "Nilai";
 "24h change not available yet" = "Perubahan 24 jam belum tersedia";
 "Rank" = "Peringkat";
@@ -1927,7 +1898,6 @@
 "Converter" = "Konverter";
 "Waiting for a price..." = "Menunggu harga...";
 "Kaspa Network" = "Jaringan Kaspa";
-"About Hashrate" = "Tentang Hashrate";
 "Mining Estimate" = "Perkiraan Penambangan";
 "Enter your hashrate to estimate earnings." = "Masukkan hashrate Anda untuk memperkirakan pendapatan.";
 "Transaction Details" = "Detail Transaksi";
@@ -1958,8 +1928,6 @@
 "YTD" = "YTD";
 "1Y" = "1T";
 "Block Reward" = "Imbalan Blok";
-"Next Block Reward" = "Imbalan Blok Berikutnya";
-"Next Block Reward Reduction" = "Penurunan Imbalan Blok Berikutnya";
 "At %@ network hashrate and a %@ block reward. Before pool fees, power and luck, and both figures move." = "Dengan hashrate jaringan %@ dan imbalan blok %@. Belum termasuk biaya pool, listrik, dan keberuntungan, dan kedua angka berubah.";
 "Imported 1 transaction" = "1 transaksi diimpor";
 "Imported %lld transactions" = "%lld transaksi diimpor";
@@ -2012,16 +1980,8 @@
 "Dark" = "Gelap";
 "Selected: %@ (1 UTXO)" = "Dipilih: %@ (1 UTXO)";
 "Selected: %@ (%lld UTXOs)" = "Dipilih: %@ (%lld UTXO)";
-"No used addresses yet" = "Belum ada alamat yang dipakai";
 "Reveals the next unused address in this account." = "Menampilkan alamat berikutnya yang belum dipakai di akun ini.";
-"Puts the extended public key on the clipboard." = "Menyalin kunci publik tambahan (extended public key) ke papan klip.";
-"Show kpub QR" = "Tampilkan QR kpub";
 "Scan it into another device to watch this account there." = "Pindai di perangkat lain untuk memantau akun ini di sana.";
-"Changes the name shown for this account." = "Mengubah nama yang ditampilkan untuk akun ini.";
-"Turn Off Receive Notifications" = "Matikan Pemberitahuan Penerimaan";
-"Turn On Receive Notifications" = "Nyalakan Pemberitahuan Penerimaan";
-"Stops notifying when this account receives Kaspa. Other accounts keep theirs." = "Berhenti memberi tahu saat akun ini menerima Kaspa. Akun lain tetap seperti semula.";
-"Notifies you when this account receives Kaspa." = "Memberi tahu Anda saat akun ini menerima Kaspa.";
 "For how long?" = "Untuk berapa lama?";
 "Swipe up to Claim" = "Geser ke atas untuk mengklaim";
 "Swipe up to Confirm" = "Geser ke atas untuk mengonfirmasi";
@@ -2154,7 +2114,6 @@
 "$" = "$";
 "Continue to App" = "Lanjutkan ke Aplikasi";
 "Join" = "Gabung";
-"Join or Create a Channel" = "Gabung atau Buat Saluran";
 "Menu" = "Menu";
 "Pay in Kaspa" = "Bayar dengan Kaspa";
 "Record voice message" = "Rekam pesan suara";
@@ -2309,7 +2268,6 @@
 "6 hours" = "6 jam";
 "7 days" = "7 hari";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses." = "Obrolan publik berada di blockDAG Kaspa, jadi setiap pengindeks yang memantau jaringan yang sama menyajikan ruang yang sama. Arahkan ruang ini ke mana pun Anda mau - milik Anda sendiri atau milik orang lain - tanpa mengubah pengindeks yang dipakai ruang lainnya.";
-"A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time." = "Ruang yang dimatikan tidak lagi muncul di Obrolan Publik dan tidak pernah mengirim notifikasi. Nyalakan kembali kapan saja.";
 "A room you added. Anyone who knows the name can post to it." = "Ruang yang Anda tambahkan. Siapa pun yang tahu namanya bisa memposting di sini.";
 "About this room" = "Tentang ruang ini";
 "Accounts you follow will show up here." = "Akun yang Anda ikuti akan muncul di sini.";
@@ -2318,7 +2276,6 @@
 "Add option" = "Tambah opsi";
 "Add to thread" = "Tambah ke utas";
 "Adds your own words above it." = "Menambahkan kata-kata Anda sendiri di atasnya.";
-"Anyone who joins the same channel name can see and post messages there - there is no owner and no invite." = "Siapa pun yang bergabung dengan nama kanal yang sama bisa melihat dan mengirim pesan di sana - tidak ada pemilik dan tidak perlu undangan.";
 "Blocked accounts are removed everywhere and can't interact with you." = "Akun yang diblokir dihapus dari mana pun dan tidak bisa berinteraksi dengan Anda.";
 "Blocked. Undo it in the Feed's menu, under Blocked." = "Diblokir. Batalkan di menu Feed, di bawah Diblokir.";
 "Bookmarks" = "Markah";
@@ -2340,7 +2297,6 @@
 "Edit Post" = "Sunting Postingan";
 "Edit Profile" = "Sunting Profil";
 "Every message cached for this room on this device is deleted. This cannot be undone - rejoining later starts with no history." = "Semua pesan yang tersimpan untuk ruang ini di perangkat ini dihapus. Tindakan ini tidak bisa dibatalkan - bergabung lagi nanti akan dimulai tanpa riwayat.";
-"Every reply is in the conversation above." = "Semua balasan ada di percakapan di atas.";
 "Find posts by what they say, and people by their name or domain. Only people who have posted appear." = "Cari postingan berdasarkan isinya, dan orang berdasarkan nama atau domainnya. Hanya orang yang pernah memposting yang muncul.";
 "Follow Back" = "Ikuti Balik";
 "Followers" = "Pengikut";
@@ -2373,7 +2329,6 @@
 "New Post" = "Postingan Baru";
 "New messages here don't notify you. The room still updates when you open it." = "Pesan baru di sini tidak memberi notifikasi. Ruang tetap diperbarui saat Anda membukanya.";
 "No bookmarks yet" = "Belum ada markah";
-"No comments yet - be the first to reply." = "Belum ada komentar - jadilah yang pertama membalas.";
 "No drafts" = "Tidak ada draf";
 "No notification for new messages in this room." = "Tidak ada notifikasi untuk pesan baru di ruang ini.";
 "No one can see your messages in here unless they are also active in the room at the same time." = "Tidak ada yang bisa melihat pesan Anda di sini kecuali mereka juga aktif di ruang itu pada saat yang sama.";
@@ -2390,7 +2345,6 @@
 "Notifications on" = "Notifikasi nyala";
 "Notifies you of new messages while the app is open." = "Memberi tahu pesan baru saat aplikasi terbuka.";
 "Notifies you of new messages, even when the app is closed." = "Memberi tahu pesan baru, bahkan saat aplikasi ditutup.";
-"Off takes every language room out of Public Chats. On, switch off the ones you don't want." = "Mati mengeluarkan semua ruang bahasa dari Obrolan Publik. Nyala, matikan yang tidak Anda inginkan.";
 "One of the pasted words isn't a valid word. Check your copy and try again." = "Salah satu kata yang ditempel tidak valid. Periksa salinan Anda dan coba lagi.";
 "Opens Send Kaspa to pay it." = "Membuka Kirim Kaspa untuk membayarnya.";
 "Opens it in your browser." = "Membukanya di browser Anda.";
@@ -2480,14 +2434,11 @@
 "Not counted on the post" = "Tidak dihitung di postingan";
 "Tip asks whether to send Kaspa or kUSDT each time." = "Tip menanyakan setiap kali apakah mengirim Kaspa atau kUSDT.";
 "The account changed, so this wasn't sent." = "Akun berganti, jadi ini tidak terkirim.";
-"KaPost isn't available on Testnet yet" = "KaPost belum tersedia di Testnet";
 "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "Belum ada indexer KaPost untuk testnet. Matikan Testnet di Pengaturan > Koneksi untuk membaca dan memposting di mainnet.";
 "KaChat Profile" = "Profil KaChat";
 "Your post is ready to go out. Open K to send it." = "Postingan Anda siap dikirim. Buka K untuk mengirimnya.";
-"KaPost Settings" = "Pengaturan KaPost";
 "Search KaPost" = "Cari KaPost";
 "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Berbagi mengirim tautan yang membuka ruang ini di K, dan tautan web untuk yang belum punya aplikasinya. Menyembunyikan berlaku per ruang: orang yang disembunyikan di sini tetap muncul di ruang lainnya.";
-"Their KaPost profile: posts, replies and followers." = "Profil KaPost mereka: postingan, balasan, dan pengikut.";
 
 /* KaPosts leftovers (2026-11-21) */
 "KaPost's server isn't answering. Showing saved posts and new ones from the network." = "Server KaPost tidak merespons. Menampilkan postingan tersimpan dan yang baru dari jaringan.";
@@ -2497,12 +2448,8 @@
 
 "%lld unread" = "%lld belum dibaca";
 
-/* Public rooms in Chats (2026-11-21) */
-"Join a public room, or create one." = "Bergabung ke ruang publik, atau buat sendiri.";
 "Delete #%@?" = "Hapus #%@?";
 
-"Edit Default Public Chats" = "Edit Obrolan Publik Bawaan";
-"Turn the default rooms and the language rooms on or off." = "Nyalakan atau matikan ruang bawaan dan ruang bahasa.";
 "#%@ is off - turn it back on in Edit Default Public Chats" = "#%@ mati - nyalakan lagi di Edit Obrolan Publik Bawaan";
 "Channel names must be 1-%d characters with no spaces or colons." = "Nama kanal harus 1-%d karakter tanpa spasi atau titik dua.";
 "channel-name" = "nama-kanal";
@@ -2792,56 +2739,14 @@
 /* KaChat Stats and Kaspa Websites (back 2026-11-21) */
 "KaChat Stats" = "Statistik KaChat";
 "Stats" = "Statistik";
-"What counts" = "Apa yang dihitung";
 "24 Hours" = "24 Jam";
 "All Time" = "Semua Waktu";
-"KaChat transactions in the last 24 hours" = "Transaksi KaChat dalam 24 jam terakhir";
-"KaChat transactions in the last 7 days" = "Transaksi KaChat dalam 7 hari terakhir";
-"KaChat transactions on Kaspa, all time" = "Transaksi KaChat di Kaspa, sepanjang waktu";
-"Direct Messages" = "Pesan Langsung";
-"New Chats" = "Obrolan Baru";
 "Payments" = "Pembayaran";
 "Group Messages" = "Pesan Grup";
-"Group Updates" = "Perubahan Grup";
-"KaPost Activity" = "Aktivitas KaPost";
 "Chess Moves" = "Langkah Catur";
-"Chess Games" = "Permainan Catur";
-"Saved Records" = "Catatan Tersimpan";
-"1:1 texts, voice notes, reactions and 1:1 chess" = "Teks 1:1, pesan suara, reaksi, dan catur 1:1";
-"Handshakes that start a 1:1 chat" = "Handshake yang memulai obrolan 1:1";
-"KAS sent in chats" = "KAS yang dikirim di obrolan";
-"Messages in group chats" = "Pesan di obrolan grup";
-"Creating groups, invites and other changes" = "Pembuatan grup, undangan, dan perubahan lain";
-"Messages in public rooms" = "Pesan di ruang publik";
-"Posts, replies, quotes and polls" = "Postingan, balasan, kutipan, dan polling";
-"Votes, follows, edits and deletes" = "Vote, follow, suntingan, dan penghapusan";
-"Moves played in Chess Online" = "Langkah yang dimainkan di Chess Online";
-"Games started in Chess Online" = "Permainan yang dimulai di Chess Online";
-"Chat keys and contact notes saved to your own account" = "Kunci obrolan dan catatan kontak yang disimpan ke akunmu sendiri";
-"No indexer is set for this network" = "Belum ada indexer untuk jaringan ini";
-"Add one in Settings > Connection Settings to see KaChat stats." = "Tambahkan di Pengaturan > Pengaturan Koneksi untuk melihat statistik KaChat.";
-"Stats aren't available yet" = "Statistik belum tersedia";
-"Your indexer doesn't report KaChat stats yet. They'll show here once it does." = "Indexer-mu belum menyediakan statistik KaChat. Statistik akan muncul di sini setelah tersedia.";
-"Couldn't refresh. Showing the last numbers." = "Gagal memperbarui. Menampilkan angka terakhir.";
 "Updated %@" = "Diperbarui %@";
 "Counting since %@" = "Dihitung sejak %@";
-"Every KaChat action is its own Kaspa transaction. These totals come from KaChat's indexer, counting what it has seen on chain - nothing is read from your phone." = "Setiap tindakan di KaChat adalah transaksi Kaspa tersendiri. Total ini berasal dari indexer KaChat, yang menghitung apa yang dilihatnya di chain - tidak ada yang dibaca dari ponselmu.";
-"1:1 messages are encrypted, so voice notes, reactions and 1:1 chess moves count as direct messages: nobody, the indexer included, can tell them apart." = "Pesan 1:1 terenkripsi, jadi pesan suara, reaksi, dan langkah catur 1:1 dihitung sebagai pesan langsung: tidak ada yang bisa membedakannya, termasuk indexer.";
-"Names Registered" = "Nama Terdaftar";
-"Name Renewals" = "Perpanjangan Nama";
-"Name Sales" = "Penjualan Nama";
-"Name Offers" = "Penawaran Nama";
-"Name Activity" = "Aktivitas Nama";
-".kachat names claimed" = "Nama .kachat yang diklaim";
-".kachat names extended or renewed" = "Nama .kachat yang ditambah atau diperpanjang";
-".kachat names bought from a listing or through an accepted offer" = "Nama .kachat yang dibeli dari listing atau lewat penawaran yang diterima";
-"Offers made on .kachat names" = "Penawaran untuk nama .kachat";
-"Listings, transfers, releases, reclaims and returned offers" = "Listing, transfer, pelepasan, klaim ulang, dan penawaran yang dikembalikan";
 "Fees" = "Biaya";
-"Transactions on the .kachat registry" = "Transaksi di registri .kachat";
-"Paid for registrations and renewals" = "Dibayar untuk pendaftaran dan perpanjangan";
-"Fees aren't available yet" = "Biaya belum tersedia";
-"Your indexer doesn't report them yet. They'll show here once it does." = "Indexer Anda belum melaporkannya. Akan muncul di sini setelah dilaporkan.";
 "Kaspa Websites" = "Situs Kaspa";
 "Websites" = "Situs";
 
@@ -2853,7 +2758,7 @@
 "The price goes to the network's miners, not to K." = "Harganya untuk penambang jaringan, bukan untuk K.";
 "Make it your name" = "Jadikan nama Anda";
 "Set it as your primary name and it's how you appear everywhere in K." = "Jadikan nama utama, dan begitulah Anda tampil di seluruh K.";
-"They can send you Kaspa to yourname.kachat instead of a long address." = "Mereka bisa mengirim Kaspa ke namaanda.kachat alih-alih alamat yang panjang.";
+"They can send you Kaspa to @yourname instead of a long address." = "Mereka bisa mengirim Kaspa ke @namaanda alih-alih alamat yang panjang.";
 "Your profile link shows your name." = "Tautan profil Anda menampilkan nama Anda.";
 "Renew before it expires. It shows when, on each name." = "Perpanjang sebelum kedaluwarsa. Tanggalnya tampil di setiap nama.";
 "After it expires there's a grace period to renew it before anyone else can claim it." = "Setelah kedaluwarsa ada masa tenggang untuk memperpanjang sebelum orang lain bisa mengklaimnya.";
@@ -2902,8 +2807,6 @@
 "To %@" = "Ke %@";
 "Change %@ to %@" = "Kembalian %@ ke %@";
 
-/* Cold Storage Address Actions (2026-11-22) */
-"Puts this account's kpub on the clipboard. It reveals all its addresses." = "Menyalin kpub akun ini ke papan klip. Ini mengungkap semua alamatnya.";
 
 /* Cold Storage Paste kpub (2026-11-22) */
 "Not a valid kpub" = "Bukan kpub yang valid";
@@ -2917,20 +2820,16 @@
 
 /* Swap with ChangeNOW and Trestly (2026-11-23) */
 "Swap" = "Tukar";
-"Swap started" = "Penukaran dimulai";
 "Couldn't read this swap's amounts" = "Tidak dapat membaca jumlah penukaran ini";
 "Added to %@" = "Ditambahkan ke %@";
 "This only removes it from your local history - it doesn't affect the actual exchange." = "Ini hanya menghapusnya dari riwayat lokalmu - tidak memengaruhi penukaran yang sebenarnya.";
 "Swap History" = "Riwayat Penukaran";
 "You Send" = "Kamu Kirim";
-"Switch direction" = "Balik arah";
 "You Get" = "Kamu Dapat";
 "Receive %@ at" = "Terima %@ di";
-"Receiving KAS At" = "Menerima KAS di";
 "Powered by Trestly" = "Didukung oleh Trestly";
 "Powered by ChangeNOW" = "Didukung oleh ChangeNOW";
 "Rate" = "Kurs";
-"Go to Spending Addresses" = "Buka Alamat Belanja";
 "Send %@ to this address" = "Kirim %@ ke alamat ini";
 "ChangeNOW Exchange ID" = "ID Penukaran ChangeNOW";
 "Exchange ID copied" = "ID penukaran disalin";
@@ -2939,14 +2838,6 @@
 "Change" = "Ganti";
 "No swaps yet." = "Belum ada penukaran.";
 "Swap Details" = "Detail Penukaran";
-"A swap pays out to an address you have not used before, so the payout cannot be tied to your earlier activity. Generate one if none are free." = "Penukaran dibayarkan ke alamat yang belum pernah kamu pakai, sehingga pembayarannya tidak bisa dikaitkan dengan aktivitasmu sebelumnya. Buat satu jika tidak ada yang kosong.";
-"Every address here has been used. Generate a new one above." = "Semua alamat di sini sudah terpakai. Buat yang baru di atas.";
-"Unused Addresses" = "Alamat Belum Dipakai";
-"Choose Address" = "Pilih Alamat";
-"Check its history before you send a swap to it." = "Periksa riwayatnya sebelum mengirim penukaran ke alamat ini.";
-"Use for This Swap" = "Gunakan untuk Penukaran Ini";
-"ChangeNOW pays the swapped KAS out to this address." = "ChangeNOW membayarkan KAS hasil penukaran ke alamat ini.";
-"Choose Coin" = "Pilih Koin";
 "Swap uses two services K doesn't run. Read and agree to both before you continue." = "Tukar memakai dua layanan yang tidak dijalankan K. Baca dan setujui keduanya sebelum melanjutkan.";
 "Coins on other networks" = "Koin di jaringan lain";
 "Swaps between Kaspa and coins on other networks (Bitcoin, Ethereum, USDC, USDT and others) are made by ChangeNOW, a third-party exchange. K only asks ChangeNOW for a quote and a deposit address and shows the swap's status; ChangeNOW does the exchange and sends the coins. K isn't responsible for failed, delayed or lost swaps. If one doesn't go through, contact ChangeNOW's support." = "Penukaran antara Kaspa dan koin di jaringan lain (Bitcoin, Ethereum, USDC, USDT, dan lainnya) dilakukan oleh ChangeNOW, bursa pihak ketiga. K hanya meminta penawaran harga dan alamat deposit ke ChangeNOW dan menampilkan status penukaran; ChangeNOW yang melakukan penukaran dan mengirim koinnya. K tidak bertanggung jawab atas penukaran yang gagal, tertunda, atau hilang. Jika ada yang tidak berhasil, hubungi dukungan ChangeNOW.";
@@ -3052,7 +2943,6 @@
 "Delete this swap?" = "Hapus penukaran ini?";
 "Deposit Address" = "Alamat Setoran";
 "Status: %@" = "Status: %@";
-"Get Deposit Address" = "Dapatkan Alamat Setoran";
 "Swap failed" = "Penukaran gagal";
 "Already holds this swap - adding it again double-counts it." = "Sudah berisi penukaran ini - menambahkannya lagi akan menghitungnya dua kali.";
 "The swap lands in this portfolio." = "Penukaran masuk ke portofolio ini.";
@@ -3191,7 +3081,6 @@
 "Room info for #%@" = "Info ruang #%@";
 "No hidden users in #%@. Long-press a message to hide its sender." = "Tidak ada pengguna tersembunyi di #%@. Tekan lama pesan untuk menyembunyikan pengirimnya.";
 "Hidden Users - #%@" = "Pengguna Tersembunyi - #%@";
-"A curated room, always in your list. Anyone on K can post to it." = "Ruang pilihan, selalu ada di daftar Anda. Siapa pun di K dapat memposting di sana.";
 "A public chat lives on the Kaspa blockDAG, so any indexer watching the same network serves the same room. Point this one wherever you like - your own, or someone else's - without changing the indexer every other room uses. Leave it blank to follow %@." = "Obrolan publik ada di blockDAG Kaspa, jadi indexer mana pun yang memantau jaringan yang sama menyajikan ruang yang sama. Arahkan ruang ini ke mana pun Anda mau (milik Anda atau orang lain) tanpa mengubah indexer yang dipakai ruang lain. Biarkan kosong untuk mengikuti %@.";
 "Indexer updated for #%@." = "Indexer diperbarui untuk #%@.";
 "Could not reach it: %@" = "Tidak dapat dihubungi: %@";
@@ -3242,12 +3131,11 @@
 "kaspa:qr... or username" = "kaspa:qr... atau nama pengguna";
 "Looking up username..." = "Mencari nama pengguna...";
 "Kaspa Address or Username" = "Alamat Kaspa atau Nama Pengguna";
-"Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat)." = "Masukkan alamat Kaspa (kaspa:...) atau nama pengguna (mis. alice.kachat).";
+"Enter a Kaspa address (kaspa:...) or a username (e.g. @alice)." = "Masukkan alamat Kaspa (kaspa:...) atau nama pengguna (mis. @alice).";
 "Pick people from your contacts, or add anyone by Kaspa address or username." = "Pilih orang dari kontak Anda, atau tambahkan siapa saja dengan alamat Kaspa atau nama pengguna.";
 "Use Their Username" = "Gunakan nama penggunanya";
-"Enter a Kaspa address or a username like name.kachat. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "Masukkan alamat Kaspa atau nama pengguna seperti name.kachat. Setiap transaksi yang diterima di alamat ini menjadi pembelian, setiap transaksi yang dikirim menjadi penjualan, dihargai dengan harga KAS historis hari itu. Menambahkan alamat yang sama lagi nanti hanya mengimpor transaksi yang ditemukan sejak impor terakhir.";
+"Enter a Kaspa address or a username like @name. Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import." = "Masukkan alamat Kaspa atau nama pengguna seperti @name. Setiap transaksi yang diterima di alamat ini menjadi pembelian, setiap transaksi yang dikirim menjadi penjualan, dihargai dengan harga KAS historis hari itu. Menambahkan alamat yang sama lagi nanti hanya mengimpor transaksi yang ditemukan sejak impor terakhir.";
 "No addresses with a balance or username yet" = "Belum ada alamat dengan saldo atau nama pengguna";
-"Finds addresses holding a balance or a username." = "Menemukan alamat yang memiliki saldo atau nama pengguna.";
 "No addresses with a balance or username found." = "Tidak ditemukan alamat dengan saldo atau nama pengguna.";
 "Found 1 address with a balance or username." = "Ditemukan 1 alamat dengan saldo atau nama pengguna.";
 "Found %lld addresses with a balance or username." = "Ditemukan %lld alamat dengan saldo atau nama pengguna.";
@@ -3302,11 +3190,8 @@
 "Checking…" = "Memeriksa…";
 "gRPC nodes can't be reached right now, so K is using a public node over wss." = "Node gRPC tidak dapat dijangkau saat ini, jadi K menggunakan node publik melalui wss.";
 "Search public chats" = "Cari obrolan publik";
-"No Public Chats" = "Tidak Ada Obrolan Publik";
-"Tap + to join or create a public room." = "Ketuk + untuk bergabung atau membuat ruang publik.";
 "Switches between your chats and public chats" = "Beralih antara obrolan Anda dan obrolan publik";
 "More Rooms" = "Ruang Lainnya";
-"Rooms added on the indexer K reads public chats from." = "Ruang yang ditambahkan di indexer tempat K membaca obrolan publik.";
 
 /* Kaspa Hub card links (2026-11-25) */
 "Link copied" = "Tautan disalin";
@@ -3330,19 +3215,15 @@
 "That isn't a quantum-resistant address. Scan the KCC-3 address KasSigner shows." = "Itu bukan alamat tahan kuantum. Pindai alamat KCC-3 yang ditampilkan KasSigner.";
 "That address is already in this account." = "Alamat itu sudah ada di akun ini.";
 "Quantum-resistant address added." = "Alamat tahan kuantum ditambahkan.";
-"Add Quantum-Resistant Address" = "Tambah Alamat Tahan Kuantum";
 "Scan a KCC-3 address from KasSigner's address screen." = "Pindai alamat KCC-3 dari layar alamat KasSigner.";
 "Stop Watching" = "Berhenti Memantau";
 "Removes this quantum address from the account. Scan it again to add it back." = "Menghapus alamat kuantum ini dari akun. Pindai lagi untuk menambahkannya kembali.";
 "Quantum-Resistant Address" = "Alamat Tahan Kuantum";
 "On KasSigner, open the KCC-3 address you want and scan its QR code. Its key stays on the unit until the address spends." = "Di KasSigner, buka alamat KCC-3 yang kamu inginkan dan pindai kode QR-nya. Kuncinya tetap di perangkat sampai alamat itu membelanjakan dana.";
 "Address Number on KasSigner" = "Nomor Alamat di KasSigner";
-"The number KasSigner shows for this address. With it the unit finds the key at once when signing; without it the unit searches for it." = "Nomor yang ditampilkan KasSigner untuk alamat ini. Dengan nomor ini, perangkat langsung menemukan kuncinya saat menandatangani; tanpa nomor ini, perangkat mencarinya.";
 "Add Quantum Address" = "Tambah Alamat Kuantum";
 "The address number must be a whole number." = "Nomor alamat harus berupa bilangan bulat.";
 "Needs KasSigner v1.1 or later, which signs quantum-resistant (KCC-3) addresses." = "Membutuhkan KasSigner v1.1 atau lebih baru, yang menandatangani alamat tahan kuantum (KCC-3).";
-"The change returns to this address, whose key this send puts on chain. Add another quantum address from KasSigner to keep change quantum-safe." = "Kembalian kembali ke alamat ini, yang kuncinya dibuka di chain oleh pengiriman ini. Tambahkan alamat kuantum lain dari KasSigner agar kembalian tetap aman kuantum.";
-"The change goes to an unused quantum address of this account, since this send puts this address's key on chain." = "Kembalian masuk ke alamat kuantum yang belum dipakai di akun ini, karena pengiriman ini membuka kunci alamat ini di chain.";
 "kaspa:pq..." = "kaspa:pq...";
 "KasSigner didn't return the key script for this quantum-resistant address, so it won't be broadcast. Check the unit runs KasSigner v1.1 or later and holds this address." = "KasSigner tidak mengembalikan skrip kunci untuk alamat tahan kuantum ini, jadi transaksi tidak akan disiarkan. Pastikan perangkat menjalankan KasSigner v1.1 atau lebih baru dan menyimpan alamat ini.";
 "The signed transaction adds covenant terms this send never asked for, so it won't be broadcast." = "Transaksi yang ditandatangani menambahkan syarat covenant yang tidak pernah diminta pengiriman ini, jadi tidak akan disiarkan.";
@@ -3379,7 +3260,6 @@
 /* Public Chats Select (2026-11-25) */
 "Delete 1 Public Chat?" = "Hapus 1 obrolan publik?";
 "Delete %lld Public Chats?" = "Hapus %lld obrolan publik?";
-"Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device." = "Obrolan publik bawaan dimatikan (nyalakan lagi di Edit Obrolan Publik Bawaan). Ruang yang kamu tambahkan dihapus beserta pesannya dari perangkat ini.";
 
 /* Room Delete for Everyone (2026-11-25) */
 "Delete for Everyone" = "Hapus untuk Semua";
@@ -3433,7 +3313,6 @@
 "Tap to View History" = "Ketuk untuk Melihat Riwayat";
 "Quantum Protected" = "Terlindungi Kuantum";
 "Not Quantum Protected" = "Tidak Terlindungi Kuantum";
-"New Quantum-Protected Address" = "Alamat Baru Terlindungi Kuantum";
 "New Address" = "Alamat Baru";
 "Regular Address" = "Alamat Biasa";
 "Works with everything: Kaspa and kUSDT." = "Berfungsi untuk semuanya: Kaspa dan kUSDT.";
@@ -3501,7 +3380,6 @@
 "K Explorer" = "Penjelajah K";
 "An address holding Kaspa stays on the list." = "Alamat yang berisi Kaspa tetap ada di daftar.";
 "Remove Account" = "Hapus Akun";
-"Stops watching it here. KasSigner is untouched." = "Berhenti memantaunya di sini. KasSigner tidak berubah.";
 "kpub QR" = "QR kpub";
 "Alerts On" = "Notifikasi Aktif";
 "Alerts Off" = "Notifikasi Mati";
@@ -3521,3 +3399,12 @@
 "Swapped Through" = "Ditukar Melalui";
 "Trestly's kUSDT pool on Kaspa" = "Pool kUSDT Trestly di Kaspa";
 "Couldn't reach the network - try again" = "Tidak dapat menjangkau jaringan - coba lagi";
+"Balance increased by %@" = "Saldo bertambah %@";
+"%lld of your addresses" = "%lld alamat Anda";
+"Chatting address %@" = "Alamat chat %@";
+"Spending address %@" = "Alamat pengeluaran %@";
+"tipped your post: %@" = "memberi tip pada postingan Anda: %@";
+"Back to Top" = "Kembali ke Atas";
+"1 KAS = %@%@" = "1 KAS = %@%@";
+"Posts aren't available on Testnet yet" = "Postingan belum tersedia di Testnet";
+"Their profile: posts, replies and followers." = "Profilnya: postingan, balasan, dan pengikut.";

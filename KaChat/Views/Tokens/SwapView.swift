@@ -428,7 +428,7 @@ struct SwapView: View {
 
     /// One sentence per side, so each language words it whole (audit 2026-11-24 #34).
     private func portfolioPrompt(_ prefill: SwapService.PortfolioPrefill) -> Text {
-        let amount = formatKasTrimmed(UInt64((prefill.amountKas * 100_000_000).rounded()))
+        let amount = formatKasTrimmed(ExplorerAPI.clampedUInt64((prefill.amountKas * 100_000_000).rounded()))
         let price = "\(currencySymbol)\(String(format: "%.2f", prefill.fiatValue))"
         return prefill.type == .buy
             ? Text("Buy \(amount) KAS at \(price) - choose which portfolio to add it to.")
@@ -1549,10 +1549,15 @@ private struct SwapDepositScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task(id: swapId) {
             while !Task.isCancelled {
-                if let status = await swapService.refreshSwapStatusAsync(id: swapId), status.lowercased() == "finished" {
-                    Haptics.success()
-                    onFinished()
-                    return
+                if let status = await swapService.refreshSwapStatusAsync(id: swapId) {
+                    if status.lowercased() == "finished" {
+                        Haptics.success()
+                        onFinished()
+                        return
+                    }
+                    // failed, refunded or expired: nothing more will happen, so stop asking
+                    // (audit 2026-11-27 L18)
+                    if SwapService.isEndStatus(status) { return }
                 }
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
             }
@@ -1628,8 +1633,25 @@ private struct SwapDepositScreen: View {
                     }
                 }
 
-                // Kaspa in: K pays it, the address and amount filled in
-                if from == .kas, let sompi = KaspaUnit.sompi(fromUserText: swap.fromAmount) {
+                // Kaspa in: K pays it, the address and amount filled in. Once K has sent it, or
+                // ChangeNOW has seen a deposit, the button is gone: a second tap paid it twice
+                // (audit 2026-11-27 M1).
+                if from == .kas, let sent = swap.kasSendTxId {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Sent from K", systemImage: "checkmark.circle.fill")
+                            .font(.headline)
+                            .foregroundColor(.green)
+                        Text(verbatim: sent)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(glassBackground(cornerRadius: 18))
+                } else if from == .kas, ["new", "waiting"].contains(swap.status.lowercased()),
+                          let sompi = KaspaUnit.sompi(fromUserText: swap.fromAmount) {
                     Button {
                         showSendKas = true
                     } label: {
@@ -1647,7 +1669,9 @@ private struct SwapDepositScreen: View {
                                 fromAddress: wallet.publicAddress,
                                 availableBalanceSompi: wallet.balanceSompi,
                                 paymentRequest: PaymentRequest(address: swap.payinAddress, amountSompi: sompi, memo: "",
-                                                               toChattingAddress: false, creator: nil, signature: nil)
+                                                               toChattingAddress: false, creator: nil, signature: nil),
+                                onSent: { txId in swapService.recordDepositSent(swapId: swap.id, txId: txId) },
+                                onOutcomeUnknown: { txId in swapService.recordDepositSent(swapId: swap.id, txId: txId) }
                             )
                             .environmentObject(ContactsManager.shared)
                         }

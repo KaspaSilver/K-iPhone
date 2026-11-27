@@ -507,7 +507,7 @@ final class AddressActivityNotifier: ObservableObject {
         guard total > 0 else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Received \(Self.formatKas(total)) \(KaspaUnit.symbol)"
+        content.title = String(format: AppLocalization.string("Received %@"), locale: AppLocalization.locale, "\(Self.formatKas(total)) \(KaspaUnit.symbol)")
         content.body = bodyDescribing(addresses: hits.map { $0.address })
         content.threadIdentifier = Self.notificationThreadIdentifier
         // The tap opens the history of the address that got the Kaspa - with several, the one
@@ -545,7 +545,7 @@ final class AddressActivityNotifier: ObservableObject {
     private func postBalanceIncreasedNotification(address: String, delta: UInt64) {
         guard featureEnabled else { return }
         let content = UNMutableNotificationContent()
-        content.title = "Balance increased by \(Self.formatKas(delta)) \(KaspaUnit.symbol)"
+        content.title = String(format: AppLocalization.string("Balance increased by %@"), locale: AppLocalization.locale, "\(Self.formatKas(delta)) \(KaspaUnit.symbol)")
         content.body = describe(address: address)
         content.threadIdentifier = Self.notificationThreadIdentifier
         let opensAddress = !isColdOnly(address)
@@ -578,18 +578,18 @@ final class AddressActivityNotifier: ObservableObject {
         if unique.count == 1, let only = unique.first {
             return describe(address: only)
         }
-        return "\(unique.count) of your addresses"
+        return String(format: AppLocalization.string("%lld of your addresses"), locale: AppLocalization.locale, Int64(unique.count))
     }
 
     private func describe(address: String) -> String {
         if address == WalletManager.shared.currentWallet?.publicAddress {
-            return "Chatting address \(Self.shortAddress(address))"
+            return String(format: AppLocalization.string("Chatting address %@"), Self.shortAddress(address))
         }
         if let label = coldAccountLabels[address], !spendingAddressSet.contains(address) {
             // e.g. "Cold storage address kaspa:qq... (Savings)"
             return String(format: AppLocalization.string("Cold storage address %@ (%@)"), Self.shortAddress(address), label)
         }
-        return "Spending address \(Self.shortAddress(address))"
+        return String(format: AppLocalization.string("Spending address %@"), Self.shortAddress(address))
     }
 
     private func kindKey(for address: String) -> String {

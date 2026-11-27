@@ -225,7 +225,7 @@ struct AddContactView: View {
                 } header: {
                     Text("Address")
                 } footer: {
-                    Text("Enter a Kaspa address (kaspa:...) or a username (e.g. alice.kachat).")
+                    Text("Enter a Kaspa address (kaspa:...) or a username (e.g. @alice).")
                 }
 
                 // Private: no first-contact signal at all (NO_HANDSHAKE_MESSAGING.md §3.1).

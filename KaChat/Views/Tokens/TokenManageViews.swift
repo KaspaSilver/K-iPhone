@@ -299,13 +299,14 @@ struct TokenManageView: View {
             },
             onSend: { sendTarget = holding },
             onReceive: { qrTarget = holding },
-            // In place (owner, 2026-11-27): each keystroke saved under the address's Kaspa name,
-            // which Manage Addresses shows too; empty goes back to "Address #n".
+            // In place (owner, 2026-11-27), saved under the address's Kaspa name, which Manage
+            // Addresses shows too; empty goes back to "Address #n". The stored name itself, so a
+            // name like "Address #5 savings" isn't taken for the default, and the default's number
+            // as the card shows it (audit 2026-11-27 L14).
             rename: holding.isChatting || holding.spendingIndex == nil ? nil : {
-                let current = WalletManager.shared.ownAddressLabel(for: holding.address) ?? ""
                 let index = holding.spendingIndex ?? 0
-                return InlineRename(current: current.hasPrefix("Address #") ? "" : current,
-                                    placeholder: "Address #\(index)") { text in
+                return InlineRename(current: WalletManager.shared.spendingAddressLabel(index: index) ?? "",
+                                    placeholder: "Address #\(WalletManager.addressNumber(forIndex: index))") { text in
                     WalletManager.shared.setSpendingAddressLabel(index: index, label: text)
                     tokens.objectWillChange.send()
                 }

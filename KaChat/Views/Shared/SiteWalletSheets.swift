@@ -30,7 +30,8 @@ struct SiteWalletSheet: View {
                     paymentRequest: PaymentRequest(address: to, amountSompi: sompi, memo: "", toChattingAddress: false),
                     lockedSource: connection.source,
                     siteHost: request.host,
-                    onSent: { txId in wallet.sent(txId: txId) }
+                    onSent: { txId in wallet.sent(txId: txId) },
+                    onOutcomeUnknown: { txId in wallet.maybeSent(txId: txId) }
                 )
                 .environmentObject(ChatService.shared)
                 .environmentObject(ContactsManager.shared)

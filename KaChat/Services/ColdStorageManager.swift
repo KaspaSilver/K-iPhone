@@ -131,7 +131,7 @@ struct ColdStorageAddressEntry: Identifiable {
         if isQuantum {
             return ColdQuantumAddress.defaultLabel(chain: quantumChain, unitIndex: unitIndex)
         }
-        return "Address #\(index)"
+        return String(format: AppLocalization.string("Address #%lld"), locale: AppLocalization.locale, Int64(index))
     }
     var shortAddress: String {
         guard address.count > 20 else { return address }
@@ -465,12 +465,6 @@ final class ColdStorageManager: ObservableObject {
             }
         }
         return nil
-    }
-
-    /// Whether `address` is one of any account's quantum addresses.
-    func isQuantumAddress(_ address: String) -> Bool {
-        let lowered = address.lowercased()
-        return accounts.contains { $0.quantumAddresses.contains { $0.address == lowered } }
     }
 
     /// A pay-to-script-hash address: its script is `OP_BLAKE2B <32> OP_EQUAL`.

@@ -382,7 +382,7 @@ struct ColdStorageListView: View {
 /// One account on Manage Addresses' card (owner, 2026-11-27): its name, balance and worth,
 /// then Copy kpub, kpub QR, Rename and its receive notifications right on the card, and "Tap to
 /// View Addresses" (the whole card opens the account). Rename is in place: the name becomes a
-/// text field with the keyboard up, and each keystroke is saved (an empty name keeps the old one).
+/// text field with the keyboard up, saved when the rename ends (an empty name keeps the old one).
 private struct ColdStorageAccountCard: View {
     let account: ColdStorageAccount
     let sompi: UInt64?
@@ -412,9 +412,8 @@ private struct ColdStorageAccountCard: View {
                         .foregroundColor(.accentColor)
                     if isRenaming {
                         InlineRenameField(placeholder: account.label, draft: $draft, focused: $nameFocused) {
-                            isRenaming = false
+                            finishRename()
                         }
-                        .onChange(of: draft) { ColdStorageManager.shared.renameAccount(account, to: $0) }
                     } else {
                         Text(verbatim: account.label)
                             .font(.headline)
@@ -484,8 +483,20 @@ private struct ColdStorageAccountCard: View {
         .background(BalanceCardBackground())
         // The keyboard going away (Done, return, a tap elsewhere) ends the rename.
         .onChange(of: nameFocused) { focused in
-            if !focused { isRenaming = false }
+            if !focused { finishRename() }
         }
+        .onDisappear { finishRename() }
+    }
+
+    /// The name is saved once, when the rename ends. Saving each keystroke left a cleared name as
+    /// its first letter ("C") and restarted the cold-address cache on every key (audit 2026-11-27
+    /// M6). An empty field keeps the name it had.
+    private func finishRename() {
+        guard isRenaming else { return }
+        isRenaming = false
+        let name = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name != account.label else { return }
+        ColdStorageManager.shared.renameAccount(account, to: name)
     }
 }
 
@@ -528,6 +539,8 @@ struct ColdStorageDetailView: View {
     @State private var toastMessage: String?
     @State private var toastToken = UUID()
     @State private var loadToken = UUID()
+    /// A pending reload after coin activity (`reloadAfterActivity`).
+    @State private var activityReload: Task<Void, Never>?
     /// Addresses that own at least one .kachat name - drives the "Contains username" tag and
     /// counts as used in the sort.
     @State private var domainOwningAddresses: Set<String> = []
@@ -554,8 +567,10 @@ struct ColdStorageDetailView: View {
         }
     }
 
+    /// Every address, hidden ones too, as the account's card on the list and Manage Addresses
+    /// count it (audit 2026-11-27 L16).
     private var totalBalanceSompi: UInt64 {
-        entries.filter { !$0.hidden }.reduce(0) { $0 + $1.balanceSompi }
+        entries.reduce(UInt64(0)) { $0.addingSaturated($1.balanceSompi) }
     }
 
     var body: some View {
@@ -659,13 +674,13 @@ struct ColdStorageDetailView: View {
         // the screen reflects the funds without a manual pull.
         .onReceive(NotificationCenter.default.publisher(for: .ownAddressActivity)) { _ in
             guard !hubHidden else { return }
-            Task { await loadEntries() }
+            reloadAfterActivity()
         }
         // Always-post variant: also fires for self-send change (withdrawal/compound change)
         // that the notification-gated event above suppresses.
         .onReceive(NotificationCenter.default.publisher(for: .ownAddressUtxoActivity)) { _ in
             guard !hubHidden else { return }
-            Task { await loadEntries() }
+            reloadAfterActivity()
         }
         .sheet(item: $addressActionsTarget) { entry in
             addressRowActionsSheet(entry)
@@ -971,7 +986,19 @@ struct ColdStorageDetailView: View {
         }
     }
 
-    private func loadEntries() async {
+    /// Coins moved on one of the phone's own addresses: balances again, two seconds after the
+    /// last such change, without the per-address used checks and name lookups, which run on
+    /// appear and pull (audit 2026-11-27 L21: a full reload on every UTXO change).
+    private func reloadAfterActivity() {
+        activityReload?.cancel()
+        activityReload = Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            await loadEntries(balancesOnly: true)
+        }
+    }
+
+    private func loadEntries(balancesOnly: Bool = false) async {
         isLoading = true
         let token = UUID()
         loadToken = token
@@ -983,6 +1010,17 @@ struct ColdStorageDetailView: View {
         // discovery just found) had been checked one at a time.
         let baseEntries = await manager.getAddressList(for: currentAccount)
         guard loadToken == token else { return }
+        if balancesOnly {
+            // what the earlier checks found stays
+            let usedBefore = Set(entries.filter(\.everUsed).map(\.address))
+            entries = baseEntries.map { entry in
+                var entry = entry
+                if usedBefore.contains(entry.address) { entry.everUsed = true }
+                return entry
+            }.sorted { $0.index < $1.index }
+            isLoading = false
+            return
+        }
         entries = baseEntries.sorted { $0.index < $1.index }
         isLoading = false
 
@@ -1077,7 +1115,7 @@ struct ColdStorageDetailView: View {
             let index = await manager.lowestUnusedAddress(for: currentAccount)
             await loadEntries()
             isGenerating = false
-            showToast("Address #\(index) is ready.")
+            showToast(String(format: AppLocalization.string("Address #%d is ready."), locale: AppLocalization.locale, Int(index)))
         }
     }
 

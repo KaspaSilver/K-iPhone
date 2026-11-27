@@ -40,6 +40,11 @@ struct ExplorerView: View {
         case notFound
         /// kaspa.stream couldn't be asked, so it isn't known whether the id exists.
         case unreachable
+        /// A 64-character id: asked about only on Search or a tap, never as you type, since it
+        /// could be a pasted private key (audit 2026-11-27 L5).
+        case idToLookUp(String)
+        /// One of this wallet's own private keys: never sent anywhere.
+        case privateKey
     }
     @State private var path: [ExplorerRoute] = []
     @State private var query = ""
@@ -278,6 +283,12 @@ struct ExplorerView: View {
                     .buttonStyle(.plain)
                 case .block(let hash):
                     resultRow(icon: "cube.fill", title: "Block", detail: hash) { openTyped(.block(hash)) }
+                case .idToLookUp(let id):
+                    resultRow(icon: "magnifyingglass", title: "Look Up This ID", detail: id) {
+                        Task { await identifyTyped(id) }
+                    }
+                case .privateKey:
+                    typedNote("That's one of your private keys. K never sends it anywhere: don't share it.")
                 case .noUsername(let name):
                     typedNote("No username \(name)")
                 case .notAnAddress:
@@ -407,16 +418,8 @@ struct ExplorerView: View {
             let name = (await identity)?.label.map(KachatNameLabel.display) ?? KachatLive.identityName(lower)
             match = .address(lower, name: name, balance: (await balance)?.balance)
         } else if lower.count == 64, lower.allSatisfy(\.isHexDigit) {
-            // light calls: what the id is, not the whole transaction or block
-            do {
-                switch try await ExplorerAPI.identify(lower) {
-                case .transaction(let kind): match = .transaction(lower, kind: kind)
-                case .block: match = .block(lower)
-                case .notFound: match = .notFound
-                }
-            } catch {
-                match = .unreachable
-            }
+            // nothing leaves the phone until it's asked for (Search, or the row's tap)
+            match = Self.isOwnPrivateKey(lower) ? .privateKey : .idToLookUp(lower)
         } else {
             let found = await NameServicesClient.shared.resolveEverywhere(text).first
             if let found, let address = found.address {
@@ -429,9 +432,43 @@ struct ExplorerView: View {
         typedMatch = match
     }
 
+    /// What a 64-character id is (light calls: not the whole transaction or block), once asked.
+    private func identifyTyped(_ id: String) async {
+        guard !Self.isOwnPrivateKey(id) else { typedMatch = .privateKey; return }
+        typedMatch = .lookingUp
+        let match: TypedMatch
+        do {
+            switch try await ExplorerAPI.identify(id) {
+            case .transaction(let kind): match = .transaction(id, kind: kind)
+            case .block: match = .block(id)
+            case .notFound: match = .notFound
+            }
+        } catch {
+            match = .unreachable
+        }
+        guard query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == id else { return }
+        typedMatch = match
+    }
+
+    /// The chatting key or a listed spending address's key, as hex.
+    static func isOwnPrivateKey(_ hex: String) -> Bool {
+        let wallet = WalletManager.shared
+        let wanted = hex.lowercased()
+        if wallet.getPrivateKey()?.hexString.lowercased() == wanted { return true }
+        for entry in wallet.cachedSpendingAddressList() {
+            if wallet.spendingPrivateKey(at: entry.index)?.hexString.lowercased() == wanted { return true }
+        }
+        return false
+    }
+
     private func runSearch(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !searching else { return }
+        if trimmed.count == 64, trimmed.allSatisfy(\.isHexDigit), Self.isOwnPrivateKey(trimmed) {
+            typedMatch = .privateKey
+            Haptics.error()
+            return
+        }
         searching = true
         Task {
             let match = await ExplorerAPI.search(trimmed)

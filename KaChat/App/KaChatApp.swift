@@ -132,6 +132,11 @@ struct KaChatApp: App {
         case .background:
             // Persist any debounced message draft immediately so it survives termination.
             ChatService.shared.flushPendingDraftSave()
+            // The icon and the extension's count leave in step: pushes add to that count from here
+            // (audit 2026-11-27 L11).
+            if WalletManager.shared.currentWallet != nil {
+                AppTabBadge.applyIconCount(AppTabBadge.appIconCount, force: true)
+            }
             // No indexer sweeping while backgrounded - the push / background fetch paths own that.
             ChatService.shared.stopForegroundContactSweep()
             ChatService.shared.stopActiveChatPollForBackground()
@@ -180,6 +185,16 @@ struct KaChatApp: App {
             // on it whatever this run put there before (`AppTabBadge.applyIconCount`).
             AppTabBadge.forgetAppliedIconCount()
             ChatService.shared.scheduleBadgeUpdate()
+            // Mentions from rooms you haven't joined that came while K was away: into the bell.
+            UNUserNotificationCenter.current().getDeliveredNotifications { notes in
+                let rooms = notes.filter { $0.request.content.threadIdentifier.hasPrefix("broadcast:") }
+                guard !rooms.isEmpty else { return }
+                Task { @MainActor in
+                    for note in rooms {
+                        PublicChatService.shared.recordMentionPush(note.request.content, identifier: note.request.identifier)
+                    }
+                }
+            }
             // Cancel background fetch when app becomes active (we'll poll normally)
             BackgroundTaskManager.shared.cancelBackgroundFetch()
             // The node pool's discovery and block stream, paused in the background (audit
@@ -853,6 +868,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                         && !PublicChatService.serviceChannels.contains(PublicChatChannelName.normalize(room))) else {
                 return []
             }
+            if !InAppBanner.isOwn(notification) {
+                PublicChatService.shared.recordMentionPush(notification.request.content, identifier: notification.request.identifier)
+            }
             // The app already bannered this message while open (`InAppBanner`).
             if !InAppBanner.isOwn(notification), !InAppBanner.claim(InAppBanner.txId(of: notification)) {
                 return [.list]
@@ -1074,6 +1092,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // The threadIdentifier contains the contact address, or "group:<groupId>" for a group
         // chat notification.
         let threadIdentifier = response.notification.request.content.threadIdentifier
+        if threadIdentifier.hasPrefix("broadcast:") {
+            let note = response.notification
+            Task { @MainActor in
+                PublicChatService.shared.recordMentionPush(note.request.content, identifier: note.request.identifier)
+            }
+        }
 
         // The scheduled-post reminder (local fallback): into KaPosts, which sends what is due
         // and shows the Scheduled screen.

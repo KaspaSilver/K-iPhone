@@ -33,7 +33,15 @@ struct ContentView: View {
             value: walletManager.currentWallet != nil && !walletManager.isAwaitingSeedPhraseConfirmation
         )
         .onChange(of: walletManager.currentWallet == nil) { signedOut in
-            if signedOut { signInSession += 1 }
+            if signedOut {
+                signInSession += 1
+                // the next account starts with Kaspa Hub's menu, not the last one's section
+                // (audit 2026-11-27 L15), and its interceptor holds nothing of this session (L22)
+                HubRouter.shared.reset()
+                HubTabInterceptor.shared.reset()
+                // a debit-card order's poll stops with the account (audit 2026-11-27 M4)
+                CardBuyTracker.shared.signedOut()
+            }
         }
         .onAppear { LaunchTrace.mark("first screen on") }
     }

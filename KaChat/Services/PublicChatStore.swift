@@ -698,11 +698,20 @@ final class PublicChatStore {
 
     /// Records a delete; true when it's new.
     @discardableResult
-    func recordDelete(targetTxId: String, channel: String, by sender: String) -> Bool {
+    func recordDelete(targetTxId: String, channel: String, by sender: String, held: Bool = true) -> Bool {
         guard let wallet = currentWalletAddress else { return false }
         deletesLock.lock(); defer { deletesLock.unlock() }
         var (set, order) = loadDeletes(wallet: wallet)
         let entry = Self.deleteEntry(targetTxId, channel: channel, sender: sender)
+        // A delete for a message not on the phone (yet) can't be checked against its sender: only
+        // a txid-shaped target, and at most 100 such per sender, so a flood of fake deletes can't
+        // push out real ones (audit 2026-11-27 L7).
+        if !held {
+            let target = targetTxId.lowercased()
+            guard target.count == 64, target.allSatisfy(\.isHexDigit) else { return false }
+            let tail = "|" + sender.lowercased()
+            guard order.lazy.filter({ $0.hasSuffix(tail) }).count < 100 else { return false }
+        }
         guard set.insert(entry).inserted else { return false }
         order.append(entry)
         if order.count > 2_000 {
