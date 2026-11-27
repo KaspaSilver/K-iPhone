@@ -291,6 +291,9 @@ struct DomainNameCardView: View {
 /// section's "Manage Address" row.
 struct ChattingAddressManageView: View {
     let address: String
+    /// Send and Receive at the bottom: only where Manage Addresses' card isn't behind the page
+    /// (a tapped address-activity notification).
+    var showsSendReceive = false
 
     /// The tapped transaction, while its action chooser is up.
     @State private var transactionActionTarget: KaspaFullTransactionResponse?
@@ -351,7 +354,7 @@ struct ChattingAddressManageView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            KaspaAddressBalanceCard(label: AppLocalization.string("Chatting Address"), sompi: balanceSompi)
+            KaspaAddressBalanceCard(label: AppLocalization.string("Chatting Address"), address: address, sompi: balanceSompi)
 
             // Right above what it switches, the way Chats has it.
             PageCycleBar(
@@ -410,7 +413,10 @@ struct ChattingAddressManageView: View {
         .sheet(isPresented: $showPublicKeySheet) {
             AddressPublicKeyView(address: address, note: "This is the public half of your chatting address. It identifies you and cannot spend anything.")
         }
+        // Send and Receive are on Manage Addresses' card (owner, 2026-11-26); only a page opened
+        // from a notification, with no card behind it, keeps them.
         .safeAreaInset(edge: .bottom) {
+            if showsSendReceive {
             HStack(spacing: 12) {
                 Button {
                     showReceiveSheet = true
@@ -437,6 +443,7 @@ struct ChattingAddressManageView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 16)
+            }
         }
         .sheet(isPresented: $showReceiveSheet) {
             NavigationStack {

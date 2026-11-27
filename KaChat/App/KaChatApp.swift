@@ -1487,20 +1487,19 @@ enum KaChatLinkRouter {
         // Re-validated here, the last gate before a name from a pasted link can create a row.
         guard let normalized = KaChatInternalLink.normalizeAndValidateChannel(channel) else { return }
         let service = PublicChatService.shared
-        // Curated rooms always exist, and one already on the list needs nothing. Anything else
-        // joins the user's own list first, as if typed into "Join or Create a Channel", once
-        // they say so: any app or post can hand over a link, and the name is whatever it likes.
-        let curated = PublicChatService.curatedChannels.contains(normalized)
+        // A room already on the list needs nothing. Anything else joins the user's list first,
+        // once they say so: any app or post can hand over a link, and the name is whatever it
+        // likes. Default rooms too since 2026-11-26 (owner): no room is in the list unasked.
         // On a cold start `channels` is empty until the account's store opens, so a room already
         // joined would be offered again: wait for the store (up to 10 s, as `openRoomFromPush`).
-        if !curated, !service.isStoreReady, attemptsLeft > 0 {
+        if !service.isStoreReady, attemptsLeft > 0 {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 openPublicChatRoom(channel: normalized, attemptsLeft: attemptsLeft - 1)
             }
             return
         }
-        let listed = curated || service.channels.contains { $0.channelName == normalized }
+        let listed = service.channels.contains { $0.channelName == normalized }
         guard listed else {
             confirmJoin(normalized) {
                 // The store may have opened while the alert was up.
@@ -1520,19 +1519,32 @@ enum KaChatLinkRouter {
         NotificationCenter.default.post(name: .openPublicChat, object: nil, userInfo: ["channel": normalized])
     }
 
+    /// A room handed to the Chats list that isn't in it (an old @mention in Profile's bell for a room
+    /// since left): asked first, as a link is (owner, 2026-11-26: no room is added unasked).
+    @MainActor
+    static func askToJoinRoom(_ normalized: String) {
+        confirmJoin(normalized, message: AppLocalization.string("This room isn't in your Public Chats. Add it?")) {
+            if !PublicChatService.shared.channels.contains(where: { $0.channelName == normalized }) {
+                PublicChatService.shared.joinChannel(normalized)
+            }
+            navigateToPublicChatRoom(normalized)
+        }
+    }
+
     /// Asks before a link adds a room. Waits a few seconds for a window on a cold start.
     @MainActor
-    private static func confirmJoin(_ normalized: String, attemptsLeft: Int = 10, onJoin: @escaping @MainActor () -> Void) {
+    private static func confirmJoin(_ normalized: String, message askMessage: String? = nil, attemptsLeft: Int = 10,
+                                    onJoin: @escaping @MainActor () -> Void) {
         guard let presenter = topViewController() else {
             guard attemptsLeft > 0 else { return }
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 500_000_000)
-                confirmJoin(normalized, attemptsLeft: attemptsLeft - 1, onJoin: onJoin)
+                confirmJoin(normalized, message: askMessage, attemptsLeft: attemptsLeft - 1, onJoin: onJoin)
             }
             return
         }
         let title = String(format: AppLocalization.string("Join #%@?"), normalized)
-        var message = AppLocalization.string("A link wants to add this room to your Public Chats.")
+        var message = askMessage ?? AppLocalization.string("A link wants to add this room to your Public Chats.")
         if hasMixedScripts(normalized) {
             message += "\n\n" + AppLocalization.string("This name mixes letters from different alphabets, so it may be imitating another room.")
         }

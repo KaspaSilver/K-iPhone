@@ -43,23 +43,20 @@ struct WelcomeGuideView: View {
         case language
         case currency
         case fees
-        case funding
-        case nodeConnection
-        /// The guide's final step.
+        // no Fund Your Chatting Address step (owner, 2026-11-26): "5 Kaspa lets you send around
+        // 2,500 messages" is on the fees step. No Connect to a Node step either (owner, same
+        // day): a newcomer wouldn't know what it means, so K starts on the default node and the
+        // choice lives in Settings > Connection Settings > Node.
         case addressExplainer
-    }
-
-    private enum NodeChoice: Equatable {
-        case defaultNode
-        case ownNode
-        case autoDiscover
+        /// The guide's final step (owner, 2026-11-26): share the chatting address so people can
+        /// reach you.
+        case shareAddress
     }
 
     @State private var step: Step = .welcome
-    @State private var nodeChoice: NodeChoice = .defaultNode
-    @State private var ownNodeInput = ""
-    @State private var nodeValidationError: String?
     @State private var toastMessage: String?
+    /// The share step's QR of the chatting address.
+    @State private var shareQRImage: UIImage?
     @State private var toastToken = UUID()
 
     private var chattingAddress: String {
@@ -101,11 +98,6 @@ struct WelcomeGuideView: View {
         // Both presenters use fullScreenCover today (no swipe-down exists), but if the guide is
         // ever hosted in a sheet this keeps drag-to-dismiss off for the whole onboarding run.
         .interactiveDismissDisabled(isOnboardingRun)
-        .onAppear {
-            nodeChoice = currentNodeChoiceFromSettings()
-            ownNodeInput = settingsViewModel.settings.trustedNodeAddress == AppSettings.defaultTrustedNodeAddress
-                ? "" : settingsViewModel.settings.trustedNodeAddress
-        }
     }
 
     @ViewBuilder
@@ -130,19 +122,16 @@ struct WelcomeGuideView: View {
             scaffold(
                 icon: "network",
                 title: "How K Uses Kaspa",
-                body: "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network.",
+                body: "K lets you send and receive messages on the Kaspa network itself. Kaspa is required to pay fees when sending your messages. The fee you pay goes to miners which secure the network. 5 Kaspa lets you send around 2,500 messages.",
                 buttonTitle: "Next",
-                extra: { EmptyView() }
-            ) { step = .funding }
-
-        case .nodeConnection:
-            nodeConnectionStep
-
-        case .funding:
-            fundingStep
+                extra: { changeChattingAddressLink }
+            ) { step = .addressExplainer }
 
         case .addressExplainer:
             addressExplainerStep
+
+        case .shareAddress:
+            shareAddressStep
         }
     }
 
@@ -247,7 +236,7 @@ struct WelcomeGuideView: View {
         .padding(.bottom, 24)
     }
 
-    /// The guide is done: the one-shot import marker (funding step's "Change Chatting Address"
+    /// The guide is done: the one-shot import marker (the fees step's "Change Chatting Address"
     /// option) has served its purpose, and a completed onboarding run must not re-present on the
     /// next launch.
     private func finishGuide() {
@@ -375,191 +364,25 @@ struct WelcomeGuideView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Funding step
+    // MARK: - Change Chatting Address (imports only)
 
-    private var fundingStep: some View {
-        scaffold(
-            icon: "qrcode",
-            title: "Fund Your Chatting Address",
-            body: "5 Kaspa is enough for about 2500 messages.",
-            buttonTitle: "Next",
-            extra: {
-                VStack(spacing: 12) {
-                    Button {
-                        UIPasteboard.general.string = chattingAddress
-                        Haptics.success()
-                        showToast(chattingAddress.addressCopiedToastText)
-                    } label: {
-                        Text(chattingAddress)
-                            .font(.footnote.monospaced())
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .padding(.horizontal, 24)
-                            .foregroundColor(.primary)
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        ChattingAddressQRView(
-                            address: chattingAddress,
-                            balanceSompi: walletManager.currentWallet?.balanceSompi
-                        )
-                    } label: {
-                        Label("Show QR Code", systemImage: "qrcode")
-                            .font(.subheadline.weight(.semibold))
-                    }
-
-                    // INITIAL IMPORT ONBOARDING RUNS ONLY, never Help replays: gated on the
-                    // presenter-supplied onboarding context AND the import-only marker
-                    // (justImportedWallet is never set by the create flow, is in-memory only so
-                    // it cannot survive a relaunch into a later replay, and is cleared on
-                    // Finish). An imported seed may hold its real identity - domains (.kas, .k, .kaspa), a
-                    // funded chatting balance - at a nonzero derivation index. Pushes the
-                    // scanner INSIDE the wizard's NavigationStack; after a switch it pops back
-                    // here and this step re-renders with the new address automatically
-                    // (chattingAddress reads the live currentWallet).
-                    if isOnboardingRun, walletManager.justImportedWallet {
-                        NavigationLink {
-                            ChattingAddressPickerView()
-                        } label: {
-                            Label("Change Chatting Address", systemImage: "person.text.rectangle")
-                                .font(.subheadline.weight(.semibold))
-                        }
-                    }
-
-                }
-            },
-            action: { step = .nodeConnection }
-        )
-    }
-
-    // MARK: - Node connection step
-
-    private var nodeConnectionStep: some View {
-        VStack(spacing: 0) {
-            centeringScroll {
-                VStack(spacing: 16) {
-                    Image(systemName: "server.rack")
-                        .font(.scaled(size: 56))
-                        .foregroundColor(.accentColor)
-                    Text("Connect to a Node")
-                        .font(.title2.weight(.bold))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                    Text("K needs to connect to a node. How would you like to connect?")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-
-                    VStack(spacing: 10) {
-                        nodeChoiceRow(
-                            choice: .defaultNode,
-                            title: "Default",
-                            badge: "Recommended",
-                            subtitle: AppSettings.defaultTrustedNodeAddress
-                        )
-                        nodeChoiceRow(
-                            choice: .ownNode,
-                            title: "Connect Your Own Node",
-                            badge: "Best",
-                            subtitle: "Enter a node address you trust"
-                        )
-                        if nodeChoice == .ownNode {
-                            TextField("host:port, grpcs:// or wss://", text: $ownNodeInput)
-                                .font(.system(.footnote, design: .monospaced))
-                                .autocapitalization(.none)
-                                .autocorrectionDisabled()
-                                .keyboardType(.URL)
-                                .padding(10)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .padding(.horizontal, 24)
-                                .onChange(of: ownNodeInput) { _ in nodeValidationError = nil }
-                        }
-                        nodeChoiceRow(
-                            choice: .autoDiscover,
-                            title: "Auto Search for Nodes",
-                            badge: nil,
-                            subtitle: "Most taxing on the device, not as reliable - depends on where you live"
-                        )
-                    }
-                    .padding(.horizontal, 24)
-
-                    if let nodeValidationError {
-                        Text(nodeValidationError)
-                            .font(.caption)
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 24)
-                    }
-                }
-                .padding(.vertical, 24)
+    /// INITIAL IMPORT ONBOARDING RUNS ONLY, never Help replays: gated on the presenter-supplied
+    /// onboarding context AND the import-only marker (justImportedWallet is never set by the create
+    /// flow, is in-memory only so it cannot survive a relaunch into a later replay, and is cleared
+    /// on Finish). An imported seed may hold its real identity - a username, a funded chatting
+    /// balance - at a nonzero derivation index. Pushes the scanner INSIDE the wizard's
+    /// NavigationStack. It lived on the Fund Your Chatting Address step until that step left
+    /// (owner, 2026-11-26).
+    @ViewBuilder
+    private var changeChattingAddressLink: some View {
+        if isOnboardingRun, walletManager.justImportedWallet {
+            NavigationLink {
+                ChattingAddressPickerView()
+            } label: {
+                Label("Change Chatting Address", systemImage: "person.text.rectangle")
+                    .font(.subheadline.weight(.semibold))
             }
-            guideBottomBar { applyNodeChoice() }
         }
-    }
-
-    private func nodeChoiceRow(choice: NodeChoice, title: String, badge: String?, subtitle: String) -> some View {
-        Button {
-            nodeChoice = choice
-            nodeValidationError = nil
-        } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: nodeChoice == choice ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(nodeChoice == choice ? .accentColor : .secondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(LocalizedStringKey(title))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.primary)
-                        if let badge {
-                            Text(LocalizedStringKey(badge))
-                                .font(.caption2.weight(.bold))
-                                .foregroundColor(.accentColor)
-                        }
-                    }
-                    Text(LocalizedStringKey(subtitle))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer()
-            }
-            .padding(12)
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func currentNodeChoiceFromSettings() -> NodeChoice {
-        let current = settingsViewModel.settings.trustedNodeAddress
-        if current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return .autoDiscover
-        }
-        if current == AppSettings.defaultTrustedNodeAddress {
-            return .defaultNode
-        }
-        return .ownNode
-    }
-
-    private func applyNodeChoice() {
-        let valueToApply: String
-        switch nodeChoice {
-        case .defaultNode:
-            valueToApply = AppSettings.defaultTrustedNodeAddress
-        case .autoDiscover:
-            valueToApply = ""
-        case .ownNode:
-            valueToApply = ownNodeInput
-        }
-
-        if let error = settingsViewModel.applyTrustedNode(valueToApply) {
-            nodeValidationError = error
-            return
-        }
-        nodeValidationError = nil
-        step = .addressExplainer
     }
 
     // MARK: - Address explainer step
@@ -590,6 +413,13 @@ struct WelcomeGuideView: View {
                             address: chattingAddress,
                             caption: "Share this address and people can message you. Only you can read what they send."
                         )
+                        // a username makes the address easy to find (owner, 2026-11-26)
+                        addressMockRow(
+                            icon: "at",
+                            title: "Get a Username",
+                            address: "",
+                            caption: "Claim a username, like @alice, so people can find and message you without your long address. Get one in Kaspa Hub > Usernames."
+                        )
                         addressMockRow(
                             icon: "paperplane.fill",
                             title: "Paying for Messages",
@@ -607,8 +437,79 @@ struct WelcomeGuideView: View {
                 }
                 .padding(.vertical, 24)
             }
-            guideBottomBar(title: "Finish") { finishGuide() }
+            guideBottomBar { step = .shareAddress }
         }
+    }
+
+    // MARK: - Share step
+
+    /// The chatting address to share: its QR, the address, Share (Messages, Mail...) and Copy
+    /// Share Link, as Profile's Share Profile has them (the same kachat.app link).
+    private var shareAddressStep: some View {
+        let shareURL = KaChatInternalLink.profileShareURL(for: chattingAddress)
+        return scaffold(
+            icon: "square.and.arrow.up",
+            title: "Share Your Chatting Address",
+            body: "Send it to someone so they can find and message you on K.",
+            buttonTitle: "Finish",
+            extra: {
+                VStack(spacing: 14) {
+                    Group {
+                        if let shareQRImage {
+                            Image(uiImage: shareQRImage)
+                                .interpolation(.none)
+                                .resizable()
+                                .scaledToFit()
+                        } else {
+                            ProgressView()
+                        }
+                    }
+                    .frame(width: 180, height: 180)
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
+
+                    Text(verbatim: chattingAddress.wrappingAnywhere)
+                        .font(.footnote.monospaced())
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 24)
+
+                    if let shareURL {
+                        HStack(spacing: 12) {
+                            ShareLink(item: shareURL) {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.black)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                                    .background(Capsule().fill(Color.accentColor))
+                            }
+                            Button {
+                                UIPasteboard.general.string = shareURL.absoluteString
+                                Haptics.success()
+                                showToast(AppLocalization.string("Share link copied."))
+                            } label: {
+                                Label("Copy Share Link", systemImage: "link")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.accentColor)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                                    .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 24)
+                    }
+                }
+                .onAppear {
+                    shareQRImage = ProfileQRCodeCache.cachedImage(for: chattingAddress)
+                    ProfileQRCodeCache.preload(address: chattingAddress) { image in
+                        if let image { shareQRImage = image }
+                    }
+                }
+            },
+            action: { finishGuide() }
+        )
     }
 
     private func addressMockRow(icon: String, title: String, address: String, caption: String) -> some View {

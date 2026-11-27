@@ -347,6 +347,10 @@ final class PermitRequest: Identifiable {
         }
         guard let message = typed["message"] as? [String: Any],
               (message["owner"] as? String)?.lowercased() == owner.lowercased(),
+              // The spender is the deposit address Trestly's factory names for the Kaspa address
+              // (`forwarderOf(0, kaspaOwner, maxFee, maxDepositFee)`, which its page checks with an
+              // eth_call). K can't check it: the fee caps aren't in the typed data. Shown in full
+              // on the sheet; CLAUDE.md's Buy Kaspa section has the ask for Trestly (audit 2026-11-26).
               let spender = message["spender"] as? String, EthereumHex.isAddress(spender),
               let value = EIP712.smallUInt(message["value"]), value > 0, value <= 1_000_000_000_000,
               let deadline = EIP712.smallUInt(message["deadline"]), EIP712.smallUInt(message["nonce"]) != nil else {
@@ -461,6 +465,12 @@ final class CardBuyTracker: ObservableObject {
                 save()
                 revealAddress(of: current)
             }
+            return
+        }
+        // A paid order still on its way isn't swapped for a new one nobody has paid (audit
+        // 2026-11-26): its progress and its kUSDT-arrived shortcut would be lost. A new order that
+        // is paid takes over (K follows one order at a time).
+        if let current = buy, current.paidSeen == true, !current.isFinished, !paid {
             return
         }
         buy = CardBuy(session: session, address: target.address, label: target.label,

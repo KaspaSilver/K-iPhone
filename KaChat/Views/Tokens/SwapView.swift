@@ -4,21 +4,40 @@ import CoreImage.CIFilterBuiltins
 
 /// Swap, from the Wallet tab's Swap button (back 2026-11-23): KAS for kUSDT through Trestly's pool
 /// on Kaspa, KAS for coins on other networks through ChangeNOW (see SwapService). Opens on the two
-/// third-party agreements (`SwapAgreementsView`) until both are accepted. Structure mirrors
-/// Android's SwapScreen (amount cards, flip control, swap history) in this app's glass cards.
+/// third-party agreements (`SwapAgreementsView`) until both are accepted.
+///
+/// Buy and sell, step by step (owner, 2026-11-26: buy / sell words, not "swap"): the Wallet's Buy
+/// button (`BuyKaspaSheet` on mainnet: crypto or debit card) asks what to pay with, its Sell button
+/// what to get (`SwapCoinChoiceList`), then the order itself with an amount on either
+/// side. A ChangeNOW order then shows its deposit (`SwapDepositScreen`: what to send, the QR and
+/// address, waiting for payment, the transaction ID) until it finishes (`SwapCompleteScreen`, with
+/// Add to Portfolio). A kUSDT order ends on a sent screen once Trestly's trade goes out.
 struct SwapView: View {
+    /// Where it opens: buying Kaspa (what to pay with), selling it (what to get), the history, or
+    /// straight on the order (the debit card's kUSDT for KAS, set up before).
+    enum Start: String, Identifiable { case buy, sell, history, form; var id: String { rawValue } }
+    var start: Start = .form
+    /// Opened to fund the chatting address: bought Kaspa is set to land there to start with.
+    var buyToChatting = false
+
+    /// The screens after the first.
+    enum Step: Hashable {
+        /// Buying Kaspa: where it lands, before the amounts.
+        case destination
+        case form
+        case deposit(String)
+        case complete(String)
+        case kusdtDone(String)
+    }
+    @State private var path: [Step] = []
+
     @ObservedObject private var swapService = SwapService.shared
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @EnvironmentObject private var walletManager: WalletManager
     @Environment(\.dismiss) private var dismiss
     @State private var showKusdtFromPicker = false
 
-    private enum Tab: Int { case swap, history }
-    @State private var selectedTab: Tab = .swap
-
     @State private var selectedSwap: SwapTransaction?
-    @State private var showToAddressPicker = false
-    @State private var showCoinPicker = false
     @State private var showPortfolioConfirm = false
 
     /// Portfolios that already hold the swap being added, so the chooser can flag the duplicate
@@ -44,7 +63,8 @@ struct SwapView: View {
     }
 
     var body: some View {
-        if swapService.agreementsAccepted {
+        // the history is only a list: no agreement needed to read it
+        if swapService.agreementsAccepted || start == .history {
             swapScreen
         } else {
             SwapAgreementsView(onCancel: { dismiss() }, onAccept: { swapService.acceptAgreements() })
@@ -52,34 +72,31 @@ struct SwapView: View {
     }
 
     private var swapScreen: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                swapTabBar
-
-                TabView(selection: $selectedTab) {
-                    swapFormPage
-                        .tag(Tab.swap)
-                    swapHistoryPage
-                        .tag(Tab.history)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-            }
-            .navigationTitle("Swap")
-            .navigationBarTitleDisplayMode(.large)
+        NavigationStack(path: $path) {
+            rootScreen
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
-                ToolbarItem(placement: .principal) {
-                    BalanceToolbarLabel()
-                }
+            }
+            .navigationDestination(for: Step.self) { step in
+                stepScreen(step)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") { dismiss() }
+                        }
+                    }
             }
             .toast(message: toastMessage)
-            // a kUSDT swap that went through
+            // a kUSDT swap that went through: its own screen, from the swap itself
             .onChange(of: swapService.notice) { notice in
                 guard let notice else { return }
-                showToast(notice)
                 swapService.notice = nil
+                if path.last == .form || (path.isEmpty && start == .form) {
+                    path.append(.kusdtDone(notice))
+                } else {
+                    showToast(notice)
+                }
             }
             .sheet(item: $swapService.kusdtApproval) { request in
                 TrestlyApprovalSheet(request: request) { approved in
@@ -93,33 +110,18 @@ struct SwapView: View {
                     swapService.setKusdtFrom(target)
                 }
             }
+            // a ChangeNOW exchange made: its deposit screen
             .onChange(of: swapService.createSwapState.status) { status in
-                if status == .success {
-                    showToast("Swap started")
+                if status == .success, let created = swapService.createSwapState.result {
+                    path.append(.deposit(created.transaction.id))
                 } else if status == .failed {
                     showToast(swapService.createSwapState.errorMessage ?? "Swap failed")
                 }
             }
             .sheet(item: $selectedSwap) { swap in
                 SwapDetailView(swap: swap) {
-                    guard let prefill = swapService.portfolioPrefill(for: swap) else {
-                        showToast("Couldn't read this swap's amounts")
-                        return
-                    }
-                    pendingPortfolioPrefill = prefill
-                    pendingPortfolioSwapId = swap.id
                     selectedSwap = nil
-                    showPortfolioConfirm = true
-                }
-            }
-            .sheet(isPresented: $showToAddressPicker) {
-                SwapAddressPickerView { entry in
-                    swapService.selectToSpendingAddress(index: entry.index)
-                }
-            }
-            .sheet(isPresented: $showCoinPicker) {
-                SwapCoinPickerView(currentCoin: swapService.otherCoin) { coin in
-                    swapService.setOtherCoin(coin)
+                    addToPortfolio(swap)
                 }
             }
             // A half sheet rather than a confirmation dialog, like every other chooser in the
@@ -187,11 +189,90 @@ struct SwapView: View {
         }
     }
 
-    // MARK: - Page switch (the app's cycle button, `PageCycleBar`, 2026-11-24)
+    // MARK: - The steps
 
-    private var swapTabBar: some View {
-        PageCycleBar(tabs: [(tab: Tab.swap, title: "Swap"), (tab: Tab.history, title: "Swap History")],
-                     selection: $selectedTab)
+    @ViewBuilder
+    private var rootScreen: some View {
+        switch start {
+        case .buy:
+            SwapCoinChoiceList(
+                question: AppLocalization.string("What do you want to pay with?"),
+                coins: SwapCoinChoiceList.everyCoin(includingKaspa: false)
+            ) { coin in
+                choosePair(from: coin, to: .kas)
+            }
+            .navigationTitle("Buy Kaspa")
+            .navigationBarTitleDisplayMode(.inline)
+        case .sell:
+            SwapCoinChoiceList(
+                question: AppLocalization.string("What do you want for your Kaspa?"),
+                coins: SwapCoinChoiceList.everyCoin(includingKaspa: false)
+            ) { coin in
+                choosePair(from: .kas, to: coin)
+            }
+            .navigationTitle("Sell Kaspa")
+            .navigationBarTitleDisplayMode(.inline)
+        case .history:
+            swapHistoryPage
+                .navigationTitle("Buy/Sell History")
+                .navigationBarTitleDisplayMode(.inline)
+        case .form:
+            formScreen
+        }
+    }
+
+    @ViewBuilder
+    private func stepScreen(_ step: Step) -> some View {
+        switch step {
+        case .destination:
+            SwapDestinationStep { path.append(.form) }
+        case .form:
+            formScreen
+        case .deposit(let id):
+            SwapDepositScreen(swapId: id, onCopied: { showToast($0) }) {
+                // finished: the completion takes the deposit's place
+                if let last = path.indices.last { path[last] = .complete(id) }
+            }
+            .navigationBarBackButtonHidden(true)
+        case .complete(let id):
+            SwapCompleteScreen(swapId: id, onAddToPortfolio: { swap in addToPortfolio(swap) }, onDone: { dismiss() })
+                .navigationBarBackButtonHidden(true)
+        case .kusdtDone(let message):
+            SwapSentScreen(message: message, onDone: { dismiss() })
+                .navigationBarBackButtonHidden(true)
+        }
+    }
+
+    /// The order: Buy Kaspa with a coin or Sell Kaspa for one, an amount on either side.
+    private var formScreen: some View {
+        swapFormPage
+            .navigationTitle(Text(verbatim: swapService.kasIsSendSide
+                ? String(format: AppLocalization.string("Sell Kaspa for %@"), swapService.otherCoin.displayName)
+                : String(format: AppLocalization.string("Buy Kaspa with %@"), swapService.otherCoin.displayName)))
+            .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// The pair picked on the coin screen: Kaspa is always one side (bought or sold), so which side
+    /// it's on sets the direction and the other coin is the pair's.
+    private func choosePair(from first: SwapCoin, to second: SwapCoin) {
+        let kasSends = first == .kas
+        if swapService.kasIsSendSide != kasSends { swapService.flipDirection() }
+        swapService.setOtherCoin(kasSends ? second : first)
+        swapService.setAmountText("")
+        if !kasSends && buyToChatting { swapService.useChattingToAddress() } else { swapService.useFreshToAddress() }
+        // buying Kaspa: where it lands is its own step (owner, 2026-11-26), for kUSDT too
+        path.append(kasSends ? .form : .destination)
+    }
+
+    /// Add to Portfolio, from the completion screen or a history entry: the portfolio chooser.
+    private func addToPortfolio(_ swap: SwapTransaction) {
+        guard let prefill = swapService.portfolioPrefill(for: swap) else {
+            showToast("Couldn't read this swap's amounts")
+            return
+        }
+        pendingPortfolioPrefill = prefill
+        pendingPortfolioSwapId = swap.id
+        showPortfolioConfirm = true
     }
 
     // MARK: - Swap form
@@ -214,7 +295,7 @@ struct SwapView: View {
                 // Both cards take input. Type under "You Send" and "You Get" is quoted; type
                 // under "You Get" and the reverse quote fills "You Send" with what that costs.
                 swapAmountCard(
-                    label: "You Send",
+                    label: "You Pay",
                     coin: swapService.fromCoin,
                     amountText: swapService.amountText,
                     field: .amount,
@@ -241,39 +322,6 @@ struct SwapView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 4)
-                }
-
-                HStack(spacing: 12) {
-                    Button {
-                        swapService.flipDirection()
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundColor(.black)
-                            .frame(width: 40, height: 40)
-                            .background(Circle().fill(Color.accentColor))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text("Switch direction"))
-
-                    Button {
-                        swapService.executeSwap()
-                    } label: {
-                        Group {
-                            if isBusy {
-                                ProgressView().tint(.black)
-                            } else {
-                                Text(swapButtonTitle)
-                                    .fontWeight(.bold)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 40)
-                        .foregroundColor(canSwap ? .black : .secondary)
-                        .background(Capsule().fill(canSwap ? Color.accentColor : Color(.systemGray5)))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!canSwap)
                 }
 
                 swapAmountCard(
@@ -318,7 +366,8 @@ struct SwapView: View {
                     }
                 }
 
-                if swapService.isKusdt {
+                // buying with kUSDT, the address was picked on the "where" step
+                if swapService.isKusdt && swapService.kasIsSendSide {
                     spendingAddressRow(
                         title: swapService.kasIsSendSide ? "Swap From (kUSDT Lands Here)" : "Swap From (KAS Lands Here)",
                         valueText: swapService.kusdtTarget.map { "\($0.label) \u{00B7} \(shortAddress($0.address))" } ?? "",
@@ -326,23 +375,11 @@ struct SwapView: View {
                         onFeeTap: nil,
                         onChangeTap: { showKusdtFromPicker = true }
                     )
-                } else if !swapService.kasIsSendSide {
-                    spendingAddressRow(
-                        title: "Receiving KAS At",
-                        valueText: swapService.toAddress.count > 20
-                            ? "\(swapService.toAddress.prefix(12))...\(swapService.toAddress.suffix(6))"
-                            : swapService.toAddress,
-                        feeText: nil,
-                        onFeeTap: nil,
-                        onChangeTap: { showToAddressPicker = true }
-                    )
                 }
 
                 rateCard
 
-                if !swapService.isKusdt, let created = swapService.createSwapState.result {
-                    swapResultCard(created)
-                }
+                swapButton
 
                 if swapService.isKusdt {
                     Link("Powered by Trestly", destination: SwapAgreementsView.trestlyTermsURL)
@@ -365,7 +402,29 @@ struct SwapView: View {
         .scrollDismissesKeyboard(.immediately)
     }
 
-    private var swapButtonTitle: LocalizedStringKey { swapService.isKusdt ? "Swap" : "Get Deposit Address" }
+    /// Swap, under the amounts. A ChangeNOW swap goes on to its deposit screen; a kUSDT one asks
+    /// for approval first.
+    private var swapButton: some View {
+        Button {
+            focusedField = nil
+            swapService.executeSwap()
+        } label: {
+            Group {
+                if isBusy {
+                    ProgressView().tint(.black)
+                } else {
+                    Text(LocalizedStringKey(swapService.kasIsSendSide ? "Sell Kaspa" : "Buy Kaspa"))
+                        .fontWeight(.bold)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .foregroundColor(canSwap ? .black : .secondary)
+            .background(Capsule().fill(canSwap ? Color.accentColor : Color(.systemGray5)))
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSwap)
+    }
 
     /// One sentence per side, so each language words it whole (audit 2026-11-24 #34).
     private func portfolioPrompt(_ prefill: SwapService.PortfolioPrefill) -> Text {
@@ -409,139 +468,6 @@ struct SwapView: View {
         return "\u{2014}"
     }
 
-    /// The deposit card, drawn from the exchange ChangeNOW created (its coins, amount, addresses
-    /// and tag), never from the coins picked now (audit 2026-11-24 #2). Its status is the live
-    /// history entry's, so Refresh Status shows.
-    private func swapResultCard(_ created: SwapService.CreatedSwap) -> some View {
-        let swap = swapService.history.first { $0.id == created.transaction.id } ?? created.transaction
-        return VStack(alignment: .leading, spacing: 10) {
-            if created.fromCoin == .kas {
-                NavigationLink {
-                    ManageAddressesView()
-                } label: {
-                    HStack {
-                        Image(systemName: "arrow.right.circle.fill")
-                        Text("Go to Spending Addresses")
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.accentColor)
-                }
-                .padding(.bottom, 2)
-            }
-
-            Text("Send \(created.fromCoin.displayName) to this address")
-                .font(.subheadline.weight(.bold))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Amount to Send")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(verbatim: "\(swap.fromAmount) \(created.fromCoin.displayName)")
-                    .font(.title3.weight(.bold))
-                    .textSelection(.enabled)
-            }
-
-            HStack {
-                Spacer()
-                if let qrImage = makeQRCodeImage(from: swap.payinAddress) {
-                    Button {
-                        UIPasteboard.general.string = swap.payinAddress
-                        Haptics.success()
-                        showToast(swap.payinAddress.addressCopiedToastText)
-                    } label: {
-                        Image(uiImage: qrImage)
-                            .interpolation(.none)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 180, height: 180)
-                            .padding(12)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                }
-                Spacer()
-            }
-
-            Button {
-                UIPasteboard.general.string = swap.payinAddress
-                Haptics.success()
-                showToast(swap.payinAddress.addressCopiedToastText)
-            } label: {
-                Text(verbatim: swap.payinAddress)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
-            }
-            .buttonStyle(.plain)
-
-            if let tag = swap.payinExtraId, !tag.isEmpty {
-                SwapDepositTagBox(tag: tag) {
-                    UIPasteboard.general.string = tag
-                    Haptics.success()
-                    showToast("Destination tag copied")
-                }
-            }
-
-            // where ChangeNOW pays out, as it answered (audit 2026-11-24 #6)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Payout Address")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(verbatim: swap.payoutAddress)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.primary)
-                    .textSelection(.enabled)
-                if let payoutTag = swap.payoutExtraId, !payoutTag.isEmpty {
-                    Text("Destination Tag: \(payoutTag)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Text("Status: \(swapStatusName(swap.status))")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("ChangeNOW Exchange ID")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Button {
-                    UIPasteboard.general.string = swap.id
-                    Haptics.success()
-                    showToast("Exchange ID copied")
-                } label: {
-                    Text(verbatim: swap.id)
-                        .font(.caption)
-                        .foregroundColor(.primary)
-                }
-                .buttonStyle(.plain)
-            }
-
-            HStack {
-                Button("Refresh Status") {
-                    swapService.refreshSwapStatus(id: swap.id)
-                }
-                .font(.caption.weight(.bold))
-                .foregroundColor(.accentColor)
-
-                Spacer()
-
-                if let url = URL(string: "https://changenow.io/exchange/txs/\(swap.id)") {
-                    Link("View on ChangeNOW", destination: url)
-                        .font(.caption.weight(.bold))
-                        .foregroundColor(.accentColor)
-                }
-            }
-        }
-        .padding(16)
-        .background(glassBackground(cornerRadius: 18))
-    }
-
     // MARK: - Reusable pieces
 
     /// One amount card. `isQuoting` marks the card whose figure is being fetched for the
@@ -577,7 +503,12 @@ struct SwapView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    TextField("0.00", text: Binding(get: { amountText }, set: onAmountChange))
+                    // Thousands grouped as you type (owner, 2026-11-26: "12,345.5"), as Send Kaspa's
+                    // amount: the field shows `grouped`, and what's typed goes back plain.
+                    TextField("0.00", text: Binding(
+                        get: { KaspaAmountEntry.grouped(amountText) },
+                        set: { onAmountChange(KaspaAmountEntry.ungrouped($0, previous: KaspaAmountEntry.grouped(amountText))) }
+                    ))
                         .font(.title2.weight(.semibold))
                         .keyboardType(.decimalPad)
                         .numericKeyboardDoneButton()
@@ -605,25 +536,9 @@ struct SwapView: View {
         return TokenAmount.amount(swapService.kusdtFromUnits, token: .kusdt)
     }
 
-    /// Only the non-KAS side of the pair is actually pickable - KAS is always the fixed side.
+    /// The coin, fixed: it's picked on the coin screens before.
     private func coinBadge(_ coin: SwapCoin) -> some View {
-        Group {
-            if coin.ticker == "kas" {
-                coinBadgeContent(coin)
-            } else {
-                Button {
-                    showCoinPicker = true
-                } label: {
-                    HStack(spacing: 4) {
-                        coinBadgeContent(coin)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
+        coinBadgeContent(coin)
     }
 
     private func coinBadgeContent(_ coin: SwapCoin) -> some View {
@@ -1045,186 +960,6 @@ private struct SwapDetailView: View {
     }
 }
 
-/// Lightweight spending-address picker for Swap's "Change" rows - not the full Manage Addresses
-/// screen (this only needs tap-to-pick, no rename/hide/withdraw actions).
-private struct SwapAddressPickerView: View {
-    let onPick: (SpendingAddressEntry) -> Void
-
-    @EnvironmentObject var walletManager: WalletManager
-    @EnvironmentObject var settingsViewModel: SettingsViewModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var entries: [SpendingAddressEntry] = []
-    @State private var isLoading = false
-    @State private var isGenerating = false
-    /// The address whose action sheet is up.
-    @State private var actionTarget: SpendingAddressEntry?
-
-    /// What the list offers. A swap payout goes to a FRESH address - reusing one publishes the
-    /// link between this swap and everything that address has already done - so used ones are
-    /// filtered out rather than merely marked. The badge stays on each row anyway: the used flag
-    /// is filled in by a network check that can fail, and an unlabelled row would be a silent
-    /// claim this code cannot always back up.
-    private var selectableEntries: [SpendingAddressEntry] {
-        entries.filter { !$0.hidden && !$0.everUsed }
-    }
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading && entries.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List {
-                        Section {
-                            Button {
-                                generateNewAddress()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "plus.circle")
-                                    Text("Generate New Address")
-                                    Spacer()
-                                    if isGenerating {
-                                        ProgressView()
-                                    }
-                                }
-                                .foregroundColor(.accentColor)
-                            }
-                            .disabled(isGenerating)
-                        } footer: {
-                            Text("A swap pays out to an address you have not used before, so the payout cannot be tied to your earlier activity. Generate one if none are free.")
-                        }
-
-                        Section {
-                            if selectableEntries.isEmpty {
-                                Text("Every address here has been used. Generate a new one above.")
-                                    .foregroundColor(.secondary)
-                            }
-                            ForEach(selectableEntries) { entry in
-                                Button {
-                                    // Tapping asks what to do with the address rather than
-                                    // committing outright - the explorer used to be behind an
-                                    // ellipsis menu nobody would find.
-                                    actionTarget = entry
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            HStack(spacing: 6) {
-                                                Text(entry.displayLabel)
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                                usedBadge(for: entry)
-                                            }
-                                            Text(entry.shortAddress)
-                                                .font(.system(.subheadline, design: .monospaced))
-                                                .foregroundColor(.primary)
-                                        }
-                                        Spacer()
-                                        Text(verbatim: "\(formatKas(entry.balanceSompi)) KAS")
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundColor(.primary)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        } header: {
-                            Text("Unused Addresses")
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Choose Address")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .task {
-                await loadEntries()
-            }
-            .sheet(item: $actionTarget) { entry in
-                addressActionsSheet(entry)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func usedBadge(for entry: SpendingAddressEntry) -> some View {
-        Text(entry.everUsed ? "Used" : "Unused")
-            .font(.caption2.weight(.semibold))
-            .foregroundColor(entry.everUsed ? .orange : .green)
-    }
-
-    /// Tap an address: look at it first, or take it. Replaces an ellipsis menu whose only item
-    /// was the explorer.
-    private func addressActionsSheet(_ entry: SpendingAddressEntry) -> some View {
-        VStack(spacing: 12) {
-            VStack(spacing: 4) {
-                Text(entry.displayLabel)
-                    .font(.headline)
-                Text(entry.shortAddress)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 20)
-            .padding(.bottom, 4)
-
-            if let url = settingsViewModel.settings.kaspaExplorer.addressURL(for: entry.address) {
-                ActionSheetRow(
-                    title: "View in Explorer",
-                    subtitle: "Check its history before you send a swap to it.",
-                    systemImage: "safari"
-                ) {
-                    actionTarget = nil
-                    UIApplication.shared.open(url)
-                }
-            }
-            ActionSheetRow(
-                title: "Use for This Swap",
-                subtitle: "ChangeNOW pays the swapped KAS out to this address.",
-                systemImage: "arrow.down.circle"
-            ) {
-                actionTarget = nil
-                onPick(entry)
-                dismiss()
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .presentationDetents([.height(300)])
-        .presentationDragIndicator(.visible)
-    }
-
-    private func loadEntries() async {
-        isLoading = true
-        entries = await walletManager.getSpendingAddressList()
-        isLoading = false
-    }
-
-    private func generateNewAddress() {
-        guard !isGenerating else { return }
-        isGenerating = true
-        Task {
-            await walletManager.generateNextSpendingAddress()
-            await loadEntries()
-            isGenerating = false
-        }
-    }
-
-    private func formatKas(_ sompi: UInt64) -> String {
-        var text = String(format: "%.8f", Double(sompi) / 100_000_000.0)
-        while text.hasSuffix("0") { text.removeLast() }
-        if text.hasSuffix(".") { text.removeLast() }
-        return text
-    }
-}
-
 /// Ticker -> `Assets.xcassets` imageset name for coins with real brand art (sourced from the
 /// Tangem wallet app's bundled network logos, via its own remote icon CDN -
 /// `s3.eu-central-1.amazonaws.com/tangem.api/coins/large/{coingecko-id}.png`). Tickers not listed
@@ -1252,194 +987,27 @@ private let swapCoinLogoAssetNames: [String: String] = [
 /// falls back to its ticker in a plain colored circle. Top-level (not a method on `SwapView`) so
 /// `SwapCoinPickerView`'s rows can share it too.
 @ViewBuilder
-func swapCoinIcon(_ coin: SwapCoin) -> some View {
+func swapCoinIcon(_ coin: SwapCoin, size: CGFloat = 20) -> some View {
     if coin.isTrestly {
-        TokenIcon(token: .kusdt, size: 20)
+        TokenIcon(token: .kusdt, size: size)
     } else if coin.ticker == "kas" {
         Image("KaspaLogo")
             .resizable()
             .scaledToFit()
-            .frame(width: 20, height: 20)
+            .frame(width: size, height: size)
     } else if let assetName = swapCoinLogoAssetNames[coin.ticker] {
         Image(assetName)
             .resizable()
             .scaledToFit()
-            .frame(width: 20, height: 20)
+            .frame(width: size, height: size)
             .clipShape(Circle())
     } else {
         Text(coin.ticker.uppercased())
-            .font(.scaled(size: 8, weight: .bold))
+            .font(.scaled(size: size * 0.4, weight: .bold))
             .lineLimit(1)
             .minimumScaleFactor(0.5)
-            .frame(width: 20, height: 20)
+            .frame(width: size, height: size)
             .background(Circle().fill(Color.accentColor.opacity(0.3)))
-    }
-}
-
-/// Reached by tapping either amount card's coin badge (the non-KAS side only - KAS is always the
-/// fixed side of the pair). Searchable since `SwapCoin.curated` now has ~50 entries across many
-/// networks, not just the one hardcoded USDC-Polygon pair this originally shipped with.
-private struct SwapCoinPickerView: View {
-    let currentCoin: SwapCoin
-    let onPick: (SwapCoin) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-    @State private var expandedGroups: Set<String> = []
-
-    /// Tickers with more than one network - collapsed to a single row on the root list that
-    /// expands in place to show its networks (rather than listing all ~7-9 networks inline
-    /// unconditionally), since that's most of what made the flat list unwieldy. Keyed by ticker,
-    /// valued by the short name shown for the collapsed row.
-    private static let groupedTickers: [String: String] = [
-        "usdt": "Tether",
-        "usdc": "USD Coin"
-    ]
-
-    private enum PickerRow: Identifiable {
-        case coin(SwapCoin)
-        case group(ticker: String, displayName: String)
-        case network(SwapCoin)
-
-        var id: String {
-            switch self {
-            case .coin(let coin): return "\(coin.ticker)-\(coin.network)"
-            case .group(let ticker, _): return "group-\(ticker)"
-            case .network(let coin): return "network-\(coin.ticker)-\(coin.network)"
-            }
-        }
-    }
-
-    /// USDC and USDT are pinned as the first two rows (in that order) since they're the most
-    /// commonly swapped stablecoins - everything else follows in `SwapCoin.curated`'s order.
-    private static let pinnedGroupTickers = ["usdc", "usdt"]
-
-    private var rootRows: [PickerRow] {
-        // kUSDT first: K swaps it itself, on Kaspa, through Trestly's pool
-        var rows: [PickerRow] = [.coin(.kusdt)]
-        for ticker in Self.pinnedGroupTickers {
-            guard let displayName = Self.groupedTickers[ticker] else { continue }
-            rows.append(.group(ticker: ticker, displayName: displayName))
-            if expandedGroups.contains(ticker) {
-                for coin in SwapCoin.curated where coin.ticker == ticker {
-                    rows.append(.network(coin))
-                }
-            }
-        }
-        for coin in SwapCoin.curated where Self.groupedTickers[coin.ticker] == nil {
-            rows.append(.coin(coin))
-        }
-        return rows
-    }
-
-    private var filteredRows: [PickerRow] {
-        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return rootRows }
-        let query = searchText.lowercased()
-        return rootRows.filter { row in
-            switch row {
-            case .coin(let coin):
-                return coin.displayName.lowercased().contains(query) || coin.ticker.lowercased().contains(query)
-            case .group(let ticker, let displayName):
-                return displayName.lowercased().contains(query) || ticker.lowercased().contains(query)
-            case .network(let coin):
-                return coin.displayName.lowercased().contains(query) || coin.ticker.lowercased().contains(query)
-            }
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            List(filteredRows) { row in
-                switch row {
-                case .coin(let coin):
-                    Button {
-                        onPick(coin)
-                        dismiss()
-                    } label: {
-                        pickerRow(icon: { swapCoinIcon(coin) }, title: coin.displayName, isSelected: coin == currentCoin)
-                    }
-                    .buttonStyle(.plain)
-                case .group(let ticker, let displayName):
-                    // Icon only depends on `.ticker`, so any curated entry sharing this ticker
-                    // works as the representative icon for the collapsed row.
-                    let representative = SwapCoin.curated.first { $0.ticker == ticker }
-                    let isExpanded = expandedGroups.contains(ticker)
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            if isExpanded {
-                                expandedGroups.remove(ticker)
-                            } else {
-                                expandedGroups.insert(ticker)
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 12) {
-                            if let representative {
-                                swapCoinIcon(representative)
-                            }
-                            Text(displayName)
-                                .foregroundColor(.primary)
-                            Spacer()
-                            if currentCoin.ticker == ticker {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.accentColor)
-                            }
-                            Image(systemName: "chevron.down")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                case .network(let coin):
-                    Button {
-                        onPick(coin)
-                        dismiss()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Spacer().frame(width: 28)
-                            swapCoinIcon(coin)
-                            Text(coin.displayName)
-                                .foregroundColor(.primary)
-                            Spacer()
-                            if coin == currentCoin {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.accentColor)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .listStyle(.plain)
-            .searchable(text: $searchText, prompt: "Search coins")
-            .navigationTitle("Choose Coin")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-        }
-    }
-
-    private func pickerRow<Icon: View>(icon: () -> Icon, title: String, isSelected: Bool) -> some View {
-        HStack(spacing: 12) {
-            icon()
-            Text(title)
-                .foregroundColor(.primary)
-            Spacer()
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .foregroundColor(.accentColor)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
     }
 }
 
@@ -1670,5 +1238,797 @@ private struct KusdtSwapFromPicker: View {
             kasByAddress = Dictionary(entries.map { ($0.address, $0.balanceSompi) }, uniquingKeysWith: { first, _ in first })
             kasAddresses = entries.filter { !$0.isQuantum && $0.balanceSompi > 0 }.sorted { $0.index < $1.index }
         }
+    }
+}
+
+// MARK: - Swap step by step (owner, 2026-11-26)
+
+/// The Wallet tab's Buy button, a half sheet (owner, 2026-11-26): Buy Kaspa with Crypto or with
+/// Debit Card (mainnet only; its order's stage under it, as the Wallet card it replaced showed).
+/// Sell has its own button and goes straight in; the history is a card on the Wallet tab.
+struct BuyKaspaSheet: View {
+    let onCrypto: () -> Void
+    let onDebitCard: () -> Void
+    @ObservedObject private var tracker = CardBuyTracker.shared
+
+    private var debitSubtitle: String {
+        _ = tracker.buy
+        if let buy = DebitCardBuy.shownOrder { return BuyKaspaStatus.line(buy) }
+        return AppLocalization.string("Pay by card. It lands as kUSDT, then you buy Kaspa with it.")
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Buy Kaspa")
+                .font(.headline)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+            ActionSheetRow(
+                title: "Buy Kaspa with Crypto",
+                subtitle: "Pay with another coin, like kUSDT or Bitcoin.",
+                systemImage: "bitcoinsign.circle"
+            ) { onCrypto() }
+            ActionSheetRow(
+                title: "Buy Kaspa with Debit Card",
+                subtitle: debitSubtitle,
+                systemImage: "creditcard"
+            ) { onDebitCard() }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// A screen of coins to pick from: what to pay with (Buy) or what to get (Sell): kUSDT, then USD
+/// Coin and Tether folded by network, then the rest. Search once the
+/// list is long.
+struct SwapCoinChoiceList: View {
+    let question: String
+    let coins: [SwapCoin]
+    let onPick: (SwapCoin) -> Void
+
+    @State private var searchText = ""
+    @State private var expanded: Set<String> = []
+
+    /// Tickers on several networks, folded into one row that opens in place.
+    private static let groupNames: [String: String] = ["usdc": "USD Coin", "usdt": "Tether"]
+
+    /// Every coin K swaps, in the list's order.
+    static func everyCoin(includingKaspa: Bool) -> [SwapCoin] {
+        var list: [SwapCoin] = includingKaspa ? [.kas] : []
+        list.append(.kusdt)
+        for ticker in ["usdc", "usdt"] {
+            list += SwapCoin.curated.filter { $0.ticker == ticker }
+        }
+        list += SwapCoin.curated.filter { groupNames[$0.ticker] == nil }
+        return list
+    }
+
+    private enum Row: Identifiable {
+        case coin(SwapCoin)
+        case group(String)
+        case network(SwapCoin)
+
+        var id: String {
+            switch self {
+            case .coin(let coin): return "c-\(coin.ticker)-\(coin.network)"
+            case .group(let ticker): return "g-\(ticker)"
+            case .network(let coin): return "n-\(coin.ticker)-\(coin.network)"
+            }
+        }
+    }
+
+    private var rows: [Row] {
+        let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        if !query.isEmpty {
+            return coins
+                .filter { $0.displayName.lowercased().contains(query) || $0.ticker.contains(query) }
+                .map { .coin($0) }
+        }
+        var out: [Row] = []
+        var seen: Set<String> = []
+        for coin in coins {
+            let siblings = coins.filter { $0.ticker == coin.ticker }
+            if Self.groupNames[coin.ticker] != nil, siblings.count > 1 {
+                guard !seen.contains(coin.ticker) else { continue }
+                seen.insert(coin.ticker)
+                out.append(.group(coin.ticker))
+                if expanded.contains(coin.ticker) {
+                    out += siblings.map { .network($0) }
+                }
+            } else {
+                out.append(.coin(coin))
+            }
+        }
+        return out
+    }
+
+    private static func symbol(_ coin: SwapCoin) -> String {
+        coin.isTrestly ? "kUSDT" : coin.ticker.uppercased()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(verbatim: question)
+                    .font(.title2.weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 6)
+                if coins.count > 6 {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        TextField("Search coins", text: $searchText)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                    }
+                    .padding(12)
+                    .background(glassBackground(cornerRadius: 14))
+                    .padding(.bottom, 4)
+                }
+                ForEach(rows) { row in
+                    switch row {
+                    case .coin(let coin):
+                        coinRow(coin, indent: false)
+                    case .network(let coin):
+                        coinRow(coin, indent: true)
+                    case .group(let ticker):
+                        groupRow(ticker)
+                    }
+                }
+            }
+            .padding(16)
+        }
+        .scrollDismissesKeyboard(.immediately)
+    }
+
+    private func coinRow(_ coin: SwapCoin, indent: Bool) -> some View {
+        Button {
+            Haptics.impact(.light)
+            onPick(coin)
+        } label: {
+            HStack(spacing: 12) {
+                swapCoinIcon(coin, size: indent ? 26 : 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: coin.displayName)
+                        .font(indent ? .subheadline.weight(.semibold) : .headline)
+                        .foregroundColor(.primary)
+                    Text(verbatim: Self.symbol(coin))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+            }
+            .padding(14)
+            .background(glassBackground(cornerRadius: 16))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, indent ? 24 : 0)
+    }
+
+    private func groupRow(_ ticker: String) -> some View {
+        let networks = coins.filter { $0.ticker == ticker }
+        let isOpen = expanded.contains(ticker)
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if isOpen { expanded.remove(ticker) } else { expanded.insert(ticker) }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                if let first = networks.first {
+                    swapCoinIcon(first, size: 34)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: Self.groupNames[ticker] ?? ticker.uppercased())
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Text(verbatim: String(format: AppLocalization.string("%@ on %d networks"), ticker.uppercased(), networks.count))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+                    .rotationEffect(.degrees(isOpen ? 180 : 0))
+            }
+            .padding(14)
+            .background(glassBackground(cornerRadius: 16))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// A coin of a saved swap, by its ticker and network, with its name.
+private func swapCoinFor(ticker: String, network: String) -> SwapCoin {
+    ([SwapCoin.kas, .kusdt] + SwapCoin.curated).first { $0.ticker == ticker && $0.network == network }
+        ?? SwapCoin(ticker: ticker, network: network, displayName: ticker.uppercased())
+}
+
+private func swapQRImage(_ string: String) -> UIImage? {
+    let filter = CIFilter.qrCodeGenerator()
+    filter.setValue(Data(string.utf8), forKey: "inputMessage")
+    guard let output = filter.outputImage else { return nil }
+    let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
+    guard let cgImage = CIContext().createCGImage(scaled, from: scaled.extent) else { return nil }
+    return UIImage(cgImage: cgImage)
+}
+
+/// A ChangeNOW swap's deposit: what to send and where (QR and address, the tag if the coin needs
+/// one), waiting for payment, and the transaction ID. Checks ChangeNOW every 10 s while it shows,
+/// and moves on to the completion screen once the swap finishes. Drawn from the exchange made,
+/// never from the coins picked now (audit 2026-11-24 #2).
+private struct SwapDepositScreen: View {
+    let swapId: String
+    let onCopied: (String) -> Void
+    let onFinished: () -> Void
+
+    @ObservedObject private var swapService = SwapService.shared
+    @State private var showSendKas = false
+
+    private var swap: SwapTransaction? { swapService.history.first { $0.id == swapId } }
+
+    var body: some View {
+        Group {
+            if let swap {
+                content(swap)
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle("Send Payment")
+        .navigationBarTitleDisplayMode(.inline)
+        .task(id: swapId) {
+            while !Task.isCancelled {
+                if let status = await swapService.refreshSwapStatusAsync(id: swapId), status.lowercased() == "finished" {
+                    Haptics.success()
+                    onFinished()
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+            }
+        }
+    }
+
+    private func content(_ swap: SwapTransaction) -> some View {
+        let from = swapCoinFor(ticker: swap.fromTicker, network: swap.fromNetwork)
+        let to = swapCoinFor(ticker: swap.toTicker, network: swap.toNetwork)
+        return ScrollView {
+            VStack(spacing: 16) {
+                VStack(spacing: 6) {
+                    Text(verbatim: String(format: AppLocalization.string("Send %@ %@"),
+                                          KaspaAmountEntry.grouped(swap.fromAmount), from.displayName))
+                        .font(.title2.weight(.bold))
+                        .multilineTextAlignment(.center)
+                    Text(verbatim: to == .kas
+                         ? AppLocalization.string("to buy Kaspa")
+                         : String(format: AppLocalization.string("to sell it for %@"), to.displayName))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 8)
+
+                statusCard(swap, to: to)
+
+                if let image = swapQRImage(swap.payinAddress) {
+                    Image(uiImage: image)
+                        .interpolation(.none)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 200, height: 200)
+                        .padding(14)
+                        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Deposit Address")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(verbatim: swap.payinAddress.wrappingAnywhere)
+                        .font(.system(.footnote, design: .monospaced))
+                        .fixedSize(horizontal: false, vertical: true)
+                    copyButton("Copy Address") {
+                        UIPasteboard.general.string = swap.payinAddress
+                        onCopied(swap.payinAddress.addressCopiedToastText)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(glassBackground(cornerRadius: 18))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Amount to Send")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(verbatim: "\(KaspaAmountEntry.grouped(swap.fromAmount)) \(from.displayName)")
+                        .font(.title3.weight(.bold))
+                    copyButton("Copy Amount") {
+                        UIPasteboard.general.string = swap.fromAmount
+                        onCopied(AppLocalization.string("Amount copied"))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(glassBackground(cornerRadius: 18))
+
+                if let tag = swap.payinExtraId, !tag.isEmpty {
+                    SwapDepositTagBox(tag: tag) {
+                        UIPasteboard.general.string = tag
+                        Haptics.success()
+                        onCopied(AppLocalization.string("Destination tag copied"))
+                    }
+                }
+
+                // Kaspa in: K pays it, the address and amount filled in
+                if from == .kas, let sompi = KaspaUnit.sompi(fromUserText: swap.fromAmount) {
+                    Button {
+                        showSendKas = true
+                    } label: {
+                        Label("Send KAS from K", systemImage: "arrow.up.circle.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .foregroundColor(.black)
+                            .background(Capsule().fill(Color.accentColor))
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $showSendKas) {
+                        if let wallet = WalletManager.shared.currentWallet {
+                            WithdrawKaspaView(
+                                fromAddress: wallet.publicAddress,
+                                availableBalanceSompi: wallet.balanceSompi,
+                                paymentRequest: PaymentRequest(address: swap.payinAddress, amountSompi: sompi, memo: "",
+                                                               toChattingAddress: false, creator: nil, signature: nil)
+                            )
+                            .environmentObject(ContactsManager.shared)
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Transaction ID")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(verbatim: swap.id)
+                        .font(.system(.footnote, design: .monospaced))
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        copyButton("Copy ID") {
+                            UIPasteboard.general.string = swap.id
+                            onCopied(AppLocalization.string("Exchange ID copied"))
+                        }
+                        Spacer()
+                        if let url = URL(string: "https://changenow.io/exchange/txs/\(swap.id)") {
+                            Link("View on ChangeNOW", destination: url)
+                                .font(.caption.weight(.bold))
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(glassBackground(cornerRadius: 18))
+
+                if !swap.toAmount.isEmpty {
+                    Text(verbatim: String(format: AppLocalization.string("You get about %@ %@, sent to %@."),
+                                          KaspaAmountEntry.grouped(swap.toAmount), to.displayName,
+                                          "\(swap.payoutAddress.prefix(12))...\(swap.payoutAddress.suffix(6))"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(16)
+        }
+    }
+
+    private func copyButton(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.success()
+            action()
+        } label: {
+            Label(title, systemImage: "doc.on.doc")
+                .font(.caption.weight(.bold))
+                .foregroundColor(.accentColor)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Where the swap is: waiting for payment until ChangeNOW sees it, then each step.
+    private func statusCard(_ swap: SwapTransaction, to: SwapCoin) -> some View {
+        let status = swap.status.lowercased()
+        let problem = ["failed", "refunded", "expired", "verifying"].contains(status)
+        let title: String
+        let detail: String
+        switch status {
+        case "confirming":
+            title = AppLocalization.string("Payment received")
+            detail = AppLocalization.string("Waiting for it to confirm.")
+        case "exchanging":
+            title = AppLocalization.string("Exchanging")
+            detail = AppLocalization.string("ChangeNOW is converting your coins.")
+        case "sending":
+            title = String(format: AppLocalization.string("Sending your %@"), to.displayName)
+            detail = AppLocalization.string("Almost done.")
+        case "failed":
+            title = swapStatusName(status)
+            detail = AppLocalization.string("ChangeNOW couldn't finish this order. Check it on ChangeNOW.")
+        case "refunded":
+            title = swapStatusName(status)
+            detail = AppLocalization.string("ChangeNOW sent the coins back.")
+        case "expired":
+            title = swapStatusName(status)
+            detail = AppLocalization.string("Nothing arrived in time. Start a new order.")
+        case "verifying":
+            title = swapStatusName(status)
+            detail = AppLocalization.string("ChangeNOW is checking this order.")
+        default:
+            title = AppLocalization.string("Waiting for payment")
+            detail = AppLocalization.string("Send the amount above. This screen updates by itself.")
+        }
+        return HStack(spacing: 12) {
+            if problem {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+                    .foregroundColor(.orange)
+            } else {
+                ProgressView()
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: title)
+                    .font(.headline)
+                Text(verbatim: detail)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(glassBackground(cornerRadius: 18))
+    }
+}
+
+/// A ChangeNOW order that finished: Purchase Complete or Sale Complete, what went in and what came
+/// out, Add to Portfolio, and Done.
+private struct SwapCompleteScreen: View {
+    let swapId: String
+    let onAddToPortfolio: (SwapTransaction) -> Void
+    let onDone: () -> Void
+
+    @ObservedObject private var swapService = SwapService.shared
+
+    var body: some View {
+        let swap = swapService.history.first { $0.id == swapId }
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 72))
+                .foregroundColor(.green)
+            Text(LocalizedStringKey(swap?.toTicker == "kas" ? "Purchase Complete" : "Sale Complete"))
+                .font(.title.weight(.bold))
+            if let swap {
+                let from = swapCoinFor(ticker: swap.fromTicker, network: swap.fromNetwork)
+                let to = swapCoinFor(ticker: swap.toTicker, network: swap.toNetwork)
+                VStack(spacing: 6) {
+                    Text(verbatim: String(format: AppLocalization.string("You paid %@ %@"),
+                                          KaspaAmountEntry.grouped(swap.fromAmount), from.displayName))
+                    if !swap.toAmount.isEmpty {
+                        Text(verbatim: String(format: AppLocalization.string("You got about %@ %@"),
+                                              KaspaAmountEntry.grouped(swap.toAmount), to.displayName))
+                    }
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            }
+            Spacer()
+            if let swap {
+                Button {
+                    onAddToPortfolio(swap)
+                } label: {
+                    Label(LocalizedStringKey(swap.addedToPortfolio ? "Added to Portfolio" : "Add to Portfolio"),
+                          systemImage: swap.addedToPortfolio ? "checkmark" : "chart.pie.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .foregroundColor(swap.addedToPortfolio ? .secondary : .black)
+                        .background(Capsule().fill(swap.addedToPortfolio ? Color(.systemGray5) : Color.accentColor))
+                }
+                .buttonStyle(.plain)
+                .disabled(swap.addedToPortfolio)
+            }
+            Button {
+                onDone()
+            } label: {
+                Text("Done")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .foregroundColor(.primary)
+                    .background(glassBackground(cornerRadius: 25))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+        .navigationTitle(Text(LocalizedStringKey(swap?.toTicker == "kas" ? "Purchase Complete" : "Sale Complete")))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// A kUSDT swap Trestly's pool took: what it says, and Done.
+private struct SwapSentScreen: View {
+    let message: String
+    let onDone: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 72))
+                .foregroundColor(.green)
+            Text("Order Sent")
+                .font(.title.weight(.bold))
+            Text(verbatim: message)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            Spacer()
+            Button {
+                onDone()
+            } label: {
+                Text("Done")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .foregroundColor(.black)
+                    .background(Capsule().fill(Color.accentColor))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+        .navigationTitle("Order Sent")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Buying Kaspa, its own step before the amounts (owner, 2026-11-26): "Where should your Kaspa
+/// land?" Through ChangeNOW: a fresh address (the default, as Buy Kaspa with Debit Card has it: an
+/// exchange's coins stay apart from the username and chats) or one picked from the account's
+/// addresses (`OwnAddressList`, the Chatting Address too). With kUSDT: one of the addresses
+/// holding kUSDT, since Trestly's trade pays from an address and lands its Kaspa on the same one.
+private struct SwapDestinationStep: View {
+    let onContinue: () -> Void
+    @ObservedObject private var swapService = SwapService.shared
+    @ObservedObject private var tokens = TokenWallet.shared
+    @State private var choosing = false
+    /// The address picked under Choose an Address.
+    @State private var picked: String?
+
+    private var canContinue: Bool { swapService.isKusdt || !choosing || picked != nil }
+
+    /// kUSDT: the Chatting Address and every address holding kUSDT, most first after it.
+    private var kusdtChoices: [TrestlyTarget] {
+        let held = tokens.holdings(of: .kusdt)
+        var list: [TrestlyTarget] = []
+        if let chatting = WalletManager.shared.currentWallet?.publicAddress {
+            list.append(TrestlyTarget(label: AppLocalization.string("Chatting Address"), address: chatting, spendingIndex: nil,
+                                      units: held.first(where: \.isChatting)?.units ?? 0))
+        }
+        for holding in held.filter({ !$0.isChatting && $0.units > 0 }).sorted(by: { $0.units > $1.units }) {
+            list.append(TrestlyTarget(holding: holding))
+        }
+        return list
+    }
+
+    private var kusdtStep: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("kUSDT is paid from one address, and your Kaspa lands on that same address.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(kusdtChoices) { choice in
+                let isPicked = choice.address == swapService.kusdtTarget?.address
+                Button {
+                    Haptics.impact(.light)
+                    swapService.setKusdtFrom(choice.spendingIndex == nil ? nil : choice)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: isPicked ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundColor(isPicked ? .accentColor : .secondary)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(verbatim: choice.label)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.primary)
+                            Text(verbatim: "\(choice.address.prefix(14))...\(choice.address.suffix(8))")
+                                .font(.caption.monospaced())
+                                .foregroundColor(.secondary)
+                            Text(verbatim: TokenAmount.amount(choice.units, token: .kusdt))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(glassBackground(cornerRadius: 18))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(isPicked ? Color.accentColor : .clear, lineWidth: 1.5)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                SendStepQuestion(text: "Where should your Kaspa land?")
+                if swapService.isKusdt {
+                    kusdtStep
+                } else {
+                HStack(spacing: 10) {
+                    SelectablePill(title: "Fresh Address", selected: !choosing) {
+                        choosing = false
+                        picked = nil
+                        swapService.useFreshToAddress()
+                    }
+                    SelectablePill(title: "Choose an Address", selected: choosing) {
+                        choosing = true
+                    }
+                    Spacer(minLength: 0)
+                }
+                if choosing {
+                    OwnAddressList(selected: picked) { source in
+                        switch source {
+                        case .chatting:
+                            swapService.useChattingToAddress()
+                        case .spending(let index, _, _):
+                            swapService.selectToSpendingAddress(index: index)
+                        }
+                        picked = swapService.toAddress
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("A new address that has never been used, so this purchase stays apart from your username and chats.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !swapService.toAddress.isEmpty {
+                            Text(verbatim: swapService.toAddress.wrappingAnywhere)
+                                .font(.system(.footnote, design: .monospaced))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(glassBackground(cornerRadius: 18))
+                }
+                }
+            }
+            .padding(16)
+        }
+        // opened to fund the chatting address: Choose an Address, the Chatting Address picked
+        .onAppear {
+            if swapService.toChatting, !swapService.isKusdt {
+                choosing = true
+                picked = swapService.toAddress
+            }
+        }
+        .task(id: swapService.isKusdt) {
+            if swapService.isKusdt { await tokens.refreshIfStale(everyAddress: true) }
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                Haptics.impact(.light)
+                onContinue()
+            } label: {
+                Text("Continue")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .foregroundColor(canContinue ? .black : .secondary)
+                    .background(Capsule().fill(canContinue ? Color.accentColor : Color(.systemGray5)))
+            }
+            .buttonStyle(.plain)
+            .disabled(!canContinue)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+        }
+        .navigationTitle("Buy Kaspa")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Buy Kaspa from anywhere (the Wallet tab's Buy, a chat's "Fund your chatting address" card): the
+/// half sheet of Buy Kaspa with Crypto or with Debit Card on mainnet, straight to crypto elsewhere,
+/// and the screens each opens. `toChatting`: bought Kaspa is set to land on the Chatting Address.
+struct BuyKaspaFlow: ViewModifier {
+    @Binding var isPresented: Bool
+    var toChatting = false
+    @State private var showSheet = false
+    @State private var afterSheet: (() -> Void)?
+    @State private var swapCover: SwapView.Start?
+    @State private var buyKaspaCover: BuyKaspaOpen?
+
+    /// Anything of the flow on screen, or about to be (a sheet choice waiting to open its screen).
+    private var isOpen: Bool {
+        showSheet || afterSheet != nil || swapCover != nil || buyKaspaCover != nil
+    }
+
+    private func syncPresence() {
+        BuyKaspaFlowPresence.shared.isOpen = isOpen
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: isPresented) { open in
+                guard open else { return }
+                isPresented = false
+                if DebitCardBuy.isOffered { showSheet = true } else { swapCover = .buy }
+                syncPresence()
+            }
+            .onChange(of: showSheet) { _ in syncPresence() }
+            .onChange(of: swapCover?.id) { _ in syncPresence() }
+            .onChange(of: buyKaspaCover?.id) { _ in syncPresence() }
+            .onDisappear { if isOpen { BuyKaspaFlowPresence.shared.isOpen = false } }
+            .sheet(isPresented: $showSheet, onDismiss: {
+                let next = afterSheet
+                afterSheet = nil
+                next?()
+                syncPresence()
+            }) {
+                BuyKaspaSheet(
+                    onCrypto: { choose { swapCover = .buy } },
+                    onDebitCard: {
+                        choose {
+                            DebitCardBuy.open(openSwap: { swapCover = $0 },
+                                              openPage: { buyKaspaCover = BuyKaspaOpen(resume: $0) })
+                        }
+                    }
+                )
+                .fittedSheetDetents(270)
+                .presentationDragIndicator(.visible)
+            }
+            .fullScreenCover(item: $swapCover) { start in
+                SwapView(start: start, buyToChatting: toChatting)
+            }
+            .fullScreenCover(item: $buyKaspaCover) { open in
+                BuyKaspaView(resume: open.resume, preferChatting: toChatting)
+            }
+    }
+
+    private func choose(_ next: @escaping () -> Void) {
+        afterSheet = next
+        showSheet = false
+    }
+}
+
+/// A funding card's Buy Kaspa flow is on screen. The card's hosts (the chat composers, the "not
+/// enough funds" sheet) keep the card while it is: the card goes the moment the account is funded,
+/// and the flow's screens (deposit, Purchase Complete, Add to Portfolio) would close with it.
+@MainActor
+final class BuyKaspaFlowPresence: ObservableObject {
+    static let shared = BuyKaspaFlowPresence()
+    @Published var isOpen = false
+}
+
+extension View {
+    func buyKaspaFlow(isPresented: Binding<Bool>, toChatting: Bool = false) -> some View {
+        modifier(BuyKaspaFlow(isPresented: isPresented, toChatting: toChatting))
     }
 }

@@ -11,9 +11,10 @@ import UserNotifications
 final class PublicChatService: ObservableObject {
     static let shared = PublicChatService()
 
-    /// Hardcoded curated channels pinned to the top of the list, matching Android. Like every
-    /// default room they are joined for every account (see `ensureDefaultChannelsJoined`). Since
-    /// 2026-11-24 (owner) every room starts silenced: the bell is yours to turn on.
+    /// Hardcoded curated channels pinned to the top of the list when joined, matching Android.
+    /// Since 2026-11-26 (owner) no room is joined for anyone: Public Chats starts empty and every
+    /// room is one the person added (the room browser's Join, a link, or a name), and joins with its
+    /// bell on (they chose it); the bell is theirs to turn off.
     /// nonisolated: read from PublicChatStore's background prune (retention rule) as well as
     /// main-actor UI - immutable Sendable value, safe from anywhere.
     nonisolated static let featuredChannels = ["kaspa", "report-bugs"]
@@ -65,7 +66,7 @@ final class PublicChatService: ObservableObject {
 
     /// Rooms the operator added on the indexer (owner, 2026-11-25): what its `/broadcast-channels`
     /// reports beyond the built-in rooms, so a room added in the indexer's panel becomes a default
-    /// room in K - joined with its bell off, with a switch in Edit Default Public Chats - with no
+    /// room in K's Add Room list (owner, 2026-11-26: offered, never joined for anyone) - with no
     /// app update. The machinery rooms and retired names are left out. A room the indexer drops
     /// stops being a default: joined, it stays as an ordinary room; switched off, it's left.
     nonisolated static var indexerDefaultChannels: [String] {
@@ -324,7 +325,7 @@ final class PublicChatService: ObservableObject {
     /// Asks the app-wide public chat indexer which rooms it tracks (`/broadcast-channels`), at
     /// most once an hour per indexer - on app open and wallet switch. An indexer without the
     /// endpoint answers nothing and the set keeps what it learned from served rows.
-    /// `maxAge` is shorter where a new room is looked for (Edit Default Public Chats: a minute).
+    /// `maxAge` is shorter where a new room is looked for (Add Room: a minute).
     func refreshIndexerTrackedRooms(maxAge: TimeInterval = 3600) {
         let base = AppSettings.load().publicChatIndexerURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty else { return }
@@ -704,65 +705,14 @@ final class PublicChatService: ObservableObject {
         return featured + others
     }
 
-    /// "Delete" from the room list. A room you added is left for good (`leaveChannel`, its
-    /// messages go). A default room cannot really be deleted - it is simply switched off, the
-    /// same as its toggle in Public Chats settings, and that toggle brings it back.
+    /// "Delete" from the room list: the room is left (`leaveChannel`), default rooms too since
+    /// 2026-11-26. One the indexer keeps can be added again from the room browser.
     func removeFromList(_ rawName: String) {
-        let name = PublicChatChannelName.normalize(rawName)
-        if Self.curatedChannels.contains(name) {
-            setCuratedChannel(name, shown: false)
-        } else {
-            leaveChannel(name)
-        }
-    }
-
-    /// The Languages switch on the customize screen: on while at least one language room is.
-    var anyLanguageChannelOn: Bool {
-        Self.languageChannels.contains { isCuratedChannelOn($0) }
-    }
-
-    /// Every language room off at once (out of the list, bells off), or all back on - each
-    /// then switched off one by one if only some are wanted.
-    func setAllLanguageChannels(shown: Bool) {
-        for name in Self.languageChannels where isCuratedChannelOn(name) != shown {
-            setCuratedChannel(name, shown: shown)
-        }
+        leaveChannel(PublicChatChannelName.normalize(rawName))
     }
 
     func isCuratedChannelShown(_ name: String) -> Bool {
         !hiddenCuratedChannels.contains(PublicChatChannelName.normalize(name))
-    }
-
-    /// What a default room's switch in Public Chats settings reads: on only when the room is
-    /// joined AND not switched off - i.e. it is in the list. Every default room is joined
-    /// (`ensureDefaultChannelsJoined`), so in practice this is "not switched off".
-    func isCuratedChannelOn(_ name: String) -> Bool {
-        let normalized = PublicChatChannelName.normalize(name)
-        return isCuratedChannelShown(normalized) && channels.contains { $0.channelName == normalized }
-    }
-
-    /// Off: the room leaves the list and its notifications stop (the bell goes off, which also
-    /// takes it off the push service's watch list). On: it is joined if it wasn't (the same as
-    /// joining it from the join sheet, so it appears in the list and the circles row at once)
-    /// and comes back silenced, as every room starts.
-    func setCuratedChannel(_ rawName: String, shown: Bool) {
-        let name = PublicChatChannelName.normalize(rawName)
-        guard Self.curatedChannels.contains(name) else { return }
-        if shown {
-            hiddenCuratedChannels.remove(name)
-        } else {
-            hiddenCuratedChannels.insert(name)
-        }
-        if let key = hiddenCuratedKey {
-            UserDefaults.standard.set(Array(hiddenCuratedChannels), forKey: key)
-        }
-        if shown, !channels.contains(where: { $0.channelName == name }), store.joinChannel(name) {
-            refreshChannels()
-        }
-        let isJoined = channels.contains { $0.channelName == name }
-        if !shown, isJoined {
-            setNotifyEnabled(false, forChannel: name)
-        }
     }
 
     private var lastReadKey: String? { walletAddress.map { "kachat_broadcast_last_read_\($0)" } }
@@ -1013,12 +963,45 @@ final class PublicChatService: ObservableObject {
                 }
             }
         }
-        for name in curated where isCuratedChannelShown(name) {
-            store.joinChannel(name)
-        }
+        // No room is joined for the person any more (owner, 2026-11-26): Public Chats starts
+        // empty and fills only with rooms they add.
         silenceRoomsOnceIfNeeded()
+        clearAutoAddedRoomsOnceIfNeeded()
         refreshChannels()
     }
+
+    /// Public Chats starts empty (owner, 2026-11-26: nothing may feel added without the person's
+    /// say). Once per account, on the first launch of this build: every room older builds joined
+    /// for everyone (the default and language rooms, the rooms the indexer lists now, rooms
+    /// switched off) is left, unless they showed they want it, a bell they turned on or a pin.
+    /// Rooms they joined by name stay, unless the indexer lists that name now (then K had joined
+    /// it for them anyway and the two can't be told apart). Not every room the indexer ever
+    /// listed: that record also holds rooms joined by name (audit 2026-11-26). Runs after
+    /// `silenceRoomsOnceIfNeeded`, so a bell an old build turned on by itself doesn't count.
+    private func clearAutoAddedRoomsOnceIfNeeded() {
+        guard store.isReady, store.currentWalletAddress == walletAddress, let key = roomsOptInKey,
+              let wallet = walletAddress, !UserDefaults.standard.bool(forKey: key) else { return }
+        let pins = Set(UserDefaults.standard.stringArray(forKey: "kachat_room_pins_\(wallet)") ?? [])
+        let switchedOff = savedHiddenCuratedChannels()
+        let autoAdded = Set(Self.curatedChannels).union(switchedOff)
+        var left: [String] = []
+        for room in store.joinedChannels() {
+            let name = room.channelName
+            guard autoAdded.contains(name), !Self.serviceChannels.contains(name), !Self.hiddenIndexerRooms.contains(name) else { continue }
+            let wanted = !switchedOff.contains(name) && (room.notifyEnabled || pins.contains(name))
+            guard !wanted else { continue }
+            leaveChannel(name)
+            removeRoomPin(name)
+            left.append(name)
+        }
+        updateSavedHiddenCuratedChannels { $0.removeAll() }
+        UserDefaults.standard.set(true, forKey: key)
+        if !left.isEmpty {
+            AppLog.log("%@", "[PublicChat] Public Chats starts empty: left \(left.count) room(s) K had added")
+        }
+    }
+
+    private var roomsOptInKey: String? { walletAddress.map { "kachat_rooms_opt_in_v1_\($0)" } }
 
     /// Every room starts silenced (owner, 2026-11-25): the first time an account's room store opens
     /// on this build, every bell that's on goes off, including the #kaspa and #kachat-bugs bells
@@ -1140,18 +1123,25 @@ final class PublicChatService: ObservableObject {
         }
     }
 
+    /// Joins a room. One the person adds starts with its bell ON (owner, 2026-11-26: they chose
+    /// it, so it notifies); a room already joined keeps the bell it has, and machinery rooms (chess,
+    /// the bots, the arcade) stay silent.
     @discardableResult
-    func joinChannel(_ rawName: String) -> Bool {
+    func joinChannel(_ rawName: String, notify: Bool = true) -> Bool {
         let rawName = Self.retiredChannels[PublicChatChannelName.normalize(rawName)] ?? rawName
+        let name = PublicChatChannelName.normalize(rawName)
+        let isNew = !store.joinedChannels().contains { $0.channelName == name }
         guard store.joinChannel(rawName) else { return false }
         refreshChannels()
+        if isNew, notify, !Self.serviceChannels.contains(name), !Self.hiddenIndexerRooms.contains(name) {
+            setNotifyEnabled(true, forChannel: name)
+        }
         return true
     }
 
     func leaveChannel(_ name: String) {
-        // Curated rooms (Popular and the language rooms alike) can't be left - both are
-        // permanent fixtures of the list screen, so no UI offers it; guard against stray paths.
-        guard !Self.curatedChannels.contains(PublicChatChannelName.normalize(name)) else { return }
+        // Any room can be left, default rooms too (owner, 2026-11-26: every room is one the
+        // person added, so every room is theirs to remove).
         let normalized = PublicChatChannelName.normalize(name)
         // Whether the push service sends this room's pushes now (the list `updateWatchedAddresses`
         // sends is the joined, indexed rooms with their bell on): leaving takes it off.

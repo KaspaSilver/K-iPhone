@@ -673,7 +673,8 @@ struct DeleteAccountSheet: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
-        .presentationDetents([.medium, .large])
+        // always full height (owner, 2026-11-26): the warning is never half hidden
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
 }

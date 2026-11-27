@@ -4858,29 +4858,19 @@ struct KaPostsView: View {
             // Out stay under your name
             // you, in glass, beside the title: a tap switches to another saved account (owner,
             // 2026-11-24; Share Profile moved to the top left)
+            // Share Profile beside the title, the account switcher top left (owner, 2026-11-26:
+            // swapped back, the switcher now just your picture with a switch symbol)
             .kaPostsFixedTitle("Profile") {
-                ProfileAccountChip()
+                ProfileShareChip { showShareProfile = true }
             }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .kaPostsStatusChrome()
             // every notification, KaPosts' and the wallet's, behind the bell top right
             .toolbar {
-                // Share Profile top left (owner, 2026-11-24: swapped with the account chip)
+                // the account switcher top left: your picture with a switch symbol
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        Haptics.impact(.light)
-                        showShareProfile = true
-                    } label: {
-                        // icon and word both: a toolbar Label shows the icon alone
-                        HStack(spacing: 5) {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("Share")
-                        }
-                        .font(.subheadline.weight(.semibold))
-                        .fixedSize()
-                    }
-                    .accessibilityLabel(Text("Share Profile"))
+                    ProfileAccountChip()
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     AllNotificationsBell { showAllNotifications = true }

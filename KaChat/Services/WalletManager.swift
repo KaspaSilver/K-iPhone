@@ -438,15 +438,14 @@ final class WalletManager: ObservableObject {
     /// A new account from the sign-in screen, under the next free name. The Welcome Guide is armed
     /// before committing: `importWallet` sets `currentWallet` and suspends at an await, which can
     /// mount MainTabView - whose onAppear consumes this one-shot flag - before control returns
-    /// here. Nothing syncs while the guide is on screen (see ImportWalletView).
+    /// here. The sync isn't held for the guide (owner, 2026-11-26): a new address has nothing on
+    /// chain, so its first sync is quick, and it sets up live updates and push from the start.
     func commitCreatedWalletForOnboarding(seedPhrase: SeedPhrase, passphrase: String) async throws {
         justCreatedNewWallet = true
-        ChatService.shared.holdSyncForOnboarding()
         do {
             _ = try await commitCreatedWallet(seedPhrase: seedPhrase, passphrase: passphrase, alias: nextDefaultAccountName())
         } catch {
             justCreatedNewWallet = false
-            ChatService.shared.releaseSyncForOnboarding()
             throw error
         }
     }
@@ -956,6 +955,8 @@ final class WalletManager: ObservableObject {
                     "kachat_rooms_silenced_once_v1_\(lowered)",
                     "kachat_rooms_auto_joined_v1_\(lowered)",
                     "kachat_rooms_indexer_listed_v1_\(lowered)",
+                    // Public Chats' one-time clear of the rooms K had added (2026-11-26)
+                    "kachat_rooms_opt_in_v1_\(lowered)",
                     // the address each website in K's browser last connected (`KaChatSiteWallet`)
                     "kachat_site_connections_\(lowered)",
                     // Buy Kaspa with Debit Card's order being followed (`CardBuyTracker`)

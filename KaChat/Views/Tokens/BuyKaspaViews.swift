@@ -1,108 +1,40 @@
 import SwiftUI
 
-/// Buy Kaspa with Debit Card (owner, 2026-11-26): the Wallet tab's card under Your Usernames, then
-/// one flow in K: which address the kUSDT lands on, Trestly's buy page (`trestly.io/buy`: Stripe
-/// sells USDC into K's Ethereum address, and Trestly's bridge turns it into kUSDT on that
-/// address), then Swap, set to kUSDT for KAS with what landed. Mainnet only: Trestly sells by card
-/// on mainnet. `CardBuyTracker` follows the order after the page closes, so the card shows where it
-/// is and offers Swap to Kaspa once the kUSDT is in.
-struct BuyKaspaCard: View {
-    let onOpen: (CardBuy?) -> Void
-    let onSwap: (CardBuy) -> Void
-    @EnvironmentObject private var walletManager: WalletManager
-    @ObservedObject private var tracker = CardBuyTracker.shared
-
+/// Buy Kaspa with Debit Card is the third choice of the Wallet tab's Buy/Sell sheet (owner,
+/// 2026-11-26: the card on the Wallet tab is gone); its order's stage shows there under it.
+enum DebitCardBuy {
     /// Trestly sells by card on mainnet only.
     static var isOffered: Bool { AppSettings.load().networkType == .mainnet }
 
-    /// The order to show: only one that was paid (one never paid is dropped once Buy Kaspa closes,
-    /// and never shows here, even before that check runs). A refused one shows too.
-    private var shown: CardBuy? {
-        guard let buy = tracker.buy, buy.paidSeen == true || buy.stage == .rejected else { return nil }
-        return buy
+    /// Buy Kaspa with Debit Card tapped: a paid order whose kUSDT arrived goes on to Buy Kaspa with
+    /// that kUSDT (`openSwap(.form)`); one still on its way opens on its page; anything else
+    /// starts a new order (`openPage`).
+    @MainActor static func open(openSwap: (SwapView.Start) -> Void, openPage: (CardBuy?) -> Void) {
+        if let buy = shownOrder {
+            if buy.stage == .arrived, let units = buy.mintedUnits {
+                SwapService.shared.prepareKusdtSell(from: buy.target, units: units)
+                CardBuyTracker.shared.clear()
+                openSwap(.form)
+                return
+            }
+            if !buy.isFinished {
+                openPage(buy)
+                return
+            }
+            CardBuyTracker.shared.clear()
+        }
+        openPage(nil)
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            Button {
-                Haptics.impact(.light)
-                // an order still on its way opens on its page; anything else starts a new one
-                // a paid order still on its way opens on its page; anything else starts a new one
-                if let buy = shown, !buy.isFinished { onOpen(buy) } else { onOpen(nil) }
-            } label: {
-                // a Label with the logo at icon size, as Your Usernames and Chatting Address are drawn,
-                // so the card is the same height as theirs
-                HStack {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Buy Kaspa with Debit Card")
-                                .foregroundColor(.primary)
-                            if let buy = shown {
-                                Text(verbatim: BuyKaspaStatus.line(buy))
-                                    .font(.caption)
-                                    .foregroundColor(buy.stage == .rejected || buy.stage == .expired ? .orange : .secondary)
-                                    .lineLimit(2)
-                            }
-                        }
-                    } icon: {
-                        Image("KaspaLogo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(16)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if let buy = shown, buy.isFinished || buy.stage == .signAgain {
-                HStack(spacing: 10) {
-                    if buy.stage == .arrived {
-                        Button {
-                            Haptics.impact(.light)
-                            onSwap(buy)
-                        } label: {
-                            Label("Swap to Kaspa", systemImage: "arrow.left.arrow.right")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundColor(.black)
-                                .padding(.horizontal, 16)
-                                .frame(height: 38)
-                                .background(Capsule().fill(Color.accentColor))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer(minLength: 0)
-                    if buy.isFinished {
-                        Button {
-                            tracker.clear()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.caption.weight(.bold))
-                                .foregroundColor(.secondary)
-                                .frame(width: 32, height: 32)
-                                .background(Circle().fill(.regularMaterial))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Text("Dismiss"))
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 14)
-            }
-        }
-        .background(glassBackground(cornerRadius: 18))
-        .task(id: walletManager.currentWallet?.publicAddress) {
-            tracker.ensurePolling()
-        }
+    /// The order to show: only one that was paid (one never paid is dropped once Buy Kaspa closes,
+    /// and never shows, even before that check runs). A refused one shows too.
+    @MainActor static var shownOrder: CardBuy? {
+        guard let buy = CardBuyTracker.shared.buy, buy.paidSeen == true || buy.stage == .rejected else { return nil }
+        return buy
     }
 }
 
-/// What a purchase's stage reads as, on the card and over the page.
+/// What a purchase's stage reads as, in the Buy/Sell sheet and over the page.
 enum BuyKaspaStatus {
     static func line(_ buy: CardBuy) -> String {
         switch buy.stage {
@@ -148,7 +80,10 @@ struct BuyKaspaView: View {
     @State private var ethereumAddress: String?
     @State private var checkedWords = false
 
-    init(resume: CardBuy?) {
+    /// Opened to fund the chatting address (a chat's "Fund your chatting address" card): the
+    /// Chatting Address is picked to start with, not a fresh one.
+    init(resume: CardBuy?, preferChatting: Bool = false) {
+        _useFresh = State(initialValue: !preferChatting)
         self.resume = resume
         _step = State(initialValue: resume.map { .page($0.target, session: $0.session) } ?? .address)
     }
@@ -500,10 +435,14 @@ struct CardBuySignSheet: View {
                                 .font(.subheadline)
                         }
                         Divider()
+                        // the whole deposit address, never cut (audit 2026-11-26): K can't check it
+                        // itself (Trestly's factory names it from fee caps the permit doesn't carry)
                         row("Bridge") {
-                            Text(verbatim: "\(request.spender.prefix(8))...\(request.spender.suffix(6))")
+                            Text(verbatim: request.spender.wrappingAnywhere)
                                 .font(.caption.monospaced())
                                 .foregroundColor(.secondary)
+                                .multilineTextAlignment(.trailing)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .padding(.horizontal, 14)

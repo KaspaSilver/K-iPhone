@@ -93,7 +93,7 @@ struct PublicChatRoomInfoView: View {
                     LabeledContent("Language") { Text(language) }
                 }
                 LabeledContent("Kind") {
-                    Text(isCurated ? "Popular" : "Added by you")
+                    Text(LocalizedStringKey(isCurated ? "Popular" : "Added by you"))
                 }
                 if let joined = channel?.joinedAt {
                     LabeledContent("Joined") {
@@ -101,9 +101,10 @@ struct PublicChatRoomInfoView: View {
                     }
                 }
             } footer: {
-                Text(isCurated
-                     ? "A curated room, always in your list. Anyone on K can post to it."
-                     : "A room you added. Anyone who knows the name can post to it.")
+                // nothing is in the list unasked since 2026-11-26: a default room is one you added too
+                Text(LocalizedStringKey(isCurated
+                     ? "A room the indexer keeps. You added it, and anyone on K can post to it."
+                     : "A room you added. Anyone who knows the name can post to it."))
             }
 
             Section("On this device") {

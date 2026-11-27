@@ -10,30 +10,31 @@ import WebKit
 // MARK: - Manage kUSDT
 
 /// "Manage kUSDT": the total, then every address holding it (the Chatting Address and regular
-/// spending addresses), each opening `TokenAddressView`, then what the token is. The floating
-/// button at the bottom right opens its actions: a fresh address, Discover and Address Visibility.
+/// spending addresses), each on Manage Addresses' card (`ManagedAddressCard`, owner 2026-11-26:
+/// "the same setup") opening `TokenAddressView`. As there: Address Visibility at the top right, a
+/// floating + for a fresh address (a regular one: kUSDT never lives on quantum addresses), and a
+/// pull down is Discover kUSDT Addresses.
 struct TokenManageView: View {
     let token: WalletToken
     @ObservedObject private var tokens = TokenWallet.shared
     @EnvironmentObject private var walletManager: WalletManager
 
-    @State private var showActions = false
     /// Spending slots Manage Addresses knows as used (any history, or KAS on them now), for each
     /// row's Used / Unused.
     @State private var usedSpendingIndices: Set<Int> = []
-    /// What the actions sheet picked, opened once it has finished closing.
-    @State private var afterActions: (() -> Void)?
     /// The "Bridged by Trestly" pill under the balance: the details, in a sheet.
     @State private var showAbout = false
     /// Open Trestly, under the balance card (owner's call, 2026-11-23): the address it should use,
     /// then Trestly's site inside K (`TrestlyConnectSheet`), for its pool and everything else there.
     @State private var showTrestly = false
     @State private var showVisibility = false
-    /// The ⋮ on an address row: its own actions (as Manage Addresses has for each address).
+    /// The ⋮ on an address card: Send to Chatting Address, Combine Coins and Hide.
     @State private var rowActionsTarget: TokenHolding?
     @State private var renameTarget: TokenHolding?
     @State private var renameText = ""
     @State private var qrTarget: TokenHolding?
+    /// A card's Send.
+    @State private var sendTarget: TokenHolding?
     /// Combine Coins from a row's ⋮.
     @State private var combineTarget: TokenHolding?
     /// Send to Chatting Address from a row's ⋮: that address's kUSDT, the Chatting Address filled in.
@@ -41,11 +42,10 @@ struct TokenManageView: View {
     @State private var toastMessage: String?
     @State private var toastToken = UUID()
     @State private var isGenerating = false
-    /// Discover kUSDT Addresses: it belongs to this screen, so closing the sheet doesn't stop it.
+    /// Discover kUSDT Addresses, run by pulling down: how far it is, under the total.
     @State private var isDiscovering = false
     @State private var discoveryChecking = 0
     @State private var discoveryFound = 0
-    @State private var discoverySummary: String?
 
     /// Trestly's site inside K, connected to the address picked first.
     private var openTrestlyButton: some View {
@@ -79,6 +79,11 @@ struct TokenManageView: View {
     var body: some View {
         List {
             summary
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+
+            discoveryStatus
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -125,8 +130,9 @@ struct TokenManageView: View {
 
         }
         .listStyle(.plain)
-        // a pull is Discover kUSDT Addresses: every address to 20 past the last, revealing any holding some
-        .refreshable { _ = await tokens.discoverHoldings(of: token) { _, _ in } }
+        // a pull is Discover kUSDT Addresses: every address to 20 past the last, revealing any
+        // holding some (its own button is gone, owner 2026-11-26)
+        .refreshable { await discover() }
         // every revealed address here (the regular look asks about fewer, for privacy)
         .task { await tokens.refreshIfStale(everyAddress: true) }
         .task {
@@ -139,30 +145,33 @@ struct TokenManageView: View {
             Color.clear.frame(height: 72)
         }
         .overlay(alignment: .bottomTrailing) {
-            actionsButton
+            newAddressButton
         }
         .navigationTitle(Text(verbatim: String(format: AppLocalization.string("Manage %@"), token.symbol)))
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showActions, onDismiss: {
-            let next = afterActions
-            afterActions = nil
-            next?()
-        }) {
-            actionsSheet
-                .fittedSheetDetents(370)
-                .presentationDragIndicator(.visible)
+        // Address Visibility at the top right, as on Manage Addresses
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    Haptics.impact(.light)
+                    showVisibility = true
+                } label: {
+                    Image(systemName: "checklist")
+                }
+                .accessibilityLabel(Text("kUSDT Address Visibility"))
+            }
         }
         .sheet(isPresented: $showVisibility) {
             TokenAddressVisibilityView(token: token)
         }
         .sheet(item: $rowActionsTarget) { holding in
             rowActionsSheet(holding)
-                // the Chatting Address has only Copy, QR and Combine (it can't be renamed, sent
-                // to itself or hidden)
-                .fittedSheetDetents(holding.isChatting
-                                    ? (holding.coins > 1 ? 340 : 260)
-                                    : (holding.coins > 1 ? 520 : 440))
+                // the Chatting Address has only Combine (it can't be sent to itself or hidden)
+                .fittedSheetDetents(CGFloat(110 + rowActionCount(holding) * 82))
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $sendTarget) { holding in
+            TokenSendView(token: token, startFrom: holding)
         }
         .sheet(item: $qrTarget) { holding in
             TokenReceiveSheet(token: token, chattingAddress: "", fixedHolding: holding)
@@ -270,73 +279,62 @@ struct TokenManageView: View {
             || !tokens.activity(of: token, at: holding).isEmpty
     }
 
-    /// One address holding the token, as Manage Addresses draws a row: its name, the address, the
-    /// amount, the KAS held with it, and Used or Unused.
+    /// One address holding the token, on Manage Addresses' card: its name, the amount, its worth
+    /// and the KAS held with it, Used or Unused, then Copy, Send, Receive and Rename (none on the
+    /// Chatting Address) and Tap to View History.
     private func addressRow(_ holding: TokenHolding) -> some View {
-        ZStack {
-            NavigationLink {
-                TokenAddressView(token: token, holding: holding)
-            } label: {
-                EmptyView()
-            }
-            .opacity(0)
-
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Text(verbatim: holding.label)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        Image(systemName: holding.isChatting ? "bubble.left.and.bubble.right.fill" : "eye.slash.fill")
-                            .font(.caption2)
-                            .foregroundColor(holding.isChatting ? .accentColor : .green)
+        ManagedAddressCard(
+            name: holding.label,
+            amount: TokenAmount.amount(holding.units, token: token),
+            canSend: holding.units > 0,
+            used: isUsed(holding) ? .used : .unused,
+            ownsUsername: false,
+            quantum: nil,
+            nameAccessory: {
+                if holding.isChatting {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.caption)
+                        .foregroundColor(.accentColor)
+                }
+            },
+            detail: {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let dollars = TokenAmount.dollars(holding.units, token: token) {
+                        Text(verbatim: dollars)
                     }
-                    Text(verbatim: "\(holding.address.prefix(14))...\(holding.address.suffix(6))")
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundColor(.primary)
-                    Text(verbatim: TokenAmount.amount(holding.units, token: token))
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
                     Text(verbatim: String(format: AppLocalization.string("%@ held with it"),
                                           KaspaUnit.amount(UInt64(holding.coins) * token.kasPerCoinSompi)))
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    // Manage Addresses' tag: orange once the address has been used, green while fresh
-                    let used = isUsed(holding)
-                    Text(used ? "Used" : "Unused")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(used ? .orange : .green)
                 }
-                Spacer()
-                // every row has its own actions (owner's call, 2026-11-21: the Chatting Address too)
-                Button {
-                    rowActionsTarget = holding
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.scaled(size: 18, weight: .bold))
-                        .rotationEffect(.degrees(90))
-                        .foregroundColor(.secondary)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("Address Actions"))
-            }
-            .padding(16)
+            },
+            onCopy: {
+                UIPasteboard.general.string = holding.address
+                Haptics.success()
+                showToast(holding.address.addressCopiedToastText)
+            },
+            onSend: { sendTarget = holding },
+            onReceive: { qrTarget = holding },
+            onRename: holding.isChatting ? nil : {
+                // the name it was given, or empty for the default "Address #n"
+                let current = WalletManager.shared.ownAddressLabel(for: holding.address) ?? ""
+                renameText = current.hasPrefix("Address #") ? "" : current
+                renameTarget = holding
+            },
+            // the Chatting Address's ⋮ has only Combine Coins
+            onMore: rowActionCount(holding) == 0 ? nil : { rowActionsTarget = holding }
+        ) {
+            TokenAddressView(token: token, holding: holding)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.regularMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
-                )
-        )
     }
 
-    /// One address's ⋮: Rename, Copy, Show QR Code and Hide, the same four Manage Addresses has.
+    /// How many rows a card's ⋮ has: Send to Chatting Address and Hide (not on the Chatting
+    /// Address), and Combine Coins with more than one coin.
+    private func rowActionCount(_ holding: TokenHolding) -> Int {
+        (holding.isChatting ? 0 : 2) + (holding.coins > 1 ? 1 : 0)
+    }
+
+    /// One address's ⋮: Send to Chatting Address, Combine Coins and Hide (Copy, Receive and Rename
+    /// are on the card).
     private func rowActionsSheet(_ holding: TokenHolding) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 2) {
@@ -349,39 +347,6 @@ struct TokenManageView: View {
             .padding(.top, 20)
             .padding(.bottom, 4)
 
-            if !holding.isChatting {
-            ActionSheetRow(
-                title: "Rename Address",
-                subtitle: "Gives this address a label of your own.",
-                systemImage: "pencil"
-            ) {
-                rowActionsTarget = nil
-                DispatchQueue.main.async {
-                    // the name it was given, or empty for the default "Address #n"
-                    let current = WalletManager.shared.ownAddressLabel(for: holding.address) ?? ""
-                    renameText = current.hasPrefix("Address #") ? "" : current
-                    renameTarget = holding
-                }
-            }
-            }
-            ActionSheetRow(
-                title: "Copy Address",
-                subtitle: "Puts the full address on the clipboard.",
-                systemImage: "doc.on.doc"
-            ) {
-                UIPasteboard.general.string = holding.address
-                Haptics.success()
-                rowActionsTarget = nil
-                showToast(holding.address.addressCopiedToastText)
-            }
-            ActionSheetRow(
-                title: "Show QR Code",
-                subtitle: "Full screen, for scanning with another device.",
-                systemImage: "qrcode"
-            ) {
-                rowActionsTarget = nil
-                DispatchQueue.main.async { qrTarget = holding }
-            }
             // as Kaspa's Manage Addresses: this address's kUSDT, the Chatting Address filled in
             if !holding.isChatting {
             ActionSheetRow(
@@ -447,127 +412,74 @@ struct TokenManageView: View {
         }
     }
 
-    /// The floating glass button at the bottom right, as on Manage Addresses.
-    private var actionsButton: some View {
+    /// The floating +: a fresh regular address on the list, as Manage Addresses' + (kUSDT never
+    /// lives on quantum addresses).
+    private var newAddressButton: some View {
         Button {
             Haptics.impact(.light)
-            showActions = true
+            generateFresh()
         } label: {
             Group {
-                if isDiscovering {
+                if isGenerating {
                     ProgressView()
                 } else {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.scaled(size: 22, weight: .semibold))
+                    Image(systemName: "plus")
+                        .font(.scaled(size: 24, weight: .semibold))
                         .foregroundColor(.accentColor)
                 }
             }
-                .frame(width: 56, height: 56)
-                .background(
-                    Circle()
-                        .fill(.regularMaterial)
-                        .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
-                        .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
-                )
+            .frame(width: 56, height: 56)
+            .background(
+                Circle()
+                    .fill(.regularMaterial)
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
+                    .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
+            )
         }
         .buttonStyle(.plain)
+        .disabled(isGenerating)
         .padding(.trailing, 20)
         .padding(.bottom, 16)
-        .accessibilityLabel(Text(verbatim: String(format: AppLocalization.string("%@ Actions"), token.symbol)))
+        .accessibilityLabel(Text("Generate New Address"))
     }
 
-    private var actionsSheet: some View {
-        VStack(spacing: 0) {
-            Text(verbatim: String(format: AppLocalization.string("%@ Actions"), token.symbol))
-                .font(.headline)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
-            if isDiscovering {
-                VStack(spacing: 10) {
-                    ProgressView()
-                    Text(verbatim: String(format: AppLocalization.string("Checking address #%d"), discoveryChecking))
-                        .font(.subheadline.weight(.semibold))
-                    Text(verbatim: discoveryFound == 0
-                         ? String(format: AppLocalization.string("No addresses with %@ yet"), token.symbol)
-                         : String(format: AppLocalization.string("%d found so far"), discoveryFound))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Button {
-                        showActions = false
-                    } label: {
-                        Text("Close and Keep Scanning")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .foregroundColor(.accentColor)
-                            .background(sendKaspaGlass(cornerRadius: 14))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 6)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
-            } else {
-                VStack(spacing: 12) {
-                    ActionSheetRow(
-                        title: "Generate New Address",
-                        subtitle: "Adds a brand-new regular address of yours to this list.",
-                        systemImage: "plus.square.on.square",
-                        isBusy: isGenerating
-                    ) {
-                        showActions = false
-                        generateFresh()
-                    }
-                    ActionSheetRow(
-                        title: "Discover kUSDT Addresses",
-                        subtitle: "Finds your addresses holding kUSDT.",
-                        systemImage: "magnifyingglass"
-                    ) {
-                        discover()
-                    }
-                    ActionSheetRow(
-                        title: "kUSDT Address Visibility",
-                        subtitle: "Check off which addresses holding kUSDT are on the list.",
-                        systemImage: "checklist"
-                    ) {
-                        afterActions = { showVisibility = true }
-                        showActions = false
-                    }
-                    if let discoverySummary {
-                        Text(verbatim: discoverySummary)
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
-                            .padding(.top, 2)
-                    }
-                }
-                .padding(.horizontal, 20)
+    /// While a pull-down scan runs: how far it is, under the total.
+    @ViewBuilder
+    private var discoveryStatus: some View {
+        if isDiscovering {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text(verbatim: String(format: AppLocalization.string("Checking address #%d"), discoveryChecking))
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 0)
+                Text(verbatim: discoveryFound == 0
+                     ? String(format: AppLocalization.string("No addresses with %@ yet"), token.symbol)
+                     : String(format: AppLocalization.string("%d found so far"), discoveryFound))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 6)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onDisappear { if !isDiscovering { discoverySummary = nil } }
     }
 
-    /// Walks the addresses for the token, reporting in the sheet as it goes; the result stays in
-    /// the sheet, or the button's spinner if it was closed.
-    private func discover() {
+    /// Discover kUSDT Addresses, run by pulling down: walks the addresses for the token, showing
+    /// how far it is, and says what it found in a toast. The pull's spinner stays until it's done.
+    private func discover() async {
         guard !isDiscovering else { return }
         isDiscovering = true
         discoveryChecking = 0
         discoveryFound = 0
-        discoverySummary = nil
-        Task { @MainActor in
-            let found = await tokens.discoverHoldings(of: token) { checking, soFar in
-                discoveryChecking = checking
-                discoveryFound = soFar
-            }
-            isDiscovering = false
-            discoverySummary = found == 0
-                ? String(format: AppLocalization.string("No addresses with %@ found."), token.symbol)
-                : String(format: AppLocalization.string("Found %d addresses with %@."), found, token.symbol)
-            Haptics.success()
+        let found = await tokens.discoverHoldings(of: token) { checking, soFar in
+            discoveryChecking = checking
+            discoveryFound = soFar
         }
+        isDiscovering = false
+        Haptics.success()
+        showToast(found == 0
+            ? String(format: AppLocalization.string("No addresses with %@ found."), token.symbol)
+            : String(format: AppLocalization.string("Found %d addresses with %@."), found, token.symbol))
     }
 }
 
@@ -758,8 +670,6 @@ struct TokenAddressView: View {
 
     @State private var showOptions = false
     @State private var afterOptions: (() -> Void)?
-    @State private var showReceive = false
-    @State private var showSend = false
     @State private var showCombine = false
 
     /// The address as it is now (its amount changes after a send).
@@ -771,8 +681,10 @@ struct TokenAddressView: View {
         let rows = tokens.activity(of: token, at: holding)
         VStack(spacing: 0) {
             // the same card as a Kaspa address's page
+            // the full address under the name, as a Kaspa address's page
             AddressBalanceCard(
                 label: holding.label,
+                address: holding.address,
                 amount: TokenAmount.amount(current.units, token: token),
                 detail: String(format: AppLocalization.string("%@ held with it"),
                                KaspaUnit.amount(UInt64(current.coins) * token.kasPerCoinSompi))
@@ -821,42 +733,7 @@ struct TokenAddressView: View {
                 AddressOptionsButton { showOptions = true }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 12) {
-                Button {
-                    showReceive = true
-                } label: {
-                    Label("Receive", systemImage: "qrcode")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .foregroundColor(.black)
-                        .background(Capsule().fill(Color.accentColor))
-                }
-                Button {
-                    showSend = true
-                } label: {
-                    Label("Send", systemImage: "arrow.up.circle.fill")
-                        .font(.subheadline.weight(.bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .foregroundColor(.black)
-                        .background(Capsule().fill(Color.accentColor))
-                }
-                .disabled(current.units == 0)
-                .opacity(current.units == 0 ? 0.5 : 1)
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-            .background(.bar)
-        }
-        .sheet(isPresented: $showReceive) {
-            TokenReceiveSheet(token: token, chattingAddress: "", fixedHolding: current)
-        }
-        .sheet(isPresented: $showSend) {
-            TokenSendView(token: token, startFrom: current)
-        }
+        // Send and Receive are on Manage kUSDT's card (owner, 2026-11-26)
         .sheet(isPresented: $showOptions, onDismiss: {
             let next = afterOptions
             afterOptions = nil

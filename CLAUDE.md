@@ -96,9 +96,10 @@ copy, the photo), which can't be swiped away until Done (owner, 2026-11-24). Cha
 floating + opens a half sheet: New Chat or New Group Chat. Wallet (`WalletView`, since 2026-11-04)
 holds the account's money, laid out as KaPay's Wallet tab (2026-11-19): the balance card (swipes
 Kaspa ⇄ kUSDT; Tap to Manage opens Manage Addresses or Manage kUSDT), then Send, Receive,
-Request and Swap (see "Swap"), Backup Hygiene when due, and the Chatting Address and Your Usernames
+Buy and Sell (see "Swap"), Backup Hygiene when due, and the Chatting Address, Request Payment, Your Usernames
 (`YourDomainsCard`, labeled Your Usernames since 2026-11-23: the account's .kachat names, opening
-`KachatLiveDomainsTab`, whose empty state says No usernames yet and Claim a Username) cards.
+`KachatLiveDomainsTab`, whose empty state says No usernames yet and Claim a Username) and Buy/Sell
+History cards.
 Pulling Wallet down always scans every address for balances (2026-11-20, `scanAndRefresh`): Kaspa's
 `discoverSpendingAddresses` and kUSDT's `discoverHoldings` side by side, then the balances. Profile
 (since 2026-11-21) is your KaPosts profile (`KaPostsView(rootMode: .myProfile)`): banner, avatar,
@@ -188,7 +189,8 @@ The old Add to Contacts row and the big Share Profile button are gone.
   poll and the group pass (no group open) sleep to the
   same wall-clock beat, 30 s on Wi-Fi and 60 s on cellular, a second or two apart, so the radio
   wakes once per beat instead of about ten times. A new foreground poll uses it, not its own
-  interval. The open chat (2 s), open room (8 s) and open group keep their own cadence.
+  interval. The open chat (2 s), open room (8 s) and open group keep their own cadence, as does
+  Buy/Sell's deposit screen (10 s, only while it shows: someone is watching for their payment).
 - **Audio** (audit 2026-11-25): no category at launch. Every voice player and recorder (1:1,
   groups, rooms) goes through `VoicePlaybackCoordinator`, which sets the category right before
   and deactivates with `.notifyOthersOnDeactivation` after, so music resumes. Voice bubbles cache
@@ -303,25 +305,32 @@ length and waveform cached in `VoiceNoteInfoCache`). Room messages translate lik
 a Translate link under someone else's message in another language (owner, 2026-11-24), and in its
 long-press menu (`PostTranslationService`, served by the message indexer). Public rooms are the KaChat
 tab's second page (owner, 2026-11-25): the cycle button beside the KaChat title (`ListPage`,
-`pageCycleButton`) switches Private Chats (chats, groups, bots, Message Requests; the pill read "Chats" until 2026-11-26) and Public Chats (the
+`pageCycleButton`, or the dock's Chats tapped again, which first closes an open chat,
+`.chatsTabReselected`, 2026-11-26) switches Private Chats (chats, groups, bots, Message Requests; the pill read "Chats" until 2026-11-26) and Public Chats (the
 rooms by latest activity, pinned rooms as circles above them). The button's red count is the
 public chats' unread (rooms with their bell on) on either page; the dock's KaChat badge counts only
-chats and groups (owner, 2026-11-25). On the rooms page (`ChatListView`: Delete
-switches a default room off or leaves your own (either drops its pin), Mute, Pin, Mark as Read) the
-+ opens New Public Chat straight away (join or create a room; Cancel closes it), and the Chats
-page's + sheet has only New Chat and New Group Chat (owner, 2026-11-25). The gear at the top left
-(only there) opens Edit Default Public Chats (`PublicChatsSettingsView` in
-`Views/Chat/PublicChatRoomViews.swift`: each default room and the language rooms on or off), and
-Select works on both pages. A room link or push switches to the rooms page. The default rooms are
+chats and groups (owner, 2026-11-25). **Public Chats starts empty** (owner, 2026-11-26: nothing
+may feel added without the person's say): no room is joined for anyone, and once per account the
+first launch of that build leaves every room K had added (default, language and indexer rooms,
+switched-off ones) unless its bell was on or it was pinned (`clearAutoAddedRoomsOnceIfNeeded`,
+`kachat_rooms_opt_in_v1_<wallet>`, after `silenceRoomsOnceIfNeeded`). The empty page says so, with
+Add Room. On the rooms page (`ChatListView`: Delete leaves any room, drops its pin; one the indexer
+keeps leaves at once, one you made asks first; Mute, Pin, Mark as Read) the + and Add Room open
+**Add Room** (`PublicRoomBrowserView` in `Views/Chat/PublicChatRoomViews.swift`): the featured rooms
+and every room the indexer reports, each with Join (Open once joined), Other Languages on its own
+screen, and Create at the top right, which first says how a room nobody indexes works
+(`PublicRoomCreateInfoView`) and then takes its name. A shared room link asks before joining, the
+default rooms too. The Chats page's + sheet has only New Chat and New Group Chat (owner,
+2026-11-25). There is no gear (Edit Default Public Chats is gone), and Select works on both pages. A room link or push switches to the rooms page. The default rooms are
 #kaspa and #report-bugs. #kachat-bugs is an ordinary indexer room again, under More Rooms (owner,
 2026-11-25: it was retired for #report-bugs that morning, then brought back since the indexer still
 tracks it); `PublicChatService.retiredChannels`, which moves accounts off a retired room and
 redirects its name, is empty. The indexer must track `report-bugs` (INDEXER_HANDOFF.md). **Rooms added on the indexer** (owner, 2026-11-25): every room the app-wide
 indexer's `GET /broadcast-channels` reports (its panel's `broadcast_channels`) is a default room
 too (`PublicChatService.indexerDefaultChannels`, part of `curatedChannels`), with no app update:
-joined bell off, under More Rooms in Edit Default Public Chats. The machinery rooms
+offered in Add Room, never joined for anyone. The machinery rooms
 (`hiddenIndexerRooms`) and retired names are left out. K asks hourly, and within a minute when
-Edit Default Public Chats opens; a new list joins its rooms at once (`IndexerTrackedRooms.didChange`).
+Add Room opens (`IndexerTrackedRooms.didChange` updates pushes and wording; it joins nothing).
 A room the indexer drops stops being a default and leaves everyone's list (owner, 2026-11-26:
 any room the indexer listed, even one you joined by name or posted in; nobody indexes it, so its
 history and pushes would stop with no explanation), pin included, once it's been off the
@@ -329,8 +338,9 @@ indexer's list 2 hours (`droppedAutoRoomGrace`, two hourly reads). K remembers p
 joined rooms the indexer listed (`kachat_rooms_indexer_listed_v1_<wallet>`, `noteIndexerListedRooms`;
 one off the list and not joined is forgotten, so joining it again later keeps it). A room the
 indexer never listed (your own, or one with its own indexer) stays. Switched off, it's left once missing 7 days (`droppedRoomGrace`, so one short
-answer doesn't turn it back on). Every room
-starts silenced, bell off (owner, 2026-11-24). The 2026-11-25 build silences every account's rooms
+answer doesn't turn it back on). A room you join starts with its bell ON (owner, 2026-11-26:
+you chose it; `joinChannel(notify:)`, machinery rooms stay silent); until then every room started
+silenced, bell off (owner, 2026-11-24). The 2026-11-25 build silences every account's rooms
 once, the first time its room store opens (`silenceRoomsOnceIfNeeded`,
 `kachat_rooms_silenced_once_v1_<wallet>`), including the #kaspa and #kachat-bugs bells older builds
 turned on; after that the bells are whatever the person picks, kept across updates. Rooms with their bell on add to the title's cycle button and the app icon, not the dock. KaPosts
@@ -507,7 +517,7 @@ The app uses MVVM architecture with global singleton services injected via Swift
   (`transport: .wrpcJSON`, with its `path`; its key is the whole URL) and turns every request and
   answer into the protobuf messages gRPC would carry, so the pool, subscriptions, sends and
   failover don't know which transport they use. gRPC stays the default. A `wss://` node can be
-  pinned in Connection Settings > Node (or the Welcome Guide). **Public fallback**
+  pinned in Connection Settings > Node (the Welcome Guide has no node step since 2026-11-26). **Public fallback**
   (`NodePoolService.evaluatePublicFallback`, `PublicNodeFallback.swift`): on the default node or
   Automatic Scan, when no gRPC node has answered for 30 s while one was tried (DPI, firewalls
   that refuse HTTP/2, the pinned node down), up to two public nodes from the Kaspa resolvers
@@ -921,7 +931,8 @@ These match KaPay (ported 2026-11-01); keep them matched with KaPay's copy.
 
 Create New Account makes an account in one tap: 24 words, no passphrase, the next free default
 name (`WalletManager.nextDefaultAccountName`: My Account, My Account 2 and on), then the Welcome
-Guide as before (`commitCreatedWalletForOnboarding` arms it and holds sync). "Advanced: Create with
+Guide as before (`commitCreatedWalletForOnboarding` arms it; since 2026-11-26 nothing holds the
+sync during the guide, for creates or imports, and no progress screen follows it). "Advanced: Create with
 a Passphrase" (`CreateWalletView`) is the only other way: also 24 words, through
 `PassphraseOptionView`, whose entry screen shows the chatting address and its balance as you type.
 Import still takes 12 or 24 words.
@@ -966,8 +977,9 @@ on-chain photos and Nextcloud photo links alike; after that they show by themsel
 stays open while K runs (`HeldPhotoReveals`). While the app is open, every contact's profile is looked up again once an hour
 (`ContactsManager.startProfileRescans`).
 
-Switching accounts (owner, 2026-11-24): the glass chip beside Profile's title (your picture and
-username, or your short address, `ProfileAccountChip`; Share Profile is the top-left button) opens a half sheet of the accounts
+Switching accounts (owner, 2026-11-24): the glass button at Profile's top left (your picture with a
+switch symbol since 2026-11-26, `ProfileAccountChip`; Share Profile is the pill beside the title,
+`ProfileShareChip`) opens a half sheet of the accounts
 saved on this phone (`AccountSwitcherSheet`, `Views/Shared/AccountSwitcher.swift`; not on the dock,
 owner's call). Tapping one runs
 `WalletManager.switchToSavedAccount`: Log Out, then sign in, the same steps as the sign-in screen;
@@ -1073,7 +1085,13 @@ address" in the UI and no Chats Payment Privacy (removed 2026-10-13: no fresh-ad
 contacts; payments go to the contact's chatting address; other clients' `addr_pool` envelopes are
 swallowed). A 1:1 chat payment From a spending address is a plain transfer plus a `payment_notice`
 from the chatting address, so it shows in the chat on both sides (MESSAGING.md). Wallet has one Manage Addresses card; Manage Addresses lists the chatting address
-first, then the spending addresses.
+first, then the spending addresses. Each address there is a card like the Total Balance card (owner, 2026-11-26:
+`ManagedAddressCard`): its name, balance, worth in your currency, Used / Unused (large) and a Quantum Protected / Not
+Quantum Protected tag (`QuantumProtectionTag`, in place of the shield icon), then Copy, Send,
+Receive and Rename (no Rename on the Chatting Address), and "Tap to View History"; the address
+itself isn't on the card; the quantum tag sits beside the name. The ⋮ keeps Send to Chatting Address and Hide. The history page puts the
+full address on its card and has no Send / Receive (kept only when a notification opened it,
+`showsSendReceive`).
 
 | Piece | What it is |
 |---|---|
@@ -1099,6 +1117,26 @@ Back since 2026-11-23 (owner's call; it left for App Review guideline 3.1.5(iii)
 asked for exchange licensing per country): the Wallet tab's Swap button (beside Send, Receive and
 Request; it replaced the Swap Stablecoins card) opens `SwapView` full screen
 (`Views/Tokens/SwapView.swift`, `SwapService`, `SwapModels`, `ChangeNowAPIClient`).
+- Buy / sell words, step by step (owner, 2026-11-26): the Wallet's buttons are Send, Receive,
+  **Buy** and **Sell** (Swap is gone; Request Payment and Buy/Sell History are cards in the list
+  under them). Buy opens `BuyKaspaSheet` on mainnet: Buy Kaspa with Crypto or Buy Kaspa with Debit
+  Card (its order's stage as the subtitle; the Wallet card it replaced is gone, `DebitCardBuy`,
+  and the Wallet tab keeps the order followed); on testnet it goes straight to crypto. Sell goes
+  straight in (`SwapView(start:)` as the cover's item). Buy asks "What do you want to pay with?", Sell "What
+  do you want for your Kaspa?" (`SwapCoinChoiceList`: kUSDT, USD Coin and Tether folded by
+  network, the rest), then, when buying, "Where should your Kaspa land?" (`SwapDestinationStep`; through ChangeNOW:
+  Fresh Address, the default, or Choose an Address from `OwnAddressList`, the Chatting Address
+  too, `SwapService.useFreshToAddress` / `useChattingToAddress` / `selectToSpendingAddress`; with
+  kUSDT: the Chatting Address or an address holding kUSDT, which pays and receives the Kaspa,
+  `setKusdtFrom`, so the order has no Swap From row on a buy), then the
+  order (Buy Kaspa with X / Sell Kaspa for X: You Pay / You Get, either typed; no flip, no coin
+  picker, no Receiving KAS At row) and its Buy Kaspa / Sell Kaspa button. A ChangeNOW order
+  goes on to `SwapDepositScreen` (Send X to buy Kaspa / to sell it for Y, the QR and deposit
+  address, the amount, the tag if needed, Send KAS from K when Kaspa goes in, the status from
+  Waiting for payment on, the transaction ID), which checks ChangeNOW every 10 s and turns into
+  `SwapCompleteScreen` (Purchase / Sale Complete, Add to Portfolio, Done). A kUSDT order ends on
+  `SwapSentScreen` (Order Sent). The debit card option, once its kUSDT arrived, opens straight on
+  Buy Kaspa with that kUSDT (`start: .form`). Code names stay Swap.
 - Swap's history (`kachat_swap_history_<address>`) and agreements are per account and go with it
   (`SwapService.removeAllData`); its choices reset on an account switch, and `TrestlyTrade.run`
   refuses a target that isn't the unlocked key's address (audit 2026-11-24 #5). ChangeNOW's answer
@@ -1110,7 +1148,7 @@ Request; it replaced the Swap Stablecoins card) opens `SwapView` full screen
   (`kachat_swap_agreements_v1_<address>`; bump `SwapService.agreementsVersion` when the text
   changes): ChangeNOW's and Trestly's, each a third party with its terms and one checkbox; Continue
   needs both.
-- The screen is the old ChangeNOW Swap (You Send, flip, You Get, Swap History, Add to Portfolio):
+- The screen is the old ChangeNOW Swap (You Send, flip, You Get, Swap History, Add to Portfolio; both amounts group thousands as you type, `KaspaAmountEntry.grouped` / `ungrouped`, owner 2026-11-26):
   KAS is always one side. Any other coin goes through ChangeNOW: a deposit address and QR, paid by
   the person; swapped KAS lands on a fresh spending address. Its key is built in:
   `KaChat/Secrets.xcconfig` (gitignored, from `Secrets.xcconfig.example`) feeds `ChangeNowAPIKey`
@@ -1129,8 +1167,9 @@ Request; it replaced the Swap Stablecoins card) opens `SwapView` full screen
 
 ### Buy Kaspa with Debit Card
 
-Owner, 2026-11-26. The Wallet tab's card under Your Usernames (`BuyKaspaCard`, the Kaspa logo on
-the left, mainnet only: Trestly sells by card on mainnet) opens one flow, `BuyKaspaView`
+Owner, 2026-11-26. The second choice of the Wallet tab's Buy sheet (`BuyKaspaSheet`; the
+Wallet card under Your Usernames it started as is gone; mainnet only: Trestly sells by card on
+mainnet) opens one flow, `BuyKaspaView`
 (`Views/Tokens/BuyKaspaViews.swift`):
 1. "Where should your kUSDT land?": Fresh Address (the default, owner 2026-11-26: the next unused
    regular address, `TokenWallet.freshReceiveAddress`, put on Manage Addresses' list only once an
@@ -1148,7 +1187,12 @@ the left, mainnet only: Trestly sells by card on mainnet) opens one flow, `BuyKa
      refund is never stuck). It's never shown as a wallet.
    - The provider answers accounts, chain (mainnet only) and `eth_signTypedData_v4` for one thing:
      a USDC permit on Ethereum mainnet from that address (`PermitRequest.parse`: exactly
-     Permit's types, USDC's pinned contract, owner, value up to $1M, a deadline within a day). It
+     Permit's types, USDC's pinned contract, owner, value up to $1M, a deadline within a day).
+     **Open, for Trestly:** the spender isn't checked. It's the deposit address Trestly's factory
+     names for the Kaspa address (`forwarderOf(0, kaspaOwner, maxFee, maxDepositFee)`, which
+     Trestly's page checks with an eth_call), and the fee caps aren't in the typed data, so K can't
+     recompute it. The sheet shows it in full. Ask Trestly to send the fee caps with the request
+     (or an endpoint naming the deposit address) so K can pin it (audit 2026-11-26). It
      shows in `CardBuySignSheet` and is signed only on Approve. Everything else is 4200; K sends no
      Ethereum transaction.
    - Keccak-256, EIP-55 and EIP-712 are in `Utilities/EthereumCrypto.swift`, tested by
@@ -1175,8 +1219,8 @@ Ported from KaPay on 2026-11-19 (KaPay's CLAUDE.md "Tokens (kUSDT)" is the full 
 - `Services/Tokens/`: `Kusdt` (deployment ids, the pinned KCC20 template `Resources/kusdt-kcc20-template.json` checked by SHA-256, the 112-byte state and its P2SH script), `KusdtBalances` (Trestly's API, each coin believed only once the node holds that outpoint at the recomputed script with kUSDT's covenant id; `Expected` coins a send just made), `KusdtCore` (Trestly's WebAssembly builder in a hidden, offline `WKWebView`, files in `Resources/KusdtCore/` hash-pinned), `KusdtTransfer` (sends of at most 3 coins, KAS for the fee and change coin from the same address, fee from the token's own KAS on a whole send, every output checked before submit; Combine Coins). A send marks itself with `AddressActivityNotifier.markOwnTransaction`, so its KAS change is never "Received KAS".
 - `Views/Tokens/`: `TokenWallet` (refresh, Discover, visibility, fresh addresses, pending coins, Received notifications polled on the foreground beat from `MainTabView` (90 s until 2026-11-22; watching only the chatting address and addresses that hold, held or were handed out for kUSDT), titled just "Received 1.00 kUSDT" with no address line, history kept on the phone, cleared with the account), `TokenBalanceCard` + `SlidingCardPager` + `BalancePagePills` (the Wallet tab's card swipes Kaspa ⇄ kUSDT; each says Tap to Manage: Kaspa opens Manage Addresses, kUSDT opens `TokenManageView`), `TokenManageView` / `TokenAddressView` / `TokenAddressVisibilityView`, `TokenSendView` (with Fund This Address), `TokenCombineView`, `SendAssetChooser` (Wallet's Send asks "What are you sending?"), `TokenSupport.swift` (`fittedSheetDetents`, `lowercasedKaspaAddress`, `SwipeUpLabels.transaction`).
 - A tapped "Received kUSDT" notification (thread `token-received`) sets `TokenRoute.pending` and opens Manage kUSDT on the Wallet tab; the Notifications list has the `.token` source.
-- Tokens live only on the Chatting Address and regular (legacy P2PK) spending addresses, never quantum ones, and never go to a script address. So Receive hands out a fresh REGULAR address (`WalletManager.freshReceiveAddress`, `lowestUnusedRegularAddress`), and Manage Addresses' Address Actions has Generate Non-Quantum Address and Generate Quantum-Resistant Address. Each address row's ⋮ has Send to Chatting Address. Every receive screen is `Views/Shared/AddressReceiveView.swift` (QR on white, privacy note, tap anywhere to copy).
-- Every Manage kUSDT row has a ⋮ (owner's call, 2026-11-21, the Chatting Address too): Rename, Copy, Show QR Code, Send to Chatting Address, Combine Coins (more than one coin) and Hide; the Chatting Address's has only Copy, Show QR Code and Combine Coins.
+- Tokens live only on the Chatting Address and regular (legacy P2PK) spending addresses, never quantum ones, and never go to a script address. So Receive hands out a fresh REGULAR address (`WalletManager.freshReceiveAddress`, `lowestUnusedRegularAddress`), and Manage Addresses' floating + asks Regular Address or Quantum-Protected Address in a half sheet that says kUSDT can't be sent to or received on a quantum-protected one (owner, 2026-11-26: the Address Actions sheet is gone; Address Visibility is its top-right button and pulling down runs Discover Addresses). Each address row's ⋮ has Send to Chatting Address. Every receive screen is `Views/Shared/AddressReceiveView.swift` (QR on white, privacy note, tap anywhere to copy).
+- Manage kUSDT is laid out as Manage Addresses (owner, 2026-11-26): each address on `ManagedAddressCard` (no quantum tag: kUSDT is never on a quantum address) with Copy, Send, Receive and Rename (not the Chatting Address) and Tap to View History; the ⋮ holds Send to Chatting Address, Combine Coins (more than one coin) and Hide, the Chatting Address's only Combine Coins. kUSDT Address Visibility is the top-right button, the floating + adds a fresh regular address, and pulling down runs Discover kUSDT Addresses. `TokenAddressView` shows the full address on its card and has no Send / Receive.
 - Each Manage kUSDT row carries Manage Addresses' Used / Unused tag (owner's call, 2026-11-20, as KaPay has it; `TokenManageView.isUsed`): orange Used, green Unused. The Chatting Address is always Used; another address is Used once it holds kUSDT (units or coins), has kUSDT history on this phone (`TokenWallet.activity(of:at:)`), or Manage Addresses knows it as used (a `SpendingAddressEntry` with `everUsed` or a balance: the cached list first, then the live one). No "Checking" state: it shows what's known now.
 - Every address Manage kUSDT lists also shows in Manage Addresses (owner's call, 2026-11-20, as KaPay has it). **One way only, never a two-way sync:** an address using kUSDT needs KAS on it (the network fee, and the 1.5 KAS every kUSDT coin carries), so it must always be visible on the Kaspa side; a Kaspa address doesn't need kUSDT, so Manage kUSDT never has to list Kaspa addresses. `TokenWallet.listedSpendingIndices(of:)` is that set. Manage Addresses shows any of them that's hidden again once its list loads (`showKusdtListedAddresses`). Its row ⋮ Hide refuses with a toast. Address Visibility shows them locked and dimmed, and a tap gives the "Shown for kUSDT" alert. Hide All leaves them shown. Once one is hidden from Manage kUSDT, it hides here as usual.
 

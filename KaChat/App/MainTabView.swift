@@ -26,8 +26,6 @@ struct MainTabView: View {
     /// Debounces the off-chat-tab discovery pause/resume so rapid tab-flipping can't thrash it.
     @State private var tabWorkTask: Task<Void, Never>?
     @State private var showWelcomeGuide = false
-    /// Blocking progress while the post-onboarding sync runs.
-    @State private var showInitialSyncProgress = false
     @Environment(\.scenePhase) private var scenePhase
     /// Not observed. This view only CALLS into these two (start/stop polling, onboarding holds,
     /// pending routes) and renders nothing from them, but as @EnvironmentObjects every chat
@@ -147,18 +145,15 @@ struct MainTabView: View {
                 chatService.releaseSyncForOnboarding()
             }
         }
-        .fullScreenCover(isPresented: $showInitialSyncProgress) {
-            InitialSyncProgressModal(onDismiss: { showInitialSyncProgress = false })
-        }
         .fullScreenCover(isPresented: $showWelcomeGuide) {
             WelcomeGuideView(
                 onFinished: {
                     showWelcomeGuide = false
-                    // Everything the account owns starts syncing now, behind a sheet - a
-                    // half-synced chat list invites taps on chats whose history has not landed.
+                    // Everything the account owns starts syncing now, in the background: no
+                    // progress screen and no "You're all set" (owner, 2026-11-26). The app is
+                    // usable at once and chats and history fill in as they sync.
                     if chatService.onboardingSyncHeld {
                         chatService.releaseSyncForOnboarding()
-                        showInitialSyncProgress = true
                     }
                 },
                 // MainTabView only ever presents the guide for account onboarding (fresh
@@ -260,6 +255,10 @@ struct MainTabView: View {
     private func handleTabSelectionChange(_ newValue: Int) {
         // Kaspa Hub tapped again: back to its grid, the way out of a section opened there
         if newValue == selectedTab, newValue == AppTab.hub.tag { HubRouter.shared.close() }
+        // Chats tapped again: back out of an open chat, or switch Private / Public Chats
+        if newValue == selectedTab, newValue == AppTab.chats.tag {
+            NotificationCenter.default.post(name: .chatsTabReselected, object: nil)
+        }
         // KaPosts tapped again (or after another tab): the feed back to its top, as in KaPost
         if newValue == AppTab.kaposts.tag {
             NotificationCenter.default.post(name: .kaPostsScrollFeedToTop, object: nil)
@@ -358,74 +357,6 @@ struct MainTabView: View {
 }
 
 
-// MARK: - Initial sync progress
-
-/// Blocking progress shown once the setup wizard finishes, while the account's first full sync
-/// runs. Nothing syncs during the wizard (see `ChatService.holdSyncForOnboarding`), so this is
-/// where all of that work actually happens - and a half-populated chat list invites taps on
-/// chats whose history has not arrived yet.
-///
-/// It is deliberately escapable. A sync can stall on a slow indexer or a bad network, and a
-/// modal with no way out would be worse than an incomplete chat list, so "Continue anyway"
-/// appears once it has been running a while.
-private struct InitialSyncProgressModal: View {
-    let onDismiss: () -> Void
-    @EnvironmentObject var chatService: ChatService
-    @State private var canSkip = false
-
-    var body: some View {
-        ZStack {
-            Color(.systemGroupedBackground).ignoresSafeArea()
-
-            VStack(spacing: 16) {
-                if chatService.initialSyncPhase == .finished {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 38, weight: .medium))
-                        .foregroundColor(.green)
-                    Text("You're all set")
-                        .font(.headline)
-                    Text("Your chats and history are up to date.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button("Done", action: onDismiss)
-                        .buttonStyle(.borderedProminent)
-                        .padding(.top, 4)
-                } else {
-                    ProgressView().controlSize(.large)
-                    Text("Setting up your account")
-                        .font(.headline)
-                    Text(AppLocalization.string(chatService.initialSyncPhase?.label ?? "Starting"))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    Text("Downloading everything this account has on chain. It only takes this long once.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    if canSkip {
-                        Button("Continue anyway", action: onDismiss)
-                            .font(.subheadline)
-                            .padding(.top, 6)
-                    }
-                }
-            }
-            .padding(28)
-            .frame(maxWidth: 340)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .padding(.horizontal, 24)
-        }
-        .interactiveDismissDisabled(true)
-        .task {
-            try? await Task.sleep(nanoseconds: 20_000_000_000)
-            canSkip = true
-        }
-    }
-}
-
 struct OwnAddressSheetTarget: Identifiable {
     let address: String
     var id: String { address }
@@ -457,9 +388,9 @@ struct OwnAddressHistorySheet: View {
                 case nil:
                     ProgressView()
                 case .chatting?:
-                    ChattingAddressManageView(address: address)
+                    ChattingAddressManageView(address: address, showsSendReceive: true)
                 case .spending(let entry)?:
-                    SpendingAddressTransactionHistoryView(entry: entry)
+                    SpendingAddressTransactionHistoryView(entry: entry, showsSendReceive: true)
                 case .balanceUnavailable?:
                     VStack(spacing: 12) {
                         Text("Couldn't load this address's balance.")

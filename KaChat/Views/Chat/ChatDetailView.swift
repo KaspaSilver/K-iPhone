@@ -69,6 +69,8 @@ struct ChatDetailView: View {
 
     @EnvironmentObject var chatService: ChatService
     @EnvironmentObject var walletManager: WalletManager
+    /// The funding card's Buy Kaspa flow is open: the card stays until it closes.
+    @ObservedObject private var buyKaspaFlow = BuyKaspaFlowPresence.shared
     @EnvironmentObject var contactsManager: ContactsManager
     /// Closes the chat after a Message Request is rejected.
     @Environment(\.dismiss) private var dismiss
@@ -917,7 +919,8 @@ struct ChatDetailView: View {
                                     privateChatNotice
                                         .transition(.opacity)
                                 }
-                                if isChattingBalanceZero {
+                                // the card stays while its Buy Kaspa flow is open, or the flow closes with it
+                                if isChattingBalanceZero || buyKaspaFlow.isOpen {
                                     // Zero-balance gate: reading messages above stays fully
                                     // usable (the card is part of the bottom inset, never an
                                     // overlay on the list) - only composing is blocked.
@@ -6552,6 +6555,8 @@ struct ZeroBalanceFundingCardView: View {
 
     @State private var qrImage: UIImage?
     @State private var showCopiedCheckmark = false
+    /// Buy Kaspa (owner, 2026-11-26): the Wallet's Buy choices, landing on the Chatting Address.
+    @State private var showBuyKaspa = false
 
     var body: some View {
         VStack(spacing: 14) {
@@ -6604,10 +6609,24 @@ struct ZeroBalanceFundingCardView: View {
                     .accessibilityLabel(Text("Copy chatting address"))
                 }
             }
+
+            Button {
+                Haptics.impact(.light)
+                showBuyKaspa = true
+            } label: {
+                Label("Buy Kaspa", systemImage: "plus")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Capsule().fill(Color.accentColor))
+            }
+            .buttonStyle(.plain)
         }
         .padding(16)
         .frame(maxWidth: .infinity)
         .background(cardGlassBackground(cornerRadius: 20))
+        .buyKaspaFlow(isPresented: $showBuyKaspa, toChatting: true)
         .task(id: address) {
             guard let address else {
                 qrImage = nil
@@ -6638,6 +6657,11 @@ struct ZeroBalanceFundingSheetView: View {
     var dismissAtSompi: UInt64 = 1
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var walletManager = WalletManager.shared
+    @ObservedObject private var buyKaspaFlow = BuyKaspaFlowPresence.shared
+
+    private var funded: Bool {
+        (walletManager.currentWallet?.balanceSompi ?? 0) >= dismissAtSompi
+    }
 
     var body: some View {
         ScrollView {
@@ -6648,8 +6672,13 @@ struct ZeroBalanceFundingSheetView: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .onChange(of: walletManager.currentWallet?.balanceSompi) { balance in
-            if let balance, balance >= dismissAtSompi { dismiss() }
+        // funded: closes, but never under its own Buy Kaspa flow (that would close the flow's
+        // last screens); once the flow is done instead
+        .onChange(of: walletManager.currentWallet?.balanceSompi) { _ in
+            if funded, !buyKaspaFlow.isOpen { dismiss() }
+        }
+        .onChange(of: buyKaspaFlow.isOpen) { open in
+            if !open, funded { dismiss() }
         }
     }
 }

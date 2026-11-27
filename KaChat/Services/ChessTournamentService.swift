@@ -202,7 +202,7 @@ final class ChessTournamentService: ObservableObject {
         let publicChat = PublicChatService.shared
         publicChat.resyncArenaIndexerIfUnset()
         if !arenaJoined, !publicChat.channels.contains(where: { $0.channelName == ChessTournamentCodec.arenaChannel }) {
-            publicChat.joinChannel(ChessTournamentCodec.arenaChannel)
+            publicChat.joinChannel(ChessTournamentCodec.arenaChannel, notify: false)
         }
         arenaJoined = true
         publicChat.acquire(ChessTournamentCodec.arenaChannel)

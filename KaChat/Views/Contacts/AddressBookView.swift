@@ -532,16 +532,14 @@ struct AddressBookEntryEditor: View {
     private var effectiveAddress: String { AddressBookManager.normalize(enteredAddress) }
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    /// The name "Use Their Domain Name" fills in: a typed domain that resolved, else the address's
-    /// .kachat name. Saved in full ("alice.kachat"), never the shortened form the hide-endings
-    /// setting shows, since the book syncs to Nextcloud and KaPay, where that setting doesn't
-    /// apply.
+    /// The name "Use Their Username" fills in: a typed username that resolved, else the address's
+    /// .kachat name. Bare, "alice", never "alice.kachat" (owner, 2026-11-26: the ending is never
+    /// shown anywhere, so it isn't saved into a contact's name either).
     private var domainSuggestion: String? {
-        if resolvedAddress != nil, let resolvedName, let tld = selectedTLD {
-            let lower = resolvedName.lowercased()
-            return lower.hasSuffix(tld.suffix) ? resolvedName : resolvedName + tld.suffix
-        }
-        return kachatName
+        let name = (resolvedAddress != nil ? resolvedName : nil) ?? kachatName
+        guard var bare = name?.trimmingCharacters(in: .whitespacesAndNewlines), !bare.isEmpty else { return nil }
+        if bare.lowercased().hasSuffix(".kachat") { bare.removeLast(".kachat".count) }
+        return bare.isEmpty ? nil : bare
     }
 
     var body: some View {

@@ -98,10 +98,12 @@ struct AddressReceiveView<Icon: View, Choices: View>: View {
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
 
                 VStack(spacing: 6) {
-                    Text(verbatim: address)
+                    // Wraps with no hyphen (`wrappingAnywhere`); the whole screen copies it, so no
+                    // text selection, which would copy the invisible break marks too.
+                    Text(verbatim: address.wrappingAnywhere)
                         .font(.footnote.monospaced())
                         .multilineTextAlignment(.center)
-                        .textSelection(.enabled)
+                        .accessibilityLabel(Text(verbatim: address))
                         // the whole address, always: it wraps rather than truncates
                         .fixedSize(horizontal: false, vertical: true)
                     if let privacyNote {

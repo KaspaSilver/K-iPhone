@@ -58,6 +58,8 @@ struct GroupChatDetailView: View {
     var onDeleted: (() -> Void)? = nil
     @EnvironmentObject var groupChatService: GroupChatService
     @EnvironmentObject var walletManager: WalletManager
+    /// The funding card's Buy Kaspa flow is open: the card stays until it closes.
+    @ObservedObject private var buyKaspaFlow = BuyKaspaFlowPresence.shared
     @EnvironmentObject var contactsManager: ContactsManager
     /// Not observed: the group screen only keeps its draft there, and observing it redrew the
     /// whole group thread on every 1:1 sync and sweep.
@@ -679,7 +681,8 @@ struct GroupChatDetailView: View {
                 // matches 1:1 chat's ChatDetailView fix exactly.
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: 0) {
-                        if isChattingBalanceZero {
+                        // the card stays while its Buy Kaspa flow is open, or the flow closes with it
+                        if isChattingBalanceZero || buyKaspaFlow.isOpen {
                             // Zero-balance gate: reading stays fully usable (the card is part
                             // of the bottom inset, never an overlay on the message list) -
                             // only composing is blocked. Mirrors 1:1 chat's gate exactly.

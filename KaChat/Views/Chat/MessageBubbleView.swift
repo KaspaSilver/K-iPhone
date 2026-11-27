@@ -1215,10 +1215,9 @@ struct KaChatInternalLinkCardView: View {
         case .kaPost:
             return kaPostPreview?.text ?? AppLocalization.string("Tap to open it in KaPost.")
         case .publicChatRoom(let channel):
-            // Curated rooms and rooms already in the list just open; anything else is created
-            // and added to the user's channel list on tap, so say so before they tap.
-            let known = PublicChatService.curatedChannels.contains(channel)
-                || PublicChatService.shared.channels.contains { $0.channelName == channel }
+            // A room already in the list just opens; anything else asks to join on tap (default
+            // rooms too since 2026-11-26), so say so before they tap.
+            let known = PublicChatService.shared.channels.contains { $0.channelName == channel }
             return AppLocalization.string(known
                 ? "Tap to open this public chat room."
                 : "Tap to join this public chat room.")

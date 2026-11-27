@@ -51,6 +51,8 @@ final class SwapService: ObservableObject {
     /// until executeSwap actually calls it) - set to a specific index to reuse an existing
     /// address instead, e.g. one already received into from a prior swap.
     @Published private(set) var toAddressOverrideIndex: Int?
+    /// Bought Kaspa lands on the Chatting Address (picked on the "where" step).
+    @Published private(set) var toChatting = false
     @Published private(set) var toAddress: String = ""
 
     enum EstimateStatus { case idle, loading, success, failed }
@@ -209,6 +211,7 @@ final class SwapService: ObservableObject {
         kusdtFrom = nil
         kusdtQuote = nil
         toAddressOverrideIndex = nil
+        toChatting = false
         payoutAddressText = ""
         payoutExtraIdText = ""
         amountText = ""
@@ -315,6 +318,21 @@ final class SwapService: ObservableObject {
 
     func selectToSpendingAddress(index: Int) {
         toAddressOverrideIndex = index
+        toChatting = false
+        refreshToAddress()
+    }
+
+    /// Bought Kaspa lands on a fresh address (the default).
+    func useFreshToAddress() {
+        toAddressOverrideIndex = nil
+        toChatting = false
+        refreshToAddress()
+    }
+
+    /// Bought Kaspa lands on the Chatting Address.
+    func useChattingToAddress() {
+        toAddressOverrideIndex = nil
+        toChatting = true
         refreshToAddress()
     }
 
@@ -326,6 +344,10 @@ final class SwapService: ObservableObject {
     }
 
     func refreshToAddress() {
+        if toChatting {
+            toAddress = WalletManager.shared.currentWallet?.publicAddress ?? ""
+            return
+        }
         let index = toAddressOverrideIndex ?? nextFreshSpendingIndex()
         toAddress = WalletManager.shared.spendingAddress(at: index) ?? ""
     }
@@ -567,7 +589,9 @@ final class SwapService: ObservableObject {
             // to reuse. Swapping out of KAS needs somewhere else to send the other coin, since
             // this wallet doesn't hold it.
             if to.ticker == "kas" {
-                if let overrideIndex = toAddressOverrideIndex {
+                if toChatting {
+                    payoutAddress = WalletManager.shared.currentWallet?.publicAddress ?? ""
+                } else if let overrideIndex = toAddressOverrideIndex {
                     payoutAddress = WalletManager.shared.spendingAddress(at: overrideIndex) ?? ""
                 } else {
                     await WalletManager.shared.generateNextSpendingAddress()
@@ -657,6 +681,7 @@ final class SwapService: ObservableObject {
                 editedSide = .send
                 estimateState = EstimateUiState()
                 toAddressOverrideIndex = nil
+                toChatting = false
                 refreshToAddress()
             } catch {
                 guard startedOn == account else {

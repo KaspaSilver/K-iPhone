@@ -15,6 +15,8 @@ struct PublicChatChannelView: View {
     /// @EnvironmentObject every 1:1 sync, fetch state and conversation publish re-rendered it.
     private var chatService: ChatService { ChatService.shared }
     @EnvironmentObject var walletManager: WalletManager
+    /// The funding card's Buy Kaspa flow is open: the card stays until it closes.
+    @ObservedObject private var buyKaspaFlow = BuyKaspaFlowPresence.shared
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     // A sender's `.kachat` name landing turns on their link previews
     // (`PublicChatMessageRow.senderHasKachatName`) through `contactsManager`: the registry sends
@@ -403,7 +405,8 @@ struct PublicChatChannelView: View {
             // KaChat's ChatDetailView's identical fix for why the old floating approach left a gap.
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
-                    if isChattingBalanceZero {
+                    // the card stays while its Buy Kaspa flow is open, or the flow closes with it
+                    if isChattingBalanceZero || buyKaspaFlow.isOpen {
                         // Zero-balance gate: reading stays fully usable (the card is part of
                         // the bottom inset, never an overlay on the message list) - only
                         // composing is blocked. Mirrors 1:1 chat's gate exactly.

@@ -25,12 +25,18 @@ struct WalletView: View {
     /// A token's page of the balance card, tapped: Manage kUSDT (`TokenManageView`), pushed.
     @State private var openToken: WalletToken?
     /// Swap (owner's call, 2026-11-23: it replaced Swap Stablecoins): the agreements the first
-    /// time, then the swap screen (`SwapView`), full screen.
-    @State private var showSwap = false
-    /// Buy Kaspa with Debit Card (owner, 2026-11-26): the flow, full screen; `buyKaspaResume` is
-    /// an order still on its way, which opens on its page.
-    @State private var showBuyKaspa = false
-    @State private var buyKaspaResume: CardBuy?
+    /// time, then the swap screen (`SwapView`), full screen, opening where this says. An item, not
+    /// a flag beside a separate start: a flag's cover read the start before it was set, so Swap
+    /// History opened Swap.
+    @State private var swapCover: SwapView.Start?
+    /// The Buy button's half sheet (`BuyKaspaSheet`, owner 2026-11-26): Buy Kaspa with Crypto or
+    /// with Debit Card (mainnet; elsewhere Buy goes straight to crypto).
+    @State private var showSwapChoice = false
+    /// What that sheet picked, opened once it has closed.
+    @State private var afterSwapChoice: (() -> Void)?
+    /// Buy Kaspa with Debit Card (owner, 2026-11-26): the flow, full screen, with an order still
+    /// on its way to open on its page. An item, as `swapCover`, so the order is never stale.
+    @State private var buyKaspaCover: BuyKaspaOpen?
     /// The balance card's page: 0 is Kaspa, then one per token (`TokenWallet.tokens`).
     @State private var balancePage = 0
     /// The pull's address sweep is still going (it runs on after the spinner ends).
@@ -95,11 +101,27 @@ struct WalletView: View {
             }
             // a tapped "Received kUSDT" notification (`TokenRoute`): its Manage screen
             .onReceive(NotificationCenter.default.publisher(for: .openToken)) { _ in takeTokenRoute() }
-            .fullScreenCover(isPresented: $showSwap) {
-                SwapView()
+            .fullScreenCover(item: $swapCover) { start in
+                SwapView(start: start)
             }
-            .fullScreenCover(isPresented: $showBuyKaspa) {
-                BuyKaspaView(resume: buyKaspaResume)
+            .sheet(isPresented: $showSwapChoice, onDismiss: {
+                let next = afterSwapChoice
+                afterSwapChoice = nil
+                next?()
+            }) {
+                BuyKaspaSheet(
+                    onCrypto: { choose { swapCover = .buy } },
+                    onDebitCard: { choose { openDebitCardBuy() } }
+                )
+                .fittedSheetDetents(270)
+                .presentationDragIndicator(.visible)
+            }
+            .fullScreenCover(item: $buyKaspaCover) { open in
+                BuyKaspaView(resume: open.resume)
+            }
+            // keeps a debit card order followed (it was the Wallet card's job)
+            .task(id: walletManager.currentWallet?.publicAddress) {
+                CardBuyTracker.shared.ensurePolling()
             }
             .onAppear {
                 takeTokenRoute()
@@ -156,20 +178,11 @@ struct WalletView: View {
                 TestnetFaucetClaimButton(address: wallet.publicAddress)
             }
             chattingAddressSection(wallet)
+            // Request moved off the button row into the list (owner, 2026-11-26)
+            listCard("Request Payment", systemImage: "doc.text") { action = .request }
             // moved here from Profile (owner's call, 2026-11-19), as KaPay's Wallet tab has it
             YourDomainsCard(onToast: { message, style in showToast(message, style: style) })
-            // Buy Kaspa with Debit Card, under Your Usernames (owner, 2026-11-26; mainnet only)
-            if BuyKaspaCard.isOffered {
-                BuyKaspaCard(onOpen: { resume in
-                    buyKaspaResume = resume
-                    showBuyKaspa = true
-                }, onSwap: { buy in
-                    guard let units = buy.mintedUnits else { return }
-                    SwapService.shared.prepareKusdtSell(from: buy.target, units: units)
-                    CardBuyTracker.shared.clear()
-                    showSwap = true
-                })
-            }
+            listCard("Buy/Sell History", systemImage: "clock.arrow.circlepath") { swapCover = .history }
             // No Notifications card: they are behind Profile's bell since 2026-11-21, with KaPost's.
         }
         .padding(.horizontal, 16)
@@ -324,9 +337,24 @@ struct WalletView: View {
         HStack(alignment: .top, spacing: 12) {
             actionButton(title: "Send", icon: "arrow.up") { action = .send }
             actionButton(title: "Receive", icon: "arrow.down") { action = .receive }
-            actionButton(title: "Request", icon: "doc.text") { action = .request }
-            actionButton(title: "Swap", icon: "arrow.left.arrow.right") { showSwap = true }
+            // Buy and Sell, each its own button (owner, 2026-11-26); Request is a card below
+            actionButton(title: "Buy", icon: "plus") {
+                if DebitCardBuy.isOffered { showSwapChoice = true } else { swapCover = .buy }
+            }
+            actionButton(title: "Sell", icon: "minus") { swapCover = .sell }
         }
+    }
+
+    /// A Buy sheet choice, run once the sheet has closed.
+    private func choose(_ next: @escaping () -> Void) {
+        afterSwapChoice = next
+        showSwapChoice = false
+    }
+
+    /// Buy Kaspa with Debit Card: a paid order whose kUSDT arrived goes on to Buy Kaspa with that
+    /// kUSDT; one still on its way opens on its page; anything else starts a new order.
+    private func openDebitCardBuy() {
+        DebitCardBuy.open(openSwap: { swapCover = $0 }, openPage: { buyKaspaCover = BuyKaspaOpen(resume: $0) })
     }
 
     private func actionButton(title: LocalizedStringKey, icon: String, perform: @escaping () -> Void) -> some View {
@@ -351,6 +379,35 @@ struct WalletView: View {
     }
 
     /// The Chatting Address's QR page, as a card in the list (as KaPay's Wallet tab has it).
+    /// A row of the list under the buttons, drawn as the Chatting Address one is.
+    private func listCard(_ title: LocalizedStringKey, systemImage: String, perform: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.impact(.light)
+            perform()
+        } label: {
+            HStack {
+                Label(title, systemImage: systemImage)
+                    .foregroundColor(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.regularMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                )
+                .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
+        )
+    }
+
     private func chattingAddressSection(_ wallet: Wallet) -> some View {
         NavigationLink {
             ChattingAddressQRView(address: wallet.publicAddress, balanceSompi: wallet.balanceSompi)
@@ -492,4 +549,10 @@ private struct KachatExpiredNamesLoading: ViewModifier {
                 if revision != new { revision = new }
             }
     }
+}
+
+/// What Buy Kaspa with Debit Card opens with: an order still on its way, or a new one.
+struct BuyKaspaOpen: Identifiable {
+    let id = UUID()
+    let resume: CardBuy?
 }

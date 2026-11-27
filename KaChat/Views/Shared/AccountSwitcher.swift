@@ -248,8 +248,9 @@ struct AccountSwitcherSheet: View {
     }
 }
 
-/// The account chip beside Profile's title (owner, 2026-11-24): your picture and your username (or
-/// your short address), in glass; a tap opens `AccountSwitcherSheet`.
+/// The account switcher at Profile's top left (owner, 2026-11-26): your picture with a switch
+/// symbol (it was a chip with your username beside the title); a tap opens `AccountSwitcherSheet`.
+/// VoiceOver reads your username or short address.
 struct ProfileAccountChip: View {
     @ObservedObject private var walletManager = WalletManager.shared
     @ObservedObject private var registry = KachatNamesRegistry.shared
@@ -286,22 +287,18 @@ struct ProfileAccountChip: View {
             showSwitcher = true
         } label: {
             HStack(spacing: 6) {
-                KNSAvatarView(avatarURLString: nil, fallbackText: label, size: 24,
+                KNSAvatarView(avatarURLString: nil, fallbackText: label, size: 26,
                               contactAddress: walletManager.currentWallet?.publicAddress)
-                Text(verbatim: label)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Image(systemName: "chevron.down")
-                    .font(.caption2.weight(.bold))
-                    .foregroundColor(.secondary)
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.footnote.weight(.bold))
+                    .foregroundColor(.accentColor)
             }
-            .padding(.leading, 5)
-            .padding(.trailing, 12)
-            .padding(.vertical, 5)
+            .padding(.leading, 4)
+            .padding(.trailing, 10)
+            .padding(.vertical, 4)
             .background(glass)
             .contentShape(Capsule())
+            .fixedSize()
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(verbatim: label))
@@ -311,5 +308,43 @@ struct ProfileAccountChip: View {
             AccountSwitcherSheet()
                 .environmentObject(settingsViewModel)
         }
+    }
+}
+
+/// Share Profile beside Profile's title (owner, 2026-11-26), in the same glass as the switcher.
+struct ProfileShareChip: View {
+    let action: () -> Void
+
+    @ViewBuilder
+    private var glass: some View {
+        if #available(iOS 26.0, *) {
+            Color.clear.glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            Capsule()
+                .fill(.regularMaterial)
+                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
+        }
+    }
+
+    var body: some View {
+        Button {
+            Haptics.impact(.light)
+            action()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.accentColor)
+                Text("Share Profile")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(glass)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -131,12 +131,11 @@ struct NFCCardRestoreView: View {
         }
     }
 
-    /// The same arming as `ImportWalletView.commitImport`, so the Welcome Guide and the held sync
+    /// The same arming as `ImportWalletView.commitImport`, so the Welcome Guide and the sync
     /// behave exactly like a typed import.
     @MainActor
     private func commitImport(_ payload: NFCCardBackupPayload, passphrase: String, family: WalletSourceFamily) async throws {
         walletManager.justCreatedNewWallet = true
-        ChatService.shared.holdSyncForOnboarding()
         walletManager.justImportedWallet = true
         // An account already saved here keeps the name it has, not the one on the card.
         let savedName = walletManager.savedAccounts
@@ -155,7 +154,6 @@ struct NFCCardRestoreView: View {
         } catch {
             walletManager.justCreatedNewWallet = false
             walletManager.justImportedWallet = false
-            ChatService.shared.releaseSyncForOnboarding()
             throw error
         }
     }

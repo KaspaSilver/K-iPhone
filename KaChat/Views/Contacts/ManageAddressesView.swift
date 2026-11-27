@@ -21,6 +21,11 @@ struct ManageAddressesView: View {
     /// A row's ⋮ > Send to Chatting Address: Send Kaspa from that address, the Chatting Address
     /// filled in as the recipient.
     @State private var sendToChattingTarget: SpendingAddressEntry?
+    /// A card's Send: Send Kaspa from that address.
+    @State private var sendTarget: SpendingAddressEntry?
+    /// The Chatting Address card's Send and Receive.
+    @State private var showChattingSend = false
+    @State private var showChattingReceive = false
     @State private var renameTarget: SpendingAddressEntry?
     @State private var renameText = ""
     @State private var toastMessage: String?
@@ -42,16 +47,13 @@ struct ManageAddressesView: View {
     /// account's address actions, so it lives with the others rather than as an unlabelled
     /// checklist glyph in the toolbar.
     @State private var showVisibilityManager = false
-    /// The "Address Actions" half sheet, and the per-row one behind each ellipsis.
-    @State private var showAddressActions = false
+    /// The floating +'s half sheet: a regular or a quantum-protected address.
+    @State private var showNewAddressSheet = false
+    /// The half sheet behind a card's ⋮.
     @State private var addressActionsTarget: SpendingAddressEntry?
-    /// What a row of that sheet opens next, run from its onDismiss: a sheet presented while
-    /// another is still closing can be dropped by iOS.
-    @State private var afterAddressActions: (() -> Void)?
     /// Live scan position while discovering, so the actions sheet can count up rather than sit
     /// on a spinner for the half-minute a gap-limit walk takes.
     @State private var discoveryProgress: WalletManager.SpendingDiscoveryProgress?
-    @State private var discoverySummary: String?
 
     /// Authoritative primary index, read live from WalletManager rather than the rows'
     /// snapshotted `isCurrent` flags - a payment send can rotate the primary while this
@@ -86,8 +88,11 @@ struct ManageAddressesView: View {
                 addressesTabContent
             }
             .listStyle(.plain)
+            // Pulling down is Discover Addresses (owner, 2026-11-26: its own button is gone): it
+            // scans for every address holding a balance or a username, then reloads, as the
+            // Wallet tab's pull does.
             .refreshable {
-                await loadEntries()
+                await discoverAddresses()
             }
             // Room to scroll the last row out from under the floating button.
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -95,18 +100,22 @@ struct ManageAddressesView: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            addressActionsButton
+            newAddressButton
         }
         .navigationTitle("Manage Addresses")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showAddressActions, onDismiss: {
-            let next = afterAddressActions
-            afterAddressActions = nil
-            next?()
-        }) {
-            addressActionsSheet
-                .presentationDetents([.height(510)])
-                .presentationDragIndicator(.visible)
+        // Address Visibility at the top right (owner, 2026-11-26), not in a sheet behind the
+        // floating button.
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    Haptics.impact(.light)
+                    showVisibilityManager = true
+                } label: {
+                    Image(systemName: "checklist")
+                }
+                .accessibilityLabel(Text("Address Visibility"))
+            }
         }
         .sheet(item: $addressActionsTarget) { entry in
             addressRowActionsSheet(entry)
@@ -157,6 +166,37 @@ struct ManageAddressesView: View {
         .sheet(item: $qrTarget) { entry in
             SpendingAddressQRView(entry: entry)
         }
+        .sheet(item: $sendTarget) { entry in
+            if let wallet = WalletManager.shared.currentWallet {
+                WithdrawKaspaView(fromAddress: wallet.publicAddress, availableBalanceSompi: entry.balanceSompi,
+                                  lockedSource: .spending(index: entry.index, address: entry.address,
+                                                          label: entry.displayLabel)) {
+                    Task { await loadEntries() }
+                }
+                .environmentObject(ContactsManager.shared)
+            }
+        }
+        .sheet(isPresented: $showChattingSend) {
+            if let wallet = WalletManager.shared.currentWallet {
+                WithdrawKaspaView(fromAddress: wallet.publicAddress, availableBalanceSompi: wallet.balanceSompi ?? 0,
+                                  lockedSource: .chatting) {
+                    Task { await loadEntries() }
+                }
+                .environmentObject(ContactsManager.shared)
+            }
+        }
+        .sheet(isPresented: $showChattingReceive) {
+            if let wallet = WalletManager.shared.currentWallet {
+                NavigationStack {
+                    ChattingAddressQRView(address: wallet.publicAddress, balanceSompi: wallet.balanceSompi)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Close") { showChattingReceive = false }
+                            }
+                        }
+                }
+            }
+        }
         .sheet(item: $sendToChattingTarget) { entry in
             if let wallet = WalletManager.shared.currentWallet {
                 WithdrawKaspaView(fromAddress: wallet.publicAddress, availableBalanceSompi: entry.balanceSompi,
@@ -194,6 +234,11 @@ struct ManageAddressesView: View {
     @ViewBuilder
     private var addressesTabContent: some View {
         accountSummary
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+
+        discoveryStatus
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
@@ -260,52 +305,39 @@ struct ManageAddressesView: View {
         .padding(.vertical, 40)
     }
 
-    /// The chatting address, first in the list: it opens its own screen (history, UTXOs,
-    /// Domains, Send / Receive), the same one Profile used to.
+    /// The chatting address, first in the list, on the same card as the others: no rename.
     private func chattingAddressRow(_ wallet: Wallet) -> some View {
-        ZStack {
-            NavigationLink {
-                ChattingAddressManageView(address: wallet.publicAddress)
-            } label: {
-                EmptyView()
-            }
-            .opacity(0)
-
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Text("Chatting Address")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
-                            .font(.caption2)
-                            .foregroundColor(.accentColor)
-                    }
-                    Text(verbatim: "\(wallet.publicAddress.prefix(14))...\(wallet.publicAddress.suffix(6))")
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundColor(.primary)
-                    Text(verbatim: "\(wallet.balanceSompi.map { formatKasExact($0) } ?? "--") \(KaspaUnit.symbol)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    HStack(spacing: 6) {
-                        Text("Used")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.orange)
-                        if domainOwningAddresses.contains(wallet.publicAddress) {
-                            ContainsDomainTag()
-                        }
-                    }
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
+        ManagedAddressCard(
+            name: AppLocalization.string("Chatting Address"),
+            amount: Self.kasAmount(wallet.balanceSompi),
+            canSend: (wallet.balanceSompi ?? 0) > 0,
+            used: .used,
+            ownsUsername: domainOwningAddresses.contains(wallet.publicAddress),
+            quantum: .notProtected,
+            nameAccessory: {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
                     .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(16)
+                    .foregroundColor(.accentColor)
+            },
+            detail: {
+                if let sompi = wallet.balanceSompi { KaspaFiatText(sompi: sompi) }
+            },
+            onCopy: {
+                UIPasteboard.general.string = wallet.publicAddress
+                Haptics.success()
+                showToast(wallet.publicAddress.addressCopiedToastText)
+            },
+            onSend: { showChattingSend = true },
+            onReceive: { showChattingReceive = true },
+            onRename: nil,
+            onMore: nil
+        ) {
+            ChattingAddressManageView(address: wallet.publicAddress)
         }
-        .background(glassBackground(cornerRadius: 18))
+    }
+
+    private static func kasAmount(_ sompi: UInt64?) -> String {
+        "\(sompi.map { KaspaUnit.groupedExact($0) } ?? "--") \(KaspaUnit.symbol)"
     }
 
     private func addressRow(_ entry: SpendingAddressEntry) -> some View {
@@ -314,81 +346,46 @@ struct ManageAddressesView: View {
         // and claiming "Unused" could invite address reuse. Pull to refresh re-checks.
         let usedUnknown = !isUsed && unknownUsedAddresses.contains(entry.address)
 
-        return ZStack {
-            NavigationLink {
-                SpendingAddressTransactionHistoryView(entry: entry)
-            } label: {
-                EmptyView()
-            }
-            .opacity(0)
-
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Text(entry.displayLabel)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        if entry.isQuantum {
-                            quantumShield(for: entry)
-                        }
-                    }
-                    Text(entry.shortAddress)
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundColor(.primary)
-                    Text(verbatim: "\(formatKasExact(entry.balanceSompi)) \(KaspaUnit.symbol)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    HStack(spacing: 6) {
-                        Text(isUsed ? "Used" : (usedUnknown ? "Checking" : "Unused"))
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(isUsed ? .orange : (usedUnknown ? .secondary : .green))
-                        if domainOwningAddresses.contains(entry.address) {
-                            ContainsDomainTag()
-                        }
-                    }
-                }
-
-                Spacer()
-
-                // Half sheet rather than a context menu - the rows have room to say what each
-                // one does, which a menu of bare verbs cannot. See `addressRowActionsSheet`.
-                Button {
-                    addressActionsTarget = entry
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.scaled(size: 18, weight: .bold))
-                        .rotationEffect(.degrees(90))
-                        .foregroundColor(.secondary)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(16)
+        return ManagedAddressCard(
+            name: entry.displayLabel,
+            amount: Self.kasAmount(entry.balanceSompi),
+            canSend: entry.balanceSompi > 0,
+            used: isUsed ? .used : (usedUnknown ? .checking : .unused),
+            ownsUsername: domainOwningAddresses.contains(entry.address),
+            quantum: quantumState(for: entry),
+            nameAccessory: { EmptyView() },
+            detail: { KaspaFiatText(sompi: entry.balanceSompi) },
+            onCopy: {
+                UIPasteboard.general.string = entry.address
+                // A copied address can be handed out for kUSDT like Receive's: the regular look
+                // watches it, so a coin sent there is announced (audit 2026-11-25 M2). Quantum
+                // addresses never hold tokens.
+                if !entry.isQuantum { TokenWallet.shared.noteReceiveAddressShown(entry.address) }
+                Haptics.success()
+                showToast(entry.address.addressCopiedToastText)
+            },
+            onSend: { sendTarget = entry },
+            onReceive: { qrTarget = entry },
+            onRename: {
+                renameText = entry.label ?? ""
+                renameTarget = entry
+            },
+            // The rest (Send to Chatting Address, Hide) in a half sheet. See `addressRowActionsSheet`.
+            onMore: { addressActionsTarget = entry }
+        ) {
+            SpendingAddressTransactionHistoryView(entry: entry)
         }
-        .background(glassBackground(cornerRadius: 18))
     }
 
-    /// The quantum (KIP-22) state of a row, told honestly:
-    /// - shield: the key has never been on chain (receiving reveals nothing) - quantum-safe.
-    /// - slashed shield: this address SPENT once, so its key is public forever; orange when
-    ///   funds sit on it again (move them to a fresh address), gray when it is empty.
-    @ViewBuilder
-    private func quantumShield(for entry: SpendingAddressEntry) -> some View {
+    /// The quantum (KIP-22) state of an address, spelled out on its card (owner, 2026-11-26):
+    /// - protected: a quantum-resistant address whose key has never been on chain.
+    /// - not protected: any regular address, or a quantum one that SPENT once, so its key is
+    ///   public forever (orange when funds sit on it again: move them to a fresh address).
+    private func quantumState(for entry: SpendingAddressEntry) -> QuantumProtection {
+        guard entry.isQuantum else { return .notProtected }
         let spent = quantumSpentAddresses.contains(entry.address.lowercased())
-        if spent {
-            Image(systemName: "shield.slash.fill")
-                .font(.caption2)
-                .foregroundColor(entry.balanceSompi > 0 ? .orange : .secondary)
-                .accessibilityLabel(Text("Key revealed by a spend"))
-        } else {
-            Image(systemName: "shield.fill")
-                .font(.caption2)
-                .foregroundColor(.green)
-                .accessibilityLabel(Text("Quantum-safe"))
-        }
+        if !spent { return .protected }
+        return entry.balanceSompi > 0 ? .revealedWithFunds : .notProtected
     }
 
     /// Everything this account holds: the chatting address and every spending address, hidden
@@ -411,18 +408,19 @@ struct ManageAddressesView: View {
         }
     }
 
-    /// The floating glass button behind "Address Actions", like Profile's send / receive one.
-    private var addressActionsButton: some View {
+    /// The floating +: asks which kind of address (owner, 2026-11-26), saying plainly that kUSDT
+    /// can't go to or from a quantum-protected one.
+    private var newAddressButton: some View {
         Button {
             Haptics.impact(.light)
-            showAddressActions = true
+            showNewAddressSheet = true
         } label: {
             Group {
-                if isGenerating || isDiscovering {
+                if isGenerating {
                     ProgressView()
                 } else {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.scaled(size: 22, weight: .semibold))
+                    Image(systemName: "plus")
+                        .font(.scaled(size: 24, weight: .semibold))
                         .foregroundColor(.accentColor)
                 }
             }
@@ -435,123 +433,80 @@ struct ManageAddressesView: View {
             )
         }
         .buttonStyle(.plain)
+        // not while a pull-down Discover is still writing the list (audit 2026-11-26)
         .disabled(isGenerating || isDiscovering)
+        .opacity(isDiscovering ? 0.5 : 1)
         .padding(.trailing, 20)
         .padding(.bottom, 16)
-        .accessibilityLabel(Text("Address Actions"))
+        .accessibilityLabel(Text("New Address"))
+        .sheet(isPresented: $showNewAddressSheet) {
+            newAddressSheet
+                .fittedSheetDetents(285)
+                .presentationDragIndicator(.visible)
+        }
     }
 
-    /// The half sheet behind "Address Actions".
-    ///
-    /// Discovery reports its position as it walks, and that lands HERE rather than dismissing:
-    /// a scan is a balance lookup per address until the gap limit is reached, easily half a
-    /// minute, and a sheet closing on an unmoving spinner said nothing about whether it was
-    /// working. The sheet stays put, counts up, and finishes with what it found.
-    private var addressActionsSheet: some View {
-        VStack(spacing: 0) {
-            Text("Address Actions")
+    /// Regular or quantum-protected. Both rows say what they're for; the warning repeats it.
+    private var newAddressSheet: some View {
+        VStack(spacing: 12) {
+            Text("New Address")
                 .font(.headline)
                 .padding(.top, 20)
-                .padding(.bottom, 16)
-
-            if isDiscovering, let progress = discoveryProgress {
-                VStack(spacing: 10) {
-                    ProgressView()
-                    Text("Checking address #\(progress.checkingIndex)")
-                        .font(.subheadline.weight(.semibold))
-                    Text(progress.foundCount == 0
-                         ? "No addresses with a balance or username yet"
-                         : "\(progress.foundCount) found so far")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-
-                    // The scan belongs to this screen, not to the sheet, so closing the sheet
-                    // does not stop it - it keeps running and reports what it found in a toast.
-                    // Holding the sheet open for the length of a thousand-address sweep was the
-                    // only reason to sit and watch it.
-                    Button {
-                        showAddressActions = false
-                    } label: {
-                        Text("Close and Keep Scanning")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .foregroundColor(.accentColor)
-                            .background(glassBackground(cornerRadius: 14))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 6)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
-            } else {
-                VStack(spacing: 12) {
-                    ActionSheetRow(
-                        title: "Generate Non-Quantum Address",
-                        subtitle: "A regular address, like Receive gives you. Works with everything, kUSDT included.",
-                        systemImage: "plus.circle",
-                        isBusy: isGenerating,
-                        isDisabled: isDiscovering
-                    ) {
-                        generateNew(quantum: false)
-                        showAddressActions = false
-                    }
-                    ActionSheetRow(
-                        title: "Generate Quantum-Resistant Address",
-                        subtitle: "Keeps its key hidden until it spends. For Kaspa only: kUSDT can't be traded from it.",
-                        systemImage: "shield",
-                        isBusy: isGenerating,
-                        isDisabled: isDiscovering
-                    ) {
-                        generateNew(quantum: true)
-                        showAddressActions = false
-                    }
-                    ActionSheetRow(
-                        title: "Discover Addresses",
-                        subtitle: "Finds addresses holding a balance or a username.",
-                        systemImage: "magnifyingglass",
-                        isDisabled: isDiscovering
-                    ) {
-                        discoverAddresses()
-                    }
-                    ActionSheetRow(
-                        title: "Address Visibility",
-                        subtitle: "Check off every address you want on the list, in one sitting.",
-                        systemImage: "checklist",
-                        isDisabled: isDiscovering
-                    ) {
-                        afterAddressActions = { showVisibilityManager = true }
-                        showAddressActions = false
-                    }
-                    if let discoverySummary {
-                        Text(discoverySummary)
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
-                            .padding(.top, 2)
-                    }
-                }
-                .padding(.horizontal, 20)
+                .padding(.bottom, 4)
+            ActionSheetRow(
+                title: "Regular Address",
+                subtitle: "Works with everything: Kaspa and kUSDT.",
+                systemImage: "plus.circle"
+            ) {
+                showNewAddressSheet = false
+                generateNew(quantum: false)
             }
-
+            ActionSheetRow(
+                title: "Quantum-Protected Address",
+                subtitle: "Keeps its key hidden until it spends. Kaspa only.",
+                systemImage: "shield"
+            ) {
+                showNewAddressSheet = false
+                generateNew(quantum: true)
+            }
+            Label("kUSDT can't be sent to or received on a quantum-protected address.",
+                  systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 2)
             Spacer(minLength: 0)
         }
+        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
-        // belongs to this screen rather than to the sheet, so closing it does not abandon
-        // anything - the Address Actions button keeps its spinner and the result arrives as a
-        // toast. Holding the sheet open was only ever protecting a progress readout.
-        .onDisappear { discoverySummary = nil }
+    }
+
+    /// While a pull-down scan runs: how far it is, under the Total Balance.
+    @ViewBuilder
+    private var discoveryStatus: some View {
+        if isDiscovering, let progress = discoveryProgress {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("Checking address #\(progress.checkingIndex)")
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 0)
+                Text(progress.foundCount == 0
+                     ? "No addresses with a balance or username yet"
+                     : "\(progress.foundCount) found so far")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 6)
+        }
     }
 
     /// Rows vary by address, so the detent has to as well - see `addressRowActionsSheet`.
     private func rowActionsSheetHeight(_ entry: SpendingAddressEntry) -> CGFloat {
-        let rows = 5
+        // Copy, Send, Receive and Rename are on the card itself (owner, 2026-11-26).
+        let rows = 2
         return CGFloat(120 + rows * 62)
     }
 
@@ -568,39 +523,6 @@ struct ManageAddressesView: View {
             .padding(.top, 20)
             .padding(.bottom, 4)
 
-            ActionSheetRow(
-                title: "Rename Address",
-                subtitle: "Gives this address a label of your own.",
-                systemImage: "pencil"
-            ) {
-                addressActionsTarget = nil
-                DispatchQueue.main.async {
-                    renameText = entry.label ?? ""
-                    renameTarget = entry
-                }
-            }
-            ActionSheetRow(
-                title: "Copy Address",
-                subtitle: "Puts the full address on the clipboard.",
-                systemImage: "doc.on.doc"
-            ) {
-                UIPasteboard.general.string = entry.address
-                // A copied address can be handed out for kUSDT like Receive's: the regular look
-                // watches it, so a coin sent there is announced (audit 2026-11-25 M2). Quantum
-                // addresses never hold tokens.
-                if !entry.isQuantum { TokenWallet.shared.noteReceiveAddressShown(entry.address) }
-                Haptics.success()
-                addressActionsTarget = nil
-                showToast(entry.address.addressCopiedToastText)
-            }
-            ActionSheetRow(
-                title: "Show QR Code",
-                subtitle: "Full screen, for scanning with another device.",
-                systemImage: "qrcode"
-            ) {
-                addressActionsTarget = nil
-                DispatchQueue.main.async { qrTarget = entry }
-            }
             // Send Kaspa from this address with the Chatting Address already the recipient
             ActionSheetRow(
                 title: "Send to Chatting Address",
@@ -922,31 +844,26 @@ struct ManageAddressesView: View {
         }
     }
 
-    private func discoverAddresses() {
+    /// Discover Addresses, run by pulling down: finds every address holding a balance or a
+    /// username (the gap-limit walk), then reloads. Waits for the scan, so the pull's spinner
+    /// stays until it's done, and says what it found in a toast.
+    private func discoverAddresses() async {
         guard !isDiscovering else { return }
         isDiscovering = true
-        discoverySummary = nil
         discoveryProgress = WalletManager.SpendingDiscoveryProgress(checkingIndex: 0, foundCount: 0)
-        Task {
-            let discovered = await walletManager.discoverSpendingAddresses { progress in
-                discoveryProgress = progress
-            }
-            await loadEntries()
-            isDiscovering = false
-            discoveryProgress = nil
-            // The count is addresses that hold a balance or a username - say so, rather than
-            // "used", which is what the old high-water-mark number implied and was not.
-            // One key per plural form, translated (audit 2026-11-24 #34, #36).
-            let summary = discovered == 0
-                ? AppLocalization.string("No addresses with a balance or username found.")
-                : discovered == 1
-                    ? AppLocalization.string("Found 1 address with a balance or username.")
-                    : String(format: AppLocalization.string("Found %lld addresses with a balance or username."), discovered)
-            discoverySummary = summary
-            // Closed the sheet and carried on? Then the summary above has nowhere to render, so
-            // say it here instead of finishing silently.
-            if !showAddressActions { showToast(summary) }
+        let discovered = await walletManager.discoverSpendingAddresses { progress in
+            discoveryProgress = progress
         }
+        await loadEntries()
+        isDiscovering = false
+        discoveryProgress = nil
+        // One key per plural form, translated (audit 2026-11-24 #34, #36).
+        let summary = discovered == 0
+            ? AppLocalization.string("No addresses with a balance or username found.")
+            : discovered == 1
+                ? AppLocalization.string("Found 1 address with a balance or username.")
+                : String(format: AppLocalization.string("Found %lld addresses with a balance or username."), discovered)
+        showToast(summary)
     }
 
     private func showToast(_ message: String, style: ToastStyle = .success) {
@@ -962,6 +879,185 @@ struct ManageAddressesView: View {
                 }
             }
         }
+    }
+}
+
+/// One address on Manage Addresses (owner, 2026-11-26): drawn like the Total Balance card, with
+/// its name, balance, worth in your currency and Used / Unused, then Copy, Send, Receive and
+/// Rename, and "Tap to View History" (the whole card opens the address's page, where the full
+/// address shows). The address itself isn't on the card.
+/// Manage kUSDT draws its addresses with it too (owner, 2026-11-26: "the same setup").
+struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: View {
+    enum UsedState { case used, unused, checking }
+
+    let name: String
+    /// The balance, large ("12.5 KAS", "3.00 kUSDT"), or "--" while unknown.
+    let amount: String
+    /// Send is off when there's nothing to send.
+    let canSend: Bool
+    let used: UsedState
+    let ownsUsername: Bool
+    /// Nil leaves the tag off (kUSDT: it only ever lives on regular addresses).
+    let quantum: QuantumProtection?
+    @ViewBuilder let nameAccessory: () -> Accessory
+    /// Under the amount: its worth in your currency, and anything else the asset needs.
+    @ViewBuilder let detail: () -> Detail
+    let onCopy: () -> Void
+    let onSend: () -> Void
+    let onReceive: () -> Void
+    /// Nil for the Chatting Address, which keeps its name.
+    let onRename: (() -> Void)?
+    /// The ⋮: the address's other actions. Nil for none.
+    let onMore: (() -> Void)?
+    @ViewBuilder let destination: () -> Destination
+
+    var body: some View {
+        ZStack {
+            NavigationLink {
+                destination()
+            } label: {
+                EmptyView()
+            }
+            .opacity(0)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(verbatim: name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    nameAccessory()
+                    // Beside the name (owner, 2026-11-26)
+                    if let quantum {
+                        QuantumProtectionTag(state: quantum)
+                            .fixedSize()
+                    }
+                    Spacer(minLength: 4)
+                    if let onMore {
+                        Button {
+                            Haptics.impact(.light)
+                            onMore()
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.scaled(size: 18, weight: .bold))
+                                .rotationEffect(.degrees(90))
+                                .foregroundColor(.secondary)
+                                .frame(width: 30, height: 30)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(Text("More"))
+                    }
+                }
+                Text(verbatim: amount)
+                    .font(.title.weight(.bold))
+                    .foregroundColor(.primary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                detail()
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                usedTag
+                    .padding(.top, 2)
+                if ownsUsername {
+                    ContainsDomainTag()
+                        .padding(.top, 2)
+                }
+
+                HStack(spacing: 0) {
+                    actionButton("Copy", systemImage: "doc.on.doc", action: onCopy)
+                    actionButton("Send", systemImage: "arrow.up", isDisabled: !canSend, action: onSend)
+                    actionButton("Receive", systemImage: "arrow.down", action: onReceive)
+                    if let onRename {
+                        actionButton("Rename", systemImage: "pencil", action: onRename)
+                    }
+                }
+                .padding(.top, 10)
+
+                HStack(spacing: 4) {
+                    Spacer()
+                    Text("Tap to View History")
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                    Spacer()
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.accentColor)
+                .padding(.top, 8)
+            }
+            .padding(18)
+        }
+        .background(BalanceCardBackground())
+    }
+
+    @ViewBuilder
+    private var usedTag: some View {
+        switch used {
+        case .used:
+            Text("Used").font(.headline).foregroundColor(.orange)
+        case .unused:
+            Text("Unused").font(.headline).foregroundColor(.green)
+        case .checking:
+            Text("Checking").font(.headline).foregroundColor(.secondary)
+        }
+    }
+
+    /// A round button with its name under it. Borderless, so in a List row it takes only its
+    /// own taps and the rest of the card still opens the history.
+    private func actionButton(_ title: LocalizedStringKey, systemImage: String, isDisabled: Bool = false,
+                              action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.impact(.light)
+            action()
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.scaled(size: 16, weight: .semibold))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 42, height: 42)
+                    .background(Circle().fill(Color.accentColor.opacity(0.18)))
+                Text(title)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.4 : 1)
+    }
+}
+
+/// Whether an address keeps its key hidden from a future quantum computer.
+enum QuantumProtection {
+    /// A quantum-resistant address that has never spent.
+    case protected
+    /// A regular address, or a quantum one whose key a spend revealed.
+    case notProtected
+    /// A quantum address whose key a spend revealed, with funds on it again.
+    case revealedWithFunds
+}
+
+/// "Quantum Protected" / "Not Quantum Protected", spelled out on an address card in place of
+/// the shield icon (owner, 2026-11-26).
+struct QuantumProtectionTag: View {
+    let state: QuantumProtection
+
+    var body: some View {
+        let protected = state == .protected
+        let color: Color = protected ? .green : (state == .revealedWithFunds ? .orange : .secondary)
+        Text(LocalizedStringKey(protected ? "Quantum Protected" : "Not Quantum Protected"))
+            .font(.caption.weight(.semibold))
+            .foregroundColor(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(color.opacity(0.15)))
+            .lineLimit(1)
     }
 }
 
@@ -1798,6 +1894,9 @@ private struct SpendingAddressPrivateKeyView: View {
 /// Explorer, rather than showing an in-app detail screen.
 struct SpendingAddressTransactionHistoryView: View {
     let entry: SpendingAddressEntry
+    /// Send and Receive at the bottom: only where Manage Addresses' card isn't behind the page
+    /// (a tapped address-activity notification).
+    var showsSendReceive = false
 
     @State private var showAddressActions = false
     @State private var showPublicKeySheet = false
@@ -1847,7 +1946,7 @@ struct SpendingAddressTransactionHistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            KaspaAddressBalanceCard(label: entry.displayLabel, sompi: entry.balanceSompi)
+            KaspaAddressBalanceCard(label: entry.displayLabel, address: entry.address, sompi: entry.balanceSompi)
 
             // The app's page switch (`PageCycleBar`), not a segmented control.
             PageCycleBar(
@@ -1908,7 +2007,10 @@ struct SpendingAddressTransactionHistoryView: View {
         .sheet(isPresented: $showPublicKeySheet) {
             AddressPublicKeyView(address: entry.address, note: "This is the public half of this address. It cannot spend anything.")
         }
+        // Send and Receive are on Manage Addresses' card (owner, 2026-11-26); only a page opened
+        // from a notification, with no card behind it, keeps them.
         .safeAreaInset(edge: .bottom) {
+            if showsSendReceive {
             HStack(spacing: 12) {
                 Button {
                     showReceiveSheet = true
@@ -1935,6 +2037,7 @@ struct SpendingAddressTransactionHistoryView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 16)
+            }
         }
         .sheet(isPresented: $showReceiveSheet) {
             SpendingAddressQRView(entry: entry)

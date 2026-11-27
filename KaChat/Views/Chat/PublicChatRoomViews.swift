@@ -39,75 +39,238 @@ struct PublicChatChannelDestination: ViewModifier {
     }
 }
 
-/// The Public Chats customize sheet, opened from the Chats screen: every default room with a
-/// switch. On means the room is in the list (switching it on joins it); off takes it out and
-/// silences it. The Languages switch turns every language room off at once; while it is on, each
-/// language has its own switch.
-struct PublicChatsSettingsView: View {
-    @EnvironmentObject var publicChatService: PublicChatService
-    @Environment(\.dismiss) private var dismiss
+/// Add Room (owner, 2026-11-26): the Public Chats page's + and its empty page's Add Room. Public
+/// Chats starts empty, so this is how a room gets there: every room the indexer keeps (the
+/// featured rooms, then whatever the indexer reports, so the list grows with it), each with Join;
+/// the language rooms behind Other Languages; and Create at the top right, which first says how a
+/// room nobody indexes works, then takes its name.
+struct PublicRoomBrowserView: View {
+    /// A room to open: Open on a joined one, or a room just created.
+    let onOpenRoom: (String) -> Void
+    let onClose: () -> Void
 
-    private func row(_ name: String) -> some View {
-        Toggle(isOn: Binding(
-            // on = in the list (joined, not switched off); switching on joins it
-            get: { publicChatService.isCuratedChannelOn(name) },
-            set: { publicChatService.setCuratedChannel(name, shown: $0) }
-        )) {
+    @ObservedObject private var publicChats = PublicChatService.shared
+    @State private var path: [Page] = []
+
+    private enum Page: Hashable { case languages, createInfo, createName }
+
+    /// The featured rooms, then the rooms the indexer lists.
+    private var rooms: [String] {
+        var list = PublicChatService.featuredChannels
+        for name in PublicChatService.indexerDefaultChannels where !list.contains(name) {
+            list.append(name)
+        }
+        return list
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            List {
+                Section {
+                    ForEach(rooms, id: \.self) { name in
+                        roomRow(name, subtitle: nil)
+                    }
+                } footer: {
+                    Text("Rooms the indexer keeps: their history is saved and they can notify you even when K is closed.")
+                }
+                Section {
+                    NavigationLink(value: Page.languages) {
+                        Label("Other Languages", systemImage: "globe")
+                    }
+                }
+            }
+            .navigationTitle("Add Room")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { onClose() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Create") { path.append(.createInfo) }
+                }
+            }
+            .navigationDestination(for: Page.self) { page in
+                switch page {
+                case .languages:
+                    List {
+                        ForEach(PublicChatService.languageChannels, id: \.self) { name in
+                            roomRow(name, subtitle: PublicChatService.languageDisplayName(for: name))
+                        }
+                    }
+                    .navigationTitle("Other Languages")
+                    .navigationBarTitleDisplayMode(.inline)
+                case .createInfo:
+                    PublicRoomCreateInfoView { path.append(.createName) }
+                case .createName:
+                    PublicRoomNameView(onCreated: onOpenRoom)
+                }
+            }
+        }
+        // a room just added on the indexer shows here within a minute
+        .onAppear { publicChats.refreshIndexerTrackedRooms(maxAge: 60) }
+    }
+
+    /// "#name" (and its language), with Join, or Open once it's in the list. Join waits for the
+    /// account's room store (right after launch a join would fail with nothing said, audit
+    /// 2026-11-26).
+    private func roomRow(_ name: String, subtitle: String?) -> some View {
+        let joined = publicChats.channels.contains { $0.channelName == name }
+        let ready = publicChats.isStoreReady
+        return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("#\(name)")
-                if let language = PublicChatService.languageDisplayName(for: name) {
-                    Text(language)
+                Text(verbatim: "#\(name)")
+                    .font(.body.weight(.semibold))
+                if let subtitle {
+                    Text(verbatim: subtitle)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
+            Spacer(minLength: 8)
+            Button {
+                Haptics.impact(.light)
+                if joined {
+                    onOpenRoom(name)
+                } else if publicChats.joinChannel(name) {
+                    Haptics.success()
+                }
+            } label: {
+                Text(LocalizedStringKey(joined ? "Open" : "Join"))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundColor(joined ? .accentColor : .black)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(joined ? Color.accentColor.opacity(0.15) : Color.accentColor))
+            }
+            .buttonStyle(.borderless)
+            .disabled(!joined && !ready)
+            .opacity(!joined && !ready ? 0.4 : 1)
         }
+        .padding(.vertical, 2)
     }
+}
+
+/// Create, first: how a room nobody indexes works, said plainly before it's made.
+private struct PublicRoomCreateInfoView: View {
+    let onContinue: () -> Void
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    ForEach(PublicChatService.featuredChannels, id: \.self) { row($0) }
-                } header: {
-                    Text("Popular")
-                } footer: {
-                    Text("A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time.")
-                }
-                Section {
-                    Toggle("Languages", isOn: Binding(
-                        get: { publicChatService.anyLanguageChannelOn },
-                        set: { on in
-                            withAnimation { publicChatService.setAllLanguageChannels(shown: on) }
-                        }
-                    ))
-                    if publicChatService.anyLanguageChannelOn {
-                        ForEach(PublicChatService.languageChannels, id: \.self) { row($0) }
-                    }
-                } footer: {
-                    Text("Off takes every language room out of Public Chats. On, switch off the ones you don't want.")
-                }
-                // Rooms added on the indexer (`indexerDefaultChannels`): they come and go with it.
-                let more = PublicChatService.indexerDefaultChannels
-                if !more.isEmpty {
-                    Section {
-                        ForEach(more, id: \.self) { row($0) }
-                    } header: {
-                        Text("More Rooms")
-                    } footer: {
-                        Text("Rooms added on the indexer K reads public chats from.")
-                    }
-                }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("How a Room You Create Works")
+                    .font(.title2.weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                point("number", "Anyone who types the same name joins the same room. It has no owner and no invite.")
+                point("tray", "No indexer keeps its history. K reads it from the Kaspa network while the room is open, and keeps up to 3 days on your phone.")
+                point("bell.slash", "No notifications while K is closed. With its bell on, K notifies you only while it's open.")
+                point("eye", "Everything said there is public: anyone can read it on the Kaspa network.")
             }
-            // a room just added on the indexer shows here within a minute
-            .onAppear { publicChatService.refreshIndexerTrackedRooms(maxAge: 60) }
-            .navigationTitle("Public Chats")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .padding(20)
         }
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                Haptics.impact(.light)
+                onContinue()
+            } label: {
+                Text("Continue")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .foregroundColor(.black)
+                    .background(Capsule().fill(Color.accentColor))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+        }
+        .navigationTitle("Create")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func point(_ icon: String, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(.accentColor)
+                .frame(width: 28)
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Create, then: the room's name. A name the indexer keeps joins that room.
+private struct PublicRoomNameView: View {
+    let onCreated: (String) -> Void
+    @ObservedObject private var publicChats = PublicChatService.shared
+    @State private var name = ""
+    @State private var error: String?
+    @FocusState private var focused: Bool
+
+    private var isEmpty: Bool { name.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 4) {
+                Text(verbatim: "#")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                TextField("channel-name", text: $name)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.join)
+                    .focused($focused)
+                    .onSubmit(create)
+            }
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.regularMaterial))
+
+            if let error {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button(action: create) {
+                Text("Create Room")
+                    .font(.subheadline.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundColor(.black)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.accentColor.opacity(isEmpty ? 0.4 : 1))
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(isEmpty)
+
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .navigationTitle("Name Your Room")
+        .navigationBarTitleDisplayMode(.inline)
+        // a turn later: the field doesn't exist yet on the push that showed it
+        .onAppear { DispatchQueue.main.async { focused = true } }
+    }
+
+    private func create() {
+        guard !isEmpty else { return }
+        let typed = PublicChatChannelName.normalize(name)
+        let normalized = PublicChatService.retiredChannels[typed] ?? typed
+        guard PublicChatChannelName.isValid(normalized) else {
+            error = String(format: AppLocalization.string("Channel names must be 1-%d characters with no spaces or colons."),
+                           locale: AppLocalization.locale, PublicChatChannelName.maxLength)
+            return
+        }
+        guard publicChats.joinChannel(normalized) else {
+            error = AppLocalization.string("Something went wrong joining that channel.")
+            return
+        }
+        Haptics.success()
+        onCreated(normalized)
     }
 }

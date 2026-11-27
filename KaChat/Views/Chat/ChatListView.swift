@@ -28,6 +28,13 @@ struct ChatListView: View {
 
     /// What the + sheet is showing: the choice, or the screen it led to.
     private enum CreateStep { case menu, chat, group, publicRoom }
+    /// What the + opened, carried by the sheet itself: the Public Chats page's + always shows New
+    /// Public Chat. A flag beside a separate step once showed New Chat / New Group Chat there (a
+    /// stale step, or the last close's reset landing after a quick reopen, 2026-11-26).
+    private struct CreateOpen: Identifiable {
+        let id = UUID()
+        let publicRoom: Bool
+    }
 
     /// The list's two pages, switched by the cycle button beside the title (owner, 2026-11-25):
     /// your chats and groups, or the public rooms.
@@ -50,14 +57,9 @@ struct ChatListView: View {
     /// For actions only (join, mute, mark read): never read for drawing.
     private var publicChats: PublicChatService { PublicChatService.shared }
     @State private var selectedPublicRoom: String?
-    /// The gear at the top left: Public Chats' settings (Edit Default Public Chats).
-    @State private var showPublicChatsSettings = false
-    /// A room you added, waiting on its delete confirmation (a default room is only switched off).
+    /// A room you made, waiting on its delete confirmation (one the indexer keeps leaves at once:
+    /// it can be added again from Add Room).
     @State private var roomToLeave: String?
-    /// New Public Chat: the room name being typed, and why it was refused.
-    @State private var createRoomName = ""
-    @State private var createRoomError: String?
-    @FocusState private var createRoomFieldFocused: Bool
 
     @State private var searchText = ""
     @State private var selectedContact: Contact?
@@ -76,7 +78,7 @@ struct ChatListView: View {
     @State private var showMessageRequests = false
     @State private var selectedContactStartInPaymentMode = false
     /// The bottom-right +: New Chat or New Group Chat, then that screen, all in one sheet.
-    @State private var showCreateSheet = false
+    @State private var createOpen: CreateOpen?
     @State private var createStep: CreateStep = .menu
     @State private var createDetent: PresentationDetent = Self.createMenuHeight
     /// From a profile link: the person whose User Info is up.
@@ -170,18 +172,8 @@ struct ChatListView: View {
             .navigationTitle("Chats")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Public Chats' settings (owner, 2026-11-24: here, not in the + sheet): the
-                // default rooms and the language rooms on or off.
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if editMode != .active && listPage == .publicChats {
-                        Button {
-                            showPublicChatsSettings = true
-                        } label: {
-                            Image(systemName: "gearshape")
-                        }
-                        .accessibilityLabel(Text("Edit Default Public Chats"))
-                    }
-                }
+                // No gear for Public Chats any more (owner, 2026-11-26): nothing is added by
+                // default, so there's nothing to switch off. Rooms come from Add Room (the +).
                 ToolbarItem(placement: .principal) {
                     balanceToolbarView
                 }
@@ -214,11 +206,6 @@ struct ChatListView: View {
                 refreshFilteredConversations()
             }
             .toast(message: toastMessage, style: toastStyle)
-            // the view brings its own NavigationStack and Done
-            .sheet(isPresented: $showPublicChatsSettings) {
-                PublicChatsSettingsView()
-                    .environmentObject(publicChats)
-            }
 
         let withAlerts = withPresentation
             .sheet(item: $addressBookTarget) { contact in
@@ -366,7 +353,7 @@ struct ChatListView: View {
             selectedEntryIDs = []
         }
         .onAppear { loadCirclePins() }
-        // Public rooms: every default room listed from the start (switched-off ones aside), and a
+        // Public rooms: only the ones the person added (none at the start since 2026-11-26), and a
         // room handed over by a tapped notification or a room link opens here.
         .onAppear {
             publicChats.ensureDefaultChannelsJoined()
@@ -386,6 +373,22 @@ struct ChatListView: View {
         // here writes the old copy back and the pin is lost (audit 2026-11-25 C10).
         .onReceive(NotificationCenter.default.publisher(for: .publicRoomPinsChanged)) { _ in
             loadRoomPins()
+        }
+        // Chats tapped again on the dock (owner, 2026-11-26): an open chat, group or room closes
+        // back to the list; on the list, it switches Private Chats / Public Chats as the button
+        // beside the title does.
+        .onReceive(NotificationCenter.default.publisher(for: .chatsTabReselected)) { _ in
+            if selectedContact != nil || selectedGroup != nil || selectedPublicRoom != nil {
+                selectedContact = nil
+                selectedGroup = nil
+                selectedPublicRoom = nil
+                return
+            }
+            editMode = .inactive
+            selectedEntryIDs = []
+            withAnimation(.easeInOut(duration: 0.25)) {
+                listPage = listPage == .chats ? .publicChats : .chats
+            }
         }
         // Select is the chats page's: any page change (a room handoff included) ends it, or the
         // rooms page kept Select mode with no Cancel (audit 2026-11-25 C10).
@@ -413,8 +416,8 @@ struct ChatListView: View {
                 newButton
             }
         }
-        .sheet(isPresented: $showCreateSheet, onDismiss: resetCreateSheet) {
-            createSheet
+        .sheet(item: $createOpen, onDismiss: resetCreateSheet) { open in
+            createSheet(open)
                 .environmentObject(walletManager)
         }
         .onChange(of: editMode) { newValue in
@@ -577,13 +580,14 @@ struct ChatListView: View {
         Button {
             Haptics.impact(.light)
             if listPage == .publicChats {
-                // the Public Chats page's + is New Public Chat itself
-                createRoomName = ""
-                createRoomError = nil
-                createStep = .publicRoom
+                // the Public Chats page's + is Add Room (`PublicRoomBrowserView`)
                 createDetent = .large
+                createOpen = CreateOpen(publicRoom: true)
+            } else {
+                createStep = .menu
+                createDetent = Self.createMenuHeight
+                createOpen = CreateOpen(publicRoom: false)
             }
-            showCreateSheet = true
         } label: {
             Image(systemName: "plus")
                 .font(.scaled(size: 22, weight: .semibold))
@@ -604,9 +608,9 @@ struct ChatListView: View {
     /// New Chat or New Group Chat, and then that screen at full height; on the Public Chats page,
     /// New Public Chat alone.
     @ViewBuilder
-    private var createSheet: some View {
+    private func createSheet(_ open: CreateOpen) -> some View {
         Group {
-            switch createStep {
+            switch open.publicRoom ? .publicRoom : createStep {
             case .menu:
                 createMenu
             case .chat:
@@ -616,7 +620,7 @@ struct ChatListView: View {
                         _ = chatService.getOrCreateConversation(for: contact)
                         selectedContactStartInPaymentMode = false
                         selectedContact = contact
-                        showCreateSheet = false
+                        createOpen = nil
                     },
                     onCancel: resetCreateSheet
                 )
@@ -624,27 +628,24 @@ struct ChatListView: View {
                 AddContactView(
                     startInGroupMode: true,
                     onCreateGroup: { group in
-                        showCreateSheet = false
+                        createOpen = nil
                         selectedGroup = group
                     },
                     onCancel: resetCreateSheet
                 )
             case .publicRoom:
-                NavigationStack {
-                    createJoinRoom
-                        .navigationTitle("New Public Chat")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            // only the Public Chats page's + opens it (owner, 2026-11-25), so
-                            // there's no New menu behind it to go back to
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Cancel") { showCreateSheet = false }
-                            }
-                        }
-                }
+                // Add Room (owner, 2026-11-26): every room the indexer keeps with Join, Other
+                // Languages, and Create
+                PublicRoomBrowserView(
+                    onOpenRoom: { name in
+                        createOpen = nil
+                        openRoom(name)
+                    },
+                    onClose: { createOpen = nil }
+                )
             }
         }
-        .presentationDetents(createStep == .publicRoom ? [.large] : [Self.createMenuHeight, .large], selection: $createDetent)
+        .presentationDetents(open.publicRoom ? [.large] : [Self.createMenuHeight, .large], selection: $createDetent)
         .presentationDragIndicator(.visible)
     }
 
@@ -686,105 +687,27 @@ struct ChatListView: View {
 
     // MARK: - Public rooms
 
-    /// Join or create a public room: the Public Chats page's + (the Chats page's New sheet has no
-    /// room row since 2026-11-25). Joining opens the room.
-    private var createJoinRoom: some View {
-        VStack(spacing: 12) {
-            Text("Anyone who joins the same channel name can see and post messages there - there is no owner and no invite.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 12)
-                .padding(.bottom, 4)
-
-            HStack(spacing: 4) {
-                Text(verbatim: "#")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                TextField("channel-name", text: $createRoomName)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.join)
-                    .focused($createRoomFieldFocused)
-                    .onSubmit { joinRoomFromCreateSheet() }
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.regularMaterial)
-            )
-
-            if let createRoomError {
-                Text(createRoomError)
-                    .font(.footnote)
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-            }
-
-            Button(action: joinRoomFromCreateSheet) {
-                Text("Join")
-                    .font(.subheadline.weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .foregroundColor(.black)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.accentColor.opacity(createRoomNameIsEmpty ? 0.4 : 1))
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(createRoomNameIsEmpty)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        // A turn later: the field doesn't exist yet on the step that showed it.
-        .onAppear { DispatchQueue.main.async { createRoomFieldFocused = true } }
-    }
-
-    private var createRoomNameIsEmpty: Bool {
-        createRoomName.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    /// The room list's own rules; errors show in place, and a joined room opens.
-    private func joinRoomFromCreateSheet() {
-        guard !createRoomNameIsEmpty else { return }
-        let typed = PublicChatChannelName.normalize(createRoomName)
-        // a retired room's name opens the room that replaced it (audit 2026-11-25 C2; none now)
-        let normalized = PublicChatService.retiredChannels[typed] ?? typed
-        guard PublicChatChannelName.isValid(normalized) else {
-            createRoomError = String(format: AppLocalization.string("Channel names must be 1-%d characters with no spaces or colons."),
-                                     locale: AppLocalization.locale, PublicChatChannelName.maxLength)
-            return
-        }
-        guard publicChats.joinChannel(normalized) else {
-            createRoomError = AppLocalization.string("Something went wrong joining that channel.")
-            return
-        }
-        Haptics.success()
-        showCreateSheet = false
-        openRoom(normalized)
-    }
-
     private func openRoom(_ name: String) {
         selectedContact = nil
         selectedGroup = nil
         selectedPublicRoom = name
     }
 
-    /// A room handed over from outside: a tapped notification or a shared room link. The name is
-    /// checked again (a link's is anyone's), and a room with no store row gets one first.
+    /// A room handed over from outside: a tapped notification, a shared room link, an @mention in
+    /// Profile's bell. The name is checked again (a link's is anyone's). A room not in the list is
+    /// asked about first (owner, 2026-11-26: no room is added unasked); a link has already asked
+    /// and joined by the time it lands here.
     private func openRoomFromHandoff(_ rawName: String) {
         guard let normalized = KaChatInternalLink.normalizeAndValidateChannel(rawName) else { return }
         listPage = .publicChats
-        if !publicChats.channels.contains(where: { $0.channelName == normalized }) {
-            _ = publicChats.joinChannel(normalized)
+        guard publicChats.channels.contains(where: { $0.channelName == normalized }) else {
+            KaChatLinkRouter.askToJoinRoom(normalized)
+            return
         }
         openRoom(normalized)
     }
 
-    /// The rooms in the list (default rooms switched off in Edit Default Public Chats are left
+    /// The rooms in the list (a default room switched off by an older build is left
     /// out), filtered by the search. Pinned rooms are circles instead, except while searching.
     private var displayedRooms: [PublicChatRoomSummary] {
         let rooms = roomSummaries.rooms
@@ -958,14 +881,15 @@ struct ChatListView: View {
         .listRowBackground(Color.clear)
     }
 
-    /// A default room is never really deleted: it is switched off, like its switch in Edit
-    /// Default Public Chats, which brings it back. A room you added asks first.
+    /// A room the indexer keeps leaves at once (Add Room brings it back, history and all). A room
+    /// you made asks first: its messages on this device go.
     private func deleteRoom(_ name: String) {
-        if PublicChatService.curatedChannels.contains(name) {
+        if PublicChatService.isIndexerTracked(name) {
             publicChats.removeFromList(name)
             dropRoomPin(name)
             roomSummaries.recompute()
-            showToast(String(format: AppLocalization.string("#%@ is off - turn it back on in Edit Default Public Chats"),
+            if selectedPublicRoom == name { selectedPublicRoom = nil }
+            showToast(String(format: AppLocalization.string("#%@ removed. Add it again anytime from Add Room."),
                              locale: AppLocalization.locale, name))
         } else {
             roomToLeave = name
@@ -1015,22 +939,28 @@ struct ChatListView: View {
     }
 
 
-    /// The Public Chats page with every room switched off or left.
+    /// The Public Chats page with no rooms (how it starts since 2026-11-26), laid out as
+    /// Contacts' empty page: what goes here, and Add Room.
     private var emptyRoomsView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 14) {
             Image(systemName: "number")
-                .font(.scaled(size: 60))
-                .foregroundColor(.secondary)
-            Text("No Public Chats")
-                .font(.title2)
-                .fontWeight(.semibold)
-            Text("Tap + to join or create a public room.")
+                .font(.system(size: 44))
+                .foregroundColor(.accentColor)
+            Text("No public chats yet")
+                .font(.headline)
+            Text("Add rooms the indexer keeps, like #kaspa, or create your own. Nothing is added unless you choose it.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            Button {
+                createDetent = .large
+                createOpen = CreateOpen(publicRoom: true)
+            } label: {
+                Label("Add Room", systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
         }
-        .padding()
+        .padding(32)
     }
 
     /// Chats or Public Chats, beside the title; a tap fades to the other page. Its red count is
@@ -1332,11 +1262,15 @@ struct ChatListView: View {
         .overlay(alignment: .center) {
             // Below the circles row rather than over it: only when there are no chats at all.
             if displayed.isEmpty && searchText.isEmpty && pinnedChats.isEmpty && pinnedGroups.isEmpty && pinnedRooms.isEmpty {
-                Group {
-                    if onChats { emptyStateView } else { emptyRoomsView }
+                // Chats: below the bots' circles row, and not tappable (nothing to tap). Public
+                // Chats: centred (no circles row), and tappable for its Add Room.
+                if onChats {
+                    emptyStateView
+                        .padding(.top, 120)
+                        .allowsHitTesting(false)
+                } else {
+                    emptyRoomsView
                 }
-                .padding(.top, 120)
-                .allowsHitTesting(false)
             }
         }
     }
@@ -1936,21 +1870,17 @@ struct ChatListView: View {
 
     private var bulkDeleteAlertMessage: String {
         if listPage == .publicChats {
-            return AppLocalization.string("Default public chats are switched off (turn them back on in Edit Default Public Chats). Rooms you added are deleted with their messages on this device.")
+            return AppLocalization.string("Rooms the indexer keeps can be added again from Add Room. Rooms you made are deleted with their messages on this device.")
         }
         return AppLocalization.string("This permanently deletes every message in each selected chat from this device. This cannot be undone.")
     }
 
-    /// Select mode's Delete on the Public Chats page, already confirmed: a default room is
-    /// switched off, as its swipe does; a room you added is left and its cached messages go.
+    /// Select mode's Delete on the Public Chats page, already confirmed: every room is left
+    /// and its cached messages go.
     private func deleteRooms(_ names: [String]) {
         for name in names {
-            if PublicChatService.curatedChannels.contains(name) {
-                publicChats.removeFromList(name)
-            } else {
-                publicChats.leaveChannel(name)
-                if selectedPublicRoom == name { selectedPublicRoom = nil }
-            }
+            publicChats.leaveChannel(name)
+            if selectedPublicRoom == name { selectedPublicRoom = nil }
             dropRoomPin(name)
         }
         roomSummaries.recompute()
@@ -3139,4 +3069,9 @@ struct SilencedPill: View {
             .background(Capsule().fill(Color.accentColor.opacity(0.16)))
             .fixedSize()
     }
+}
+
+extension Notification.Name {
+    /// The dock's Chats tapped while it's already showing (`MainTabView`).
+    static let chatsTabReselected = Notification.Name("chatsTabReselected")
 }
