@@ -763,9 +763,41 @@ final class SwapService: ObservableObject {
         Task { _ = await refreshSwapStatusAsync(id: id) }
     }
 
+    /// A kUSDT swap through Trestly's pool, into Buy/Sell History (owner, 2026-11-27). Amounts as
+    /// people type them ("10", "0.26"); "finished" once the network accepted it, "sending" while
+    /// it may still land (Refresh Status checks the network, not ChangeNOW).
+    func recordKusdtSwap(txid: String, bought: Bool, amountIn: UInt64, amountOut: UInt64,
+                         address: String, confirmed: Bool) {
+        guard account != nil, !history.contains(where: { $0.id == txid }) else { return }
+        let kas = KaspaUnit.plain(bought ? amountIn : amountOut)
+        let kusdt = TokenAmount.typed(bought ? amountOut : amountIn, token: .kusdt)
+        let swap = SwapTransaction(
+            id: txid,
+            fromTicker: bought ? "kas" : "kusdt", fromNetwork: "kaspa",
+            toTicker: bought ? "kusdt" : "kas", toNetwork: "kaspa",
+            fromAmount: bought ? kas : kusdt, toAmount: bought ? kusdt : kas,
+            payinAddress: address, payoutAddress: address,
+            status: confirmed ? "finished" : "sending",
+            createdAt: Date(),
+            kasSendTxId: txid,
+            provider: SwapTransaction.trestly
+        )
+        history.insert(swap, at: 0)
+        saveHistory()
+    }
+
     /// Awaitable variant for the detail screen's Refresh button: returns the fresh status on
     /// success (history is updated + published either way) so the UI can give real feedback.
+    /// A kUSDT swap asks the network whether its transaction was accepted.
     func refreshSwapStatusAsync(id: String) async -> String? {
+        if let swap = history.first(where: { $0.id == id }), swap.isTrestly {
+            guard await KachatNamesRegistry.isAccepted(txId: id) else { return swap.status }
+            if let index = history.firstIndex(where: { $0.id == id }) {
+                history[index].status = "finished"
+                saveHistory()
+            }
+            return "finished"
+        }
         guard let response = try? await ChangeNowAPIClient.shared.getTransactionStatus(id: id),
               let status = response.status else { return nil }
         if let index = history.firstIndex(where: { $0.id == id }) {
@@ -805,7 +837,7 @@ final class SwapService: ObservableObject {
             amountKas: amountKas,
             fiatValue: fiatValue,
             timestamp: swap.createdAt,
-            notes: "ChangeNOW swap \(swap.id)"
+            notes: swap.isTrestly ? "kUSDT swap (Trestly) \(swap.id)" : "ChangeNOW swap \(swap.id)"
         )
     }
 
@@ -867,7 +899,27 @@ final class SwapService: ObservableObject {
         "kachat_swap_history_\(account)"
     }
 
+    #if DEBUG
+    /// Debug builds launched with `KACHAT_FAKE_KUSDT_SWAP=1`: a sample kUSDT swap shown in Buy/Sell
+    /// History (never saved), to check its row and detail without spending. Never in a release.
+    private static func debugKusdtSwap(account: String?) -> SwapTransaction? {
+        guard ProcessInfo.processInfo.environment["KACHAT_FAKE_KUSDT_SWAP"] == "1",
+              let account else { return nil }
+        return SwapTransaction(id: String(repeating: "ab", count: 32), fromTicker: "kas", fromNetwork: "kaspa",
+                               toTicker: "kusdt", toNetwork: "kaspa", fromAmount: "100", toAmount: "2.61",
+                               payinAddress: account, payoutAddress: account, status: "finished",
+                               createdAt: Date(), kasSendTxId: nil, provider: SwapTransaction.trestly)
+    }
+    #endif
+
     private static func loadHistory(account: String?) -> [SwapTransaction] {
+        #if DEBUG
+        if let fake = debugKusdtSwap(account: account) { return [fake] + loadStoredHistory(account: account) }
+        #endif
+        return loadStoredHistory(account: account)
+    }
+
+    private static func loadStoredHistory(account: String?) -> [SwapTransaction] {
         guard let account else { return [] }
         let defaults = UserDefaults.standard
         // The one list from before goes, once, to the account open when Swap first loads: an
@@ -887,14 +939,19 @@ final class SwapService: ObservableObject {
 
     private func saveHistory() {
         history.sort { $0.createdAt > $1.createdAt }
-        guard let account, let data = try? JSONEncoder().encode(history) else { return }
+        var stored = history
+        #if DEBUG
+        // the sample kUSDT swap (`debugKusdtSwap`) is shown, never saved
+        if let fake = Self.debugKusdtSwap(account: account) { stored.removeAll { $0.id == fake.id } }
+        #endif
+        guard let account, let data = try? JSONEncoder().encode(stored) else { return }
         UserDefaults.standard.set(data, forKey: Self.historyKey(account: account))
     }
 
     /// An exchange created for an account that is no longer the open one: into its stored list.
     private static func appendToStoredHistory(_ transaction: SwapTransaction, account: String?) {
         guard let account else { return }
-        var list = loadHistory(account: account)
+        var list = loadStoredHistory(account: account)
         list.insert(transaction, at: 0)
         list.sort { $0.createdAt > $1.createdAt }
         guard let data = try? JSONEncoder().encode(list) else { return }

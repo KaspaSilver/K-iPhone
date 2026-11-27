@@ -18,8 +18,9 @@ final class GlobalNotificationCenter: ObservableObject {
             /// older build still decodes - `reload` drops those rows.
             case kaposts, group, wallet
             case publicChat = "broadcast"
-            /// A .kachat name event (`KachatNamesNotifier`). Not in the bell (`inBell`), so these
-            /// are refused on record and dropped on load.
+            /// A .kachat name event (`KachatNamesNotifier`): renewal open, expired, lapsed, an
+            /// offer, a sale. In the bell since 2026-11-27 (owner: "make sure no one misses it");
+            /// `targetId` is the name, and a tap opens it.
             case kachat
             /// A token received (kUSDT); `targetId` is the token's id.
             case token
@@ -52,7 +53,7 @@ final class GlobalNotificationCenter: ObservableObject {
             }
 
             /// What the Profile bell lists.
-            static let inBell: Set<Source> = [.wallet, .token, .mention]
+            static let inBell: Set<Source> = [.wallet, .token, .mention, .kachat]
         }
 
         let id: String
@@ -184,9 +185,18 @@ final class GlobalNotificationCenter: ObservableObject {
     static func open(_ entry: GlobalNotificationCenter.Entry, dismiss: () -> Void) {
         let target = entry.targetId ?? ""
         switch entry.source {
-        case .kaposts, .publicChat, .kachat:
+        case .kaposts, .publicChat:
             // Not in the bell; `reload` drops their rows, so there is nothing to open.
             return
+        case .kachat:
+            // the name, on the Usernames tab, where Renew is (as the Wallet tab's banner opens it)
+            guard !target.isEmpty else { return }
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                KachatDeepLink.pendingName = target
+                PendingTabRoute.pending = .kachatNames
+                NotificationCenter.default.post(name: .openKachatName, object: nil)
+            }
         case .group:
             guard !target.isEmpty else { return }
             GroupChatService.shared.pendingGroupNavigation = target

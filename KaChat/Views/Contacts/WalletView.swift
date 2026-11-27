@@ -44,7 +44,7 @@ struct WalletView: View {
     /// The tallest page, so the swipeable card is as tall as its content.
     @State private var balanceCardHeight: CGFloat = 196
     /// .kachat names of this wallet in their grace period: the banner at the top.
-    @StateObject private var expiredKachatNames = KachatExpiredNamesModel()
+    @ObservedObject private var expiredKachatNames = KachatExpiredNamesModel.shared
 
     private enum WalletAction: String, Identifiable {
         case send, receive, request
@@ -134,9 +134,6 @@ struct WalletView: View {
                 appearRefreshedAt = Date()
                 Task { await refresh(force: false) }
             }
-            // its own modifier, so this chain stays within what the type checker solves
-            .modifier(KachatExpiredNamesLoading(model: expiredKachatNames,
-                                                address: walletManager.currentWallet?.publicAddress))
             .onReceive(NotificationCenter.default.publisher(for: .ownAddressUtxoActivity)) { _ in
                 scheduleRefresh()
             }
@@ -530,24 +527,6 @@ private struct BalanceCardHeightReader: View {
         GeometryReader { proxy in
             Color.clear.preference(key: BalanceCardHeightKey.self, value: proxy.size.height)
         }
-    }
-}
-
-/// Loads the expired-names banner (`KachatExpiredNamesModel`) for the signed-in account, and again
-/// whenever the .kachat registry changes.
-private struct KachatExpiredNamesLoading: ViewModifier {
-    let model: KachatExpiredNamesModel
-    let address: String?
-    @State private var revision = 0
-
-    func body(content: Content) -> some View {
-        content
-            .task(id: "\(address ?? "")-\(revision)") {
-                await model.load()
-            }
-            .onReceive(KachatNamesRegistry.shared.$revision) { new in
-                if revision != new { revision = new }
-            }
     }
 }
 

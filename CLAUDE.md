@@ -30,6 +30,12 @@ root. The
 Trestly provider announces itself as "K" with the `KLogo` globe (its rdns stays `com.kachat.wallet`). The project file and main scheme are `K` (`K.xcodeproj`, owner, 2026-11-23; Xcode Cloud's workflow points at them); the targets (and so the `KaChat` module name, which saved data can carry), bundle id and URL schemes are unchanged. The sign-in
 screen (`OnboardingView`) shows the K globe (`KLogo`, cut from the app icon) with a teal glow over
 "Digital Freedom on the Kaspa Network"; the old `KaChatLogo` and `KaChatAppIcon` images are deleted (2026-11-22).
+The bundle name (`CFBundleName`) is "K" too (owner, 2026-11-27): Xcode fills it from the target's name,
+KaChat, whatever Info.plist or an `INFOPLIST_KEY_` says, and iOS showed "KaChat" over K's
+notifications, so the app target's "Bundle Name K" script phase sets it in the built Info.plist
+(its input is that file, so it runs after Xcode writes it and before signing). The app and its
+extensions' "Local Build Number" phases take the same input for the same reason: without it they ran
+before the Info.plist was written and their number was lost.
 The app icon is dark only (owner, 2026-11-22): `AppIcon` has the dark globe (`dark.png`) for every
 appearance plus the tinted one; the teal light-mode icon is gone, so don't add one back.
 
@@ -47,12 +53,16 @@ connection dot is only at the top of Settings and on the dock's Settings icon (`
 screen. **Kaspa Hub is a menu** (owner, 2026-11-26, behind `HubPresentation.asMenu`): tapping it
 on the dock, from any tab or from a Hub section, never shows a Hub screen. A glass panel rises from
 the dock's left side, like iMessage's + (`KaspaHubMenu`: about the first three dock icons wide, up
-to half the screen tall, every section in a scrollable list with its badge; a tap outside closes
+to half the screen tall, every section in a scrollable list with its badge, alphabetical by the name shown (owner, 2026-11-27,
+`alphabeticalTabs`); a tap outside closes
 it). A tap that only opens or closes the menu is caught on the tab bar before the bar sees it, so the dock's glass doesn't move (owner, 2026-11-27); any other Hub tap is caught in UIKit's `shouldSelect` / `shouldSelectTab` (`HubTabInterceptor`, MainTabView.swift), so nothing flashes. A section picked opens as a Hub section, the normal way: the dock in view with Kaspa Hub lit
 (`MainTabView.openHubSection`). The section you last picked is what Kaspa Hub then shows (owner,
 2026-11-27, `MainTabView.hubTapped`): from another tab, tapping Kaspa Hub goes straight back to
 it as you left it; tapping Kaspa Hub while in it brings up the menu to pick another; with nothing
-picked yet (or the menu up) the tap opens (or closes) the menu. Closing a section (Kasshi's X) goes back to the tab you came from
+picked yet (or the menu up) the tap opens (or closes) the menu. It's remembered for a minute
+away (owner, 2026-11-27, `HubRouter.rememberFor`): after more than a minute on other tabs, the
+section is forgotten (`forgetIfStale`, its kept-alive screens with it) and the first tap on
+Kaspa Hub is the menu again, the glass not moving. Closing a section (Kasshi's X) goes back to the tab you came from
 (`tabBeforeHub`), never the grid. Hub links and `MainTabView.show` open the section the same way;
 Kaspa Hub on KaPost's dock copy opens the menu. With the switch off, every
 other tab is a tile in Kaspa Hub's grid (`KaspaHubView`,
@@ -66,7 +76,13 @@ site: no dock (`.toolbar(.hidden, for: .tabBar)`, owner 2026-11-26). **K signs i
 Kasshi itself** (2026-11-26, KASSHI_INTEGRATION.md): `KaChatSiteWallet` puts the K browser
 extension's `window.kachat` provider (same calls, shapes and error codes, plus `platform: "ios"`)
 on allowed https origins only (`allowedHosts`: kasshi.io and subdomains; main frame, checked again
-at the bridge). `requestAccounts` opens Connect (`SiteWalletSheets.swift`), where the person picks
+at the bridge). Kasshi from Kaspa Hub asks first (owner, 2026-11-27, `InAppBrowserScreen(signInFirst:)`):
+"Sign In to Kasshi", which address; then `KaChatSiteWallet.preConnect` connects it, so the site's
+`requestAccounts` answers with no sheet and its first `signMessage` within 2 minutes (the sign-in) is
+signed with no sheet; later signs and every send still ask. Cancel browses signed out. The
+browser's "closed" state is cleared whenever it shows (`reopen`) and set only when the web view is
+torn down: closing on onDisappear made a Kasshi brought back answer "K closed this page."
+Otherwise `requestAccounts` opens Connect (`SiteWalletSheets.swift`), where the person picks
 the Chatting Address or another regular address (`OwnAddressList`, never quantum; the pick is
 remembered per account and site, `kachat_site_connections_<wallet>`); `signMessage` opens Sign
 (KasWare's personal-message Schnorr, hex, with that address's key); `sendKaspa` opens
@@ -80,8 +96,9 @@ polling through the `hubSectionHidden` environment value and `onScreenPresence(a
 which counts a hidden section as gone; use it, not onAppear/onDisappear, for any new timer or poll in
 a Hub section. A tab's screen is the same in either place (`AppTabContent`);
 routes open a tab wherever it lives (`MainTabView.show`), and the Hub's dock badge adds up the
-tabs inside it. A new feature is a new `AppTab` case; it lands in the Hub. Chats shows the unread count of its chats and groups on the dock, Wallet a dot
-for the notification center (`AppTabBadge`, synced from `ChatService.updateAppBadge`). Group chats
+tabs inside it. A new feature is a new `AppTab` case; it lands in the Hub. Chats shows the unread count of its chats and groups on the dock, Wallet a red dot
+while one of your usernames has expired and is in grace (`AppTabBadge`, owner 2026-11-27; see
+"Expired usernames"). Group chats
 share the chat list with 1:1 chats, by latest activity (`ChatListView`, since 2026-11-04; group
 notification taps land there). A row's preview shows its last message's newest edit (1:1 from
 `ChatService.previewEditsByTxId`, read for every chat's last message as the list loads; groups and
@@ -118,7 +135,9 @@ name, follows and bio, then your posts and replies; under the header Edit Profil
 (`ShareProfileSheet`: your Chatting Address's QR and Copy Share Link) and Log Out. Help moved to
 Settings. The old `ProfileView` screen is no longer a tab. **Every notification is behind Profile's
 bell** (top right, `AllNotificationsBell` → `AllNotificationsView`, since 2026-11-21): one list,
-newest first, of KaPosts activity, the wallet's (Kaspa and kUSDT received) and every @mention
+newest first, of KaPosts activity, the wallet's (Kaspa and kUSDT received), your usernames' events
+(renewal open, expired, freed, offers, sales: source `.kachat`, a tap opens the name; since
+2026-11-27, before which the bell refused them) and every @mention
 of you in a public chat or group (owner, 2026-11-25: `GlobalNotificationCenter.recordMention`,
 source `.mention`, whatever the room's bell or the group's setting; a row opens the room at the
 message, `PublicChatJumpRoute`, or the group) (`KaPostsNotificationsView(allInOne: true)`), in a sheet with Done: no tabs, no settings gear, no
@@ -230,10 +249,33 @@ The old Add to Contacts row and the big Share Profile button are gone.
   (`scheduleUnsentNoticeRetry`), not only when the chatting balance changes: a balance-only retry
   held Android's kUSDT notice until an unrelated 10 KAS payment arrived (2026-11-22).
 - Cold Storage never shows a kpub as text (owner, 2026-11-22): not on the account list, not on
-  the account screen, not under the kpub QR. It is copied from the account's Address Actions
-  (Copy kpub) or the list's ⋮. The account screen has Manage Addresses' floating Address Actions
-  button and its full-width Total Balance card. Fiat amounts are grouped ("$1,234.56",
-  `formatFiatAmount`).
+  the account screen, not under the kpub QR. The kpub QR (`ColdStorageKpubQRView`, "Watch This
+  Account") is laid out as every receive screen (`AddressReceiveView`, owner 2026-11-27). It is copied from the account's ⋮ (Copy kpub) or the
+  list's card. Fiat amounts are grouped ("$1,234.56", `formatFiatAmount`).
+- **The Cold Storage list** (owner, 2026-11-27, `ColdStorageListView.accountCard`) shows each
+  account on Manage Addresses' card look (`BalanceCardBackground`):
+  - Its name and balance (its addresses summed: `lastKnownBalance` at once, then
+    `getAddressList`), worth in your currency.
+  - Copy kpub, kpub QR, Rename (in place, `ColdStorageAccountCard`; an empty name keeps the old
+    one) and Alerts On / Off (receive notifications) right on the card (`AddressCardActionButton`,
+    shared with `ManagedAddressCard`).
+  - A red trash at the card's top right: "Remove Cold Storage Account?" first (owner, 2026-11-27).
+  - Tap to View Addresses. There is no ⋮ on the list, and none inside the account.
+- **The Cold Storage account screen is laid out as Manage Addresses** (owner, 2026-11-27,
+  `ColdStorageDetailView`):
+  - The full-width Total Balance card, then each address on `ManagedAddressCard`, sorted as
+    Manage Addresses sorts: unused first, newest first, then used.
+  - Each card has the quantum tag, Used / Unused, Copy, Send, Receive and Rename, and Tap to View
+    History. A regular address's top right is a Hide button (eye with a slash,
+    `ManagedAddressCard(moreIsHide:)`) that hides it at once; there's no Send to Chatting Address
+    in Cold Storage (owner, 2026-11-27). A quantum address keeps the ⋮ for Hide, Edit Address
+    Number and Stop Watching.
+  - Swipe left to hide. An address holding Kaspa never hides.
+  - Top right: Address Visibility only. The account's own actions (kpub, rename, alerts, remove)
+    are on its card on the list (owner, 2026-11-27).
+  - The floating + asks Regular Address or Quantum-Protected Address (scanned from the unit).
+  - Pulling down runs Discover Addresses, with the count under the Total Balance.
+  - An address's page shows the full address on its card and has no Send / Receive bar.
 - **Cold Storage quantum addresses** (owner, 2026-11-25: "matching what hot wallet has"):
   KasSigner v1.1's KCC-3 addresses ("Pay-to-Public-Key-Hash via P2SH", `<P> OP_CHECKSIG` at
   `m/22'/111111'/0'`, the same scheme and path as the hot wallet's KIP-22 quantum addresses). A
@@ -266,6 +308,21 @@ The old Add to Contacts row and the big Share Profile button are gone.
   opens .kachat, a tapped `address_activity` push the address's history.
 - Unfinished `.kachat` claims resume on every activation and reopen their sheet
   (`KachatRegistrationPresenter` on MainTabView); the expired-names banner is on the Wallet tab.
+- **Expired usernames** (owner, 2026-11-27: "make sure no one misses it"). A name of yours in grace
+  (expired, not yet lapsed) shows everywhere until it's renewed:
+  - `KachatExpiredNamesModel.shared`, loaded by `DockBadgeSync` in MainTabView (on appear, every
+    registry change, the app coming back), so it doesn't wait for the Wallet tab.
+  - A red dot on the dock's Wallet (`AppTabBadge`). It's not dismissible; only the Wallet banner's
+    X hides the banner.
+  - "1 Expired" in red on the Your Usernames card.
+  - The name's card reads "Expired: Renew Before Grace Ends" in a red pill
+    (`DomainNameCardView(badgeIsWarning:)`); the detail page's status pill is red.
+  - Notices: the indexer pushes renewal-open, 3 and 1 days before expiry, and expired, to the
+    chatting address only. `KachatNameReminders` schedules every reminder for names on other
+    addresses or with push off, and for every name the two push never sends: a week before grace
+    ends (mainnet) and the last call a day before. The Profile bell gets a row for each.
+  - Debug builds launched with `KACHAT_FAKE_EXPIRED_NAME=<name>` show a fake name in grace, to
+    check the look (not in the bell or reminders).
 - KaPost indexer answers are size-capped and sanity-checked. KaPost notifications work like X
   (owner, 2026-11-25): with push registered, the push is the notice and asks for a poll
   (`pollSoon`); K also polls when it opens or comes back, when Profile (the bell) shows, and every
@@ -1107,7 +1164,11 @@ first, then the spending addresses. Each address there is a card like the Total 
 `ManagedAddressCard`): its name, balance, worth in your currency, Used / Unused (large) and a Quantum Protected / Not
 Quantum Protected tag (`QuantumProtectionTag`, in place of the shield icon), then Copy, Send,
 Receive and Rename (no Rename on the Chatting Address), and "Tap to View History"; the address
-itself isn't on the card; the quantum tag sits beside the name. The ⋮ keeps Send to Chatting Address and Hide. The history page puts the
+itself isn't on the card; the quantum tag sits beside the name. The ⋮ keeps Send to Chatting Address and Hide.
+**Rename is in place, never a pop-up** (owner, 2026-11-27, `InlineRename` / `InlineRenameField`): Rename turns
+the name into a text field with the keyboard up (the quantum tag steps aside, the button reads Done),
+each keystroke is saved, an empty name goes back to the default, and the keyboard going away ends
+it. The same on Manage kUSDT, Cold Storage's address cards and its account cards. The history page puts the
 full address on its card and has no Send / Receive (kept only when a notification opened it,
 `showsSendReceive`).
 
@@ -1155,6 +1216,13 @@ Request; it replaced the Swap Stablecoins card) opens `SwapView` full screen
   `SwapCompleteScreen` (Purchase / Sale Complete, Add to Portfolio, Done). A kUSDT order ends on
   `SwapSentScreen` (Order Sent). The debit card option, once its kUSDT arrived, opens straight on
   Buy Kaspa with that kUSDT (`start: .form`). Code names stay Swap.
+- Buy/Sell History holds kUSDT swaps too (owner, 2026-11-27): every trade through Trestly's pool
+  (Swap's kUSDT or Trestly's site, `TrestlyTrade.recordSwap` → `SwapService.recordKusdtSwap`) is
+  a `SwapTransaction` with `provider: "trestly"`, its Kaspa txid as the id, both addresses the
+  one it traded from, "finished" (or "sending" until the network accepts it). Its row says
+  "Trestly" (ChangeNOW's say "ChangeNOW"); its details show the address, the transaction with View
+  in Explorer, and Add to Portfolio; Refresh Status asks the network, never ChangeNOW. Debug
+  builds launched with `KACHAT_FAKE_KUSDT_SWAP=1` show a sample one (never saved).
 - Swap's history (`kachat_swap_history_<address>`) and agreements are per account and go with it
   (`SwapService.removeAllData`); its choices reset on an account switch, and `TrestlyTrade.run`
   refuses a target that isn't the unlocked key's address (audit 2026-11-24 #5). ChangeNOW's answer

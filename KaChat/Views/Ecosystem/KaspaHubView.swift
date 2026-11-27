@@ -55,16 +55,45 @@ final class DockLayout: ObservableObject {
 final class HubRouter: ObservableObject {
     static let shared = HubRouter()
     @Published private(set) var openSection: AppTab?
+    /// Bumped when the remembered section is forgotten for being left too long: the Hub drops
+    /// its kept-alive sections too, so the next one picked starts fresh.
+    @Published private(set) var forgetCount = 0
+    /// When you left the Hub's tab for another (nil while you're on it).
+    private var leftAt: Date?
+    /// How long Kaspa Hub remembers the section you left (owner, 2026-11-27): after a minute on
+    /// other tabs, Kaspa Hub's first tap is the menu again.
+    static let rememberFor: TimeInterval = 60
     private init() {}
 
     func open(_ tab: AppTab) {
         guard tab != .hub else { return }
         openSection = tab
+        leftAt = nil
     }
 
     func close() {
         guard openSection != nil else { return }
         openSection = nil
+    }
+
+    /// The Hub's tab was left for another; `entered` when it's back on screen.
+    func noteLeft() { if openSection != nil, leftAt == nil { leftAt = Date() } }
+    func noteEntered() { leftAt = nil }
+
+    /// The section was left more than `rememberFor` ago.
+    var isStale: Bool {
+        guard openSection != nil, let leftAt else { return false }
+        return Date().timeIntervalSince(leftAt) > Self.rememberFor
+    }
+
+    /// Forgets a stale section: Kaspa Hub reverts to nothing, and its next tap opens the menu.
+    @discardableResult
+    func forgetIfStale() -> Bool {
+        guard isStale else { return false }
+        openSection = nil
+        leftAt = nil
+        forgetCount &+= 1
+        return true
     }
 }
 
@@ -115,7 +144,9 @@ struct AppTabContent: View {
             // kasshi.io in the in-app browser, its X back to the grid. Just the site: no dock
             // (owner, 2026-11-26). The node and chats keep running (`powersDown: false`) so a
             // payment Kasshi asks for goes straight out and chats are current on the way back.
-            InAppBrowserScreen(url: URL(string: "https://kasshi.io")!, powersDown: false) {
+            // It asks first which address signs you in (owner, 2026-11-27), then Kasshi's own
+            // connect and sign-in go through with no more sheets (`signInFirst`).
+            InAppBrowserScreen(url: URL(string: "https://kasshi.io")!, powersDown: false, signInFirst: true) {
                 HubRouter.shared.close()
             }
             .toolbar(.hidden, for: .tabBar)
@@ -209,6 +240,11 @@ struct KaspaHubView: View {
         .onChange(of: layout.hub) { hub in
             if let open = router.openSection, !hub.contains(open) { router.close() }
             keptSections.removeAll { !hub.contains($0) }
+        }
+        // Left over a minute: the section was forgotten (`HubRouter.forgetIfStale`), and the
+        // kept ones go with it, so nothing comes back as it was left.
+        .onChange(of: router.forgetCount) { _ in
+            keptSections.removeAll { $0 != router.openSection }
         }
         // Short of memory: the hidden sections go; they load again when next opened.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
@@ -659,10 +695,18 @@ struct KaspaHubMenu: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { isPresented = false }
     }
 
+    /// The sections in alphabetical order (owner, 2026-11-27), by the name shown in the person's
+    /// language, so a new section lands where its name says.
+    private var alphabeticalTabs: [AppTab] {
+        layout.hub.sorted {
+            AppLocalization.string($0.label).localizedStandardCompare(AppLocalization.string($1.label)) == .orderedAscending
+        }
+    }
+
     private func panel(maxHeight: CGFloat) -> some View {
         ScrollView {
             VStack(spacing: 2) {
-                ForEach(layout.hub) { tab in
+                ForEach(alphabeticalTabs) { tab in
                     Button {
                         Haptics.impact(.light)
                         close()

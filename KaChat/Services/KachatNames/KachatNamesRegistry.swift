@@ -2061,13 +2061,27 @@ final class KachatNamesNotifier {
             guard let offers = try? await registry.offers(for: n.name) else { return }
             offersOnMine += offers.filter { ownKeys.contains($0.seller) }
         }
-        // The indexer pushes name reminders only to the chatting address: for a name on another
-        // address of this wallet the phone schedules its own (XP-024).
+        // The indexer pushes name reminders only to the chatting address, and none before grace
+        // ends: the phone schedules its own for every name (`KachatNameReminders`), all of them
+        // for a name on another address or when push isn't on, and the ones push doesn't send
+        // for the chatting address's (owner, 2026-11-27: "make sure no one misses it").
         // a different wallet signed in meanwhile: this answer isn't its
         guard KachatNamesActions.shared.myAddress == wallet else { return }
-        await KachatNameReminders.schedule(for: owned.filter { $0.owner != me }, params: p, wallet: wallet)
+        await KachatNameReminders.schedule(for: owned, params: p, wallet: wallet, chattingKey: me,
+                                           pushCoversChatting: PushNotificationManager.shared.isRegistered)
 
-        let old: Snapshot? = UserDefaults.standard.data(forKey: key(wallet)).flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
+        var old: Snapshot? = UserDefaults.standard.data(forKey: key(wallet)).flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
+        // Name rows reach the Profile bell since 2026-11-27; before, the bell refused them. Once
+        // per wallet, a name already noted as in grace or up for renewal is noted again, so its
+        // row lands now instead of never.
+        let bellKey = "kachatNamesNotifier.bell.\(wallet)"
+        if old != nil, !UserDefaults.standard.bool(forKey: bellKey) {
+            for name in old!.names.keys {
+                old!.names[name]?.graceNoted = false
+                old!.names[name]?.renewNoted = false
+            }
+            UserDefaults.standard.set(true, forKey: bellKey)
+        }
         let quiet = old == nil // the first check only records where things stand
         var new = Snapshot()
         let now = KachatNames.nowMs()
@@ -2172,10 +2186,11 @@ final class KachatNamesNotifier {
     }
 }
 
-/// Local reminders for .kachat names held by one of this wallet's spending addresses (Buy From):
-/// the indexer's renewal and expiry pushes reach only the chatting address, so the phone
-/// schedules its own - renewal opens, the name expired, and a day before grace ends - from each
-/// name's expiry (XP-024). Nothing leaves the phone. Rescheduled on every notifier check: a
+/// Local reminders for this wallet's .kachat names: renewal opens, the name expired, a week
+/// before grace ends (mainnet) and a day before (the last call). The indexer's renewal and expiry
+/// pushes reach only the chatting address and stop at expiry, so the phone schedules every
+/// reminder for a name on another address (XP-024) or when push is off, and the grace-ending ones
+/// for every name (owner, 2026-11-27). Nothing leaves the phone. Rescheduled on every notifier check: a
 /// renewed name moves its reminders, a name that left the wallet loses them. Tapping one opens
 /// the name (thread "kachat-names", like the pushes).
 @MainActor
@@ -2219,7 +2234,12 @@ enum KachatNameReminders {
         }
     }
 
-    static func schedule(for names: [KachatNames.NameInfo], params p: KachatNames.Params, wallet: String) async {
+    /// `chattingKey`: the chatting address's owner key. Its names get the renewal and expiry
+    /// pushes from the indexer when `pushCoversChatting` (push registered), so only the reminders
+    /// push never sends (grace about to end) are scheduled for them here; every other name, or
+    /// any name with push off, gets them all.
+    static func schedule(for names: [KachatNames.NameInfo], params p: KachatNames.Params, wallet: String,
+                         chattingKey: Data? = nil, pushCoversChatting: Bool = false) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         let requests = await center.pendingNotificationRequests()
@@ -2248,22 +2268,36 @@ enum KachatNameReminders {
         func S(_ key: String, _ args: CVarArg...) -> String {
             KaspaUnit.label(String(format: AppLocalization.string(key), locale: AppLocalization.locale, arguments: args))
         }
+        let week: Int64 = 7 * 86_400_000
         for n in names {
             let display = KachatNameLabel.display(n.name)
             let base = "\(prefix)\(n.name)-\(n.expiresAt)-"
-            let renewAt = p.renewOpens(expiresAt: n.expiresAt)
-            if renewAt > now {
-                wanted[base + "renew"] = (renewAt, S("Renew %@", display),
-                                          S("Renewal is open: renew it before %@ to keep it.", KachatNamesActions.dayString(n.expiresAt)), n.name)
+            let graceEnds = KachatNames.clampedSum(n.expiresAt, p.graceMs)
+            let renewBy = S("Renew it before %@ or anyone can claim it.", KachatNamesActions.dayString(graceEnds))
+            // the indexer already pushes renewal-open and expired for the chatting address's names
+            let pushCovered = pushCoversChatting && chattingKey != nil && n.owner == chattingKey
+            if !pushCovered {
+                let renewAt = p.renewOpens(expiresAt: n.expiresAt)
+                if renewAt > now {
+                    wanted[base + "renew"] = (renewAt, S("Renew %@", display),
+                                              S("Renewal is open: renew it before %@ to keep it.", KachatNamesActions.dayString(n.expiresAt)), n.name)
+                }
+                if n.expiresAt > now {
+                    wanted[base + "grace"] = (n.expiresAt, S("%@ has expired", display), renewBy, n.name)
+                }
             }
-            if n.expiresAt > now {
-                wanted[base + "grace"] = (n.expiresAt, S("%@ has expired", display),
-                                          S("Renew it before %@ or anyone can claim it.", KachatNamesActions.dayString(KachatNames.clampedSum(n.expiresAt, p.graceMs))), n.name)
+            // A week before grace ends (where grace is long enough to warn that early), then the
+            // last call: a day before, or halfway through a short testnet grace. Push sends
+            // neither, so every name gets them.
+            if p.graceMs > 2 * week {
+                let weekBefore = KachatNames.clampedSum(graceEnds, -week)
+                if weekBefore > now {
+                    wanted[base + "graceweek"] = (weekBefore, S("%@ has expired", display), renewBy, n.name)
+                }
             }
-            let lastCall = KachatNames.clampedSum(KachatNames.clampedSum(n.expiresAt, p.graceMs), -min(p.graceMs / 2, 86_400_000))
+            let lastCall = KachatNames.clampedSum(graceEnds, -min(p.graceMs / 2, 86_400_000))
             if lastCall > now {
-                wanted[base + "lastcall"] = (lastCall, S("%@ has expired", display),
-                                             S("Renew it before %@ or anyone can claim it.", KachatNamesActions.dayString(KachatNames.clampedSum(n.expiresAt, p.graceMs))), n.name)
+                wanted[base + "lastcall"] = (lastCall, S("%@ has expired", display), renewBy, n.name)
             }
         }
         let stale = pending.filter { wanted[$0] == nil }

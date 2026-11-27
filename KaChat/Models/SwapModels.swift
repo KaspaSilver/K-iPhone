@@ -110,4 +110,17 @@ struct SwapTransaction: Codable, Identifiable, Equatable {
     var payinExtraId: String? = nil
     /// The tag (destination tag / memo) the payout goes out with, when one was given.
     var payoutExtraId: String? = nil
+    /// Who ran it: nil for ChangeNOW (every swap saved before 2026-11-27), "trestly" for a kUSDT
+    /// swap through Trestly's pool on Kaspa (owner, 2026-11-27: kUSDT swaps go in Buy/Sell History
+    /// too). A Trestly swap's `id` is its Kaspa transaction id, both addresses are the one it
+    /// traded from, and ChangeNOW is never asked about it.
+    var provider: String? = nil
+
+    var isTrestly: Bool { provider == SwapTransaction.trestly }
+    static let trestly = "trestly"
+
+    /// A ticker as people read it: "kUSDT", else upper case ("KAS", "USDC").
+    static func displayTicker(_ ticker: String) -> String {
+        ticker.lowercased() == "kusdt" ? "kUSDT" : ticker.uppercased()
+    }
 }

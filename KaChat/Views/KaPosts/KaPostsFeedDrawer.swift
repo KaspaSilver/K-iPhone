@@ -1,9 +1,9 @@
 import SwiftUI
 import UIKit
 
-/// The feed's hamburger menu: a card that slides out from the left over nearly the whole screen
-/// (the dock included), with the feed dimmed in the strip beside it. Tap that strip, tap the
-/// close button or drag the card back to the left to close it.
+/// The feed's hamburger menu: a glass card that slides out from the left at the top of the
+/// screen, only as tall as its rows (owner, 2026-11-27), with the feed dimmed around it. Tap
+/// outside it, tap the close button or drag the card back to the left to close it.
 ///
 /// It is a full-screen cover so it can sit above the dock; `KaPostsView` presents it through
 /// `kaPostsPresent` (no cover animation), and the card draws its own slide over the picture of
@@ -25,10 +25,12 @@ struct KaPostsFeedDrawer: View {
 
     var body: some View {
         GeometryReader { geo in
-            // Most of the screen, with enough of the feed left showing to tap it closed.
-            let panelWidth = min(geo.size.width * 0.86, 440)
+            // A glass card from the top, only as tall as its rows (owner, 2026-11-27: "top to
+            // halfway down the screen enough to fit everything"), with the feed showing around it.
+            let panelWidth = min(geo.size.width * 0.74, 340)
+            let hidden = -(panelWidth + 32)
             let progress = shown ? 1 + min(0, dragOffset) / panelWidth : 0
-            ZStack(alignment: .leading) {
+            ZStack(alignment: .topLeading) {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture { close() }
@@ -38,15 +40,15 @@ struct KaPostsFeedDrawer: View {
                     .accessibilityAction { close() }
                 panel
                     .frame(width: panelWidth)
-                    .frame(maxHeight: .infinity)
-                    .background(
-                        DrawerCardShape(radius: 24)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.25), radius: 12, x: 4, y: 0)
-                            .ignoresSafeArea()
-                    )
-                    .offset(x: shown ? min(0, dragOffset) : -panelWidth - 16)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .background(DrawerGlass(radius: 26))
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .shadow(color: .black.opacity(0.3), radius: 18, x: 0, y: 8)
+                    .padding(.leading, 12)
+                    .padding(.top, 6)
+                    .offset(x: shown ? min(0, dragOffset) : hidden)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .gesture(
                 DragGesture(minimumDistance: 10)
                     .onChanged { value in
@@ -63,7 +65,7 @@ struct KaPostsFeedDrawer: View {
                         }
                     }
             )
-            .background(backdropLayer(dim: 0.45 * progress))
+            .background(backdropLayer(dim: 0.3 * progress))
         }
         .accessibilityAction(.escape) { close() }
         .onAppear {
@@ -92,34 +94,30 @@ struct KaPostsFeedDrawer: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
                 Text("Posts")
-                    .font(.largeTitle.weight(.bold))
+                    .font(.title2.weight(.bold))
                 Spacer(minLength: 0)
                 Button {
                     Haptics.selection()
                     close()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.scaled(size: 17, weight: .semibold))
+                        .font(.scaled(size: 14, weight: .bold))
                         .foregroundColor(.secondary)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color(.secondarySystemBackground)))
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(Color.primary.opacity(0.1)))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close menu")
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 16)
-
-            Divider()
-                .padding(.bottom, 8)
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
 
             ForEach(items) { item in
                 row(item)
             }
-
-            Spacer(minLength: 0)
         }
+        .padding(.bottom, 10)
     }
 
     private func row(_ item: KaPostsView.SideMenuItem) -> some View {
@@ -128,18 +126,20 @@ struct KaPostsFeedDrawer: View {
             onSelect(item)
             close()
         } label: {
-            HStack(spacing: 16) {
+            // As the Kaspa Hub menu draws its rows: the icon in a tinted circle, then the name.
+            HStack(spacing: 12) {
                 Image(systemName: item.icon)
-                    .font(.scaled(size: 22, weight: .semibold))
+                    .font(.scaled(size: 16, weight: .semibold))
                     .foregroundColor(Color("AccentColor"))
-                    .frame(width: 30)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(Color.accentColor.opacity(0.18)))
                 Text(verbatim: item.rawValue)
-                    .font(.title3.weight(.semibold))
+                    .font(.body.weight(.medium))
                     .foregroundColor(.primary)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 20)
-            .frame(minHeight: 56)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 50)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -157,16 +157,20 @@ struct KaPostsFeedDrawer: View {
     }
 }
 
-/// The card's outline: square on the left, where it meets the screen edge, rounded on the
-/// right. (`UnevenRoundedRectangle` is iOS 17; KaPosts runs on 16.)
-private struct DrawerCardShape: Shape {
+/// The card's glass, as the Kaspa Hub menu's: Liquid Glass on iOS 26, a thin material before.
+private struct DrawerGlass: View {
     let radius: CGFloat
 
-    func path(in rect: CGRect) -> Path {
-        Path(UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: [.topRight, .bottomRight],
-            cornerRadii: CGSize(width: radius, height: radius)
-        ).cgPath)
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+        } else {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                )
+        }
     }
 }

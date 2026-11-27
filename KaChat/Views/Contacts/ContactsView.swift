@@ -78,6 +78,8 @@ struct YourDomainsCard: View {
     var onToast: (String, ToastStyle) -> Void = { _, _ in }
     @EnvironmentObject var walletManager: WalletManager
     @ObservedObject private var kachatRegistry = KachatNamesRegistry.shared
+    /// Names of yours in grace: a red warning beside the count until they're renewed.
+    @ObservedObject private var expiredNames = KachatExpiredNamesModel.shared
     /// The account's .kachat names (in grace included, lapsed not). 0 where the registry isn't
     /// launched.
     @State private var kachatOwnedCount = 0
@@ -93,7 +95,19 @@ struct YourDomainsCard: View {
                     Label("Your Usernames", systemImage: "at")
                         .foregroundColor(.primary)
                     Spacer()
-                    Text("\(kachatOwnedCount)")
+                    // one of them expired and is in grace (owner, 2026-11-27)
+                    if !expiredNames.expired.isEmpty {
+                        Label(expiredNames.expired.count == 1
+                              ? AppLocalization.string("1 Expired")
+                              : String(format: AppLocalization.string("%lld Expired"), expiredNames.expired.count),
+                              systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.red))
+                    }
+                    Text("\(max(kachatOwnedCount, expiredNames.expired.count))")
                         .foregroundColor(.secondary)
                     Image(systemName: "chevron.right")
                         .font(.caption)
@@ -241,6 +255,9 @@ struct DomainNameCardView: View {
     var badge: String? = nil
     /// A small line in the bottom-right corner (Your Domains > .kachat: when it expires).
     var footnote: String? = nil
+    /// The badge is a warning (an expired name in grace): red, with a warning sign, so it isn't
+    /// missed (owner, 2026-11-27).
+    var badgeIsWarning = false
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -257,14 +274,21 @@ struct DomainNameCardView: View {
                 )
 
             if let badge {
-                Text(badge)
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.black.opacity(0.35)))
-                    .padding(10)
+                HStack(spacing: 4) {
+                    if badgeIsWarning {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    Text(badge)
+                }
+                .font(.caption2)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(badgeIsWarning ? Color.red : Color.black.opacity(0.35)))
+                .padding(10)
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -2295,8 +2319,15 @@ struct InAppBrowserScreen: View {
     /// Pause the node and chat polling while it's up, as for a backgrounded app. Off for Kasshi's
     /// Kaspa Hub card, which pays through K's wallet and goes back to the Hub, not a closed cover.
     var powersDown = true
+    /// Ask which address to sign in with before the page does (Kasshi from Kaspa Hub, owner
+    /// 2026-11-27): the site's connect then answers at once and its sign-in is signed with no
+    /// second sheet (`KaChatSiteWallet.preConnect`). Cancel browses signed out.
+    var signInFirst = false
     let onClose: () -> Void
 
+    /// K's own sign-in sheet, up when the page opens (`signInFirst`).
+    @State private var showSignIn = false
+    @State private var signInAsked = false
     @State private var isLoading = true
     @StateObject private var reloader = WebPageReloader()
     /// K as the page's wallet (`window.kachat`), on the sites `KaChatSiteWallet` allows (Kasshi).
@@ -2391,7 +2422,22 @@ struct InAppBrowserScreen: View {
         }) { request in
             SiteWalletSheet(wallet: siteWallet, request: request)
         }
-        .onDisappear { siteWallet.close() }
+        // Only reopened here: a browser hidden behind another tab keeps its page, and it is
+        // closed for good when the web view goes (`InAppWebView.dismantleUIView`).
+        .onAppear {
+            siteWallet.reopen()
+            if signInFirst, !signInAsked, siteWallet.connection == nil,
+               KaChatSiteWallet.isAllowed(host: url.host) {
+                signInAsked = true
+                showSignIn = true
+            }
+        }
+        .sheet(isPresented: $showSignIn) {
+            SiteConnectView(host: url.host ?? "", signIn: true, onConnect: { source in
+                try? siteWallet.preConnect(source: source, host: url.host?.lowercased() ?? "")
+                showSignIn = false
+            }, onDecline: { showSignIn = false })
+        }
         .onAppear { if powersDown { powerDownForBrowsing() } }
         .onDisappear { if powersDown { powerUpAfterBrowsing() } }
     }
@@ -2434,13 +2480,15 @@ private struct InAppWebView: UIViewRepresentable {
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         coordinator.urlObservation = nil
+        // the browser is gone: a sheet still up is declined, and the page gets no more answers
+        coordinator.parent.siteWallet?.close()
         // the bridge holds its handler strongly
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: KaChatSiteWallet.handlerName, contentWorld: .page)
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
-        private let parent: InAppWebView
+        fileprivate let parent: InAppWebView
         /// The site the browser was opened on, without a leading "www.".
         private let siteHost: String
         var urlObservation: NSKeyValueObservation?
@@ -2516,6 +2564,8 @@ private struct InAppWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             parent.isLoading = false
+            // signed in from K's own sheet before the page was there: tell the page now
+            parent.siteWallet?.pageLoaded()
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

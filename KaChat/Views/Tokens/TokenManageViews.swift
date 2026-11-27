@@ -30,8 +30,6 @@ struct TokenManageView: View {
     @State private var showVisibility = false
     /// The ⋮ on an address card: Send to Chatting Address, Combine Coins and Hide.
     @State private var rowActionsTarget: TokenHolding?
-    @State private var renameTarget: TokenHolding?
-    @State private var renameText = ""
     @State private var qrTarget: TokenHolding?
     /// A card's Send.
     @State private var sendTarget: TokenHolding?
@@ -184,19 +182,6 @@ struct TokenManageView: View {
                           prefillRecipient: WalletManager.shared.currentWallet?.publicAddress,
                           prefillName: AppLocalization.string("Chatting Address"))
         }
-        .alert("Rename Address", isPresented: Binding(get: { renameTarget != nil }, set: { if !$0 { renameTarget = nil } })) {
-            TextField("Label", text: $renameText)
-            Button("Save") {
-                if let index = renameTarget?.spendingIndex {
-                    WalletManager.shared.setSpendingAddressLabel(index: index, label: renameText)
-                    tokens.objectWillChange.send()
-                }
-                renameTarget = nil
-            }
-            Button("Cancel", role: .cancel) { renameTarget = nil }
-        } message: {
-            Text("Give this address a label to help you recognize it.")
-        }
         .toast(message: toastMessage)
         .sheet(isPresented: $showAbout) {
             TokenAboutSheet(token: token)
@@ -314,12 +299,17 @@ struct TokenManageView: View {
             },
             onSend: { sendTarget = holding },
             onReceive: { qrTarget = holding },
-            onRename: holding.isChatting ? nil : {
-                // the name it was given, or empty for the default "Address #n"
+            // In place (owner, 2026-11-27): each keystroke saved under the address's Kaspa name,
+            // which Manage Addresses shows too; empty goes back to "Address #n".
+            rename: holding.isChatting || holding.spendingIndex == nil ? nil : {
                 let current = WalletManager.shared.ownAddressLabel(for: holding.address) ?? ""
-                renameText = current.hasPrefix("Address #") ? "" : current
-                renameTarget = holding
-            },
+                let index = holding.spendingIndex ?? 0
+                return InlineRename(current: current.hasPrefix("Address #") ? "" : current,
+                                    placeholder: "Address #\(index)") { text in
+                    WalletManager.shared.setSpendingAddressLabel(index: index, label: text)
+                    tokens.objectWillChange.send()
+                }
+            }(),
             // the Chatting Address's ⋮ has only Combine Coins
             onMore: rowActionCount(holding) == 0 ? nil : { rowActionsTarget = holding }
         ) {

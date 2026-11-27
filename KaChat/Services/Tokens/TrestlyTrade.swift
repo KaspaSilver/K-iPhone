@@ -167,6 +167,10 @@ enum TrestlyTrade {
         TokenWallet.shared.noteSwap(token: .kusdt, spendingIndex: target.spendingIndex, txid: txid,
                                     units: bought ? amountOut : amountIn, sold: !bought,
                                     fee: TrestlyApproval.number(done.fee))
+        // and in Buy/Sell History, with the ChangeNOW swaps (owner, 2026-11-27)
+        SwapService.shared.recordKusdtSwap(txid: txid, bought: bought, amountIn: amountIn,
+                                           amountOut: amountOut, address: target.address,
+                                           confirmed: confirmed)
         return text
     }
 

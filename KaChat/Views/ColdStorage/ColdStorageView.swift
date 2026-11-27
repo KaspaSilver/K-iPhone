@@ -37,10 +37,10 @@ struct ColdStorageListView: View {
     @State private var importError: String?
     /// Account whose kpub QR is on screen.
     @State private var kpubQRTarget: ColdStorageAccount?
-    /// Account whose actions half sheet is open.
-    @State private var accountActionsTarget: ColdStorageAccount?
-    /// Held across the actions sheet dismissing, so the QR can be presented after it.
-    @State private var pendingKpubQRAccount: ColdStorageAccount?
+    /// Each account's balance (its addresses summed), the last known first, then read live.
+    @State private var balances: [UUID: UInt64] = [:]
+    /// The card's trash: the account waiting on "Remove Cold Storage Account".
+    @State private var removeTarget: ColdStorageAccount?
     @State private var toastMessage: String?
     @State private var toastToken = UUID()
 
@@ -53,16 +53,7 @@ struct ColdStorageListView: View {
                     .listRowSeparator(.hidden)
             } else {
                 ForEach(manager.accounts) { account in
-                    ZStack {
-                        NavigationLink {
-                            ColdStorageDetailView(account: account)
-                        } label: {
-                            EmptyView()
-                        }
-                        .opacity(0)
-
-                        accountRow(account)
-                    }
+                    accountCard(account)
                     .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -72,6 +63,15 @@ struct ColdStorageListView: View {
         }
         // a store not tied to the signed-in account shows nothing and saves nothing
         .onAppear { manager.ensureTiedToSignedInAccount() }
+        // Each card's balance: the last known at once, then the live read. Only while the list
+        // shows (kept hidden in Kaspa Hub, it reads nothing).
+        .onScreenPresence(appear: {
+            Task { await loadBalances() }
+        }, disappear: {})
+        .onChange(of: manager.accounts.map(\.id)) { _ in
+            Task { await loadBalances() }
+        }
+        .refreshable { await loadBalances() }
         .listStyle(.plain)
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
@@ -106,27 +106,25 @@ struct ColdStorageListView: View {
             }
         }
         .toast(message: toastMessage)
-        .sheet(item: $accountActionsTarget, onDismiss: {
-            // Handing the QR over only once this sheet is fully gone; presenting one from
-            // inside a sheet that is still dismissing drops it.
-            if let pending = pendingKpubQRAccount {
-                pendingKpubQRAccount = nil
-                kpubQRTarget = pending
-            }
-        }) { account in
-            ColdStorageAccountActionsSheet(
-                account: account,
-                onCopyKpub: {
-                    ColdStorageClipboard.copyKpub(account.kpubString)
-                    Haptics.success()
-                    showToast("kpub copied to clipboard.")
-                },
-                onShowKpubQR: { pendingKpubQRAccount = account },
-                onRename: { manager.renameAccount(account, to: $0) }
-            )
-        }
         .sheet(item: $kpubQRTarget) { account in
             ColdStorageKpubQRView(account: account)
+        }
+        .alert(
+            "Remove Cold Storage Account",
+            isPresented: Binding(
+                get: { removeTarget != nil },
+                set: { if !$0 { removeTarget = nil } }
+            ),
+            presenting: removeTarget
+        ) { account in
+            Button("Remove", role: .destructive) {
+                manager.removeAccount(account)
+                balances[account.id] = nil
+                Haptics.success()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds.")
         }
         .sheet(isPresented: $showScanner) {
             QRScannerView { code in
@@ -297,30 +295,40 @@ struct ColdStorageListView: View {
     }
 
 
-    private func accountRow(_ account: ColdStorageAccount) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "lock.fill")
-                .foregroundColor(.accentColor)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(account.label)
-                    .fontWeight(.semibold)
-            }
-            Spacer()
-            Button {
+    private func accountCard(_ account: ColdStorageAccount) -> some View {
+        ColdStorageAccountCard(
+            account: account,
+            sompi: balances[account.id],
+            onCopyKpub: {
+                ColdStorageClipboard.copyKpub(account.kpubString)
+                Haptics.success()
+                showToast("kpub copied to clipboard.")
+            },
+            onShowKpubQR: { kpubQRTarget = account },
+            onToggleAlerts: {
+                let on = !account.notifyOnReceive
+                manager.setNotifyOnReceive(on, for: account)
+                Haptics.selection()
+                showToast(AppLocalization.string(on
+                    ? "You'll be notified when this account receives Kaspa."
+                    : "No more notifications when this account receives Kaspa."))
+            },
+            onRemove: {
                 Haptics.impact(.light)
-                accountActionsTarget = account
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.scaled(size: 16, weight: .bold))
-                    .foregroundColor(.secondary)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
+                removeTarget = account
             }
-            .buttonStyle(.plain)
+        )
+    }
+
+    /// Every account's balance: the last known at once, then each read live.
+    private func loadBalances() async {
+        for account in manager.accounts where balances[account.id] == nil {
+            if let known = manager.lastKnownBalance(of: account) { balances[account.id] = known }
         }
-        .padding(16)
-        .background(glassBackground(cornerRadius: 18))
-        .contentShape(Rectangle())
+        for account in manager.accounts {
+            let entries = await manager.getAddressList(for: account)
+            balances[account.id] = entries.reduce(0) { $0 + $1.balanceSompi }
+        }
     }
 
     /// Paste kpub takes what's on the clipboard at once (owner, 2026-11-22): a valid kpub goes
@@ -371,6 +379,116 @@ struct ColdStorageListView: View {
     }
 }
 
+/// One account on Manage Addresses' card (owner, 2026-11-27): its name, balance and worth,
+/// then Copy kpub, kpub QR, Rename and its receive notifications right on the card, and "Tap to
+/// View Addresses" (the whole card opens the account). Rename is in place: the name becomes a
+/// text field with the keyboard up, and each keystroke is saved (an empty name keeps the old one).
+private struct ColdStorageAccountCard: View {
+    let account: ColdStorageAccount
+    let sompi: UInt64?
+    let onCopyKpub: () -> Void
+    let onShowKpubQR: () -> Void
+    let onToggleAlerts: () -> Void
+    /// The trash at the card's top right: asks, then removes the account from K.
+    let onRemove: () -> Void
+
+    @State private var isRenaming = false
+    @State private var draft = ""
+    @FocusState private var nameFocused: Bool
+
+    var body: some View {
+        ZStack {
+            NavigationLink {
+                ColdStorageDetailView(account: account)
+            } label: {
+                EmptyView()
+            }
+            .opacity(0)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
+                    if isRenaming {
+                        InlineRenameField(placeholder: account.label, draft: $draft, focused: $nameFocused) {
+                            isRenaming = false
+                        }
+                        .onChange(of: draft) { ColdStorageManager.shared.renameAccount(account, to: $0) }
+                    } else {
+                        Text(verbatim: account.label)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    Spacer(minLength: 0)
+                    // Remove, on the card with the account's other actions (owner, 2026-11-27)
+                    Button(action: onRemove) {
+                        Image(systemName: "trash")
+                            .font(.scaled(size: 16, weight: .semibold))
+                            .foregroundColor(.red)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(Text("Remove Account"))
+                }
+                Text(verbatim: "\(sompi.map { KaspaUnit.groupedExact($0) } ?? "--") \(KaspaUnit.symbol)")
+                    .font(.title.weight(.bold))
+                    .foregroundColor(.primary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                if let sompi {
+                    KaspaFiatText(sompi: sompi)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                HStack(spacing: 0) {
+                    AddressCardActionButton(title: "Copy kpub", systemImage: "doc.on.doc", action: onCopyKpub)
+                    AddressCardActionButton(title: "kpub QR", systemImage: "qrcode", action: onShowKpubQR)
+                    if isRenaming {
+                        AddressCardActionButton(title: "Done", systemImage: "checkmark") { nameFocused = false }
+                    } else {
+                        AddressCardActionButton(title: "Rename", systemImage: "pencil") {
+                            draft = account.label
+                            isRenaming = true
+                            // a turn later: the field doesn't exist yet on this tap
+                            DispatchQueue.main.async { nameFocused = true }
+                        }
+                    }
+                    // Per account: this account's receives alone.
+                    AddressCardActionButton(
+                        title: account.notifyOnReceive ? "Alerts On" : "Alerts Off",
+                        systemImage: account.notifyOnReceive ? "bell.fill" : "bell.slash",
+                        action: onToggleAlerts
+                    )
+                }
+                .padding(.top, 10)
+
+                HStack(spacing: 4) {
+                    Spacer()
+                    Text("Tap to View Addresses")
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                    Spacer()
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.accentColor)
+                .padding(.top, 8)
+            }
+            .padding(18)
+        }
+        .background(BalanceCardBackground())
+        // The keyboard going away (Done, return, a tap elsewhere) ends the rename.
+        .onChange(of: nameFocused) { focused in
+            if !focused { isRenaming = false }
+        }
+    }
+}
+
 // MARK: - Detail
 
 /// Address list for one Cold Storage account. Funded addresses sort to the top (newest index
@@ -388,64 +506,52 @@ struct ColdStorageDetailView: View {
     @State private var isLoading = false
     @State private var isGenerating = false
     @State private var isDiscovering = false
-    /// The address-actions half sheet.
-    @State private var showAddressActions = false
-    /// Address Visibility was picked there: opened once that sheet has finished closing, since
-    /// a sheet opened while another is still going away is dropped.
-    @State private var openVisibilityAfterActions = false
-    /// Add Quantum-Resistant Address was picked: its sheet opens once Address Actions has closed.
-    @State private var openAddQuantumAfterActions = false
+    /// The floating +'s half sheet: the next regular address, or a quantum one scanned from the unit.
+    @State private var showNewAddressSheet = false
+    /// Quantum-Protected Address was picked there: its scan sheet opens once that one has closed,
+    /// since a sheet opened while another is still going away is dropped.
+    @State private var openAddQuantumAfterNewAddress = false
     @State private var showAddQuantum = false
-    /// Quantum addresses whose key a spend has put on chain (the slashed shield).
+    /// Quantum addresses whose key a spend has put on chain (Not Quantum Protected).
     @State private var quantumSpentAddresses: Set<String> = []
-    /// Address whose own actions half sheet is open.
+    /// Address whose own actions half sheet (the card's ⋮) is open.
     @State private var addressActionsTarget: ColdStorageAddressEntry?
-    /// Live scan position while discovering, so the sheet can show progress rather than a spinner.
+    /// Live scan position while a pull-down Discover runs, shown under the Total Balance.
     @State private var discoveryProgress: ColdStorageManager.DiscoveryProgress?
-    /// Result line kept on screen after a scan finishes, until the sheet is dismissed.
-    @State private var discoverySummary: String?
     @State private var qrTarget: ColdStorageAddressEntry?
     @State private var sendTarget: ColdStorageAddressEntry?
-    @State private var renameTarget: ColdStorageAddressEntry?
-    @State private var renameText = ""
-    /// The quantum address whose number and chain on the unit are being edited.
+    /// Quantum address whose unit number is being edited.
     @State private var editNumberTarget: ColdStorageAddressEntry?
-    /// A funded quantum address the person asked to stop watching, while the confirmation is up.
+    /// Quantum address, holding coins, waiting on "Stop Watching?".
     @State private var stopWatchingTarget: ColdStorageAddressEntry?
-    @State private var renamingAccount = false
-    @State private var renameAccountText = ""
-    @State private var showDeleteConfirm = false
     @State private var showVisibilityManager = false
     @State private var toastMessage: String?
     @State private var toastToken = UUID()
     @State private var loadToken = UUID()
-    /// Addresses that own at least one KNS domain (cached assets-by-owner lookup) - drives the
-    /// "Contains domain" row tag and promotes those rows into the funded group in the sort.
+    /// Addresses that own at least one .kachat name - drives the "Contains username" tag and
+    /// counts as used in the sort.
     @State private var domainOwningAddresses: Set<String> = []
     /// Zero-balance addresses whose used/unused history probe FAILED on the last load - their
-    /// badge shows a neutral "Checking" state instead of a possibly-wrong "Unused".
+    /// tag shows a neutral "Checking" instead of a possibly-wrong "Unused".
     @State private var unknownUsedAddresses: Set<String> = []
 
     private var currentAccount: ColdStorageAccount {
         manager.accounts.first { $0.id == account.id } ?? account
     }
 
-    /// Addresses that have a balance OR contain a KNS domain first (keeping the pre-existing
-    /// funded-first/newest-index-first relative order within that group), fresh/unused
-    /// addresses last - matching Manage Addresses' spending-chain sort.
+    private func isUsed(_ entry: ColdStorageAddressEntry) -> Bool {
+        entry.everUsed || entry.balanceSompi > 0 || domainOwningAddresses.contains(entry.address)
+    }
+
+    /// Manage Addresses' order (owner, 2026-11-27: Cold Storage gets the same update): unused
+    /// first, newest first, so a freshly generated address lands at the top, then the used ones in
+    /// number order. Regular addresses before quantum ones within each group, as their numbers say.
     private var visibleEntries: [ColdStorageAddressEntry] {
-        let sorted = entries.filter { !$0.hidden }
-            .sorted { lhs, rhs in
-                if (lhs.balanceSompi > 0) != (rhs.balanceSompi > 0) {
-                    return lhs.balanceSompi > 0
-                }
-                return lhs.index > rhs.index
-            }
-        // Stable partition: domain-holding rows rank with the funded group, but relative order
-        // inside each group stays exactly what the comparator above produced.
-        let active = sorted.filter { $0.balanceSompi > 0 || domainOwningAddresses.contains($0.address) }
-        let fresh = sorted.filter { $0.balanceSompi == 0 && !domainOwningAddresses.contains($0.address) }
-        return active + fresh
+        entries.filter { !$0.hidden }.sorted { a, b in
+            let aUsed = isUsed(a), bUsed = isUsed(b)
+            if aUsed != bUsed { return !aUsed }
+            return aUsed ? a.index < b.index : a.index > b.index
+        }
     }
 
     private var totalBalanceSompi: UInt64 {
@@ -454,12 +560,13 @@ struct ColdStorageDetailView: View {
 
     var body: some View {
         List {
-            accountSummary
+            // Full width, as Manage Addresses shows its total (owner, 2026-11-22).
+            KaspaAddressBalanceCard(label: AppLocalization.string("Total Balance"), sompi: totalBalanceSompi)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-            // Full width, as Manage Addresses shows its total (owner, 2026-11-22).
-            KaspaAddressBalanceCard(label: AppLocalization.string("Total Balance"), sompi: totalBalanceSompi)
+
+            discoveryStatus
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -477,41 +584,60 @@ struct ColdStorageDetailView: View {
             } else if visibleEntries.isEmpty {
                 Text("No addresses discovered yet.")
                     .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             } else {
+                // Swipe left to hide, as on Manage Addresses. An address holding Kaspa refuses
+                // with a toast (`hideAddress`).
                 ForEach(visibleEntries) { entry in
                     addressRow(entry)
                         .padding(.vertical, 6)
                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button {
+                                Haptics.impact(.medium)
+                                hideAddress(entry)
+                            } label: {
+                                Label("Hide", systemImage: "eye.slash.fill")
+                            }
+                            .tint(.orange)
+                        }
                 }
             }
         }
         .listStyle(.plain)
+        // Pulling down is Discover Addresses, as on Manage Addresses: it scans for every address
+        // holding a balance or a username, then reloads.
+        .refreshable {
+            await discoverAddresses()
+        }
         // Room to scroll the last row out from under the floating button.
         .safeAreaInset(edge: .bottom, spacing: 0) {
             Color.clear.frame(height: 72)
         }
         .overlay(alignment: .bottomTrailing) {
-            addressActionsButton
+            newAddressButton
         }
         .navigationTitle(currentAccount.label)
         .navigationBarTitleDisplayMode(.inline)
         .toast(message: toastMessage)
+        // Address Visibility at the top right, as on Manage Addresses. The account's own actions
+        // (kpub, rename, alerts, remove) are on its card on the Cold Storage list (owner,
+        // 2026-11-27), not in here.
         .toolbar {
-            // Address Visibility used to be an unlabelled checklist glyph up here. It is one of
-            // this account's address actions, so it lives with the others in the Address Actions
-            // sheet, where it has room to say what it does.
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    showDeleteConfirm = true
+                    Haptics.impact(.light)
+                    showVisibilityManager = true
                 } label: {
-                    Image(systemName: "trash")
-                        .foregroundColor(.red)
+                    Image(systemName: "checklist")
                 }
+                .accessibilityLabel(Text("Address Visibility"))
             }
         }
         .sheet(isPresented: $showVisibilityManager, onDismiss: {
@@ -522,9 +648,6 @@ struct ColdStorageDetailView: View {
             Task { await loadEntries() }
         }) {
             ColdStorageAddressVisibilityView(account: currentAccount)
-        }
-        .refreshable {
-            await loadEntries()
         }
         // Only while the section shows: kept hidden in Kaspa Hub, `.task` derived addresses and
         // rescanned on every Hub tab selection. Showing again reloads, which also covers any
@@ -549,19 +672,14 @@ struct ColdStorageDetailView: View {
                 .fittedSheetDetents(addressRowActionsHeight(entry))
                 .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showAddressActions, onDismiss: {
-            if openVisibilityAfterActions {
-                openVisibilityAfterActions = false
-                showVisibilityManager = true
-            }
-            if openAddQuantumAfterActions {
-                openAddQuantumAfterActions = false
+        .sheet(isPresented: $showNewAddressSheet, onDismiss: {
+            if openAddQuantumAfterNewAddress {
+                openAddQuantumAfterNewAddress = false
                 showAddQuantum = true
             }
         }) {
-            addressActionsSheet
-                // Five rows: Generate, Add Quantum-Resistant, Discover, Address Visibility, Copy kpub.
-                .fittedSheetDetents(580)
+            newAddressSheet
+                .fittedSheetDetents(250)
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showAddQuantum) {
@@ -601,60 +719,20 @@ struct ColdStorageDetailView: View {
             }
             .sendKaspaSheetSizing()
         }
-        .alert(
-            "Rename Address",
-            isPresented: Binding(
-                get: { renameTarget != nil },
-                set: { if !$0 { renameTarget = nil } }
-            )
-        ) {
-            TextField("Label", text: $renameText)
-            Button("Save") {
-                if let renameTarget, let index = currentIndex(of: renameTarget) {
-                    manager.setAddressLabel(accountId: currentAccount.id, index: index, label: renameText)
-                }
-                renameTarget = nil
-                Task { await loadEntries() }
-            }
-            Button("Cancel", role: .cancel) {
-                renameTarget = nil
-            }
-        }
-        .sheet(isPresented: $renamingAccount) {
-            RenameSheet(
-                title: "Rename Account",
-                subtitle: currentAccount.label,
-                text: $renameAccountText
-            ) { newName in
-                manager.renameAccount(currentAccount, to: newName)
-            }
-        }
-        .alert(
-            "Remove Cold Storage Account",
-            isPresented: $showDeleteConfirm
-        ) {
-            Button("Remove", role: .destructive) {
-                manager.removeAccount(currentAccount)
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This only removes it from K's watch list. It has no effect on the KasSigner device or any funds it holds.")
-        }
     }
 
-    /// The floating glass button behind "Address Actions", the same one Manage Addresses has.
-    private var addressActionsButton: some View {
+    /// The floating +, as on Manage Addresses: asks which kind of address.
+    private var newAddressButton: some View {
         Button {
             Haptics.impact(.light)
-            showAddressActions = true
+            showNewAddressSheet = true
         } label: {
             Group {
-                if isGenerating || isDiscovering {
+                if isGenerating {
                     ProgressView()
                 } else {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.scaled(size: 22, weight: .semibold))
+                    Image(systemName: "plus")
+                        .font(.scaled(size: 24, weight: .semibold))
                         .foregroundColor(.accentColor)
                 }
             }
@@ -667,44 +745,67 @@ struct ColdStorageDetailView: View {
             )
         }
         .buttonStyle(.plain)
+        // not while a pull-down Discover is still writing the list
+        .disabled(isGenerating || isDiscovering)
+        .opacity(isDiscovering ? 0.5 : 1)
         .padding(.trailing, 20)
         .padding(.bottom, 16)
-        .accessibilityLabel(Text("Address Actions"))
+        .accessibilityLabel(Text("New Address"))
     }
 
-    /// Plain labeled text instead of each stacking in its own glass card — this is summary info
-    /// about the account (not a tappable row), so a card treatment just added visual noise
-    /// without meaning "you can tap this."
-    private var accountSummary: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Name")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(currentAccount.label)
-                        .fontWeight(.semibold)
-                }
-                Spacer()
-                Button {
-                    renameAccountText = currentAccount.label
-                    renamingAccount = true
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.scaled(size: 14, weight: .semibold))
-                        .foregroundColor(.accentColor)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+    /// Regular (the next unused address of the kpub) or quantum-protected (KasSigner never exports
+    /// its quantum kpub, since it would show every key those addresses hide, so each is scanned
+    /// from the unit).
+    private var newAddressSheet: some View {
+        VStack(spacing: 12) {
+            Text("New Address")
+                .font(.headline)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+            ActionSheetRow(
+                title: "Regular Address",
+                subtitle: "Reveals the next unused address in this account.",
+                systemImage: "plus.circle"
+            ) {
+                showNewAddressSheet = false
+                generateMore()
             }
+            ActionSheetRow(
+                title: "Quantum-Protected Address",
+                subtitle: "Scan a KCC-3 address from KasSigner's address screen.",
+                systemImage: "shield"
+            ) {
+                openAddQuantumAfterNewAddress = true
+                showNewAddressSheet = false
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// The half sheet behind one address row's ellipsis, replacing the menu that was there.
+    /// While a pull-down scan runs: how far it is, under the Total Balance.
+    @ViewBuilder
+    private var discoveryStatus: some View {
+        if isDiscovering, let progress = discoveryProgress {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("Checking address #\(progress.checkingIndex)")
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 0)
+                Text(progress.foundCount == 0
+                     ? "No addresses with a balance or username yet"
+                     : "\(progress.foundCount) found so far")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 6)
+        }
+    }
+
+    /// The half sheet behind a card's ⋮: what isn't on the card itself.
     private func addressRowActionsSheet(_ entry: ColdStorageAddressEntry) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 2) {
@@ -717,48 +818,18 @@ struct ColdStorageDetailView: View {
             .padding(.top, 20)
             .padding(.bottom, 4)
 
+            // Same effect as unchecking it in Address Visibility. Never an address holding Kaspa.
             ActionSheetRow(
-                title: "Rename Address",
-                subtitle: "Gives this address a label of your own.",
-                systemImage: "pencil"
+                title: "Hide Address",
+                subtitle: entry.balanceSompi > 0
+                    ? "An address holding Kaspa stays on the list."
+                    : "Removes it from this list. Re-enable it in Address Visibility.",
+                systemImage: "eye.slash",
+                tint: .orange,
+                isDisabled: entry.balanceSompi > 0
             ) {
                 addressActionsTarget = nil
-                DispatchQueue.main.async {
-                    renameText = entry.label ?? ""
-                    renameTarget = entry
-                }
-            }
-            ActionSheetRow(
-                title: "Copy Address",
-                subtitle: "Puts the full address on the clipboard.",
-                systemImage: "doc.on.doc"
-            ) {
-                UIPasteboard.general.string = entry.address
-                Haptics.success()
-                addressActionsTarget = nil
-                showToast(entry.address.addressCopiedToastText)
-            }
-            ActionSheetRow(
-                title: "Show QR Code",
-                subtitle: "Full screen, for scanning with another device.",
-                systemImage: "qrcode"
-            ) {
-                addressActionsTarget = nil
-                DispatchQueue.main.async { qrTarget = entry }
-            }
-            // Hide straight from the row - same effect as unchecking it in Address Visibility,
-            // without opening that screen. Same guard as the checklist: never a funded address
-            // (cold storage has no primary-address concept).
-            if entry.balanceSompi == 0 {
-                ActionSheetRow(
-                    title: "Hide Address",
-                    subtitle: "Removes it from this list. Re-enable it in Address Visibility.",
-                    systemImage: "eye.slash",
-                    tint: .orange
-                ) {
-                    addressActionsTarget = nil
-                    hideAddress(entry)
-                }
+                hideAddress(entry)
             }
             if entry.isQuantum {
                 // A wrong number (or a change address given as a receive one) makes the unit
@@ -796,215 +867,70 @@ struct ColdStorageDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// The half sheet behind "Address Actions".
-    ///
-    /// Discovery reports its position as it walks, and that lands HERE rather than dismissing:
-    /// a scan is one network call per address until the gap limit is reached, easily half a
-    /// minute, and the sheet closing on an unmoving spinner said nothing about whether it was
-    /// working. The sheet stays put, counts up, and finishes with what it found.
-    private var addressActionsSheet: some View {
-        VStack(spacing: 0) {
-            Text("Address Actions")
-                .font(.headline)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
-
-            if isDiscovering, let progress = discoveryProgress {
-                VStack(spacing: 10) {
-                    ProgressView()
-                    Text("Checking address #\(progress.checkingIndex)")
-                        .font(.subheadline.weight(.semibold))
-                    Text(progress.foundCount == 0
-                         ? "No used addresses yet"
-                         : "\(progress.foundCount) found so far")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-
-                    // The scan belongs to this screen, not to the sheet, so closing the sheet
-                    // does not stop it - it keeps running and reports what it found in a toast.
-                    // Holding the sheet open for the length of a thousand-address sweep was the
-                    // only reason to sit and watch it.
-                    Button {
-                        showAddressActions = false
-                    } label: {
-                        Text("Close and Keep Scanning")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .foregroundColor(.accentColor)
-                            .background(glassBackground(cornerRadius: 14))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 6)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
-            } else {
-                VStack(spacing: 12) {
-                    ActionSheetRow(
-                        title: "Generate More Addresses",
-                        subtitle: "Reveals the next unused address in this account.",
-                        systemImage: "plus.circle",
-                        isBusy: isGenerating,
-                        isDisabled: isDiscovering
-                    ) {
-                        generateMore()
-                        showAddressActions = false
-                    }
-                    // KasSigner never exports its quantum (22') kpub - it would show every key those
-                    // addresses hide - so each is scanned from the unit, one at a time.
-                    ActionSheetRow(
-                        title: "Add Quantum-Resistant Address",
-                        subtitle: "Scan a KCC-3 address from KasSigner's address screen.",
-                        systemImage: "shield",
-                        isDisabled: isDiscovering
-                    ) {
-                        openAddQuantumAfterActions = true
-                        showAddressActions = false
-                    }
-                    ActionSheetRow(
-                        title: "Discover Addresses",
-                        subtitle: "Finds addresses holding a balance or a username.",
-                        systemImage: "magnifyingglass",
-                        isDisabled: isDiscovering
-                    ) {
-                        discoverAddresses()
-                    }
-                    ActionSheetRow(
-                        title: "Address Visibility",
-                        subtitle: "Check off every address you want on the list, in one sitting.",
-                        systemImage: "checklist",
-                        isDisabled: isDiscovering
-                    ) {
-                        openVisibilityAfterActions = true
-                        showAddressActions = false
-                    }
-                    // The kpub is never on screen (owner, 2026-11-22): it reveals every address of
-                    // the account, so it is only copied, from here.
-                    ActionSheetRow(
-                        title: "Copy kpub",
-                        subtitle: "Puts this account's kpub on the clipboard. It reveals all its addresses.",
-                        systemImage: "doc.on.doc",
-                        isDisabled: isDiscovering
-                    ) {
-                        ColdStorageClipboard.copyKpub(currentAccount.kpubString)
-                        Haptics.success()
-                        showAddressActions = false
-                        showToast("kpub copied to clipboard.")
-                    }
-                    if let discoverySummary {
-                        Text(discoverySummary)
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
-                            .padding(.top, 2)
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
-        // belongs to this screen rather than to the sheet, so closing it does not abandon
-        // anything - the Address Actions button keeps its spinner and the result arrives as a
-        // toast. Holding the sheet open was only ever protecting a progress readout.
-        .onDisappear { discoverySummary = nil }
-    }
-
-
+    /// One address on Manage Addresses' card (owner, 2026-11-27): name, quantum tag, balance,
+    /// worth, Used / Unused, then Copy, Send, Receive and Rename, and Tap to View History.
     private func addressRow(_ entry: ColdStorageAddressEntry) -> some View {
-        let isUsed = entry.everUsed || entry.balanceSompi > 0
+        let used = isUsed(entry)
         // The history probe for this address failed on the last load: used-ness is unknown,
         // and claiming "Unused" could invite address reuse. Pull to refresh re-checks.
-        let usedUnknown = !isUsed && unknownUsedAddresses.contains(entry.address)
+        let usedUnknown = !used && unknownUsedAddresses.contains(entry.address)
 
-        return ZStack {
-            NavigationLink {
-                ColdStorageAddressTransactionHistoryView(entry: entry)
-            } label: {
-                EmptyView()
-            }
-            .opacity(0)
-
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 5) {
-                        Text(entry.displayLabel)
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.accentColor)
-                        if entry.isQuantum {
-                            quantumShield(for: entry)
-                        }
-                    }
-                    Text(entry.shortAddress)
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundColor(.primary)
-                    Text(verbatim: "\(KaspaUnit.groupedExact(entry.balanceSompi)) \(KaspaUnit.symbol)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    HStack(spacing: 6) {
-                        Text(isUsed ? "Used" : (usedUnknown ? "Checking" : "Unused"))
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(isUsed ? .orange : (usedUnknown ? .secondary : .green))
-                        if domainOwningAddresses.contains(entry.address) {
-                            ContainsDomainTag()
-                        }
-                    }
+        return ManagedAddressCard(
+            name: entry.displayLabel,
+            amount: "\(KaspaUnit.groupedExact(entry.balanceSompi)) \(KaspaUnit.symbol)",
+            canSend: entry.balanceSompi > 0,
+            used: used ? .used : (usedUnknown ? .checking : .unused),
+            ownsUsername: domainOwningAddresses.contains(entry.address),
+            quantum: quantumState(for: entry),
+            nameAccessory: { EmptyView() },
+            detail: { KaspaFiatText(sompi: entry.balanceSompi) },
+            onCopy: {
+                UIPasteboard.general.string = entry.address
+                Haptics.success()
+                showToast(entry.address.addressCopiedToastText)
+            },
+            onSend: { sendTarget = entry },
+            onReceive: { qrTarget = entry },
+            // In place (owner, 2026-11-27), as Manage Addresses: each keystroke saved; empty goes
+            // back to the default name.
+            rename: InlineRename(current: entry.label ?? "", placeholder: entry.defaultLabel) { text in
+                if let index = currentIndex(of: entry) {
+                    manager.setAddressLabel(accountId: currentAccount.id, index: index, label: text)
                 }
-
-                Spacer()
-
-                Button {
-                    Haptics.impact(.light)
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let position = entries.firstIndex(where: { $0.id == entry.id }) {
+                    entries[position].label = trimmed.isEmpty ? nil : trimmed
+                }
+            },
+            // A regular address has only Hide left (owner, 2026-11-27: Send to Chatting Address
+            // isn't for Cold Storage), so the button hides it at once; a quantum one keeps the ⋮
+            // for Edit Address Number and Stop Watching.
+            onMore: {
+                if entry.isQuantum {
                     addressActionsTarget = entry
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.scaled(size: 18, weight: .bold))
-                        .rotationEffect(.degrees(90))
-                        .foregroundColor(.secondary)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
+                } else {
+                    hideAddress(entry)
                 }
-                .buttonStyle(.plain)
-            }
-            .padding(16)
-        }
-        .background(glassBackground(cornerRadius: 18))
-    }
-
-    /// The quantum state of a row, as Manage Addresses tells it: a shield while the key has never
-    /// been on chain, slashed once the address has spent (orange while it holds Kaspa again).
-    @ViewBuilder
-    private func quantumShield(for entry: ColdStorageAddressEntry) -> some View {
-        if quantumSpentAddresses.contains(entry.address.lowercased()) {
-            Image(systemName: "shield.slash.fill")
-                .font(.caption2)
-                .foregroundColor(entry.balanceSompi > 0 ? .orange : .secondary)
-                .accessibilityLabel(Text("Key revealed by a spend"))
-        } else {
-            Image(systemName: "shield.fill")
-                .font(.caption2)
-                .foregroundColor(.green)
-                .accessibilityLabel(Text("Quantum-safe"))
+            },
+            moreIsHide: !entry.isQuantum
+        ) {
+            ColdStorageAddressTransactionHistoryView(entry: entry)
         }
     }
 
-    /// One row-action half sheet's height: Rename, Copy and Show QR, then Hide (empty
-    /// addresses), Edit Address Number and Stop Watching (quantum addresses).
+    /// As Manage Addresses tells it: a quantum address is protected until a spend puts its key on
+    /// chain (orange once it holds Kaspa again); a regular one never is.
+    private func quantumState(for entry: ColdStorageAddressEntry) -> QuantumProtection {
+        guard entry.isQuantum else { return .notProtected }
+        guard quantumSpentAddresses.contains(entry.address.lowercased()) else { return .protected }
+        return entry.balanceSompi > 0 ? .revealedWithFunds : .notProtected
+    }
+
+    /// The ⋮ sheet's height (quantum addresses only): Hide, Edit Address Number, Stop Watching.
     private func addressRowActionsHeight(_ entry: ColdStorageAddressEntry) -> CGFloat {
-        var rows = 3
-        if entry.balanceSompi == 0 { rows += 1 }
+        var rows = 1
         if entry.isQuantum { rows += 2 }
-        return CGFloat(60 + 80 * rows)
+        return CGFloat(110 + 74 * rows)
     }
 
     /// The index an edit of this row files under now. A quantum entry's index moves when an
@@ -1019,11 +945,15 @@ struct ColdStorageDetailView: View {
         Task { await loadEntries() }
     }
 
-    /// Row-menu "Hide Address": flips the same per-account hidden flag the Address Visibility
-    /// checklist edits (so it shows unchecked there) and updates the row in place.
-    /// setAddressHidden re-verifies the live balance server-side and returns false if the
-    /// address can't be hidden. Mirrors Manage Addresses' hideAddress.
+    /// "Hide Address" (the ⋮ or a swipe): flips the same per-account hidden flag the Address
+    /// Visibility checklist edits (so it shows unchecked there) and updates the row in place.
+    /// setAddressHidden re-verifies the live balance and returns false if the address holds
+    /// Kaspa or the check fails.
     private func hideAddress(_ entry: ColdStorageAddressEntry) {
+        if entry.balanceSompi > 0 {
+            showToast(AppLocalization.string("An address holding Kaspa stays on the list."))
+            return
+        }
         Task {
             guard let index = currentIndex(of: entry) else { return }
             let ok = await manager.setAddressHidden(account: currentAccount, index: index, hidden: true)
@@ -1151,31 +1081,27 @@ struct ColdStorageDetailView: View {
         }
     }
 
-    private func discoverAddresses() {
+    /// Pull down: every address holding a balance or a username, then a reload. The count shows
+    /// under the Total Balance while it runs and the result as a toast.
+    private func discoverAddresses() async {
         guard !isDiscovering else { return }
         isDiscovering = true
-        discoverySummary = nil
         discoveryProgress = ColdStorageManager.DiscoveryProgress(checkingIndex: 0, foundCount: 0)
-        Task {
-            let discovered = await manager.discoverAddresses(for: currentAccount) { progress in
-                discoveryProgress = progress
-            }
-            await loadEntries()
-            isDiscovering = false
-            discoveryProgress = nil
-            // The count is addresses that hold a balance or a KNS domain - say so, rather than
-            // "used", which is what the old high-water-mark number implied and was not.
-            let summary = discovered == 0
-                ? AppLocalization.string("No addresses with a balance or username found.")
-                : discovered == 1
-                    ? AppLocalization.string("Found 1 address with a balance or username.")
-                    : String(format: AppLocalization.string("Found %lld addresses with a balance or username."),
-                             locale: AppLocalization.locale, discovered)
-            discoverySummary = summary
-            // Closed the sheet and carried on? Then the summary above has nowhere to render, so
-            // say it here instead of finishing silently.
-            if !showAddressActions { showToast(summary) }
+        let discovered = await manager.discoverAddresses(for: currentAccount) { progress in
+            discoveryProgress = progress
         }
+        await loadEntries()
+        isDiscovering = false
+        discoveryProgress = nil
+        // The count is addresses that hold a balance or a .kachat name - say so, rather than
+        // "used", which is what the old high-water-mark number implied and was not.
+        let summary = discovered == 0
+            ? AppLocalization.string("No addresses with a balance or username found.")
+            : discovered == 1
+                ? AppLocalization.string("Found 1 address with a balance or username.")
+                : String(format: AppLocalization.string("Found %lld addresses with a balance or username."),
+                         locale: AppLocalization.locale, discovered)
+        showToast(summary)
     }
 
     private func showToast(_ message: String) {
@@ -1330,7 +1256,9 @@ private struct ColdSendFlowView: View {
     @State private var formStep: FormStep?
     @State private var formForward = true
     @State private var feeDraft = ""
-    private var currentFormStep: FormStep { formStep ?? (isCompoundMode ? .review : .recipient) }
+    private var currentFormStep: FormStep {
+        formStep ?? (isCompoundMode ? .review : .recipient)
+    }
 
     private func go(to next: FormStep) {
         dismissSystemKeyboard()
@@ -2426,8 +2354,6 @@ struct ColdStorageAddressTransactionHistoryView: View {
     @State private var isLoadingUtxos = false
     /// See `CoinControlView.loadError`.
     @State private var utxoLoadError: String?
-    @State private var showReceiveSheet = false
-    @State private var showSendSheet = false
     @State private var showCompoundSheet = false
     @State private var showAddressActions = false
     @State private var showPublicKeySheet = false
@@ -2461,7 +2387,9 @@ struct ColdStorageAddressTransactionHistoryView: View {
         VStack(spacing: 0) {
             // The same balance card as a Manage Addresses address's page (owner, 2026-11-22):
             // the address's name, its balance large, and its worth in your currency.
-            KaspaAddressBalanceCard(label: entry.displayLabel, sompi: entry.balanceSompi)
+            // The full address on the card (owner, 2026-11-27, as Manage Addresses' pages): the
+            // account's cards no longer show it.
+            KaspaAddressBalanceCard(label: entry.displayLabel, address: entry.address, sompi: entry.balanceSompi)
 
             // The app's page switch (`PageCycleBar`), not a segmented control.
             PageCycleBar(
@@ -2510,46 +2438,8 @@ struct ColdStorageAddressTransactionHistoryView: View {
         .sheet(isPresented: $showPublicKeySheet) {
             AddressPublicKeyView(address: entry.address, note: "This is the public half of this address. It cannot spend anything.")
         }
-        .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 12) {
-                Button {
-                    showReceiveSheet = true
-                } label: {
-                    Label("Receive", systemImage: "qrcode")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .foregroundColor(.black)
-                        .background(Capsule().fill(Color.accentColor))
-                }
-                Button {
-                    showSendSheet = true
-                } label: {
-                    Label("Send", systemImage: "arrow.up.circle.fill")
-                        .font(.subheadline.weight(.bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .foregroundColor(.black)
-                        .background(Capsule().fill(Color.accentColor))
-                }
-                .disabled(entry.balanceSompi == 0)
-                .opacity(entry.balanceSompi == 0 ? 0.5 : 1)
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 16)
-        }
-        .sheet(isPresented: $showReceiveSheet) {
-            ColdStorageAddressQRView(entry: entry)
-        }
-        .sheet(isPresented: $showSendSheet) {
-            ColdSendFlowView(fromAddress: entry.address, availableBalanceSompi: entry.balanceSompi) {
-                Task {
-                    await loadTransactions()
-                    await loadUtxos()
-                }
-            }
-            .sendKaspaSheetSizing()
-        }
+        // Send and Receive are on the account's card for this address (owner, 2026-11-27), as on
+        // Manage Addresses.
         .sheet(isPresented: $showCompoundSheet) {
             ColdSendFlowView(fromAddress: entry.address, availableBalanceSompi: entry.balanceSompi, isCompoundMode: true) {
                 Task {
@@ -3097,132 +2987,6 @@ private struct ColdStorageAddressVisibilityView: View {
 }
 
 
-/// The half sheet behind an account's ellipsis, replacing the menu that was there.
-///
-/// Renaming happens in place rather than by dismissing into an alert: the sheet is already the
-/// context for "this account", and bouncing out to a system alert to type one word threw that
-/// away. Cancel walks back to the options rather than closing, so a mis-tap costs nothing.
-private struct ColdStorageAccountActionsSheet: View {
-    let account: ColdStorageAccount
-    let onCopyKpub: () -> Void
-    let onShowKpubQR: () -> Void
-    let onRename: (String) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var isRenaming = false
-    @State private var nameText = ""
-    @FocusState private var nameFocused: Bool
-
-    private var trimmedName: String {
-        nameText.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Text(isRenaming ? "Rename Account" : account.label)
-                .font(.headline)
-                .lineLimit(1)
-                .padding(.top, 20)
-                .padding(.bottom, 4)
-
-            if isRenaming { renameFields } else { options }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        // One fixed height for both states: a detent that changes while the sheet is up
-        // resizes in a jump rather than animating, and the rename fields fit the options' height.
-        .fittedSheetDetents(300)
-        .presentationDragIndicator(.visible)
-        .animation(.easeInOut(duration: 0.2), value: isRenaming)
-    }
-
-    private var options: some View {
-        VStack(spacing: 12) {
-            ActionSheetRow(
-                title: "Copy kpub",
-                subtitle: "Puts the extended public key on the clipboard.",
-                systemImage: "doc.on.doc"
-            ) {
-                onCopyKpub()
-                dismiss()
-            }
-            ActionSheetRow(
-                title: "Show kpub QR",
-                subtitle: "Scan it into another device to watch this account there.",
-                systemImage: "qrcode"
-            ) {
-                onShowKpubQR()
-                dismiss()
-            }
-            ActionSheetRow(
-                title: "Rename",
-                subtitle: "Changes the name shown for this account.",
-                systemImage: "pencil"
-            ) {
-                nameText = account.label
-                isRenaming = true
-                // A turn later: the field does not exist yet on the tap that reveals it.
-                DispatchQueue.main.async { nameFocused = true }
-            }
-            // Per account, not all of cold storage at once: this account's receives alone.
-            ActionSheetRow(
-                title: account.notifyOnReceive ? "Turn Off Receive Notifications" : "Turn On Receive Notifications",
-                subtitle: account.notifyOnReceive
-                    ? "Stops notifying when this account receives Kaspa. Other accounts keep theirs."
-                    : "Notifies you when this account receives Kaspa.",
-                systemImage: account.notifyOnReceive ? "bell.slash" : "bell"
-            ) {
-                ColdStorageManager.shared.setNotifyOnReceive(!account.notifyOnReceive, for: account)
-                Haptics.selection()
-                dismiss()
-            }
-        }
-    }
-
-    private var renameFields: some View {
-        VStack(spacing: 12) {
-            TextField("Name", text: $nameText)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
-                .submitLabel(.done)
-                .focused($nameFocused)
-                .onSubmit(save)
-                .padding(14)
-                .background(glassBackground(cornerRadius: 16))
-
-            HStack(spacing: 12) {
-                Button("Cancel") { isRenaming = false }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .foregroundColor(.primary)
-                    .background(glassBackground(cornerRadius: 16))
-
-                Button("Save", action: save)
-                    .font(.subheadline.weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .foregroundColor(.black)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.accentColor.opacity(trimmedName.isEmpty ? 0.4 : 1))
-                    )
-                    .disabled(trimmedName.isEmpty)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func save() {
-        guard !trimmedName.isEmpty else { return }
-        onRename(trimmedName)
-        Haptics.success()
-        dismiss()
-    }
-}
-
 /// The kpub of one cold-storage account, as a QR for moving it to another device or a watch-only
 /// wallet elsewhere.
 ///
@@ -3237,59 +3001,92 @@ private struct ColdStorageKpubQRView: View {
     @State private var toastMessage: String?
     @State private var toastToken = UUID()
 
+    /// Laid out as every receive screen (`AddressReceiveView`, owner 2026-11-27: "the new look for
+    /// QR codes that hot wallet has"): an icon and title, the account's name, the QR on a white
+    /// card, then what it means. No kpub text (owner, 2026-11-22): only the QR, for scanning.
     var body: some View {
         NavigationStack {
-            Color.white
-                .ignoresSafeArea()
-                .overlay(
-                    VStack(spacing: 20) {
-                        Spacer()
-                        Group {
-                            if let qrImage {
-                                Image(uiImage: qrImage)
-                                    .interpolation(.none)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 260, height: 260)
-                            } else {
-                                ProgressView()
-                                    .frame(width: 260, height: 260)
-                            }
-                        }
-                        .padding(20)
-                        .background(Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.accentColor, lineWidth: 3)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            ScrollView {
+                VStack(spacing: 18) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "lock.fill")
+                            .font(.scaled(size: 15, weight: .bold))
+                            .foregroundColor(.black)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(Color.accentColor))
+                            .accessibilityHidden(true)
+                        Text("Watch This Account")
+                            .font(.title3.weight(.bold))
+                    }
+                    .padding(.top, 8)
 
-                        // No kpub text (owner, 2026-11-22): only the QR, for scanning.
+                    Text(verbatim: account.label)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.secondary)
+
+                    Group {
+                        if let qrImage {
+                            Image(uiImage: qrImage)
+                                .interpolation(.none)
+                                .resizable()
+                                .scaledToFit()
+                        } else {
+                            ProgressView()
+                        }
+                    }
+                    .frame(width: 240, height: 240)
+                    .padding(16)
+                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
+
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "eye.fill")
+                            .foregroundColor(.orange)
                         Text("Watch-only. This cannot spend, but it reveals every address in this account.")
                             .font(.footnote)
-                            .foregroundColor(Color.black.opacity(0.45))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-
-                        Text("Tap anywhere to copy")
-                            .font(.footnote)
-                            .foregroundColor(Color.black.opacity(0.4))
-
-                        Spacer()
-                        Spacer()
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                )
+                    .padding(.horizontal, 8)
+
+                    Text("Tap anywhere to copy")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        note("checkmark.circle.fill", .green,
+                             "Scan it into another device to watch this account there.")
+                        note("xmark.octagon.fill", .red,
+                             "Whoever scans it sees every address, balance and payment of this account. Show it only to devices you trust.")
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(sendKaspaGlass(cornerRadius: 18))
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
                 .contentShape(Rectangle())
                 .onTapGesture { copyKpub() }
-                .navigationTitle(account.label)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Close") { dismiss() }
-                    }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") { dismiss() }
                 }
-                .onAppear { generateQR() }
-                .toast(message: toastMessage)
+            }
+            .onAppear { generateQR() }
+            .toast(message: toastMessage)
+        }
+    }
+
+    private func note(_ icon: String, _ color: Color, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .foregroundColor(color)
+            Text(text)
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
     }
 

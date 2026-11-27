@@ -113,7 +113,11 @@ Nothing here needs new code. It is listed so Kasshi can check its assumptions.
 1. **Sign in.** The tile calls `requestAccounts()`, then `getPublicKey()`. Kasshi calls
    `POST /api/wallet-auth/challenge { address }`, then `signMessage(challenge)`, then
    `POST /api/wallet-auth/verify { address, signature, challenge, publicKey, provider: "kapay" }`.
-   In K this is two taps: Connect, then Sign.
+   Opened from K's Kaspa Hub (since 2026-11-27), K asks first: "Sign In to Kasshi", which address.
+   After that, `requestAccounts()` answers at once with that address, and the first
+   `signMessage()` within two minutes (the sign-in challenge) is signed with no second sheet.
+   Later `signMessage()` calls and every `sendKaspa()` still ask in K. K also fires
+   `accountsChanged` with the address each time a page finishes loading, so see ask (e).
 2. **Deposit.** `sendKaspa(internalAddress, sompi)` opens K's Send review for that amount to the
    Kasshi wallet address. After the swipe, the txid comes back.
 3. **Withdraw.** This is server-side (Kasshi pays out to the K address), so nothing happens in K.
@@ -154,6 +158,12 @@ c. **(Optional) Silent re-sign-in.** If Kasshi wants returning K users signed in
    `getAccounts()` returns the same address, reuse it and refresh with `/api/wallet-auth/refresh`.
    The Connect sheet would still show once per browser session.
 
+e. **(Optional) Sign in on its own inside K.** When `window.kachat?.platform === "ios"` and
+   `getAccounts()` returns an address on load (or `accountsChanged` fires with one), the person
+   already picked it in K's "Sign In to Kasshi" sheet. Kasshi can run its wallet sign-in right
+   away (challenge, `signMessage`, verify) without its Create Account modal: K signs that first
+   challenge with no sheet, so the person goes from picking the address to signed in.
+
 d. **(Optional) "Open in K" button.** When kasshi.io is opened in mobile Safari, a button could
    open the same page inside K:
    ```
@@ -168,6 +178,8 @@ d. **(Optional) "Open in K" button.** When kasshi.io is opened in mobile Safari,
 Built in K for iPhone (2026-11-26):
 - the `window.kachat` provider in K's built-in browser, on kasshi.io (and its subdomains) only;
 - the native Connect (with the address choice), Sign and Send sheets;
+- from Kaspa Hub, the "Sign In to Kasshi" sheet first, which pre-connects the address and approves
+  the sign-in signature that follows (2026-11-27);
 - `accountsChanged` with the address on connect, and with `[]` plus `disconnect` after `disconnect()`.
 
 Not built yet: the `kachat.app/open?url=` link from ask (d).

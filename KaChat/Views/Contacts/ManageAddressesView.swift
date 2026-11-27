@@ -26,8 +26,6 @@ struct ManageAddressesView: View {
     /// The Chatting Address card's Send and Receive.
     @State private var showChattingSend = false
     @State private var showChattingReceive = false
-    @State private var renameTarget: SpendingAddressEntry?
-    @State private var renameText = ""
     @State private var toastMessage: String?
     @State private var toastToken = UUID()
     /// Addresses that own at least one KNS domain (cached assets-by-owner lookup) - drives the
@@ -207,27 +205,6 @@ struct ManageAddressesView: View {
                 }
             }
         }
-        .alert(
-            "Rename Address",
-            isPresented: Binding(
-                get: { renameTarget != nil },
-                set: { if !$0 { renameTarget = nil } }
-            )
-        ) {
-            TextField("Label", text: $renameText)
-            Button("Save") {
-                if let renameTarget {
-                    walletManager.setSpendingAddressLabel(index: renameTarget.index, label: renameText)
-                }
-                renameTarget = nil
-                Task { await loadEntries() }
-            }
-            Button("Cancel", role: .cancel) {
-                renameTarget = nil
-            }
-        } message: {
-            Text("Give this address a label to help you recognize it.")
-        }
     }
 
     /// Every address: the total, the actions, then the chatting address, then the spending ones.
@@ -329,7 +306,7 @@ struct ManageAddressesView: View {
             },
             onSend: { showChattingSend = true },
             onReceive: { showChattingReceive = true },
-            onRename: nil,
+            rename: nil,
             onMore: nil
         ) {
             ChattingAddressManageView(address: wallet.publicAddress)
@@ -366,9 +343,14 @@ struct ManageAddressesView: View {
             },
             onSend: { sendTarget = entry },
             onReceive: { qrTarget = entry },
-            onRename: {
-                renameText = entry.label ?? ""
-                renameTarget = entry
+            // In place: each keystroke saved, the row's label kept in step so the list and
+            // the address's page agree; empty goes back to "Address #n".
+            rename: InlineRename(current: entry.label ?? "", placeholder: entry.displayTitle) { text in
+                walletManager.setSpendingAddressLabel(index: entry.index, label: text)
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let position = entries.firstIndex(where: { $0.id == entry.id }) {
+                    entries[position].label = trimmed.isEmpty ? nil : trimmed
+                }
             },
             // The rest (Send to Chatting Address, Hide) in a half sheet. See `addressRowActionsSheet`.
             onMore: { addressActionsTarget = entry }
@@ -905,11 +887,19 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
     let onCopy: () -> Void
     let onSend: () -> Void
     let onReceive: () -> Void
-    /// Nil for the Chatting Address, which keeps its name.
-    let onRename: (() -> Void)?
+    /// Rename in place (owner, 2026-11-27): Rename turns the name into a text field with the
+    /// keyboard up, and each keystroke is saved. Nil for the Chatting Address, which keeps its name.
+    let rename: InlineRename?
     /// The ⋮: the address's other actions. Nil for none.
     let onMore: (() -> Void)?
+    /// The top-right button hides the address at once (an eye with a slash) instead of opening
+    /// the ⋮ sheet: Cold Storage, where Hide is the only other action (owner, 2026-11-27).
+    var moreIsHide = false
     @ViewBuilder let destination: () -> Destination
+
+    @State private var isRenaming = false
+    @State private var draft = ""
+    @FocusState private var nameFocused: Bool
 
     var body: some View {
         ZStack {
@@ -922,14 +912,21 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(verbatim: name)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    if isRenaming, let rename {
+                        InlineRenameField(placeholder: rename.placeholder, draft: $draft, focused: $nameFocused) {
+                            isRenaming = false
+                        }
+                        .onChange(of: draft) { rename.onChange($0) }
+                    } else {
+                        Text(verbatim: name)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
                     nameAccessory()
-                    // Beside the name (owner, 2026-11-26)
-                    if let quantum {
+                    // Beside the name (owner, 2026-11-26); out of the way while it's typed
+                    if let quantum, !isRenaming {
                         QuantumProtectionTag(state: quantum)
                             .fixedSize()
                     }
@@ -939,15 +936,15 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
                             Haptics.impact(.light)
                             onMore()
                         } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.scaled(size: 18, weight: .bold))
-                                .rotationEffect(.degrees(90))
+                            Image(systemName: moreIsHide ? "eye.slash" : "ellipsis")
+                                .font(.scaled(size: moreIsHide ? 16 : 18, weight: .bold))
+                                .rotationEffect(.degrees(moreIsHide ? 0 : 90))
                                 .foregroundColor(.secondary)
                                 .frame(width: 30, height: 30)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel(Text("More"))
+                        .accessibilityLabel(Text(moreIsHide ? "Hide Address" : "More"))
                     }
                 }
                 Text(verbatim: amount)
@@ -970,8 +967,17 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
                     actionButton("Copy", systemImage: "doc.on.doc", action: onCopy)
                     actionButton("Send", systemImage: "arrow.up", isDisabled: !canSend, action: onSend)
                     actionButton("Receive", systemImage: "arrow.down", action: onReceive)
-                    if let onRename {
-                        actionButton("Rename", systemImage: "pencil", action: onRename)
+                    if let rename {
+                        if isRenaming {
+                            actionButton("Done", systemImage: "checkmark") { nameFocused = false }
+                        } else {
+                            actionButton("Rename", systemImage: "pencil") {
+                                draft = rename.current
+                                isRenaming = true
+                                // a turn later: the field doesn't exist yet on this tap
+                                DispatchQueue.main.async { nameFocused = true }
+                            }
+                        }
                     }
                 }
                 .padding(.top, 10)
@@ -990,6 +996,10 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
             .padding(18)
         }
         .background(BalanceCardBackground())
+        // The keyboard going away (Done, return, a tap elsewhere) ends the rename.
+        .onChange(of: nameFocused) { focused in
+            if !focused { isRenaming = false }
+        }
     }
 
     @ViewBuilder
@@ -1004,10 +1014,22 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
         }
     }
 
-    /// A round button with its name under it. Borderless, so in a List row it takes only its
-    /// own taps and the rest of the card still opens the history.
     private func actionButton(_ title: LocalizedStringKey, systemImage: String, isDisabled: Bool = false,
                               action: @escaping () -> Void) -> some View {
+        AddressCardActionButton(title: title, systemImage: systemImage, isDisabled: isDisabled, action: action)
+    }
+}
+
+/// A round button with its name under it, on Manage Addresses' cards and Cold Storage's account
+/// cards. Borderless, so in a List row it takes only its own taps and the rest of the card still
+/// opens what the card leads to.
+struct AddressCardActionButton: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+    var isDisabled: Bool = false
+    let action: () -> Void
+
+    var body: some View {
         Button {
             Haptics.impact(.light)
             action()
@@ -1030,6 +1052,40 @@ struct ManagedAddressCard<Accessory: View, Detail: View, Destination: View>: Vie
         .buttonStyle(.borderless)
         .disabled(isDisabled)
         .opacity(isDisabled ? 0.4 : 1)
+    }
+}
+
+/// A card's in-place rename (owner, 2026-11-27: no pop-up): the name it has now ("" for the
+/// default), the default shown while the field is empty, and where each keystroke is saved
+/// (an empty name goes back to the default).
+struct InlineRename {
+    let current: String
+    let placeholder: String
+    let onChange: (String) -> Void
+}
+
+/// The name as a text field, in the name's own place and size, while a card is being renamed.
+struct InlineRenameField: View {
+    let placeholder: String
+    @Binding var draft: String
+    var focused: FocusState<Bool>.Binding
+    var font: Font = .headline
+    let onDone: () -> Void
+
+    var body: some View {
+        TextField(placeholder, text: $draft)
+            .font(font)
+            .foregroundColor(.primary)
+            .textInputAutocapitalization(.words)
+            .autocorrectionDisabled()
+            .submitLabel(.done)
+            .focused(focused)
+            .onSubmit(onDone)
+            .lineLimit(1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.accentColor.opacity(0.6), lineWidth: 1))
     }
 }
 

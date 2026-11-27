@@ -124,6 +124,10 @@ struct ColdStorageAddressEntry: Identifiable {
     var id: String { address }
     var displayLabel: String {
         if label?.isEmpty == false { return label! }
+        return defaultLabel
+    }
+    /// The name it goes by with no label of its own.
+    var defaultLabel: String {
         if isQuantum {
             return ColdQuantumAddress.defaultLabel(chain: quantumChain, unitIndex: unitIndex)
         }
@@ -946,6 +950,14 @@ final class ColdStorageManager: ObservableObject {
         UserDefaults.standard.set(data, forKey: hiddenIndicesKey(for: accountId))
         hiddenRevision &+= 1
         AddressActivityNotifier.shared.coldStorageAccountsChanged()
+    }
+
+    /// The account's balance as last read (every address; a hidden one is always empty), for the
+    /// account card to show at once while `getAddressList` reads it live. Nil before any read.
+    func lastKnownBalance(of account: ColdStorageAccount) -> UInt64? {
+        guard let saved = UserDefaults.standard.data(forKey: addressBalancesKey(for: account.id)),
+              let known = try? JSONDecoder().decode([String: UInt64].self, from: saved) else { return nil }
+        return known.values.reduce(0, +)
     }
 
     private func addressBalancesKey(for accountId: UUID) -> String {

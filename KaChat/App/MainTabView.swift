@@ -263,6 +263,8 @@ struct MainTabView: View {
         // the tap only opens or closes the menu: caught before the bar, so its glass stays put
         interceptor.catchesTouch = {
             showHubMenu || selectedTab == AppTab.hub.tag || HubRouter.shared.openSection == nil
+                // left over a minute ago: this tap is the menu too
+                || HubRouter.shared.isStale
         }
         for delay in [0.0, 0.3, 1.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { interceptor.install() }
@@ -274,7 +276,8 @@ struct MainTabView: View {
     /// while you're in it brings up the menu to pick another:
     /// - menu up: it closes;
     /// - on another tab, with a section picked before: back to that section, as you left it;
-    /// - in the section, or nothing picked yet: the menu.
+    /// - in the section, or nothing picked yet: the menu;
+    /// - the section left over a minute ago (owner, 2026-11-27): it's forgotten, and the menu.
     /// Returns true when it went to the section (the tab bar is then really on the Hub's tab).
     @discardableResult
     private func hubTapped() -> Bool {
@@ -283,6 +286,7 @@ struct MainTabView: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { showHubMenu = false }
             return false
         }
+        if selectedTab != AppTab.hub.tag { HubRouter.shared.forgetIfStale() }
         if selectedTab != AppTab.hub.tag, HubRouter.shared.openSection != nil {
             tabBeforeHub = selectedTab
             handleTabSelectionChange(AppTab.hub.tag)
@@ -358,6 +362,12 @@ struct MainTabView: View {
     private func handleTabSelectionChange(_ newValue: Int) {
         // another tab: the Hub's menu closes
         if newValue != AppTab.hub.tag { showHubMenu = false }
+        // the clock for forgetting the Hub's section (`HubRouter.rememberFor`)
+        if newValue == AppTab.hub.tag {
+            HubRouter.shared.noteEntered()
+        } else if selectedTab == AppTab.hub.tag {
+            HubRouter.shared.noteLeft()
+        }
         // Kaspa Hub tapped again: back to its grid, the way out of a section opened there (only
         // with the Hub as a screen: as a menu, a tap shows the menu and never gets here)
         if newValue == selectedTab, newValue == AppTab.hub.tag { HubRouter.shared.close() }
@@ -622,9 +632,24 @@ private struct DockBadgeSync: ViewModifier {
             // KaPosts' unseen activity and the rooms' unread count
             .onReceive(KaPostsNotificationCenter.shared.$unseenCount) { _ in sync() }
             .onReceive(PublicChatUnreadBadge.shared.$count) { _ in sync() }
+            // Wallet's dot: your usernames in grace (owner, 2026-11-27), loaded here so it shows
+            // from any tab - on appear (each sign-in rebuilds the tabs), on every registry change,
+            // and when the app comes back.
+            .onReceive(KachatExpiredNamesModel.shared.$expired) { _ in sync() }
+            .onReceive(KachatNamesRegistry.shared.$revision.removeDuplicates()) { _ in loadExpiredNames() }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                loadExpiredNames()
+            }
             .onChange(of: selectedTab) { _ in sync() }
             .onChange(of: dockTabs) { _ in sync() }
-            .onAppear { sync() }
+            .onAppear {
+                sync()
+                loadExpiredNames()
+            }
+    }
+
+    private func loadExpiredNames() {
+        Task { await KachatExpiredNamesModel.shared.load() }
     }
 
     /// A sync is already queued: the triggers above often fire together (a room read moves the

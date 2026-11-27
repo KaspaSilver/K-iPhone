@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- The app is called K (owner, 2026-11-21). The display name comes from the build setting;
+	     the bundle name is set here too (owner, 2026-11-27), since it would otherwise be the
+	     target's name, KaChat, and iOS showed "KaChat" over K's notifications. The target and
+	     module keep the KaChat name (saved data can carry it). -->
+	<key>CFBundleName</key>
+	<string>K</string>
+	<key>CFBundleDisplayName</key>
+	<string>K</string>
 	<key>CFBundleVersion</key>
 	<string>$(KACHAT_BUILD_NUMBER)</string>
 	<!-- The version the app shows in About. Xcode Cloud overwrites CFBundleVersion in the

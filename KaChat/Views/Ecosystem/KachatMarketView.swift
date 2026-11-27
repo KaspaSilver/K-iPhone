@@ -1017,7 +1017,8 @@ struct KachatAddressLiveNamesList: View {
                         NavigationLink {
                             KachatListingDetailView(info: n)
                         } label: {
-                            DomainNameCardView(title: n.display, badge: KachatLiveDomainsTab.badge(for: n, graceMs: registry.graceMs))
+                            DomainNameCardView(title: n.display, badge: KachatLiveDomainsTab.badge(for: n, graceMs: registry.graceMs),
+                                               badgeIsWarning: n.status(graceMs: registry.graceMs) == .grace)
                         }
                         .buttonStyle(.plain)
                     }

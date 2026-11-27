@@ -76,6 +76,10 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     var sheetOpen = false
 
     private var answer: ((Result<Any?, SiteError>) -> Void)?
+    /// Signed in from K's own "Sign in to Kasshi" sheet (`preConnect`): the site's first
+    /// `signMessage` on this host before this time is its sign-in, signed with no second sheet
+    /// (owner, 2026-11-27: pick the address, then straight in).
+    private var signInApproved: (host: String, until: Date)?
     private var declinedAt: Date?
     private var running = 0
     private var closed = false
@@ -93,6 +97,13 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
 
     func attach(_ webView: WKWebView) {
         self.webView = webView
+    }
+
+    /// The browser is on screen again. A browser hidden behind another tab and brought back keeps
+    /// its page; before, it stayed "closed" and answered the site's next request with "K closed
+    /// this page." until something reloaded it (2026-11-27).
+    func reopen() {
+        closed = false
     }
 
     /// The browser closed: a sheet still up is declined, and nothing more is answered.
@@ -212,6 +223,7 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
             guard let connection else { throw Self.notConnected }
             return try await balance(of: connection.address)
         case "disconnect":
+            signInApproved = nil
             if connection != nil {
                 connection = nil
                 emit("accountsChanged", payload: [String]())
@@ -225,6 +237,16 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
             }
             guard text.count <= 4096 else {
                 throw SiteError(code: Code.invalid, message: "signMessage: messages are limited to 4096 characters.")
+            }
+            // the sign-in the person already agreed to in K's own sheet: once, on this site
+            if let approved = signInApproved, approved.host == Self.siteKey(host), Date() < approved.until,
+               pending == nil, answer == nil, !sheetOpen, let connection {
+                signInApproved = nil
+                do {
+                    return try Self.sign(text, source: connection.source, expecting: connection.address)
+                } catch {
+                    throw SiteError(code: Code.unavailable, message: "K couldn't sign this message.")
+                }
             }
             return try await ask(.sign(message: text), host: host)
         case "sendKaspa":
@@ -302,6 +324,25 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
             pending = nil
             finish(.failure(SiteError(code: Code.unavailable, message: error.localizedDescription)))
         }
+    }
+
+    /// K's own "Sign in" sheet, before the site asks (Kasshi from Kaspa Hub, owner 2026-11-27): the
+    /// picked address connects at once, so the site's `requestAccounts` answers with no sheet, and
+    /// its sign-in message that follows within two minutes is signed with no sheet either.
+    func preConnect(source: SendSource, host: String) throws {
+        let connected = try Self.connection(for: source)
+        connection = connected
+        Self.rememberPick(source, host: host)
+        signInApproved = (Self.siteKey(host), Date().addingTimeInterval(120))
+        emit("accountsChanged", payload: [connected.address])
+    }
+
+    /// A page finished loading while connected (`preConnect` ran before it was there, or a link
+    /// within the site): `accountsChanged` with the address, so a site that listens can start its
+    /// sign-in by itself.
+    func pageLoaded() {
+        guard !closed, let connection else { return }
+        emit("accountsChanged", payload: [connection.address])
     }
 
     /// Sign approved: the connected address's key signs the text.
@@ -410,7 +451,7 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     }
 
     /// kasshi.io and www.kasshi.io are one site.
-    private static func siteKey(_ host: String) -> String {
+    static func siteKey(_ host: String) -> String {
         allowedHosts.first { host == $0 || host.hasSuffix("." + $0) } ?? host
     }
 

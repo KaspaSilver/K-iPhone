@@ -627,11 +627,15 @@ struct SwapView: View {
     private func swapHistoryRow(_ swap: SwapTransaction) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: "\(swap.fromAmount) \(swap.fromTicker.uppercased()) \u{2192} \(formatDecimalString(swap.toAmount)) \(swap.toTicker.uppercased())")
+                Text(verbatim: "\(swap.fromAmount) \(SwapTransaction.displayTicker(swap.fromTicker)) \u{2192} \(swap.isTrestly ? swap.toAmount : formatDecimalString(swap.toAmount)) \(SwapTransaction.displayTicker(swap.toTicker))")
                     .font(.subheadline.weight(.bold))
-                Text(swap.createdAt, style: .date)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 4) {
+                    Text(swap.createdAt, style: .date)
+                    // which service ran it: kUSDT swaps go through Trestly's pool on Kaspa
+                    Text(verbatim: "· " + (swap.isTrestly ? "Trestly" : "ChangeNOW"))
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
             Spacer()
             statusBadge(swap.status)
@@ -801,13 +805,14 @@ private struct SwapDetailView: View {
             Form {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(verbatim: "\(swap.fromAmount) \(swap.fromTicker.uppercased()) \u{2192} \(formatDecimal(swap.toAmount)) \(swap.toTicker.uppercased())")
+                        Text(verbatim: "\(swap.fromAmount) \(SwapTransaction.displayTicker(swap.fromTicker)) \u{2192} \(swap.isTrestly ? swap.toAmount : formatDecimal(swap.toAmount)) \(SwapTransaction.displayTicker(swap.toTicker))")
                             .font(.headline)
                         Text(swap.createdAt, style: .date)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
 
+                    if !swap.isTrestly {
                     HStack {
                         Spacer()
                         if let qrImage = makeQRCodeImage(from: swap.payinAddress) {
@@ -822,15 +827,114 @@ private struct SwapDetailView: View {
                         }
                         Spacer()
                     }
+                    }
                 }
 
+                if swap.isTrestly {
+                    trestlySections
+                } else {
+                changeNowSections
+                }
+            }
+            .toast(message: toastMessage)
+            .navigationTitle("Swap Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    /// A kUSDT swap through Trestly's pool on Kaspa (owner, 2026-11-27): the address it traded
+    /// from, its status, and its Kaspa transaction. No deposit address or exchange id: nothing
+    /// was sent to a third party.
+    @ViewBuilder
+    private var trestlySections: some View {
+        Section("Swapped Through") {
+            Text("Trestly's kUSDT pool on Kaspa")
+        }
+        Section("Address") {
+            Button {
+                UIPasteboard.general.string = swap.payoutAddress
+                Haptics.success()
+                showToast(swap.payoutAddress.addressCopiedToastText)
+            } label: {
+                Text(verbatim: swap.payoutAddress.wrappingAnywhere)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.primary)
+            }
+        }
+        statusSection
+        Section("Transaction ID") {
+            Button {
+                UIPasteboard.general.string = swap.id
+                Haptics.success()
+                showToast(AppLocalization.string("Transaction ID copied"))
+            } label: {
+                Text(verbatim: swap.id)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.primary)
+            }
+        }
+        Section {
+            refreshButton(failure: "Couldn't reach the network - try again")
+            if let url = AppSettings.load().kaspaExplorer.txURL(for: swap.id) {
+                Button("View in Explorer") { UIApplication.shared.open(url) }
+                    .foregroundColor(.accentColor)
+            }
+        }
+    }
+
+    private var statusSection: some View {
+        Section("Status") {
+            HStack {
+                Text(swapStatusName(swap.status))
+                    .fontWeight(.bold)
+                    .foregroundColor(statusColor(swap.status))
+                Spacer()
+                if swap.status == "finished" {
+                    Button("Add to Portfolio", action: onAddToPortfolio)
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(.accentColor)
+                }
+            }
+        }
+    }
+
+    private func refreshButton(failure: String) -> some View {
+        Button {
+            guard !isRefreshingStatus else { return }
+            isRefreshingStatus = true
+            Task {
+                let status = await SwapService.shared.refreshSwapStatusAsync(id: swap.id)
+                isRefreshingStatus = false
+                showToast(status.map { String(format: AppLocalization.string("Status: %@"), swapStatusName($0)) }
+                          ?? AppLocalization.string(failure))
+            }
+        } label: {
+            HStack {
+                Text("Refresh Status")
+                    .foregroundColor(.accentColor)
+                Spacer()
+                if isRefreshingStatus {
+                    ProgressView()
+                        .scaleEffect(0.85)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var changeNowSections: some View {
                 Section("Deposit Address") {
                     Button {
                         UIPasteboard.general.string = swap.payinAddress
                         Haptics.success()
                         showToast(swap.payinAddress.addressCopiedToastText)
                     } label: {
-                        Text(verbatim: swap.payinAddress)
+                        Text(verbatim: swap.payinAddress.wrappingAnywhere)
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.primary)
                     }
@@ -853,7 +957,7 @@ private struct SwapDetailView: View {
                         Haptics.success()
                         showToast(swap.payoutAddress.addressCopiedToastText)
                     } label: {
-                        Text(verbatim: swap.payoutAddress)
+                        Text(verbatim: swap.payoutAddress.wrappingAnywhere)
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.primary)
                     }
@@ -864,19 +968,7 @@ private struct SwapDetailView: View {
                     }
                 }
 
-                Section("Status") {
-                    HStack {
-                        Text(swapStatusName(swap.status))
-                            .fontWeight(.bold)
-                            .foregroundColor(statusColor(swap.status))
-                        Spacer()
-                        if swap.status == "finished" {
-                            Button("Add to Portfolio", action: onAddToPortfolio)
-                                .font(.caption.weight(.bold))
-                                .foregroundColor(.accentColor)
-                        }
-                    }
-                }
+                statusSection
 
                 Section("ChangeNOW Exchange ID") {
                     Button {
@@ -891,41 +983,12 @@ private struct SwapDetailView: View {
                 }
 
                 Section {
-                    Button {
-                        guard !isRefreshingStatus else { return }
-                        isRefreshingStatus = true
-                        Task {
-                            let status = await SwapService.shared.refreshSwapStatusAsync(id: swap.id)
-                            isRefreshingStatus = false
-                            showToast(status.map { String(format: AppLocalization.string("Status: %@"), swapStatusName($0)) }
-                                      ?? "Couldn't reach ChangeNOW - try again")
-                        }
-                    } label: {
-                        HStack {
-                            Text("Refresh Status")
-                                .foregroundColor(.accentColor)
-                            Spacer()
-                            if isRefreshingStatus {
-                                ProgressView()
-                                    .scaleEffect(0.85)
-                            }
-                        }
-                    }
+                    refreshButton(failure: "Couldn't reach ChangeNOW - try again")
                     if let url = URL(string: "https://changenow.io/exchange/txs/\(swap.id)") {
                         Link("View on ChangeNOW", destination: url)
                             .foregroundColor(.accentColor)
                     }
                 }
-            }
-            .toast(message: toastMessage)
-            .navigationTitle("Swap Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
     }
 
     private func formatDecimal(_ text: String) -> String {

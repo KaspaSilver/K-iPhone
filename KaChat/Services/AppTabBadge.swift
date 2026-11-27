@@ -15,6 +15,9 @@ enum AppTabBadge {
         // Public Chats button beside KaChat's title.
         case .chats:
             return ChatService.shared.chatListUnreadCount + GroupChatService.shared.totalGroupUnreadCount
+        // A name of yours expired and is in grace (owner, 2026-11-27): a red dot until it's
+        // renewed or lapses, so the renewal isn't missed.
+        case .wallet: return KachatExpiredNamesModel.shared.expired.count
         // what the tabs inside it hold, so moving one there never hides its badge
         case .hub: return DockLayout.shared.hub.reduce(0) { $0 + unreadCount(for: $1) }
         default: return 0
@@ -62,9 +65,8 @@ enum AppTabBadge {
     static func dockLabel(for tab: AppTab) -> String? {
         let count = unreadCount(for: tab)
         guard count > 0 else { return nil }
-        if tab == .hub {
-            return label(count)
-        }
+        // Wallet's is a dot, not a number: an expired username needs renewing.
+        if tab == .wallet { return dot }
         return label(count)
     }
 

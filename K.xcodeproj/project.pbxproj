@@ -1251,6 +1251,7 @@
 				E80000052D4C000000000005 /* Resources */,
 				43BBF34E2F15A52900B42BDA /* Embed Foundation Extensions */,
 				A9B0C1D2E3F4050617283940 /* Local Build Number */,
+				KBNAME000100010000000001 /* Bundle Name K */,
 			);
 			buildRules = (
 			);
@@ -1420,6 +1421,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
 			);
 			name = "Local Build Number";
 			outputFileListPaths = (
@@ -1440,6 +1442,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
 			);
 			name = "Local Build Number";
 			outputFileListPaths = (
@@ -1449,6 +1452,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Builds run from Xcode: the same build number the app's Local Build Number phase gives this build, so this extension matches its app (an app extension's CFBundleVersion must equal the app's). The extensions build before the app, so this works out the app's next number from the counter without writing it; the app's phase writes it. Xcode Cloud ($CI) and archives (ACTION=install) keep Version.xcconfig's number.\nif [ -n \"$CI\" ] || [ \"$ACTION\" = \"install\" ]; then exit 0; fi\nCOUNTER=\"$SRCROOT/KaChat/.local-build-number\"\nBASE=\"${CURRENT_PROJECT_VERSION:-0}\"\nLAST=$(cat \"$COUNTER\" 2>/dev/null)\ncase \"$LAST\" in ''|*[!0-9]*) LAST=0 ;; esac\ncase \"$BASE\" in ''|*[!0-9]*) BASE=0 ;; esac\nif [ \"$LAST\" -ge \"$BASE\" ]; then NEXT=$((LAST + 1)); else NEXT=$((BASE + 1)); fi\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $NEXT\" \"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\necho \"Local build number (extension): $NEXT\"\n";
+			showEnvVarsInLog = 0;
+		};
+		KBNAME000100010000000001 /* Bundle Name K */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Bundle Name K";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Every build, Xcode Cloud and archives included: the bundle name is K (owner, 2026-11-27). Xcode fills CFBundleName from the target's name, KaChat, whatever Info.plist or INFOPLIST_KEY_ says, and iOS showed \"KaChat\" over K's notifications. The target and module keep the KaChat name (saved data can carry it). The processed Info.plist is this phase's input, so it runs after Xcode writes it and before signing.\n/usr/libexec/PlistBuddy -c \"Set :CFBundleName K\" \"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

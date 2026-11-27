@@ -281,7 +281,7 @@ struct KachatStatusPill: View {
     private var color: Color {
         switch status {
         case .active: return .green
-        case .grace: return .orange
+        case .grace: return .red
         case .lapsed: return .green
         }
     }
@@ -3541,7 +3541,8 @@ struct KachatLiveDomainsTab: View {
                                 KachatListingDetailView(info: n)
                             } label: {
                                 DomainNameCardView(title: n.display, badge: Self.badge(for: n, graceMs: registry.graceMs),
-                                                   footnote: Self.expiryLine(for: n, graceMs: registry.graceMs))
+                                                   footnote: Self.expiryLine(for: n, graceMs: registry.graceMs),
+                                                   badgeIsWarning: n.status(graceMs: registry.graceMs) == .grace)
                             }
                             .buttonStyle(.plain)
                         }
@@ -3608,7 +3609,8 @@ struct KachatLiveDomainsTab: View {
     static func badge(for n: KachatNames.NameInfo, graceMs: Int64) -> String? {
         switch n.status(graceMs: graceMs) {
         case .active: return n.isListed ? AppLocalization.string("Listed") : nil
-        case .grace: return AppLocalization.string("Expired")
+        // red, so it isn't missed (owner, 2026-11-27): it says what to do, not only what happened
+        case .grace: return AppLocalization.string("Expired: Renew Before Grace Ends")
         case .lapsed: return AppLocalization.string("Available")
         }
     }
@@ -3634,6 +3636,13 @@ struct KachatLiveDomainsTab: View {
         if walletAddress.lowercased() == KachatNamesActions.shared.myAddress {
             if let own = try? await KachatNamesActions.shared.ownNamesAndOffers(heldOnly: true) {
                 names = own.names
+                #if DEBUG
+                if let me = KachatNamesActions.shared.myKey,
+                   let fake = KachatExpiredNamesModel.debugGraceName(owner: me, graceMs: registry.graceMs),
+                   !names.contains(where: { $0.name == fake.name }) {
+                    names.insert(fake, at: 0)
+                }
+                #endif
                 myOffers = own.offers
                 KachatOwnedNamesCache.save(names: names, offers: myOffers, for: walletAddress)
             }
@@ -3863,6 +3872,13 @@ enum KachatDeepLink {
 /// dismissal (the X) is per name and expiry, so a name that expires again brings it back.
 @MainActor
 final class KachatExpiredNamesModel: ObservableObject {
+    /// One for the whole app (owner, 2026-11-27): the Wallet tab's banner, the red dot on the
+    /// dock's Wallet and the warning on Your Usernames all read it, so the dot shows from any tab.
+    /// Loaded by `MainTabView` (on appear, on every registry change, when the app comes back).
+    static let shared = KachatExpiredNamesModel()
+
+    /// Every name of yours in grace, dismissed or not: the dock's dot and Your Usernames'
+    /// warning stay until the name is renewed (or lapses); only the banner can be closed.
     @Published private(set) var expired: [KachatNames.NameInfo] = []
     @Published private var dismissed: Set<String> = []
 
@@ -3886,10 +3902,26 @@ final class KachatExpiredNamesModel: ObservableObject {
         let now = KachatNames.nowMs()
         // a failed read keeps the banner as it is
         guard let owned = try? await registry.names(owner: me, includeInactive: true) else { return }
-        let inGrace = owned.filter { $0.status(graceMs: grace, nowMs: now) == .grace }.sorted { $0.expiresAt < $1.expiresAt }
+        var inGrace = owned.filter { $0.status(graceMs: grace, nowMs: now) == .grace }.sorted { $0.expiresAt < $1.expiresAt }
+        #if DEBUG
+        if let fake = Self.debugGraceName(owner: me, graceMs: grace) { inGrace.insert(fake, at: 0) }
+        #endif
         // assigned only on a change: each assignment redraws the whole Wallet scroll
         if inGrace != expired { expired = inGrace }
     }
+
+    #if DEBUG
+    /// Debug builds launched with `KACHAT_FAKE_EXPIRED_NAME=<name>`: a name of yours that
+    /// expired an hour ago, to see the dock's dot, the warning and the red pill without waiting a
+    /// year. Never in a release build.
+    static func debugGraceName(owner: Data, graceMs: Int64) -> KachatNames.NameInfo? {
+        guard let name = ProcessInfo.processInfo.environment["KACHAT_FAKE_EXPIRED_NAME"], !name.isEmpty else { return nil }
+        let now = KachatNames.nowMs()
+        return KachatNames.NameInfo(name: name, key: Data(repeating: 0, count: 32), owner: owner, price: 0,
+                                    expiresAt: now - 3_600_000, periodStart: nil,
+                                    outpoint: KachatNames.Outpoint(txid: Data(repeating: 0, count: 32), index: 0))
+    }
+    #endif
 
     func dismissAll() {
         guard let storeKey else { return }

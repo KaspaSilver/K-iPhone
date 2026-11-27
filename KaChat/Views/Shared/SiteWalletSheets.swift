@@ -74,6 +74,8 @@ private struct SiteHeader: View {
 /// account (`OwnAddressList`, quantum ones left out). The address picked last time is suggested.
 struct SiteConnectView: View {
     let host: String
+    /// K's own "Sign in to Kasshi" step (before the site asks) words it as signing in.
+    var signIn = false
     let onConnect: (SendSource) -> Void
     let onDecline: () -> Void
 
@@ -81,16 +83,21 @@ struct SiteConnectView: View {
     @State private var choosing = false
 
     var body: some View {
-        SendStepScreen(title: Text("Connect to K"),
+        SendStepScreen(title: signIn ? Text("Sign In to Kasshi") : Text("Connect to K"),
                        onCancel: onDecline,
-                       continueTitle: "Connect",
+                       continueTitle: signIn ? "Sign In" : "Connect",
                        canContinue: !(choosing && source == .chatting)) {
             onConnect(source)
         } content: {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    SiteHeader(host: host, note: "This site sees the address you connect and its balance. It can ask you to sign in or to pay, and nothing happens without your OK here.")
-                    SendStepQuestion(text: "Which address do you want to connect?")
+                    if signIn {
+                        SiteHeader(host: host, note: "K signs you in to Kasshi with the address you pick: Kasshi sees it and its balance. Payments still ask you here first.")
+                        SendStepQuestion(text: "Which address do you want to sign in with?")
+                    } else {
+                        SiteHeader(host: host, note: "This site sees the address you connect and its balance. It can ask you to sign in or to pay, and nothing happens without your OK here.")
+                        SendStepQuestion(text: "Which address do you want to connect?")
+                    }
                     HStack(spacing: 10) {
                         SelectablePill(title: "Chatting Address", selected: !choosing) {
                             choosing = false
