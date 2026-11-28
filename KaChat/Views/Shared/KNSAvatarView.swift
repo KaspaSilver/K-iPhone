@@ -543,22 +543,6 @@ enum KNSProfileImageCacheControl {
         await KNSProfileImageCache.shared.resetAfterExternalPurge()
     }
 
-    /// Downloads these pictures again whatever the cache holds (User Info > Rescan Profile), then
-    /// tells every avatar and banner showing one to redraw it. Returns how many came back.
-    @discardableResult
-    static func refetch(_ urlStrings: [String]) async -> Int {
-        var fetched = 0
-        for raw in Set(urlStrings) {
-            guard let descriptor = KNSProfileImageDescriptor.from(raw: raw) else { continue }
-            if await KNSProfileImageCache.shared.forceRefetch(descriptor) { fetched += 1 }
-            let identity = descriptor.cacheIdentity
-            await MainActor.run {
-                NotificationCenter.default.post(name: .knsProfileImageRefetched, object: identity)
-            }
-        }
-        return fetched
-    }
-
     /// The hourly profile rescan's look at these pictures (audit 2026-11-25 B17: it used to
     /// download every contact's avatar and banner again each hour). A picture whose link changed
     /// has a new cache identity, so it downloads by itself the next time it shows; one this phone
@@ -608,16 +592,6 @@ private actor KNSProfileImageCache {
     /// The decoded image already in memory, synchronously - nil when it has to be loaded.
     static func memoryImage(for descriptor: KNSProfileImageDescriptor, maxPixelSize: Int?) -> UIImage? {
         KNSProfileImageMemory.cache.object(forKey: KNSProfileImageMemory.key(for: descriptor.cacheIdentity, maxPixelSize: maxPixelSize))
-    }
-
-    /// A full download, no validators sent (a host may answer "not modified" to a changed picture):
-    /// the new bytes replace the old file, and every decoded variant goes. The old picture stays
-    /// when the download fails.
-    func forceRefetch(_ descriptor: KNSProfileImageDescriptor) async -> Bool {
-        await loadManifestIfNeeded()
-        downloadFailureAt.removeValue(forKey: descriptor.cacheIdentity)
-        let image = await downloadAndStore(descriptor: descriptor, existingEntry: nil, maxPixelSize: nil)
-        return image != nil
     }
 
     /// See `KNSProfileImageCacheControl.refreshIfChanged`. Nothing for a picture not on disk; a

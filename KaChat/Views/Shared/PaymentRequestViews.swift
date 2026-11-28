@@ -61,6 +61,8 @@ struct CreatePaymentRequestView: View {
     private enum Step: Int { case destination, amount, review }
     @State private var step: Step = .destination
     @State private var stepForward = true
+    /// A step slide in progress (`StepSlideState`).
+    @State private var stepSlide = StepSlideState()
 
     /// The address the request pays: the fresh one (reserved, else the one it will be), or the pick.
     private var payeeAddress: String? {
@@ -79,6 +81,7 @@ struct CreatePaymentRequestView: View {
                 case .review: reviewStep.transition(stepTransition)
                 }
             }
+            .ignoresKeyboardWhileSliding(stepSlide)
             .toolbar(.hidden, for: .navigationBar)
             .onChange(of: amountInput) { _ in copied = false }
             .onChange(of: memo) { _ in copied = false }
@@ -106,6 +109,7 @@ struct CreatePaymentRequestView: View {
     }
 
     private func go(to next: Step) {
+        stepSlide.begin()
         dismissSystemKeyboard()
         stepForward = next.rawValue > step.rawValue
         DispatchQueue.main.async {

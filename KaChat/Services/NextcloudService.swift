@@ -116,7 +116,7 @@ enum NextcloudError: LocalizedError {
             return "The backup download stopped early (\(received) of \(expected) bytes). "
                 + "Nothing on the server was changed, so trying again is safe."
         case .backupNotFound:
-            return "No KaChat backup was found on this Nextcloud server."
+            return AppLocalization.string("No K backup was found on this Nextcloud server.")
         case .backupLocked:
             return "Nextcloud has the backup file locked (HTTP 423): another device or sync is reading "
                 + "or writing it right now. Try again in a minute. If it keeps happening, the lock is "

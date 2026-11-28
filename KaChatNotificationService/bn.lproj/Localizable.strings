@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "আপনাকে %@ পাঠিয়েছে";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "আপনাকে দাবা খেলায় আমন্ত্রণ জানিয়েছে";
+"Accepted your chess game" = "আপনার দাবা খেলা গ্রহণ করেছে";
+"Declined your chess game" = "আপনার দাবা খেলা প্রত্যাখ্যান করেছে";
+"Played a chess move" = "একটি দাবার চাল দিয়েছে";
+"Played %@ → %@" = "%@ → %@ চাল দিয়েছে";
+"Lost on time" = "সময়ে হেরেছে";
+"Resigned the chess game" = "দাবা খেলায় হার মেনেছে";
+"Removed their %@ reaction" = "তাদের %@ প্রতিক্রিয়া সরিয়েছে";
+"Reacted %@ to a message" = "একটি মেসেজে %@ প্রতিক্রিয়া দিয়েছে";
+"Reacted %@ to your message" = "আপনার মেসেজে %@ প্রতিক্রিয়া দিয়েছে";
+"Replied to a message" = "একটি মেসেজের উত্তর দিয়েছে";
+"Photo" = "ছবি";
+"Video" = "ভিডিও";
+"Edited a message" = "একটি মেসেজ সম্পাদনা করেছে";
+"Sent a photo" = "একটি ছবি পাঠিয়েছে";
+"Sent a voice message" = "একটি ভয়েস মেসেজ পাঠিয়েছে";
+"Sent a video" = "একটি ভিডিও পাঠিয়েছে";

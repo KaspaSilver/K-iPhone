@@ -74,6 +74,8 @@ struct ChatDetailView: View {
     @EnvironmentObject var contactsManager: ContactsManager
     /// Closes the chat after a Message Request is rejected.
     @Environment(\.dismiss) private var dismiss
+    /// Pushed (a back button to stand in for), not the iPad split view's detail pane.
+    @Environment(\.isPresented) private var isPushed
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @ObservedObject private var priceModel = KasPriceModel.shared
     @StateObject private var fiatAmountState = KaspaFiatAmountState()
@@ -460,6 +462,11 @@ struct ChatDetailView: View {
     @State private var hasPerformedInitialSetup = false
     @State private var isImageDropTarget = false
     @State private var isMessageFocused = false
+    /// The Back button that drops the focus and goes back in one tap (T3): only while the message
+    /// box has focus, so the system Back (and its swipe) is there the rest of the time.
+    private var backStandsIn: Bool {
+        isPushed && isMessageFocused
+    }
     @State private var showDesktopEmojiPicker = false
     @State private var emojiInsertionRequest: ComposerTextView.TextInsertionRequest?
     @State private var viewportResetTrigger = UUID()
@@ -550,16 +557,22 @@ struct ChatDetailView: View {
         )
         let cache = derivedCache
         if cache.key != key {
-            let visible = computeMessages()
-            if cache.voiceGroupsVersion != normalizedMessagesVersion {
-                cache.voiceGroups = VoicePartGrouping.group(visible)
-                cache.voiceGroupsVersion = normalizedMessagesVersion
+            // A page loaded at the top only moves the window: the filtered thread and the photo
+            // rule stay as they are, and only the slice and its timeline are made again (audit
+            // 2026-11-27 C3: each page filtered the whole history, three times more for the
+            // photo rule while no date was stored).
+            if cache.key?.snapshotVersion != key.snapshotVersion {
+                let visible = computeMessages()
+                if cache.voiceGroupsVersion != normalizedMessagesVersion {
+                    cache.voiceGroups = VoicePartGrouping.group(visible)
+                    cache.voiceGroupsVersion = normalizedMessagesVersion
+                }
+                let hidden = cache.voiceGroups.hiddenIds
+                cache.messages = hidden.isEmpty ? visible : visible.filter { !hidden.contains($0.id) }
+                cache.photosUnlockDate = contactsManager.photosUnlockDate(for: contact.address, messages: cache.messages)
             }
-            let hidden = cache.voiceGroups.hiddenIds
-            cache.messages = hidden.isEmpty ? visible : visible.filter { !hidden.contains($0.id) }
             cache.displayedMessages = computeDisplayedMessages(from: cache.messages)
             cache.timelineItems = ChatTimelineLayout.items(for: cache.displayedMessages)
-            cache.photosUnlockDate = contactsManager.photosUnlockDate(for: contact.address, messages: cache.messages)
             cache.key = key
         }
         return cache
@@ -663,13 +676,17 @@ struct ChatDetailView: View {
         normalizedMessagesVersion &+= 1
 
         if let myAddress {
-            let gameIds = Set(deduped.compactMap { ChessCodec.parseAny(MessageReplyCodec.unwrappedText($0.content))?.gameId })
+            // Only messages holding a chess type's bytes are unwrapped and parsed, and each game
+            // is summarized over those alone (`summarize` skips everything else anyway): this
+            // decoded every message of the history on every rebuild (audit 2026-11-27 C1).
+            let chessMessages = deduped.filter { PayloadSniff.containsASCII($0.content, PayloadSniff.chessType) }
+            let gameIds = Set(chessMessages.compactMap { ChessCodec.parseAny(MessageReplyCodec.unwrappedText($0.content))?.gameId })
             if gameIds.isEmpty {
                 if !chessSummaryCache.isEmpty { chessSummaryCache = [:] }
             } else {
                 var updated: [String: ChessGameSummary] = [:]
                 for gameId in gameIds {
-                    updated[gameId] = ChessGameService.summarize(gameId: gameId, in: deduped, myAddress: myAddress, contactAddress: contact.address)
+                    updated[gameId] = ChessGameService.summarize(gameId: gameId, in: chessMessages, myAddress: myAddress, contactAddress: contact.address)
                 }
                 chessSummaryCache = updated
             }
@@ -1078,7 +1095,25 @@ struct ChatDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        // While the message box has focus, the system Back's first tap only dropped the focus and
+        // a second one went back (audit 2026-11-27 T3). Its stand-in does both in one tap.
+        .navigationBarBackButtonHidden(backStandsIn)
         .toolbar {
+            if backStandsIn {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        // the keyboard goes now, not on the next runloop: popping with it up
+                        // leaves its area as a black band over the list (see onDisappear)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        isMessageFocused = false
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.backward")
+                            .fontWeight(.semibold)
+                    }
+                    .accessibilityLabel(Text("Back"))
+                }
+            }
             // This chat's notifications, one tap away (owner, 2026-11-24): the same Silence the
             // Chats list's swipe sets (the contact's notification override at Off).
             if !isSelectingMessages {
@@ -1147,10 +1182,13 @@ struct ChatDetailView: View {
             paymentSheet
         }
         .sheet(item: $dollarSendToken) { token in
+            // the account this chat belongs to: a late report after a switch is dropped (R5)
+            let owner = WalletManager.shared.currentWallet?.publicAddress
             TokenSendView(token: token, chatRecipient: contact.address,
                           name: contactsManager.displayName(for: contact)) { txId, index, amount in
                 // the bubble here, and the notice that puts it in their chat too
-                chatService.recordTokenPayment(to: contact, token: token, txId: txId, index: index, amount: amount)
+                chatService.recordTokenPayment(to: contact, token: token, txId: txId, index: index, amount: amount,
+                                               owner: owner)
             }
         }
         .sheet(item: $chatTipTarget) { target in
@@ -1792,13 +1830,11 @@ struct ChatDetailView: View {
         guard let snapshot = pendingPrependViewportSnapshot else { return false }
         guard let scrollView = scrollViewReference.scrollView else { return false }
 
-        // Never jam contentOffset while the user's finger owns the scroll or a fling is live -
-        // a programmatic setContentOffset mid-gesture kills the drag/momentum and reads as a
-        // freeze-then-jump. On iOS 17+ the re-armed bottom anchor (armHistoryGrowthAnchor)
-        // already holds the viewport through the prepend reflow, so the snapshot can simply be
-        // dropped. On iOS 16 there is no default anchor to lean on, so only skip while the
-        // finger is literally down (tracking/dragging) and still restore through deceleration -
-        // stopping the fling is the lesser evil there versus losing the reading position.
+        // Runs during a drag or a fling too (a73ef06d): a delta-adjusted offset keeps UIKit's
+        // momentum, where dropping the snapshot and trusting the re-armed bottom anchor
+        // (armHistoryGrowthAnchor) raced it and lost the reading position. Whether the anchor
+        // and this restore can both move the list in the same frame under the finger is open
+        // (smoothness audit 2026-11-27 C11, not reproduced).
         let deltaHeight = scrollView.contentSize.height - snapshot.contentHeight
         // Wait for layout/content size to settle.
         guard abs(deltaHeight) > 0.5 else { return false }
@@ -4115,6 +4151,7 @@ struct ChatDetailView: View {
     ) {
         DispatchQueue.main.async {
             if animated {
+                landNearBottomIfFar(using: proxy)
                 withAnimation {
                     proxy.scrollTo("bottom_anchor", anchor: .bottom)
                 }
@@ -4132,6 +4169,26 @@ struct ChatDetailView: View {
             } else {
                 proxy.scrollTo("bottom_anchor", anchor: .bottom)
             }
+        }
+    }
+
+    /// Far from the newest message (after "jump to start" or a long scroll up), lands a few rows
+    /// short of it without animation, so the animated scroll that follows covers the last screen
+    /// only: animating through every row of a large window froze the chat (audit 2026-11-27 C6).
+    static let farFromBottomScreens: CGFloat = 3
+
+    private func landNearBottomIfFar(using proxy: ScrollViewProxy) {
+        guard let scrollView = scrollViewReference.scrollView else { return }
+        let height = scrollView.bounds.height
+        guard height > 0 else { return }
+        let bottomOffset = scrollView.contentSize.height - height + scrollView.adjustedContentInset.bottom
+        guard bottomOffset - scrollView.contentOffset.y > height * Self.farFromBottomScreens else { return }
+        let shown = displayedMessages
+        guard shown.count > 8 else { return }
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            proxy.scrollTo(shown[shown.count - 8].id, anchor: .top)
         }
     }
 
@@ -6213,15 +6270,17 @@ struct WebMOpusEncoder {
         while reader.status == .reading {
             guard let sampleBuffer = output.copyNextSampleBuffer() else { break }
             guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { continue }
-            var length = 0
-            var dataPointer: UnsafeMutablePointer<Int8>?
-            let status = CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &length, dataPointerOut: &dataPointer)
-            if status != kCMBlockBufferNoErr || dataPointer == nil || length == 0 {
-                continue
+            // Copied out, not read through the data pointer: a block buffer need not be one
+            // contiguous run, and the pointer covers only the first piece.
+            let count = CMBlockBufferGetDataLength(blockBuffer) / MemoryLayout<Float>.size
+            guard count > 0 else { continue }
+            var chunk = [Float](repeating: 0, count: count)
+            let status = chunk.withUnsafeMutableBytes { raw -> OSStatus in
+                guard let base = raw.baseAddress else { return kCMBlockBufferBadCustomBlockSourceErr }
+                return CMBlockBufferCopyDataBytes(blockBuffer, atOffset: 0, dataLength: raw.count, destination: base)
             }
-            let count = length / MemoryLayout<Float>.size
-            let floatPointer = dataPointer!.withMemoryRebound(to: Float.self, capacity: count) { $0 }
-            samples.append(contentsOf: UnsafeBufferPointer(start: floatPointer, count: count))
+            guard status == kCMBlockBufferNoErr else { continue }
+            samples.append(contentsOf: chunk)
         }
         if reader.status == .failed {
             let details = reader.error?.localizedDescription ?? "Reader failed."

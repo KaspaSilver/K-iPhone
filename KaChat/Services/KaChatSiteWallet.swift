@@ -87,9 +87,16 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     private var approvalLoadBudget = 0
     /// The page K opened on has finished loading once.
     private var initialLoadDone = false
-    /// A site send whose answer was lost may still land: no new send from this page until it shows
-    /// or this passes (audit 2026-11-27 M3), as `TrestlyTrade` holds a "maybe sent" trade.
-    private var sendHeldUntil: Date?
+    /// A site send whose answer was lost may still land: no new send from this site for ten
+    /// minutes (audit 2026-11-27 M3), as `TrestlyTrade` holds a "maybe sent" trade. Kept by K
+    /// account and site, outside the browser, so closing Kasshi and opening it again doesn't
+    /// lift it (release audit 2026-11-27, Low).
+    private static var sendHolds: [String: Date] = [:]
+
+    private static func sendHoldKey(host: String) -> String {
+        let account = WalletManager.shared.currentWallet?.publicAddress.lowercased() ?? ""
+        return account + "|" + siteKey(host.lowercased())
+    }
     private var declinedAt: Date?
     private var running = 0
     private var closed = false
@@ -249,6 +256,12 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
             guard text.count <= 4096 else {
                 throw SiteError(code: Code.invalid, message: "signMessage: messages are limited to 4096 characters.")
             }
+            // KaPost actions are signed with this same scheme and key, and the indexer takes any
+            // signature that matches: a signed "delete:<post>" or "<base64>:[]" could be posted as
+            // you. Those shapes are never signed for a site (release audit 2026-11-27 R3).
+            if Self.looksLikeKaPostAction(text) {
+                throw SiteError(code: Code.rejected, message: "K doesn't sign this message: it has the form of a K post or action.")
+            }
             // The sign-in the person already agreed to in K's own sheet: once, only kasshi.io
             // itself, and only Kasshi's own sign-in challenge for the connected address with a
             // fresh timestamp. Anything else gets the Sign sheet (audit 2026-11-27 M2).
@@ -266,7 +279,7 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
             return try await ask(.sign(message: text), host: host)
         case "sendKaspa":
             guard connection != nil else { throw Self.notConnected }
-            if let until = sendHeldUntil, Date() < until {
+            if let until = Self.sendHolds[Self.sendHoldKey(host: host)], Date() < until {
                 throw SiteError(code: Code.busy, message: "Your last payment from this page may still go through. Check it before paying again; K takes payments from this page again in a few minutes.")
             }
             let to = (params.first as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -301,12 +314,40 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
               lines[2].hasPrefix("Address: "), lines[3].hasPrefix("Timestamp: "), lines[4].hasPrefix("Nonce: ") else { return false }
         let shown = String(lines[2].dropFirst("Address: ".count)).lowercased()
         guard shown == address.lowercased() else { return false }
-        guard let ms = Int64(lines[3].dropFirst("Timestamp: ".count)) else { return false }
+        // range-checked first: the page picks this number, and abs(now - Int64.min) traps
+        guard let ms = Int64(lines[3].dropFirst("Timestamp: ".count)),
+              ms > 0, ms < 100_000_000_000_000 else { return false }
         let now = Int64(Date().timeIntervalSince1970 * 1000)
         guard abs(now - ms) < 600_000 else { return false }
         let nonce = lines[4].dropFirst("Nonce: ".count)
         return (8...128).contains(nonce.count) && nonce.allSatisfy { $0.isHexDigit }
     }
+
+    /// The strings K signs for KaPost (`KaPostsProtocol`'s signing strings, KaPostsAPIClient.swift):
+    /// the action prefixes; a post, `<base64>:<mentions JSON>`; a reply, vote or quote,
+    /// `<64-hex id>:...`; an unquote, a bare 64-hex id. Checked as sent and trimmed, any case.
+    static func looksLikeKaPostAction(_ text: String) -> Bool {
+        for candidate in Set([text, text.trimmingCharacters(in: .whitespacesAndNewlines)]) {
+            let lower = candidate.lowercased()
+            if kaPostActionPrefixes.contains(where: { lower.hasPrefix($0) }) { return true }
+            let head = lower.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? lower
+            // a post id (a txid) alone or first
+            if head.count == 64, head.allSatisfy({ $0.isHexDigit }) { return true }
+            // a post: base64 text, then the mentions array
+            if let colon = candidate.firstIndex(of: ":") {
+                let b64 = candidate[..<colon]
+                let rest = candidate[candidate.index(after: colon)...]
+                if b64.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "+/=".contains($0)) }),
+                   rest.trimmingCharacters(in: .whitespacesAndNewlines).first.map({ $0 == "[" || $0 == "{" }) == true {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private static let kaPostActionPrefixes = ["edit:", "delete:", "poll:", "pollvote:", "tip:", "schedule:",
+                                               "cancel-schedule:", "follow:", "unfollow:"]
 
     static var networkName: String {
         AppSettings.load().networkType == .mainnet ? "mainnet" : "testnet-10"
@@ -399,8 +440,10 @@ final class KaChatSiteWallet: NSObject, ObservableObject, WKScriptMessageHandler
     /// The site's send went out but its answer was lost: the page hears "may have been sent"
     /// (4002) with the txid, never "rejected", and can't ask for another payment for ten minutes
     /// (audit 2026-11-27 M3).
-    func maybeSent(txId: String) {
-        sendHeldUntil = Date().addingTimeInterval(600)
+    func maybeSent(txId: String, host: String) {
+        let now = Date()
+        Self.sendHolds = Self.sendHolds.filter { $0.value > now }
+        Self.sendHolds[Self.sendHoldKey(host: host)] = now.addingTimeInterval(600)
         pending = nil
         finish(.failure(SiteError(code: Code.maybeSent,
                                   message: "This payment may have gone through. Check it before paying again.",

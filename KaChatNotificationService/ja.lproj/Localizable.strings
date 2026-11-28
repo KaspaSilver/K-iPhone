@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "%@ を送りました";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "チェスの対局に招待しました";
+"Accepted your chess game" = "チェスの対局を承諾しました";
+"Declined your chess game" = "チェスの対局を辞退しました";
+"Played a chess move" = "チェスの手を指しました";
+"Played %@ → %@" = "%@ → %@ を指しました";
+"Lost on time" = "時間切れで負けました";
+"Resigned the chess game" = "チェスの対局で投了しました";
+"Removed their %@ reaction" = "%@ のリアクションを取り消しました";
+"Reacted %@ to a message" = "メッセージに %@ でリアクションしました";
+"Reacted %@ to your message" = "あなたのメッセージに %@ でリアクションしました";
+"Replied to a message" = "メッセージに返信しました";
+"Photo" = "写真";
+"Video" = "動画";
+"Edited a message" = "メッセージを編集しました";
+"Sent a photo" = "写真を送信しました";
+"Sent a voice message" = "音声メッセージを送信しました";
+"Sent a video" = "動画を送信しました";

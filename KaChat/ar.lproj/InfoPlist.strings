@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "يُستخدم Face ID لفتح عبارة الاسترداد الخاصة بك وتسجيل الدخول مرة أخرى، عند تفعيله في الإعدادات.";
 "NSLocalNetworkUsageDescription" = "لا يتصل K بعقدة Kaspa أو خادم Nextcloud على شبكتك المحلية إلا إذا أعددت واحدًا.";
 "NFCReaderUsageDescription" = "يستخدم K تقنية NFC لحفظ واستعادة نسخة احتياطية مشفرة من عبارة الاسترداد الخاصة بك على بطاقتك الذكية.";
-"NSPhotoLibraryAddUsageDescription" = "حفظ الصور المستلمة في مكتبة الصور الخاصة بك.";
+"NSPhotoLibraryAddUsageDescription" = "يحفظ K الصور المستلمة في مكتبة الصور لديك.";

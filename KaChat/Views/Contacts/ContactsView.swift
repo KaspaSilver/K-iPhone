@@ -1090,9 +1090,13 @@ struct WithdrawKaspaView: View {
     @State private var source: SendSource = .chatting
     /// The From address's balance, loaded by the From step.
     @State private var sourceBalanceSompi: UInt64?
+    /// A step slide in progress (`StepSlideState`).
+    @State private var stepSlide = StepSlideState()
 
-    @EnvironmentObject var chatService: ChatService
-    @EnvironmentObject var contactsManager: ContactsManager
+    /// Unobserved: only their methods are called, and observing them redrew Send Kaspa on every
+    /// chat change, during the step slides and the swipe-up lift too (smoothness audit L3).
+    private var chatService: ChatService { ChatService.shared }
+    private var contactsManager: ContactsManager { ContactsManager.shared }
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var priceModel = KasPriceModel.shared
@@ -1235,6 +1239,7 @@ struct WithdrawKaspaView: View {
     }
 
     private func go(to next: Step) {
+        stepSlide.begin()
         dismissSystemKeyboard()
         if next == .recipient, activeRequest != nil, paymentRequest == nil {
             // back from a pasted request: start the recipient over
@@ -1282,6 +1287,7 @@ struct WithdrawKaspaView: View {
                     feeStep.transition(stepTransition)
                 }
             }
+            .ignoresKeyboardWhileSliding(stepSlide)
             .toolbar(.hidden, for: .navigationBar)
             // The recipient card only shows the lookup; this screen runs it.
             .onChange(of: addressInput) { handleInputChange($0) }
@@ -2001,7 +2007,12 @@ struct WithdrawKaspaView: View {
 
 enum ProfileQRCodeCache {
     static let context = CIContext()
-    static let imageCache = NSCache<NSString, UIImage>()
+    /// At most 32 QR images: it had no limit (audit 2026-11-27).
+    static let imageCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 32
+        return cache
+    }()
     static let renderQueue = DispatchQueue(label: "kasia.profile.qr.render", qos: .utility)
 
     static func cachedImage(for address: String) -> UIImage? {
@@ -2334,6 +2345,8 @@ struct InAppBrowserScreen: View {
     @State private var showSignIn = false
     @State private var signInError: String?
     @State private var signInAsked = false
+    /// The sign-in sheet is on its way (`onAppear`): the page's own requests wait for it.
+    @State private var signInWaiting = false
     @State private var isLoading = true
     @StateObject private var reloader = WebPageReloader()
     /// K as the page's wallet (`window.kachat`), on the sites `KaChatSiteWallet` allows (Kasshi).
@@ -2418,7 +2431,7 @@ struct InAppBrowserScreen: View {
         .onChange(of: siteWallet.pending?.id) { _ in
             // not while K's own sign-in sheet is up: it answers a connect itself, and anything
             // else is shown once it closes (audit 2026-11-27 L1)
-            if let request = siteWallet.pending, !showSignIn {
+            if let request = siteWallet.pending, !showSignIn, !signInWaiting {
                 siteWallet.sheetOpen = true
                 siteSheet = request
             }
@@ -2437,7 +2450,15 @@ struct InAppBrowserScreen: View {
             if signInFirst, !signInAsked, siteWallet.connection == nil,
                KaChatSiteWallet.isAllowed(host: url.host) {
                 signInAsked = true
-                showSignIn = true
+                // a moment after the screen is up, not in the same pass that builds it and the
+                // web view, so the Hub's close and the sheet's rise don't stall each other
+                // (smoothness audit T1)
+                signInWaiting = true
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    signInWaiting = false
+                    showSignIn = true
+                }
             }
         }
         .sheet(isPresented: $showSignIn, onDismiss: {

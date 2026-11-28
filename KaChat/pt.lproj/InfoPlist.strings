@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "O Face ID é usado para desbloquear sua frase de recuperação e entrar novamente, quando ativado nos Ajustes.";
 "NSLocalNetworkUsageDescription" = "O K só se conecta a um nó Kaspa ou a um servidor Nextcloud da sua rede local se você configurar um.";
 "NFCReaderUsageDescription" = "O K usa NFC para salvar e restaurar um backup criptografado da sua frase de recuperação no seu cartão inteligente.";
-"NSPhotoLibraryAddUsageDescription" = "Salvar as imagens recebidas na sua fototeca.";
+"NSPhotoLibraryAddUsageDescription" = "O K salva as imagens recebidas na sua fototeca.";

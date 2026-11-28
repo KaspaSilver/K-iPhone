@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "在“设置”中开启后，面容 ID 用于解锁你的助记词并重新登录。";
 "NSLocalNetworkUsageDescription" = "只有在你设置后，K 才会连接你本地网络中的 Kaspa 节点或 Nextcloud 服务器。";
 "NFCReaderUsageDescription" = "K 使用 NFC 在你的智能卡上保存和恢复助记词的加密备份。";
-"NSPhotoLibraryAddUsageDescription" = "将收到的图片存储到你的照片图库。";
+"NSPhotoLibraryAddUsageDescription" = "K 会将收到的图片存储到你的照片图库。";

@@ -49,7 +49,7 @@
 		<string>A000000151000000</string>
 	</array>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Save received images to your photo library.</string>
+	<string>K saves received images to your photo library.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.kachat.app.messageFetch</string>

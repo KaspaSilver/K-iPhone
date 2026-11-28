@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face IDは、設定でオンにしている場合に、シードフレーズのロック解除と再サインインに使用されます。";
 "NSLocalNetworkUsageDescription" = "Kがローカルネットワーク上のKaspaノードやNextcloudサーバに接続するのは、あなたが設定した場合だけです。";
 "NFCReaderUsageDescription" = "Kは、シードフレーズの暗号化されたバックアップをスマートカードに保存・復元するためにNFCを使用します。";
-"NSPhotoLibraryAddUsageDescription" = "受信した画像を写真ライブラリに保存します。";
+"NSPhotoLibraryAddUsageDescription" = "Kは、受信した画像を写真ライブラリに保存します。";

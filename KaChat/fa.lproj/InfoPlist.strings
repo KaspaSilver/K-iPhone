@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "اگر در تنظیمات روشن باشد، Face ID برای باز کردن عبارت بازیابی و ورود دوباره استفاده می‌شود.";
 "NSLocalNetworkUsageDescription" = "K فقط وقتی به یک گره Kaspa یا سرور Nextcloud در شبکهٔ محلی شما وصل می‌شود که خودتان آن را تنظیم کنید.";
 "NFCReaderUsageDescription" = "K از NFC برای ذخیره و بازیابی نسخهٔ پشتیبان رمزگذاری‌شدهٔ عبارت بازیابی شما روی کارت هوشمندتان استفاده می‌کند.";
-"NSPhotoLibraryAddUsageDescription" = "تصاویر دریافتی را در کتابخانهٔ عکس خود ذخیره کنید.";
+"NSPhotoLibraryAddUsageDescription" = "K تصاویر دریافتی را در کتابخانه عکس شما ذخیره می‌کند.";

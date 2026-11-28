@@ -32,7 +32,6 @@ final class GroupActionProgress: ObservableObject, Identifiable {
         self.steps = steps
     }
 
-    var doneCount: Int { steps.filter { $0.state == .done }.count }
     var failedCount: Int { steps.filter { if case .failed = $0.state { return true } else { return false } }.count }
     var settledCount: Int { steps.filter { $0.state != .waiting && $0.state != .working }.count }
 
@@ -229,10 +228,28 @@ enum GroupSystemLine {
         (" declined the invite", "%@ declined the invite"),
         (" was invited to the group chat", "%@ was invited to the group chat"),
         (" was removed from the group chat", "%@ was removed from the group chat"),
+        (" changed the group photo", "%@ changed the group photo"),
+        (" removed the group photo", "%@ removed the group photo"),
     ]
+
+    /// Your own changes, stored whole ("You changed the group photo").
+    private static let ownLines: Set<String> = ["You changed the group photo", "You removed the group photo"]
+    private static let ownRenamePrefix = "You changed the group name to \""
+    private static let renameInfix = " changed the group name to \""
 
     @MainActor
     static func display(_ stored: String, name: (String) -> String) -> String {
+        if ownLines.contains(stored) { return AppLocalization.string(stored) }
+        // "You changed the group name to "<name>"" / "<who> changed the group name to "<name>""
+        if stored.hasSuffix("\""), let infix = stored.range(of: renameInfix) {
+            let newName = String(stored[infix.upperBound..<stored.index(before: stored.endIndex)])
+            if stored.hasPrefix(ownRenamePrefix) {
+                return String(format: AppLocalization.string("You changed the group name to \"%@\""), newName)
+            }
+            let who = String(stored[..<infix.lowerBound])
+            return String(format: AppLocalization.string("%@ changed the group name to \"%@\""),
+                          replacingAddresses(in: who, name: name), newName)
+        }
         // "<who> joined the group" and the like: translated, with the name filled in
         for kind in kinds where stored.hasSuffix(kind.suffix) {
             let who = String(stored.dropLast(kind.suffix.count))

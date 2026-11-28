@@ -312,7 +312,7 @@ final class ColdStorageManager: ObservableObject {
         }
 
         let trimmedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedLabel = trimmedLabel.isEmpty ? "Cold Storage \(accounts.count + 1)" : trimmedLabel
+        let resolvedLabel = trimmedLabel.isEmpty ? String(format: AppLocalization.string("Cold Storage %lld"), accounts.count + 1) : trimmedLabel
 
         if let idx = accounts.firstIndex(where: { $0.kpubString == trimmedKpub }) {
             accounts[idx].label = resolvedLabel

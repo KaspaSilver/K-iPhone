@@ -24,7 +24,6 @@
 "Balance" = "Balance";
 "Balance copied to clipboard." = "Balance copied to clipboard.";
 "Banner" = "Banner";
-"Best" = "Best";
 "Bio" = "Bio";
 "Camera" = "Camera";
 "Camera Access Required" = "Camera Access Required";
@@ -45,7 +44,6 @@
 "Clear connection pool?" = "Clear connection pool?";
 "Close" = "Close";
 "Confirm" = "Confirm";
-"Connect to a Node" = "Connect to a Node";
 "Connected Node" = "Connected Node";
 "Connected only to this node" = "Connected only to this node";
 "Connection" = "Connection";
@@ -77,7 +75,6 @@
 "Diagnostics" = "Diagnostics";
 "Disabled" = "Disabled";
 "Discord user id" = "Discord user id";
-"Discover Addresses" = "Discover Addresses";
 "Distance" = "Distance";
 "Domain" = "Domain";
 "Domains" = "Domains";
@@ -94,7 +91,6 @@
 "Fee" = "Fee";
 "Finish" = "Finish";
 "From" = "From";
-"Fund Your Chatting Address" = "Fund Your Chatting Address";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "Generate one below to start sending payments from a separate address than the one you chat from.";
 "Group Info" = "Group Info";
 "Hidden Users" = "Hidden Users";
@@ -136,7 +132,6 @@
 "More options" = "More options";
 "Name" = "Name";
 "Network Fee" = "Network Fee";
-"New message" = "New message";
 "Next" = "Next";
 "No Conversations Yet" = "No Conversations Yet";
 "No Sound" = "No Sound";
@@ -188,8 +183,6 @@
 "Received %@ KAS — %@" = "Received %@ KAS — %@";
 "Received %@ domain" = "Received %@ domain";
 "Received domain transfer" = "Received domain transfer";
-"Received payment" = "Received payment";
-"Recommended" = "Recommended";
 "Reconnect" = "Reconnect";
 "Redirect URL" = "Redirect URL";
 "Refresh Pool" = "Refresh Pool";
@@ -197,7 +190,6 @@
 "Remove" = "Remove";
 "Rename" = "Rename";
 "Rename Account" = "Rename Account";
-"Rename Address" = "Rename Address";
 "Rename Group" = "Rename Group";
 "Reply" = "Reply";
 "Request to communicate" = "Request to communicate";
@@ -275,7 +267,6 @@
 "Share" = "Share";
 
 /* 5.2: name services, .kachat, Connection Settings, testnet */
-"Looking up domain..." = "Looking up domain...";
 "No domain" = "No domain";
 "Couldn't check" = "Couldn't check";
 "Edit KaChat Profile" = "Edit KaChat Profile";
@@ -401,7 +392,6 @@
 "Take a photo and send it to the group." = "Take a photo and send it to the group.";
 "Pick an image from your library and send it to the group." = "Pick an image from your library and send it to the group.";
 "Record a voice message and send it to the group." = "Record a voice message and send it to the group.";
-"to %@" = "to %@";
 "Add a memo (encrypted)" = "Add a memo (encrypted)";
 "Switch between Kaspa and your currency" = "Switch between Kaspa and your currency";
 "Send Photo or Video via Nextcloud" = "Send Photo or Video via Nextcloud";
@@ -721,7 +711,6 @@
 "Your Address" = "Your Address";
 
 /* Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses */
-"Quantum-safe" = "Quantum-safe";
 
 /* Edit KaChat Profile: Clear Profile */
 "Clear Profile" = "Clear Profile";
@@ -814,7 +803,6 @@
 "Delete Contact" = "Delete Contact";
 "Not in your contacts" = "Not in your contacts";
 "Add them in Contacts." = "Add them in Contacts.";
-"That file isn't a KaChat contacts export." = "That file isn't a KaChat contacts export.";
 "That contacts export has no contacts." = "That contacts export has no contacts.";
 "Edit Contact" = "Edit Contact";
 "No contacts yet" = "No contacts yet";
@@ -975,7 +963,6 @@
 "Add members" = "Add members";
 "Everyone in your contacts is already in this group." = "Everyone in your contacts is already in this group.";
 "New members can read messages from the moment they're added, not earlier history." = "New members can read messages from the moment they're added, not earlier history.";
-"Add %lld member%@ to the group?%@" = "Add %lld member%@ to the group?%@";
 "Refresh complete" = "Refresh complete";
 "Rebuilding this group" = "Rebuilding this group";
 "Re-reading the whole group from the chain, the same way importing your 12 or 24 words does. Leaving now would stop it partway." = "Re-reading the whole group from the chain, the same way importing your 12 or 24 words does. Leaving now would stop it partway.";
@@ -990,12 +977,10 @@
 "Hide password" = "Hide password";
 "Show password" = "Show password";
 "Change Chatting Address" = "Change Chatting Address";
-"Label" = "Label";
 "Notify on receive" = "Notify on receive";
 "When a spending address receives Kaspa from someone else." = "When a spending address receives Kaspa from someone else.";
 "Checking address #%lld" = "Checking address #%lld";
 "%lld found so far" = "%lld found so far";
-"Contains domain" = "Contains domain";
 "Tap anywhere to copy" = "Tap anywhere to copy";
 "Anyone with this address's private key can spend its funds. Never share it with anyone." = "Anyone with this address's private key can spend its funds. Never share it with anyone.";
 "Tap to reveal private key" = "Tap to reveal private key";
@@ -1015,7 +1000,6 @@
 "Enter your 12 or 24 words" = "Enter your 12 or 24 words";
 "More reactions" = "More reactions";
 "Storage problem" = "Storage problem";
-"Continue anyway" = "Continue anyway";
 "Preparing a fresh address" = "Preparing a fresh address";
 "Share Profile" = "Share Profile";
 "Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs." = "Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs.";
@@ -1034,7 +1018,6 @@
 "No subfolders." = "No subfolders.";
 "Chatting" = "Chatting";
 "Spending" = "Spending";
-"Request" = "Request";
 "What is a passphrase?" = "What is a passphrase?";
 "If you are not sure, the answer is almost certainly no. A passphrase is something you would have typed in on purpose." = "If you are not sure, the answer is almost certainly no. A passphrase is something you would have typed in on purpose.";
 "No" = "No";
@@ -1264,15 +1247,12 @@
 "Clear %@?" = "Clear %@?";
 "Clear All Cache?" = "Clear All Cache?";
 "Clears the unread badge on this group." = "Clears the unread badge on this group.";
-"Connecting for live updates" = "Connecting for live updates";
 "Copies the address to your clipboard." = "Copies the address to your clipboard.";
 "Copies the name to your clipboard." = "Copies the name to your clipboard.";
 "Copies the text to your clipboard." = "Copies the text to your clipboard.";
 "Copy their Kaspa address." = "Copy their Kaspa address.";
 "Deletes this chat's messages from this device. The bot stays in the row." = "Deletes this chat's messages from this device. The bot stays in the row.";
-"Downloading message history" = "Downloading message history";
 "Failed to open archive: %@" = "Failed to open archive: %@";
-"Finding your conversations" = "Finding your conversations";
 "Finished" = "Finished";
 "Finishing up..." = "Finishing up...";
 "Frees %@. Your messages, contacts and keys are not touched." = "Frees %@. Your messages, contacts and keys are not touched.";
@@ -1284,7 +1264,6 @@
 "Leave everything as it is." = "Leave everything as it is.";
 "Leave your messages as they are." = "Leave your messages as they are.";
 "Link" = "Link";
-"Loading saved messages" = "Loading saved messages";
 "Message them directly, one to one." = "Message them directly, one to one.";
 "Moves it back into your chats." = "Moves it back into your chats.";
 "Mute User" = "Mute User";
@@ -1378,7 +1357,6 @@
 "Your Account" = "Your Account";
 
 /* Settings > Customization: .kachat name endings */
-"Show .kachat Endings" = "Show .kachat Endings";
 
 /* Chat composers: camera or microphone access is off (MediaAccess) */
 "Microphone Access Required" = "Microphone Access Required";
@@ -1403,7 +1381,6 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "Your chatting address also pays %@ KAS to tell %@ about this payment.";
 "Tap Retry on the photo to send the rest." = "Tap Retry on the photo to send the rest.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again.";
-"Use Their Domain Name" = "Use Their Domain Name";
 "Show Request As QR" = "Show Request As QR";
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "Scan it with an iPhone's camera to pay in K, with everything filled in.";
 "Set as Name" = "Set as Name";
@@ -1417,7 +1394,6 @@
 "This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "This GIF is too long for that quality. Pick a higher one, or a shorter GIF.";
 
 /* kUSDT: hold, receive, send (from KaPay, 2026-11-19) */
-"%@ Actions" = "%@ Actions";
 "%@ Address Visibility" = "%@ Address Visibility";
 "%@ Balance" = "%@ Balance";
 "%@ History" = "%@ History";
@@ -1449,7 +1425,6 @@
 "Combined" = "Combined";
 "Combined Coins" = "Combined Coins";
 "Couldn't check %@ just now: %@ Pull down to try again." = "Couldn't check %@ just now: %@ Pull down to try again.";
-"Discover kUSDT Addresses" = "Discover kUSDT Addresses";
 "Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first." = "Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first.";
 "Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one." = "Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one.";
 "Ethereum" = "Ethereum";
@@ -1458,7 +1433,6 @@
 "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it.";
 "Found %d addresses with %@." = "Found %d addresses with %@.";
 "Generate New Address" = "Generate New Address";
-"Generate Non-Quantum Address" = "Generate Non-Quantum Address";
 "Goes With It" = "Goes With It";
 "Held On" = "Held On";
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "It lands in this account and shows in your spending total. Use it for everything except .kachat names.";
@@ -1486,7 +1460,6 @@
 "Receive %@" = "Receive %@";
 "Received %@" = "Received %@";
 "Removes it from this list. Re-enable it in %@ Address Visibility." = "Removes it from this list. Re-enable it in %@ Address Visibility.";
-"Sample Data" = "Sample Data";
 "Send %@" = "Send %@";
 "Send to Chatting Address" = "Send to Chatting Address";
 "Sends, receives and combines on this phone show here from now on." = "Sends, receives and combines on this phone show here from now on.";
@@ -1506,7 +1479,6 @@
 "This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours.";
 "This address on the Kaspa explorer." = "This address on the Kaspa explorer.";
 "This address's key isn't available on this phone." = "This address's key isn't available on this phone.";
-"Tokens" = "Tokens";
 "Total KAS" = "Total KAS";
 "Trestly" = "Trestly";
 "Trestly API URL" = "Trestly API URL";
@@ -1578,7 +1550,6 @@
 "Enter kpub" = "Enter kpub";
 "Export CSV" = "Export CSV";
 "Fee (optional)" = "Fee (optional)";
-"Generate More Addresses" = "Generate More Addresses";
 "Give this account a name so you can recognize it." = "Give this account a name so you can recognize it.";
 "Import CSV" = "Import CSV";
 "Import Failed" = "Import Failed";
@@ -1603,7 +1574,6 @@
 "Transactions" = "Transactions";
 "Transfer" = "Transfer";
 "Value Over Time" = "Value Over Time";
-"kpub" = "kpub";
 "Registration isn't open yet." = "Registration isn't open yet.";
 "Claim" = "Claim";
 "Marketplace" = "Marketplace";
@@ -1897,7 +1867,6 @@
 "Tap the price or your value to see it in the pair you pick here. One at a time." = "Tap the price or your value to see it in the pair you pick here. One at a time.";
 "Converter" = "Converter";
 "Waiting for a price..." = "Waiting for a price...";
-"Kaspa Network" = "Kaspa Network";
 "Mining Estimate" = "Mining Estimate";
 "Enter your hashrate to estimate earnings." = "Enter your hashrate to estimate earnings.";
 "Transaction Details" = "Transaction Details";
@@ -2112,13 +2081,9 @@
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
-"Continue to App" = "Continue to App";
 "Join" = "Join";
 "Menu" = "Menu";
-"Pay in Kaspa" = "Pay in Kaspa";
 "Record voice message" = "Record voice message";
-"Spending Address" = "Spending Address";
-"Withdraw Kaspa" = "Withdraw Kaspa";
 "Translate" = "Translate";
 "Show Original" = "Show Original";
 "Show Translation" = "Show Translation";
@@ -2128,7 +2093,6 @@
 "Public Chats" = "Public Chats";
 "Private Chats" = "Private Chats";
 "Today" = "Today";
-"New Public Chat" = "New Public Chat";
 "Tip" = "Tip";
 "Tips" = "Tips";
 "No tips yet." = "No tips yet.";
@@ -2143,7 +2107,6 @@
 "Quotes" = "Quotes";
 "Waiting for your coins to confirm. It sends on its own in a moment, so don't send it again." = "Waiting for your coins to confirm. It sends on its own in a moment, so don't send it again.";
 "This post isn't on the network yet, so it can't be replied to. Try again once it has posted." = "This post isn't on the network yet, so it can't be replied to. Try again once it has posted.";
-"Manage Address" = "Manage Address";
 "Tips From" = "Tips From";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "From your Chatting Address the tip counts on the post, and you're listed as a tipper.";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper.";
@@ -2314,7 +2277,6 @@
 "KaPost" = "KaPost";
 "Keep it in Drafts to finish later." = "Keep it in Drafts to finish later.";
 "Keep looking" = "Keep looking";
-"Languages" = "Languages";
 "Leave the room as it is." = "Leave the room as it is.";
 "Load more" = "Load more";
 "Load older posts" = "Load older posts";
@@ -2396,7 +2358,6 @@
 "Tap to open your chat." = "Tap to open your chat.";
 "This post could not be loaded" = "This post could not be loaded";
 "This room follows the app's indexer again." = "This room follows the app's indexer again.";
-"Thread" = "Thread";
 "Throw this away." = "Throw this away.";
 "Tip didn't send: there is no recent KAS price to turn %@ into KAS." = "Tip didn't send: there is no recent KAS price to turn %@ into KAS.";
 "Tipping" = "Tipping";
@@ -2434,14 +2395,12 @@
 "Not counted on the post" = "Not counted on the post";
 "Tip asks whether to send Kaspa or kUSDT each time." = "Tip asks whether to send Kaspa or kUSDT each time.";
 "The account changed, so this wasn't sent." = "The account changed, so this wasn't sent.";
-"There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet.";
 "KaChat Profile" = "KaChat Profile";
 "Your post is ready to go out. Open K to send it." = "Your post is ready to go out. Open K to send it.";
 "Search KaPost" = "Search KaPost";
 "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room.";
 
 /* KaPosts leftovers (2026-11-21) */
-"KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPost's server isn't answering. Showing saved posts and new ones from the network.";
 "Trestly's pool code couldn't start in K." = "Trestly's pool code couldn't start in K.";
 "Posting poll" = "Posting poll";
 "Voting" = "Voting";
@@ -2450,13 +2409,11 @@
 
 "Delete #%@?" = "Delete #%@?";
 
-"#%@ is off - turn it back on in Edit Default Public Chats" = "#%@ is off - turn it back on in Edit Default Public Chats";
 "Channel names must be 1-%d characters with no spaces or colons." = "Channel names must be 1-%d characters with no spaces or colons.";
 "channel-name" = "channel-name";
 
 
 "See All Posts" = "See All Posts";
-"Opens KaPost, where everyone's posts are." = "Opens KaPost, where everyone's posts are.";
 "When someone likes, replies to or shares your posts, or Kaspa or kUSDT arrives in your wallet, it shows up here." = "When someone likes, replies to or shares your posts, or Kaspa or kUSDT arrives in your wallet, it shows up here.";
 
 /* Chess, back from KaPlay (phase 4, 2026-11-21) */
@@ -2734,18 +2691,12 @@
 "Share to KaPost" = "Share to KaPost";
 "Chess Challenge" = "Chess Challenge";
 "Opens Chess to play this bot." = "Opens Chess to play this bot.";
-"KaPost, Public Chats and Chess are read from this indexer too." = "KaPost, Public Chats and Chess are read from this indexer too.";
 
 /* KaChat Stats and Kaspa Websites (back 2026-11-21) */
-"KaChat Stats" = "KaChat Stats";
-"Stats" = "Stats";
 "24 Hours" = "24 Hours";
 "All Time" = "All Time";
 "Payments" = "Payments";
-"Group Messages" = "Group Messages";
 "Chess Moves" = "Chess Moves";
-"Updated %@" = "Updated %@";
-"Counting since %@" = "Counting since %@";
 "Fees" = "Fees";
 "Kaspa Websites" = "Kaspa Websites";
 "Websites" = "Websites";
@@ -2823,14 +2774,11 @@
 "Couldn't read this swap's amounts" = "Couldn't read this swap's amounts";
 "Added to %@" = "Added to %@";
 "This only removes it from your local history - it doesn't affect the actual exchange." = "This only removes it from your local history - it doesn't affect the actual exchange.";
-"Swap History" = "Swap History";
-"You Send" = "You Send";
 "You Get" = "You Get";
 "Receive %@ at" = "Receive %@ at";
 "Powered by Trestly" = "Powered by Trestly";
 "Powered by ChangeNOW" = "Powered by ChangeNOW";
 "Rate" = "Rate";
-"Send %@ to this address" = "Send %@ to this address";
 "ChangeNOW Exchange ID" = "ChangeNOW Exchange ID";
 "Exchange ID copied" = "Exchange ID copied";
 "Refresh Status" = "Refresh Status";
@@ -2991,9 +2939,6 @@
 "Show %lld new posts" = "Show %lld new posts";
 "View 1 reply" = "View 1 reply";
 "View %lld replies" = "View %lld replies";
-"Thread · %lld posts" = "Thread · %lld posts";
-"Conversation · %lld posts" = "Conversation · %lld posts";
-"Comments (%lld)" = "Comments (%lld)";
 "%@ in %llds" = "%@ in %llds";
 "· %lld posts" = "· %lld posts";
 "Translated from %@" = "Translated from %@";
@@ -3191,10 +3136,8 @@
 "gRPC nodes can't be reached right now, so K is using a public node over wss." = "gRPC nodes can't be reached right now, so K is using a public node over wss.";
 "Search public chats" = "Search public chats";
 "Switches between your chats and public chats" = "Switches between your chats and public chats";
-"More Rooms" = "More Rooms";
 
 /* Kaspa Hub card links (2026-11-25) */
-"Link copied" = "Link copied";
 "A link that opens this card in K." = "A link that opens this card in K.";
 "Open" = "Open";
 "Opens this card." = "Opens this card.";
@@ -3408,3 +3351,96 @@
 "1 KAS = %@%@" = "1 KAS = %@%@";
 "Posts aren't available on Testnet yet" = "Posts aren't available on Testnet yet";
 "Their profile: posts, replies and followers." = "Their profile: posts, replies and followers.";
+
+/* Release audit 2026-11-27: chess status, banner previews, errors, Posts/K names */
+"Waiting for response" = "Waiting for response";
+"Game declined" = "Game declined";
+"Your turn" = "Your turn";
+"Their turn" = "Their turn";
+"Checkmate - White wins" = "Checkmate - White wins";
+"Checkmate - Black wins" = "Checkmate - Black wins";
+"Checkmate - You win!" = "Checkmate - You win!";
+"Checkmate - You lost" = "Checkmate - You lost";
+"Stalemate - draw" = "Stalemate - draw";
+"Draw - not enough pieces to checkmate" = "Draw - not enough pieces to checkmate";
+"White lost on time" = "White lost on time";
+"Black lost on time" = "Black lost on time";
+"You lost on time" = "You lost on time";
+"They lost on time" = "They lost on time";
+"White resigned" = "White resigned";
+"Black resigned" = "Black resigned";
+"You resigned" = "You resigned";
+"They resigned" = "They resigned";
+"Accepted your chess game" = "Accepted your chess game";
+"Declined your chess game" = "Declined your chess game";
+"Played %@ → %@" = "Played %@ → %@";
+"Resigned the chess game" = "Resigned the chess game";
+"Reacted %@" = "Reacted %@";
+"Edited a message" = "Edited a message";
+"Sent a photo" = "Sent a photo";
+"Sent a voice message" = "Sent a voice message";
+"Sent a video" = "Sent a video";
+"Sent a file" = "Sent a file";
+"Give this shortcut the text of %lld messages?" = "Give this shortcut the text of %lld messages?";
+"Send this message to %@?" = "Send this message to %@?";
+"Couldn't Sign In" = "Couldn't Sign In";
+"K couldn't use this address to sign in. Try another one." = "K couldn't use this address to sign in. Try another one.";
+"Sent from K" = "Sent from K";
+"Delete %lld Transactions?" = "Delete %lld Transactions?";
+"Price per %@" = "Price per %@";
+"Less than %@ is left before this name expires. You'd have to renew it soon." = "Less than %@ is left before this name expires. You'd have to renew it soon.";
+"Extending adds time to the current paid period, which holds at most %@. The price goes to the miners." = "Extending adds time to the current paid period, which holds at most %@. The price goes to the miners.";
+"Unlock to sign in to %@" = "Unlock to sign in to %@";
+"Send Kaspa from Address #%lld" = "Send Kaspa from Address #%lld";
+"Cold Storage %lld" = "Cold Storage %lld";
+"Tip in %@, switch to KAS" = "Tip in %@, switch to KAS";
+"Tip in KAS, switch to %@" = "Tip in KAS, switch to %@";
+"Restored %lld messages from %lld chats." = "Restored %lld messages from %lld chats.";
+"Filled %lld sent messages." = "Filled %lld sent messages.";
+"Re-reading your group invites" = "Re-reading your group invites";
+"Re-reading roster and epoch keys" = "Re-reading roster and epoch keys";
+"Re-fetching messages (%lld of %lld members)" = "Re-fetching messages (%lld of %lld members)";
+"Decrypting history" = "Decrypting history";
+"You changed the group photo" = "You changed the group photo";
+"You removed the group photo" = "You removed the group photo";
+"You changed the group name to \"%@\"" = "You changed the group name to \"%@\"";
+"%@ changed the group photo" = "%@ changed the group photo";
+"%@ removed the group photo" = "%@ removed the group photo";
+"%@ changed the group name to \"%@\"" = "%@ changed the group name to \"%@\"";
+"Gold" = "Gold";
+"Silver" = "Silver";
+"Kaspa priced in bitcoin" = "Kaspa priced in bitcoin";
+"Shares of Vanguard's S&P 500 ETF" = "Shares of Vanguard's S&P 500 ETF";
+"Troy ounces of gold" = "Troy ounces of gold";
+"Troy ounces of silver" = "Troy ounces of silver";
+"Invalid words. Please enter 12 or 24 words." = "Invalid words. Please enter 12 or 24 words.";
+"Couldn't read your words. Detected %lld words (expected 12 or 24)." = "Couldn't read your words. Detected %lld words (expected 12 or 24).";
+"Word check failed: %@" = "Word check failed: %@";
+"That address is one of your own accounts, so it cannot be added as a contact." = "That address is one of your own accounts, so it cannot be added as a contact.";
+"An unknown error occurred." = "An unknown error occurred.";
+"No internet connection. Check your connection and try again." = "No internet connection. Check your connection and try again.";
+"The connection timed out. Check your connection and try again." = "The connection timed out. Check your connection and try again.";
+"Couldn't reach the server. Check the address in Settings and your connection." = "Couldn't reach the server. Check the address in Settings and your connection.";
+"Couldn't make a secure connection to the server." = "Couldn't make a secure connection to the server.";
+"A network error occurred. Check your connection and try again." = "A network error occurred. Check your connection and try again.";
+"The server sent something the app couldn't read. Try again; if it keeps happening, update the app." = "The server sent something the app couldn't read. Try again; if it keeps happening, update the app.";
+"The Kaspa node returned an error. The app will try another node; try again in a moment." = "The Kaspa node returned an error. The app will try another node; try again in a moment.";
+"No spendable UTXOs available" = "No spendable UTXOs available";
+"No spendable UTXOs" = "No spendable UTXOs";
+"Could not get private key" = "Could not get private key";
+"Insufficient funds for payment" = "Insufficient funds for payment";
+"Insufficient funds after fee" = "Insufficient funds after fee";
+"Insufficient funds for handshake" = "Insufficient funds for handshake";
+"Insufficient funds for self-stash fee" = "Insufficient funds for self-stash fee";
+"Balance too low to cover fee" = "Balance too low to cover fee";
+"Missing group secrets - try rejoining this group." = "Missing group secrets - try rejoining this group.";
+"Missing admin group secrets." = "Missing admin group secrets.";
+"No spendable UTXOs at this address" = "No spendable UTXOs at this address";
+"Insufficient funds to cover that amount plus the network fee" = "Insufficient funds to cover that amount plus the network fee";
+"This send would need %lld UTXOs, but KasSigner only supports %lld inputs per transaction. Send a smaller amount or consolidate this address first." = "This send would need %lld UTXOs, but KasSigner only supports %lld inputs per transaction. Send a smaller amount or consolidate this address first.";
+"There is no Posts indexer for testnet. Turn off Testnet in Settings > Connection Settings to read and post on mainnet." = "There is no Posts indexer for testnet. Turn off Testnet in Settings > Connection Settings to read and post on mainnet.";
+"Posts' server isn't answering. Showing saved posts and new ones from the network." = "Posts' server isn't answering. Showing saved posts and new ones from the network.";
+"Opens Posts, where everyone's posts are." = "Opens Posts, where everyone's posts are.";
+"Posts, Public Chats and Chess are read from this indexer too." = "Posts, Public Chats and Chess are read from this indexer too.";
+"No K backup was found on this Nextcloud server." = "No K backup was found on this Nextcloud server.";
+"That file isn't a K contacts export." = "That file isn't a K contacts export.";

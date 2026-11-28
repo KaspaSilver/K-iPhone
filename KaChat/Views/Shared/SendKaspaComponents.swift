@@ -148,17 +148,10 @@ struct SendRecipientCard: View {
             Label(lookupError, systemImage: "xmark.circle.fill")
                 .font(.caption)
                 .foregroundColor(.red)
-        } else if let resolvedAddress {
-            VStack(alignment: .leading, spacing: 2) {
-                Label("Resolved: \(resolvedName ?? "")", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(.green)
-                Text(verbatim: resolvedAddress)
-                    .font(.caption2.monospaced())
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
+        } else if resolvedAddress != nil {
+            // The card above already shows the name and its address: a "Resolved: name" line
+            // under it said the name twice (release audit).
+            EmptyView()
         } else {
             Label(KaspaAddress.validityText(trimmed, isValid: isValidAddress),
                   systemImage: isValidAddress ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -508,6 +501,43 @@ struct SendInfoPill<Content: View>: View {
 @MainActor
 func dismissSystemKeyboard() {
     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
+
+/// A step slide in progress. While it runs the steps ignore the keyboard's safe area, so the
+/// pinned Continue doesn't ride the keyboard down while sliding sideways and travel diagonally
+/// (smoothness audit T3). Held as `@State` (not observed) by the flow; only
+/// `ignoresKeyboardWhileSliding` watches it.
+@MainActor
+final class StepSlideState: ObservableObject {
+    @Published private(set) var sliding = false
+    private var generation = 0
+
+    /// Called as a step change starts: on for the slide, then off again with a short ease (a
+    /// keyboard the new step brings up then lifts its Continue).
+    func begin() {
+        generation += 1
+        let mine = generation
+        if !sliding { sliding = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            guard let self, self.generation == mine else { return }
+            withAnimation(.easeOut(duration: 0.2)) { self.sliding = false }
+        }
+    }
+}
+
+private struct StepSlideKeyboard: ViewModifier {
+    @ObservedObject var slide: StepSlideState
+
+    func body(content: Content) -> some View {
+        content.ignoresSafeArea(slide.sliding ? SafeAreaRegions.keyboard : SafeAreaRegions(), edges: .bottom)
+    }
+}
+
+extension View {
+    /// The keyboard's safe area is ignored while `slide` runs (`StepSlideState`).
+    func ignoresKeyboardWhileSliding(_ slide: StepSlideState) -> some View {
+        modifier(StepSlideKeyboard(slide: slide))
+    }
 }
 
 /// The header every send step draws in place of the navigation bar: Back (or Cancel on the
@@ -1527,7 +1557,10 @@ private struct SendProgressScreen: View {
             // From the top rather than centred: while the swipe is still rising, the DAG is the
             // first thing that comes into view.
             ZStack {
-                BlockDAGAnimationView(highlight: isSending && failure == nil)
+                // 60 fps, not the display's 120, and still once it's Sent or Failed and dimmed
+                // (smoothness audit T6)
+                BlockDAGAnimationView(highlight: isSending && failure == nil, paused: finished,
+                                      minimumInterval: 1.0 / 60)
                     .frame(height: 200)
                     .opacity(finished ? 0.35 : 1)
                 if done {
@@ -1681,8 +1714,8 @@ struct BlockDAGAnimationView: View {
     /// Stops drawing new frames (audit 2026-11-25 B2): the Explorer's card sets it while its Hub
     /// section is hidden, the app isn't active or the card is off screen.
     var paused = false
-    /// The shortest time between frames; nil draws at the display's rate (the send screens, where
-    /// it fills the screen while sending). The Explorer's small card asks for 30 fps.
+    /// The shortest time between frames; nil draws at the display's rate. The send screens ask
+    /// for 60 fps, the Explorer's small card for 30.
     var minimumInterval: Double? = nil
 
     @State private var start = Date()
@@ -1893,9 +1926,13 @@ struct OwnAddressList: View {
     let onPick: (SendSource) -> Void
     @State private var entries: [SpendingAddressEntry]?
     @State private var used: [String: Bool] = [:]
+    /// Each quantum address's tag, worked out once when the list loads (release audit: the
+    /// quantum #0 showed beside the regular #0 with nothing to tell them apart).
+    @State private var quantumTags: [String: QuantumProtection] = [:]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Lazy: an account can have hundreds of addresses (smoothness audit L2).
+        LazyVStack(alignment: .leading, spacing: 8) {
             if let chatting = WalletManager.shared.currentWallet {
                 sectionTitle("Chatting Address")
                 row(title: AppLocalization.string("Chatting Address"), address: chatting.publicAddress,
@@ -1919,7 +1956,16 @@ struct OwnAddressList: View {
             let shown = all
                 .filter { !$0.hidden || $0.balanceSompi > 0 }
                 .filter { !excludeQuantum || !$0.isQuantum }
-                .sorted { $0.index < $1.index }
+                // regular ones by number, then the quantum ones by number
+                .sorted { ($0.isQuantum ? 1 : 0, $0.index) < ($1.isQuantum ? 1 : 0, $1.index) }
+            // From this phone's spend marks, as Manage Addresses first shows them: a quantum
+            // address that spent has its key on chain.
+            var tags: [String: QuantumProtection] = [:]
+            for entry in shown where entry.isQuantum {
+                let spent = WalletManager.shared.isQuantumAddressSpentLocally(entry.address)
+                tags[entry.address] = !spent ? .protected : (entry.balanceSompi > 0 ? .revealedWithFunds : .notProtected)
+            }
+            quantumTags = tags
             entries = shown
             await checkUsed(shown)
         }
@@ -1932,35 +1978,51 @@ struct OwnAddressList: View {
             .textCase(.uppercase)
     }
 
+    /// Used / Unused for every row. Answers are written in batches, at most every 0.3 s, so the
+    /// list redraws a few times rather than once per answer (smoothness audit L2).
     private func checkUsed(_ shown: [SpendingAddressEntry]) async {
         let chat = ChatService.shared
         var all: [(address: String, balance: UInt64)] = shown.map { ($0.address, $0.balanceSompi) }
         if let wallet = WalletManager.shared.currentWallet {
             all.insert((wallet.publicAddress, wallet.balanceSompi ?? 0), at: 0)
         }
+        var known = used
         var toProbe: [String] = []
         for item in all {
             if item.balance > 0 {
-                used[item.address] = true
+                known[item.address] = true
             } else if let cached = chat.cachedSpendingAddressUsedState(item.address) {
-                used[item.address] = cached
+                known[item.address] = cached
             } else {
                 toProbe.append(item.address)
             }
         }
+        if known != used { used = known }
+        guard !toProbe.isEmpty else { return }
+        // Let the step's slide finish before the answers start redrawing the list.
+        try? await Task.sleep(nanoseconds: 350_000_000)
+        guard !Task.isCancelled else { return }
         var pending = toProbe.makeIterator()
+        var batch: [String: Bool] = [:]
+        var lastFlush = Date()
         await withTaskGroup(of: (String, Bool?).self) { group in
             for _ in 0..<8 {
                 guard let address = pending.next() else { break }
                 group.addTask { (address, await chat.spendingAddressUsedState(address)) }
             }
             while let (address, answer) = await group.next() {
-                if let answer { used[address] = answer }
+                if let answer { batch[address] = answer }
+                if !batch.isEmpty, Date().timeIntervalSince(lastFlush) >= 0.3 {
+                    used.merge(batch) { _, new in new }
+                    batch.removeAll()
+                    lastFlush = Date()
+                }
                 if let next = pending.next() {
                     group.addTask { (next, await chat.spendingAddressUsedState(next)) }
                 }
             }
         }
+        if !batch.isEmpty { used.merge(batch) { _, new in new } }
     }
 
     @ViewBuilder
@@ -2000,6 +2062,9 @@ struct OwnAddressList: View {
                             .font(.subheadline.weight(.semibold))
                         usedTag(address)
                     }
+                    if let quantum = quantumTags[address] {
+                        QuantumProtectionTag(state: quantum)
+                    }
                     Text(verbatim: "\(address.prefix(14))...\(address.suffix(6))")
                         .font(.caption.monospaced())
                         .foregroundColor(.secondary)
@@ -2014,7 +2079,16 @@ struct OwnAddressList: View {
                     .foregroundColor(isSelected ? .accentColor : .secondary)
             }
             .padding(14)
-            .background(sendKaspaGlass(cornerRadius: 16))
+            // A flat fill, not the glass: a blur behind every row of a long list cost frames
+            // (smoothness audit L2).
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(uiColor: .tertiarySystemFill))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                    )
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(Color.accentColor.opacity(isSelected ? 0.9 : 0), lineWidth: 1.5)

@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "بعتلك %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "عزمك على دور شطرنج";
+"Accepted your chess game" = "وافق على دور الشطرنج";
+"Declined your chess game" = "رفض دور الشطرنج";
+"Played a chess move" = "لعب نقلة شطرنج";
+"Played %@ → %@" = "لعب %@ → %@";
+"Lost on time" = "خسر عشان الوقت خلص";
+"Resigned the chess game" = "استسلم في دور الشطرنج";
+"Removed their %@ reaction" = "شال الريأكشن %@";
+"Reacted %@ to a message" = "عمل ريأكشن %@ على رسالة";
+"Reacted %@ to your message" = "عمل ريأكشن %@ على رسالتك";
+"Replied to a message" = "رد على رسالة";
+"Photo" = "صورة";
+"Video" = "فيديو";
+"Edited a message" = "عدّل رسالة";
+"Sent a photo" = "بعت صورة";
+"Sent a voice message" = "بعت رسالة صوتية";
+"Sent a video" = "بعت فيديو";

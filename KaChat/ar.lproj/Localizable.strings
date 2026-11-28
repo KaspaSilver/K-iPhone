@@ -24,7 +24,6 @@
 "Balance" = "الرصيد";
 "Balance copied to clipboard." = "تم نسخ الرصيد إلى الحافظة.";
 "Banner" = "راية";
-"Best" = "الأفضل";
 "Bio" = "السيرة الذاتية";
 "Camera" = "الكاميرا";
 "Camera Access Required" = "مطلوب الوصول إلى الكاميرا";
@@ -45,7 +44,6 @@
 "Clear connection pool?" = "مسح مجموعة الاتصالات؟";
 "Close" = "إغلاق";
 "Confirm" = "تأكيد";
-"Connect to a Node" = "الاتصال بعقدة";
 "Connected Node" = "العقدة المتصلة";
 "Connected only to this node" = "متصل بهذه العقدة فقط";
 "Connection" = "الاتصال";
@@ -77,7 +75,6 @@
 "Diagnostics" = "التشخيصات";
 "Disabled" = "عاجز";
 "Discord user id" = "معرف المستخدم الخلاف";
-"Discover Addresses" = "اكتشاف العناوين";
 "Distance" = "المسافة";
 "Domain" = "اِختِصاص";
 "Domains" = "النطاقات";
@@ -94,7 +91,6 @@
 "Fee" = "مصاريف";
 "Finish" = "إنهاء";
 "From" = "من";
-"Fund Your Chatting Address" = "قم بتمويل عنوان الدردشة الخاص بك";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "أنشئ واحدًا أدناه لبدء إرسال المدفوعات من عنوان منفصل عن الذي تتحدث منه.";
 "Group Info" = "معلومات المجموعة";
 "Hidden Users" = "المستخدمون المخفيون";
@@ -136,7 +132,6 @@
 "More options" = "مزيد من الخيارات";
 "Name" = "الاسم";
 "Network Fee" = "رسوم الشبكة";
-"New message" = "رسالة جديدة";
 "Next" = "التالي";
 "No Conversations Yet" = "مفيش محادثات لسه";
 "No Sound" = "بدون صوت";
@@ -188,8 +183,6 @@
 "Received %@ KAS — %@" = "تم استلام %@ KAS — %@";
 "Received %@ domain" = "تم استلام النطاق %@";
 "Received domain transfer" = "تم استلام نقل النطاق";
-"Received payment" = "تم استلام دفعة";
-"Recommended" = "موصى به";
 "Reconnect" = "إعادة الاتصال";
 "Redirect URL" = "إعادة توجيه URL";
 "Refresh Pool" = "تحديث المجموعة";
@@ -197,7 +190,6 @@
 "Remove" = "إزالة";
 "Rename" = "إعادة تسمية";
 "Rename Account" = "إعادة تسمية الحساب";
-"Rename Address" = "إعادة تسمية العنوان";
 "Rename Group" = "إعادة تسمية المجموعة";
 "Reply" = "رد";
 "Request to communicate" = "طلب التواصل";
@@ -275,7 +267,6 @@
 "Share" = "مشاركة";
 
 /* 5.2: name services, .kachat, Connection Settings, testnet */
-"Looking up domain..." = "جارٍ البحث عن النطاق...";
 "No domain" = "لا يوجد نطاق";
 "Couldn't check" = "تعذّر التحقق";
 "Edit KaChat Profile" = "تعديل ملف KaChat";
@@ -401,7 +392,6 @@
 "Take a photo and send it to the group." = "التقط صورة وأرسلها إلى المجموعة.";
 "Pick an image from your library and send it to the group." = "اختر صورة من مكتبتك وأرسلها إلى المجموعة.";
 "Record a voice message and send it to the group." = "سجّل رسالة صوتية وأرسلها إلى المجموعة.";
-"to %@" = "إلى %@";
 "Add a memo (encrypted)" = "أضف ملاحظة (مشفّرة)";
 "Switch between Kaspa and your currency" = "التبديل بين Kaspa وعملتك";
 "Send Photo or Video via Nextcloud" = "إرسال صورة أو فيديو عبر Nextcloud";
@@ -721,7 +711,6 @@
 "Your Address" = "عنوانك";
 
 /* Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses */
-"Quantum-safe" = "آمن كموميًا";
 
 /* Edit KaChat Profile: Clear Profile */
 "Clear Profile" = "مسح الملف الشخصي";
@@ -814,7 +803,6 @@
 "Delete Contact" = "حذف جهة الاتصال";
 "Not in your contacts" = "ليس في جهات اتصالك";
 "Add them in Contacts." = "أضفهم في جهات الاتصال.";
-"That file isn't a KaChat contacts export." = "هذا الملف ليس تصدير جهات اتصال من KaChat.";
 "That contacts export has no contacts." = "لا يحتوي ملف التصدير هذا على جهات اتصال.";
 "Edit Contact" = "تعديل جهة الاتصال";
 "No contacts yet" = "لا جهات اتصال بعد";
@@ -975,7 +963,6 @@
 "Add members" = "إضافة أعضاء";
 "Everyone in your contacts is already in this group." = "كل من في جهات اتصالك موجود بالفعل في هذه المجموعة.";
 "New members can read messages from the moment they're added, not earlier history." = "يمكن للأعضاء الجدد قراءة الرسائل منذ لحظة إضافتهم، وليس السجل السابق.";
-"Add %lld member%@ to the group?%@" = "إضافة %lld عضو%@ إلى المجموعة؟%@";
 "Refresh complete" = "اكتمل التحديث";
 "Rebuilding this group" = "جارٍ إعادة بناء هذه المجموعة";
 "Re-reading the whole group from the chain, the same way importing your 12 or 24 words does. Leaving now would stop it partway." = "تتم إعادة قراءة المجموعة بالكامل من السلسلة، بالطريقة نفسها التي يتم بها استيراد كلماتك الـ 12 أو 24. الخروج الآن سيوقفها في منتصف العملية.";
@@ -990,12 +977,10 @@
 "Hide password" = "إخفاء كلمة المرور";
 "Show password" = "إظهار كلمة المرور";
 "Change Chatting Address" = "تغيير عنوان الدردشة";
-"Label" = "تسمية";
 "Notify on receive" = "إشعار عند الاستلام";
 "When a spending address receives Kaspa from someone else." = "عندما يستلم عنوان إنفاق Kaspa من شخص آخر.";
 "Checking address #%lld" = "جارٍ فحص العنوان رقم %lld";
 "%lld found so far" = "تم العثور على %lld حتى الآن";
-"Contains domain" = "يحتوي على نطاق";
 "Tap anywhere to copy" = "اضغط في أي مكان للنسخ";
 "Anyone with this address's private key can spend its funds. Never share it with anyone." = "يمكن لأي شخص يملك المفتاح الخاص لهذا العنوان إنفاق أمواله. لا تشاركه مع أي شخص أبدًا.";
 "Tap to reveal private key" = "اضغط لإظهار المفتاح الخاص";
@@ -1015,7 +1000,6 @@
 "Enter your 12 or 24 words" = "أدخل كلماتك الـ 12 أو 24";
 "More reactions" = "المزيد من التفاعلات";
 "Storage problem" = "مشكلة في التخزين";
-"Continue anyway" = "المتابعة على أي حال";
 "Preparing a fresh address" = "جارٍ تجهيز عنوان جديد";
 "Share Profile" = "مشاركة الملف الشخصي";
 "Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs." = "يدمج كل UTXOs في هذا العنوان في واحد، لتقليل عدد المدخلات التي يحتاجها أي إرسال لاحق.";
@@ -1034,7 +1018,6 @@
 "No subfolders." = "لا توجد مجلدات فرعية.";
 "Chatting" = "الدردشة";
 "Spending" = "الإنفاق";
-"Request" = "طلب";
 "What is a passphrase?" = "ما هي عبارة المرور؟";
 "If you are not sure, the answer is almost certainly no. A passphrase is something you would have typed in on purpose." = "إذا لم تكن متأكدًا، فالإجابة على الأرجح لا. عبارة المرور شيء كنت ستكتبه عن قصد.";
 "No" = "لا";
@@ -1264,15 +1247,12 @@
 "Clear %@?" = "مسح %@؟";
 "Clear All Cache?" = "مسح كل ذاكرة التخزين المؤقت؟";
 "Clears the unread badge on this group." = "يزيل شارة غير المقروء من هذه المجموعة.";
-"Connecting for live updates" = "جارٍ الاتصال للتحديثات المباشرة";
 "Copies the address to your clipboard." = "ينسخ العنوان إلى الحافظة.";
 "Copies the name to your clipboard." = "ينسخ الاسم إلى الحافظة.";
 "Copies the text to your clipboard." = "ينسخ النص إلى الحافظة.";
 "Copy their Kaspa address." = "انسخ عنوان Kaspa الخاص به.";
 "Deletes this chat's messages from this device. The bot stays in the row." = "يحذف رسائل هذه الدردشة من هذا الجهاز. يبقى البوت في الصف.";
-"Downloading message history" = "جارٍ تنزيل سجل الرسائل";
 "Failed to open archive: %@" = "تعذر فتح الأرشيف: %@";
-"Finding your conversations" = "جارٍ البحث عن محادثاتك";
 "Finished" = "اكتمل";
 "Finishing up..." = "جارٍ الإنهاء...";
 "Frees %@. Your messages, contacts and keys are not touched." = "يحرر %@. لن تتأثر رسائلك وجهات اتصالك ومفاتيحك.";
@@ -1284,7 +1264,6 @@
 "Leave everything as it is." = "اترك كل شيء كما هو.";
 "Leave your messages as they are." = "اترك رسائلك كما هي.";
 "Link" = "رابط";
-"Loading saved messages" = "جارٍ تحميل الرسائل المحفوظة";
 "Message them directly, one to one." = "راسله مباشرة، وجهًا لوجه.";
 "Moves it back into your chats." = "يعيدها إلى دردشاتك.";
 "Mute User" = "كتم المستخدم";
@@ -1378,7 +1357,6 @@
 "Your Account" = "حسابك";
 
 /* Settings > Customization: .kachat name endings */
-"Show .kachat Endings" = "إظهار لاحقة ‎.kachat";
 
 /* Chat composers: camera or microphone access is off (MediaAccess) */
 "Microphone Access Required" = "مطلوب الوصول إلى الميكروفون";
@@ -1403,7 +1381,6 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "يدفع عنوان الدردشة أيضًا %@ KAS لإبلاغ %@ بهذه الدفعة.";
 "Tap Retry on the photo to send the rest." = "اضغط على إعادة المحاولة في الصورة لإرسال الباقي.";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "تحتاج هذه الرسالة إلى عملات كثيرة جدًا لمعاملة واحدة. استخدم Compound UTXOs على عنوان الدردشة، ثم حاول مرة أخرى.";
-"Use Their Domain Name" = "استخدام اسم النطاق الخاص به";
 "Show Request As QR" = "عرض الطلب كرمز QR";
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "امسحه بكاميرا iPhone للدفع في K مع ملء كل شيء مسبقًا.";
 "Set as Name" = "تعيين كاسم";
@@ -1417,7 +1394,6 @@
 "This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "صورة GIF هذه طويلة جدًا لهذه الجودة. اختر جودة أعلى أو صورة GIF أقصر.";
 
 /* kUSDT: hold, receive, send (from KaPay, 2026-11-19) */
-"%@ Actions" = "إجراءات %@";
 "%@ Address Visibility" = "ظهور عناوين %@";
 "%@ Balance" = "رصيد %@";
 "%@ History" = "سجل %@";
@@ -1449,7 +1425,6 @@
 "Combined" = "المدموج";
 "Combined Coins" = "تم دمج العملات";
 "Couldn't check %@ just now: %@ Pull down to try again." = "تعذّر التحقق من %1$@ الآن: %2$@ اسحب لأسفل لإعادة المحاولة.";
-"Discover kUSDT Addresses" = "اكتشاف عناوين kUSDT";
 "Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first." = "لا ترسل USDT من Ethereum أو BNB Chain أو منصة تداول إلى هذا العنوان: سيضيع. انقله أولًا إلى Kaspa عبر جسر Trestly.";
 "Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one." = "لا ترسل kUSDT إلى هنا: لا يمكن تداوله من عنوان مقاوم للحوسبة الكمّية. استخدم الاستلام لعنوان عادي.";
 "Ethereum" = "Ethereum";
@@ -1458,7 +1433,6 @@
 "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "كل عملة kUSDT تحمل 1.5 KAS. تنتقل مع kUSDT عند إرسالها.";
 "Found %d addresses with %@." = "تم العثور على %1$d عناوين بها %2$@.";
 "Generate New Address" = "إنشاء عنوان جديد";
-"Generate Non-Quantum Address" = "إنشاء عنوان غير كمّي";
 "Goes With It" = "يُرسل معها";
 "Held On" = "محفوظ على";
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "يصل إلى هذا الحساب ويُحسب في إجمالي الإنفاق. استخدمه لكل شيء عدا أسماء ‎.kachat.";
@@ -1486,7 +1460,6 @@
 "Receive %@" = "استلام %@";
 "Received %@" = "تم استلام %@";
 "Removes it from this list. Re-enable it in %@ Address Visibility." = "يزيله من هذه القائمة. أعد تفعيله من ظهور عناوين %@.";
-"Sample Data" = "بيانات تجريبية";
 "Send %@" = "إرسال %@";
 "Send to Chatting Address" = "إرسال إلى عنوان الدردشة";
 "Sends, receives and combines on this phone show here from now on." = "من الآن ستظهر هنا عمليات الإرسال والاستلام والدمج على هذا الهاتف.";
@@ -1506,7 +1479,6 @@
 "This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "يحتاج هذا العنوان إلى قليل من KAS: رسوم الشبكة، و1.5 KAS لعملة الباقي (kUSDT الذي تحتفظ به). تبقى هذه الـ 1.5 KAS لك.";
 "This address on the Kaspa explorer." = "هذا العنوان في مستكشف Kaspa.";
 "This address's key isn't available on this phone." = "مفتاح هذا العنوان غير متوفر على هذا الهاتف.";
-"Tokens" = "الرموز";
 "Total KAS" = "إجمالي KAS";
 "Trestly" = "Trestly";
 "Trestly API URL" = "رابط واجهة Trestly البرمجية";
@@ -1578,7 +1550,6 @@
 "Enter kpub" = "إدخال kpub";
 "Export CSV" = "تصدير CSV";
 "Fee (optional)" = "الرسوم (اختياري)";
-"Generate More Addresses" = "إنشاء المزيد من العناوين";
 "Give this account a name so you can recognize it." = "أعطِ هذا الحساب اسمًا لتتمكن من التعرف عليه.";
 "Import CSV" = "استيراد CSV";
 "Import Failed" = "فشل الاستيراد";
@@ -1603,7 +1574,6 @@
 "Transactions" = "المعاملات";
 "Transfer" = "تحويل";
 "Value Over Time" = "القيمة عبر الزمن";
-"kpub" = "kpub";
 "Registration isn't open yet." = "التسجيل غير مفتوح بعد.";
 "Claim" = "احصل عليه";
 "Marketplace" = "السوق";
@@ -1897,7 +1867,6 @@
 "Tap the price or your value to see it in the pair you pick here. One at a time." = "اضغط على السعر أو قيمتك لرؤيتها بالزوج الذي تختاره هنا. واحد في كل مرة.";
 "Converter" = "المحوّل";
 "Waiting for a price..." = "في انتظار السعر...";
-"Kaspa Network" = "شبكة Kaspa";
 "Mining Estimate" = "تقدير التعدين";
 "Enter your hashrate to estimate earnings." = "أدخل معدل التجزئة الخاص بك لتقدير الأرباح.";
 "Transaction Details" = "تفاصيل المعاملة";
@@ -2112,13 +2081,9 @@
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
-"Continue to App" = "المتابعة إلى التطبيق";
 "Join" = "انضمام";
 "Menu" = "القائمة";
-"Pay in Kaspa" = "الدفع بكاسبا";
 "Record voice message" = "تسجيل رسالة صوتية";
-"Spending Address" = "عنوان الإنفاق";
-"Withdraw Kaspa" = "سحب كاسبا";
 "Translate" = "ترجمة";
 "Show Original" = "عرض الأصل";
 "Show Translation" = "عرض الترجمة";
@@ -2128,7 +2093,6 @@
 "Public Chats" = "المحادثات العامة";
 "Private Chats" = "المحادثات الخاصة";
 "Today" = "اليوم";
-"New Public Chat" = "دردشة عامة جديدة";
 "Tip" = "إكرامية";
 "Tips" = "الإكراميات";
 "No tips yet." = "لا توجد إكراميات بعد.";
@@ -2143,7 +2107,6 @@
 "Quotes" = "الاقتباسات";
 "Waiting for your coins to confirm. It sends on its own in a moment, so don't send it again." = "بانتظار تأكيد عملاتك. ستُرسل تلقائيًا بعد لحظات، فلا ترسلها مرة أخرى.";
 "This post isn't on the network yet, so it can't be replied to. Try again once it has posted." = "هذا المنشور ليس على الشبكة بعد، لذا لا يمكن الرد عليه. حاول مرة أخرى بعد نشره.";
-"Manage Address" = "إدارة العنوان";
 "Tips From" = "الإكرامية من";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "الإكرامية من Chatting Address تُحسب على المنشور، وتظهر بين من قدّموا إكراميات.";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "الإكرامية من عنوان آخر خاصة: يستلمها الكاتب ويراها في محادثتكما، لكنها لا تُحسب على المنشور ولا تذكر اسمك.";
@@ -2314,7 +2277,6 @@
 "KaPost" = "KaPost";
 "Keep it in Drafts to finish later." = "احتفظ به في المسودات لتكمله لاحقًا.";
 "Keep looking" = "واصل البحث";
-"Languages" = "اللغات";
 "Leave the room as it is." = "اترك الغرفة كما هي.";
 "Load more" = "تحميل المزيد";
 "Load older posts" = "تحميل منشورات أقدم";
@@ -2396,7 +2358,6 @@
 "Tap to open your chat." = "اضغط لفتح دردشتك.";
 "This post could not be loaded" = "تعذّر تحميل هذا المنشور";
 "This room follows the app's indexer again." = "تعود هذه الغرفة لاتباع مفهرس التطبيق.";
-"Thread" = "سلسلة";
 "Throw this away." = "تخلَّص من هذا.";
 "Tip didn't send: there is no recent KAS price to turn %@ into KAS." = "لم تُرسل الإكرامية: لا يوجد سعر حديث لـ KAS لتحويل %@ إلى KAS.";
 "Tipping" = "الإكراميات";
@@ -2434,14 +2395,12 @@
 "Not counted on the post" = "لا تُحتسب على المنشور";
 "Tip asks whether to send Kaspa or kUSDT each time." = "تسأل الإكرامية في كل مرة: Kaspa أم kUSDT.";
 "The account changed, so this wasn't sent." = "تغيّر الحساب، لذلك لم يُرسَل هذا.";
-"There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "لا يوجد مفهرس KaPost للشبكة التجريبية. أوقف الشبكة التجريبية من الإعدادات > الاتصال للقراءة والنشر على الشبكة الرئيسية.";
 "KaChat Profile" = "ملف KaChat الشخصي";
 "Your post is ready to go out. Open K to send it." = "منشورك جاهز للإرسال. افتح K لإرساله.";
 "Search KaPost" = "البحث في KaPost";
 "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "تؤدي المشاركة إلى إرسال رابط يفتح هذه الغرفة في K، ورابط ويب لمن لا يملكه. الإخفاء يخص كل غرفة على حدة: من أخفيته هنا يظهر في كل غرفة أخرى.";
 
 /* KaPosts leftovers (2026-11-21) */
-"KaPost's server isn't answering. Showing saved posts and new ones from the network." = "خادم KaPost لا يستجيب. يتم عرض المنشورات المحفوظة والمنشورات الجديدة من الشبكة.";
 "Trestly's pool code couldn't start in K." = "تعذّر تشغيل شيفرة مجمع Trestly في K.";
 "Posting poll" = "جارٍ نشر الاستطلاع";
 "Voting" = "جارٍ التصويت";
@@ -2450,13 +2409,11 @@
 
 "Delete #%@?" = "حذف #%@؟";
 
-"#%@ is off - turn it back on in Edit Default Public Chats" = "تم إيقاف #%@ - أعد تشغيلها من تعديل المحادثات العامة الافتراضية";
 "Channel names must be 1-%d characters with no spaces or colons." = "يجب أن تكون أسماء القنوات من 1 إلى %d حرفًا بلا مسافات أو نقطتين.";
 "channel-name" = "اسم-القناة";
 
 
 "See All Posts" = "عرض كل المنشورات";
-"Opens KaPost, where everyone's posts are." = "يفتح KaPost حيث منشورات الجميع.";
 "When someone likes, replies to or shares your posts, or Kaspa or kUSDT arrives in your wallet, it shows up here." = "عندما يعجب أحد بمنشوراتك أو يرد عليها أو يشاركها، أو تصل Kaspa أو kUSDT إلى محفظتك، يظهر ذلك هنا.";
 
 /* Chess, back from KaPlay (phase 4, 2026-11-21) */
@@ -2734,18 +2691,12 @@
 "Share to KaPost" = "مشاركة على KaPost";
 "Chess Challenge" = "تحدي الشطرنج";
 "Opens Chess to play this bot." = "يفتح الشطرنج للعب ضد هذا البوت.";
-"KaPost, Public Chats and Chess are read from this indexer too." = "تُقرأ KaPost والمحادثات العامة والشطرنج من هذا الفهرس أيضًا.";
 
 /* KaChat Stats and Kaspa Websites (back 2026-11-21) */
-"KaChat Stats" = "إحصاءات KaChat";
-"Stats" = "الإحصاءات";
 "24 Hours" = "24 ساعة";
 "All Time" = "كل الأوقات";
 "Payments" = "المدفوعات";
-"Group Messages" = "رسائل المجموعات";
 "Chess Moves" = "نقلات الشطرنج";
-"Updated %@" = "تم التحديث %@";
-"Counting since %@" = "يُحتسب منذ %@";
 "Fees" = "الرسوم";
 "Kaspa Websites" = "مواقع Kaspa";
 "Websites" = "المواقع";
@@ -2823,14 +2774,11 @@
 "Couldn't read this swap's amounts" = "تعذّرت قراءة مبالغ هذه المبادلة";
 "Added to %@" = "أُضيفت إلى %@";
 "This only removes it from your local history - it doesn't affect the actual exchange." = "هذا يزيلها من سجلك المحلي فقط - ولا يؤثر على عملية التبادل الفعلية.";
-"Swap History" = "سجل المبادلات";
-"You Send" = "أنت ترسل";
 "You Get" = "أنت تحصل على";
 "Receive %@ at" = "استلام %@ على";
 "Powered by Trestly" = "بدعم من Trestly";
 "Powered by ChangeNOW" = "بدعم من ChangeNOW";
 "Rate" = "سعر الصرف";
-"Send %@ to this address" = "أرسل %@ إلى هذا العنوان";
 "ChangeNOW Exchange ID" = "معرّف مبادلة ChangeNOW";
 "Exchange ID copied" = "تم نسخ معرّف المبادلة";
 "Refresh Status" = "تحديث الحالة";
@@ -2991,9 +2939,6 @@
 "Show %lld new posts" = "عرض %lld منشورات جديدة";
 "View 1 reply" = "عرض رد واحد";
 "View %lld replies" = "عرض %lld ردود";
-"Thread · %lld posts" = "سلسلة · %lld منشورات";
-"Conversation · %lld posts" = "محادثة · %lld منشورات";
-"Comments (%lld)" = "التعليقات (%lld)";
 "%@ in %llds" = "%1$@ خلال %2$lld ث";
 "· %lld posts" = "· %lld منشورات";
 "Translated from %@" = "مترجم من %@";
@@ -3191,10 +3136,8 @@
 "gRPC nodes can't be reached right now, so K is using a public node over wss." = "تعذّر الوصول إلى عقد gRPC الآن، لذا يستخدم K عقدة عامة عبر wss.";
 "Search public chats" = "البحث في المحادثات العامة";
 "Switches between your chats and public chats" = "يبدّل بين محادثاتك والمحادثات العامة";
-"More Rooms" = "غرف أخرى";
 
 /* Kaspa Hub card links (2026-11-25) */
-"Link copied" = "تم نسخ الرابط";
 "A link that opens this card in K." = "رابط يفتح هذه البطاقة في K.";
 "Open" = "فتح";
 "Opens this card." = "يفتح هذه البطاقة.";
@@ -3408,3 +3351,96 @@
 "1 KAS = %@%@" = "1 KAS = %@%@";
 "Posts aren't available on Testnet yet" = "المنشورات غير متاحة على الشبكة التجريبية بعد";
 "Their profile: posts, replies and followers." = "ملفه الشخصي: المنشورات والردود والمتابعون.";
+
+/* Release audit 2026-11-27: chess status, banner previews, errors, Posts/K names */
+"Waiting for response" = "في انتظار الرد";
+"Game declined" = "تم رفض اللعبة";
+"Your turn" = "دورك";
+"Their turn" = "دور الخصم";
+"Checkmate - White wins" = "كش مات - فاز الأبيض";
+"Checkmate - Black wins" = "كش مات - فاز الأسود";
+"Checkmate - You win!" = "كش مات - لقد فزت!";
+"Checkmate - You lost" = "كش مات - لقد خسرت";
+"Stalemate - draw" = "تعادل بالجمود";
+"Draw - not enough pieces to checkmate" = "تعادل - لا توجد قطع كافية للكش مات";
+"White lost on time" = "خسر الأبيض بانتهاء الوقت";
+"Black lost on time" = "خسر الأسود بانتهاء الوقت";
+"You lost on time" = "خسرت بانتهاء الوقت";
+"They lost on time" = "خسر الخصم بانتهاء الوقت";
+"White resigned" = "استسلم الأبيض";
+"Black resigned" = "استسلم الأسود";
+"You resigned" = "لقد استسلمت";
+"They resigned" = "استسلم الخصم";
+"Accepted your chess game" = "قبل لعبة الشطرنج";
+"Declined your chess game" = "رفض لعبة الشطرنج";
+"Played %@ → %@" = "لعب %@ → %@";
+"Resigned the chess game" = "استسلم في لعبة الشطرنج";
+"Reacted %@" = "تفاعل بـ %@";
+"Edited a message" = "عدّل رسالة";
+"Sent a photo" = "أرسل صورة";
+"Sent a voice message" = "أرسل رسالة صوتية";
+"Sent a video" = "أرسل فيديو";
+"Sent a file" = "أرسل ملفًا";
+"Give this shortcut the text of %lld messages?" = "هل تعطي هذا الاختصار نص %lld رسالة؟";
+"Send this message to %@?" = "هل ترسل هذه الرسالة إلى %@؟";
+"Couldn't Sign In" = "تعذّر تسجيل الدخول";
+"K couldn't use this address to sign in. Try another one." = "لم يتمكن K من استخدام هذا العنوان لتسجيل الدخول. جرّب عنوانًا آخر.";
+"Sent from K" = "أُرسلت من K";
+"Delete %lld Transactions?" = "حذف %lld معاملة؟";
+"Price per %@" = "السعر لكل %@";
+"Less than %@ is left before this name expires. You'd have to renew it soon." = "تبقّى أقل من %@ قبل انتهاء هذا الاسم. ستحتاج إلى تجديده قريبًا.";
+"Extending adds time to the current paid period, which holds at most %@. The price goes to the miners." = "التمديد يضيف وقتًا إلى الفترة المدفوعة الحالية، التي تتسع لـ %@ كحد أقصى. يذهب السعر إلى المعدّنين.";
+"Unlock to sign in to %@" = "افتح القفل لتسجيل الدخول إلى %@";
+"Send Kaspa from Address #%lld" = "إرسال Kaspa من العنوان رقم %lld";
+"Cold Storage %lld" = "التخزين البارد %lld";
+"Tip in %@, switch to KAS" = "البقشيش بـ %@، التبديل إلى KAS";
+"Tip in KAS, switch to %@" = "البقشيش بـ KAS، التبديل إلى %@";
+"Restored %lld messages from %lld chats." = "تمت استعادة %lld رسالة من %lld محادثة.";
+"Filled %lld sent messages." = "تم ملء %lld رسالة مرسلة.";
+"Re-reading your group invites" = "إعادة قراءة دعوات المجموعات";
+"Re-reading roster and epoch keys" = "إعادة قراءة قائمة الأعضاء ومفاتيح الحقبة";
+"Re-fetching messages (%lld of %lld members)" = "إعادة جلب الرسائل (%lld من %lld عضو)";
+"Decrypting history" = "فك تشفير السجل";
+"You changed the group photo" = "لقد غيّرت صورة المجموعة";
+"You removed the group photo" = "لقد أزلت صورة المجموعة";
+"You changed the group name to \"%@\"" = "لقد غيّرت اسم المجموعة إلى \"%@\"";
+"%@ changed the group photo" = "غيّر %@ صورة المجموعة";
+"%@ removed the group photo" = "أزال %@ صورة المجموعة";
+"%@ changed the group name to \"%@\"" = "غيّر %@ اسم المجموعة إلى \"%@\"";
+"Gold" = "الذهب";
+"Silver" = "الفضة";
+"Kaspa priced in bitcoin" = "سعر Kaspa بالبيتكوين";
+"Shares of Vanguard's S&P 500 ETF" = "أسهم صندوق Vanguard S&P 500 ETF";
+"Troy ounces of gold" = "أونصات تروي من الذهب";
+"Troy ounces of silver" = "أونصات تروي من الفضة";
+"Invalid words. Please enter 12 or 24 words." = "كلمات غير صالحة. يُرجى إدخال 12 أو 24 كلمة.";
+"Couldn't read your words. Detected %lld words (expected 12 or 24)." = "تعذّرت قراءة كلماتك. تم اكتشاف %lld كلمة (المتوقع 12 أو 24).";
+"Word check failed: %@" = "فشل التحقق من الكلمات: %@";
+"That address is one of your own accounts, so it cannot be added as a contact." = "هذا العنوان أحد حساباتك، لذا لا يمكن إضافته كجهة اتصال.";
+"An unknown error occurred." = "حدث خطأ غير معروف.";
+"No internet connection. Check your connection and try again." = "لا يوجد اتصال بالإنترنت. تحقّق من اتصالك وحاول مرة أخرى.";
+"The connection timed out. Check your connection and try again." = "انتهت مهلة الاتصال. تحقّق من اتصالك وحاول مرة أخرى.";
+"Couldn't reach the server. Check the address in Settings and your connection." = "تعذّر الوصول إلى الخادم. تحقّق من العنوان في الإعدادات ومن اتصالك.";
+"Couldn't make a secure connection to the server." = "تعذّر إنشاء اتصال آمن بالخادم.";
+"A network error occurred. Check your connection and try again." = "حدث خطأ في الشبكة. تحقّق من اتصالك وحاول مرة أخرى.";
+"The server sent something the app couldn't read. Try again; if it keeps happening, update the app." = "أرسل الخادم شيئًا لم يتمكن التطبيق من قراءته. حاول مرة أخرى، وإذا تكرر ذلك فحدّث التطبيق.";
+"The Kaspa node returned an error. The app will try another node; try again in a moment." = "أعادت عقدة Kaspa خطأً. سيجرّب التطبيق عقدة أخرى؛ حاول مرة أخرى بعد قليل.";
+"No spendable UTXOs available" = "لا توجد UTXOs قابلة للإنفاق";
+"No spendable UTXOs" = "لا توجد UTXOs قابلة للإنفاق";
+"Could not get private key" = "تعذّر الحصول على المفتاح الخاص";
+"Insufficient funds for payment" = "الرصيد غير كافٍ للدفع";
+"Insufficient funds after fee" = "الرصيد غير كافٍ بعد الرسوم";
+"Insufficient funds for handshake" = "الرصيد غير كافٍ للمصافحة";
+"Insufficient funds for self-stash fee" = "الرصيد غير كافٍ لرسوم الحفظ الذاتي";
+"Balance too low to cover fee" = "الرصيد منخفض جدًا لتغطية الرسوم";
+"Missing group secrets - try rejoining this group." = "أسرار المجموعة مفقودة - حاول الانضمام إلى هذه المجموعة مجددًا.";
+"Missing admin group secrets." = "أسرار إدارة المجموعة مفقودة.";
+"No spendable UTXOs at this address" = "لا توجد UTXOs قابلة للإنفاق في هذا العنوان";
+"Insufficient funds to cover that amount plus the network fee" = "الرصيد غير كافٍ لتغطية هذا المبلغ مع رسوم الشبكة";
+"This send would need %lld UTXOs, but KasSigner only supports %lld inputs per transaction. Send a smaller amount or consolidate this address first." = "يحتاج هذا الإرسال إلى %lld من UTXOs، لكن KasSigner يدعم %lld مدخلًا فقط لكل معاملة. أرسل مبلغًا أصغر أو ادمج هذا العنوان أولًا.";
+"There is no Posts indexer for testnet. Turn off Testnet in Settings > Connection Settings to read and post on mainnet." = "لا يوجد مفهرس للمنشورات على الشبكة التجريبية. أوقف الشبكة التجريبية من الإعدادات > إعدادات الاتصال للقراءة والنشر على الشبكة الرئيسية.";
+"Posts' server isn't answering. Showing saved posts and new ones from the network." = "خادم المنشورات لا يستجيب. يتم عرض المنشورات المحفوظة والجديدة من الشبكة.";
+"Opens Posts, where everyone's posts are." = "يفتح المنشورات، حيث منشورات الجميع.";
+"Posts, Public Chats and Chess are read from this indexer too." = "تُقرأ المنشورات والمحادثات العامة والشطرنج من هذا المفهرس أيضًا.";
+"No K backup was found on this Nextcloud server." = "لم يتم العثور على نسخة احتياطية لـ K على خادم Nextcloud هذا.";
+"That file isn't a K contacts export." = "هذا الملف ليس تصديرًا لجهات اتصال K.";

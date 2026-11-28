@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "برای شما %@ فرستاد";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "شما را به یک بازی شطرنج دعوت کرد";
+"Accepted your chess game" = "بازی شطرنج شما را پذیرفت";
+"Declined your chess game" = "بازی شطرنج شما را رد کرد";
+"Played a chess move" = "یک حرکت شطرنج انجام داد";
+"Played %@ → %@" = "%@ → %@ را بازی کرد";
+"Lost on time" = "به خاطر وقت باخت";
+"Resigned the chess game" = "در بازی شطرنج تسلیم شد";
+"Removed their %@ reaction" = "واکنش %@ خود را برداشت";
+"Reacted %@ to a message" = "با %@ به یک پیام واکنش نشان داد";
+"Reacted %@ to your message" = "با %@ به پیام شما واکنش نشان داد";
+"Replied to a message" = "به پیامی پاسخ داد";
+"Photo" = "عکس";
+"Video" = "ویدیو";
+"Edited a message" = "پیامی را ویرایش کرد";
+"Sent a photo" = "یک عکس فرستاد";
+"Sent a voice message" = "یک پیام صوتی فرستاد";
+"Sent a video" = "یک ویدیو فرستاد";

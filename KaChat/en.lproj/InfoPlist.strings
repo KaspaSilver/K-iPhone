@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID is used to unlock your seed phrase and sign back in, when enabled in Settings.";
 "NSLocalNetworkUsageDescription" = "K connects to a Kaspa node or a Nextcloud server on your local network only if you configure one.";
 "NFCReaderUsageDescription" = "K uses NFC to save and restore an encrypted backup of your seed phrase on your smart card.";
-"NSPhotoLibraryAddUsageDescription" = "Save received images to your photo library.";
+"NSPhotoLibraryAddUsageDescription" = "K saves received images to your photo library.";

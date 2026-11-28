@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "Đã gửi cho bạn %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "Đã mời bạn chơi cờ vua";
+"Accepted your chess game" = "Đã chấp nhận ván cờ của bạn";
+"Declined your chess game" = "Đã từ chối ván cờ của bạn";
+"Played a chess move" = "Đã đi một nước cờ";
+"Played %@ → %@" = "Đã đi %@ → %@";
+"Lost on time" = "Thua vì hết giờ";
+"Resigned the chess game" = "Đã xin thua ván cờ";
+"Removed their %@ reaction" = "Đã gỡ cảm xúc %@";
+"Reacted %@ to a message" = "Đã bày tỏ cảm xúc %@ với một tin nhắn";
+"Reacted %@ to your message" = "Đã bày tỏ cảm xúc %@ với tin nhắn của bạn";
+"Replied to a message" = "Đã trả lời một tin nhắn";
+"Photo" = "Ảnh";
+"Video" = "Video";
+"Edited a message" = "Đã sửa một tin nhắn";
+"Sent a photo" = "Đã gửi một ảnh";
+"Sent a voice message" = "Đã gửi một tin nhắn thoại";
+"Sent a video" = "Đã gửi một video";

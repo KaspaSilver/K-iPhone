@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID sert à déverrouiller votre phrase de récupération et à vous reconnecter, lorsqu’il est activé dans Réglages.";
 "NSLocalNetworkUsageDescription" = "K se connecte à un nœud Kaspa ou à un serveur Nextcloud de votre réseau local uniquement si vous en configurez un.";
 "NFCReaderUsageDescription" = "K utilise le NFC pour enregistrer et restaurer une sauvegarde chiffrée de votre phrase de récupération sur votre carte à puce.";
-"NSPhotoLibraryAddUsageDescription" = "Enregistrer les images reçues dans votre photothèque.";
+"NSPhotoLibraryAddUsageDescription" = "K enregistre les images reçues dans votre photothèque.";

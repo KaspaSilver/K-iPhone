@@ -103,6 +103,7 @@ Errors are thrown as `Error`, with `code` set. The messages say "K".
 | code | Meaning | What Kasshi should do |
 |---|---|---|
 | `4001` | Declined in K. K refuses that site's requests for a few seconds afterwards | Show "Request rejected in K" (Kasshi's `Qy()` already does) |
+| `4001` (from `signMessage`, no sheet) | The text has the form of a K post or action (`edit:`, `delete:`, `follow:`, `<64 hex>…`, `<base64>:[…]` and the like), so K never signs it: such a signature would act as the person on K's posts | Sign-in challenges and other messages are unaffected; don't send texts in those shapes |
 | `4002` | **May have been sent**: the send went out but K got no answer. The error has `txid`; the app also refuses new sends from the page for 10 minutes (`-32002`) | Don't retry. Check the txid or the deposit address first |
 | `4100` | Not connected yet | Call `requestAccounts()` |
 | `4200` | Method not supported | |

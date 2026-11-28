@@ -651,11 +651,16 @@ struct TokenSendView: View {
                 // this screen is closed (`recordTokenPayment` makes them once)
                 if let onSent {
                     let txid = prepared.txid, amount = prepared.amount
+                    // The account that sent it: after a switch, the bubble and notice would land in
+                    // the other account's chat and go from its chatting address (audit 2026-11-27 R5).
+                    let owner = WalletManager.shared.currentWallet?.publicAddress
                     Task { @MainActor in
                         for _ in 0..<18 {
                             try? await Task.sleep(nanoseconds: 10_000_000_000)
+                            guard owner != nil, WalletManager.shared.currentWallet?.publicAddress == owner else { return }
                             if let tx = await ChatService.shared.fetchFullTransaction(txId: txid, resolvePrevious: false),
                                tx.isAccepted == true {
+                                guard WalletManager.shared.currentWallet?.publicAddress == owner else { return }
                                 onSent(txid, 0, amount)
                                 return
                             }

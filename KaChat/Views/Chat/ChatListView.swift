@@ -98,6 +98,10 @@ struct ChatListView: View {
     @State private var isPaginatingConversations = false
     @State private var filteredConversationsCache: [Conversation] = []
     @State private var refreshClock = RefreshClock()
+    @State private var entriesMemo = EntriesMemo()
+    /// Today, for the rows' "Yesterday" / day labels; moved on at midnight (release audit C2).
+    @State private var rowDayStamp = ConversationRowContent.todayStamp()
+    @State private var hasAppearedOnce = false
     @State private var searchFilterTask: Task<Void, Never>?
     /// True for the duration of a pull-to-refresh. While set, conversation/contact changes DON'T
     /// rebuild the visible list — reloading the underlying List mid-spin resets the native refresh
@@ -114,7 +118,11 @@ struct ChatListView: View {
     @State private var conversationActionTarget: Conversation?
     /// The chat row's "Add to Contacts" tile: the contact whose entry sheet is up.
     @State private var addressBookTarget: Contact?
-    @ObservedObject private var addressBook = AddressBookManager.shared
+    /// Read directly; names, pictures and Address Book changes redraw the list through
+    /// `IdentityChangeTicker`, batched a quarter second at a time (audit 2026-11-27 C2). The rows
+    /// take their names from here and observe nothing themselves.
+    private var addressBook: AddressBookManager { .shared }
+    @ObservedObject private var identityTicker = IdentityChangeTicker.shared
     @State private var editMode: EditMode = .inactive
     /// Select mode's chats and groups, as `entryID`s.
     @State private var selectedEntryIDs: Set<String> = []
@@ -374,6 +382,10 @@ struct ChatListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .publicRoomPinsChanged)) { _ in
             loadRoomPins()
         }
+        // Midnight (posted on waking too, if asleep then): the rows' times become "Yesterday".
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            rowDayStamp = ConversationRowContent.todayStamp()
+        }
         // Chats tapped again on the dock (owner, 2026-11-26): an open chat, group or room closes
         // back to the list; on the list, it switches Private Chats / Public Chats as the button
         // beside the title does.
@@ -431,10 +443,19 @@ struct ChatListView: View {
         .onAppear {
             checkPendingNavigation()
             requestNotificationPermissionIfNeeded()
-            loadedConversationCount = conversationPageSize
-            // Back from a chat: its fully loaded history can go now.
-            chatService.trimLeftConversationIfNeeded()
-            refreshFilteredConversations()
+            // Back from a chat: its fully loaded history can go now, once the pop has finished
+            // (audit 2026-11-27 C4: the trim's publish and the list rebuild ran during the slide).
+            // The paging is kept, so rows past the first page don't vanish mid-slide. The first
+            // appearance builds the list at once.
+            if !hasAppearedOnce {
+                hasAppearedOnce = true
+                refreshFilteredConversations()
+            }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                chatService.trimLeftConversationIfNeeded()
+                if !isPullRefreshing { refreshFilteredConversations() }
+            }
             Task { _ = try? await walletManager.refreshBalance() }
         }
         .onChange(of: searchText) { newValue in
@@ -1075,18 +1096,52 @@ struct ChatListView: View {
                 .map { ChatListEntry.room($0.element) }
         }
         let pinnedChats = searchText.isEmpty ? pinnedChatConversations : [:]
-        let chats = pinnedChats.isEmpty
-            ? filteredConversationsCache
-            : filteredConversationsCache.filter { pinnedChats[Self.chatPinId($0.contact.address)] == nil }
         let groupMessages = groupChatService.groupMessages
-        var dated: [(at: Date, entry: ChatListEntry)] = chats
-            .map { ($0.lastMessage?.timestamp ?? Date.distantPast, ChatListEntry.chat($0)) }
-        dated += displayedGroups.map { (groupMessages[$0.id]?.last?.timestamp ?? $0.createdAt, ChatListEntry.group($0)) }
-        // ties (rooms nobody has written in) keep their order: `sorted` isn't stable, and they'd
-        // swap places from one redraw to the next
-        return dated.enumerated()
-            .sorted { $0.element.at != $1.element.at ? $0.element.at > $1.element.at : $0.offset < $1.offset }
-            .map(\.element.entry)
+        let groups = displayedGroups
+        let groupDates = groups.map { groupMessages[$0.id]?.last?.timestamp ?? $0.createdAt }
+        // Worked out again only when what it's built from changed (audit 2026-11-27 C4): every
+        // ChatService publish while a chat is open re-ran this merge and sort under it. An
+        // unchanged chat list is the same array, so comparing it is a pointer check.
+        let key = EntriesKey(search: searchText, chats: filteredConversationsCache,
+                             pinnedChatIds: Set(pinnedChats.keys), groups: groups, groupDates: groupDates)
+        // Only the order is memoized, as places in today's arrays (release audit C3): an equal
+        // key has the same chats and groups in the same places, but `Conversation ==` reads the
+        // tail only, so a held copy could show a long voice note's stale status.
+        if entriesMemo.key != key {
+            var dated: [(at: Date, slot: EntrySlot)] = filteredConversationsCache.enumerated()
+                .filter { pinnedChats.isEmpty || pinnedChats[Self.chatPinId($0.element.contact.address)] == nil }
+                .map { ($0.element.lastMessage?.timestamp ?? Date.distantPast, EntrySlot.chat($0.offset)) }
+            dated += groupDates.enumerated().map { ($0.element, EntrySlot.group($0.offset)) }
+            // ties (rooms nobody has written in) keep their order: `sorted` isn't stable, and they'd
+            // swap places from one redraw to the next
+            entriesMemo.order = dated.enumerated()
+                .sorted { $0.element.at != $1.element.at ? $0.element.at > $1.element.at : $0.offset < $1.offset }
+                .map(\.element.slot)
+            entriesMemo.key = key
+        }
+        let chats = filteredConversationsCache
+        return entriesMemo.order.compactMap { slot in
+            switch slot {
+            case .chat(let index): return index < chats.count ? .chat(chats[index]) : nil
+            case .group(let index): return index < groups.count ? .group(groups[index]) : nil
+            }
+        }
+    }
+
+    /// What the chats page's entries are built from (`allEntries`).
+    private struct EntriesKey: Equatable {
+        let search: String
+        let chats: [Conversation]
+        let pinnedChatIds: Set<String>
+        let groups: [GroupChat]
+        let groupDates: [Date]
+    }
+    /// Where an entry sits in `filteredConversationsCache` or the displayed groups.
+    private enum EntrySlot { case chat(Int), group(Int) }
+    /// The last chats-page order, held by reference so filling it redraws nothing.
+    private final class EntriesMemo {
+        var key: EntriesKey?
+        var order: [EntrySlot] = []
     }
 
     // MARK: - Circles (bot chats)
@@ -1273,6 +1328,11 @@ struct ChatListView: View {
                 }
             }
         }
+        // Each page is its own list, faded in (audit 2026-11-27 C5): as one list with different
+        // row ids, the page switch's animation moved every chat row out and every room row in
+        // as one batch update.
+        .id(listPage)
+        .transition(.opacity)
     }
 
     /// List(selection:)'s native edit-mode row-selection UI never gets a chance to see a row's tap
@@ -1294,7 +1354,17 @@ struct ChatListView: View {
                 selectedContact = conversation.contact
             }
         } label: {
-            ConversationRow(conversation: conversation)
+            let myAddress = walletManager.currentWallet?.publicAddress
+            ConversationRowContent(
+                conversation: conversation,
+                name: ConversationRowContent.displayName(for: conversation, myAddress: myAddress),
+                fetchState: chatService.chatFetchStates[conversation.contact.address],
+                reactionPreview: chatService.latestReactionByContact[conversation.contact.address],
+                previewMessage: conversation.lastMessage.map { chatService.messageForPreview($0) },
+                myAddress: myAddress,
+                dayStamp: rowDayStamp
+            )
+            .equatable()
         }
         .buttonStyle(ChatRowPressStyle())
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -2168,13 +2238,68 @@ private struct ChatDetailNavigationDestination: ViewModifier {
     }
 }
 
+/// A chat row for screens that don't work out its values themselves (Message Requests): it
+/// observes what the row shows and hands it to `ConversationRowContent`.
 struct ConversationRow: View {
     let conversation: Conversation
     @EnvironmentObject var chatService: ChatService
     @EnvironmentObject var walletManager: WalletManager
-    @ObservedObject private var kachatRegistry = KachatNamesRegistry.shared
-    /// A name saved in the Address Book names the row, and the row redraws when it changes.
-    @ObservedObject private var addressBook = AddressBookManager.shared
+    /// Names and pictures, batched (the registry and the Address Book, a quarter second at a time).
+    @ObservedObject private var identityTicker = IdentityChangeTicker.shared
+
+    var body: some View {
+        let myAddress = walletManager.currentWallet?.publicAddress
+        ConversationRowContent(
+            conversation: conversation,
+            name: ConversationRowContent.displayName(for: conversation, myAddress: myAddress),
+            fetchState: chatService.chatFetchStates[conversation.contact.address],
+            reactionPreview: chatService.latestReactionByContact[conversation.contact.address],
+            previewMessage: conversation.lastMessage.map { chatService.messageForPreview($0) },
+            myAddress: myAddress
+        )
+    }
+}
+
+/// One chat in the list, from values only (smoothness audit 2026-11-27 C4): it observes nothing,
+/// so a publish from ChatService while a chat is open (entering it, marking it read, a poll
+/// arrival) compares the rows instead of redrawing every one.
+struct ConversationRowContent: View, Equatable {
+    let conversation: Conversation
+    let name: String
+    let fetchState: ChatService.ChatFetchState?
+    let reactionPreview: MessageStore.LatestReactionPreview?
+    /// The last message with its newest edit applied (`ChatService.messageForPreview`).
+    let previewMessage: ChatMessage?
+    let myAddress: String?
+    /// The day and language the row's text was made for (release audit C2): without them the
+    /// equatable row kept "10:15 PM" past midnight and its preview's language until its data
+    /// changed.
+    var dayStamp: Int = ConversationRowContent.todayStamp()
+    var localeId: String = AppLocalization.locale.identifier
+
+    static func todayStamp() -> Int {
+        Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)
+    }
+
+    static func == (lhs: ConversationRowContent, rhs: ConversationRowContent) -> Bool {
+        guard lhs.dayStamp == rhs.dayStamp,
+              lhs.localeId == rhs.localeId,
+              lhs.conversation == rhs.conversation,
+              lhs.name == rhs.name,
+              lhs.fetchState == rhs.fetchState,
+              lhs.reactionPreview == rhs.reactionPreview,
+              lhs.previewMessage?.id == rhs.previewMessage?.id,
+              lhs.previewMessage?.content == rhs.previewMessage?.content,
+              lhs.myAddress == rhs.myAddress else { return false }
+        // A long voice note's status is all its parts' (`rowDeliveryStatus`), which
+        // `Conversation ==` doesn't look at. An unchanged thread shares its storage, so this is
+        // a pointer check unless something moved.
+        if let last = lhs.conversation.lastMessage, last.isOutgoing, VoicePartTag.sniff(last.content) != nil {
+            return lhs.conversation.messages == rhs.conversation.messages
+        }
+        return true
+    }
+
     private static let previewCache: NSCache<NSString, NSString> = {
         let cache = NSCache<NSString, NSString>()
         cache.countLimit = 2048
@@ -2186,22 +2311,22 @@ struct ConversationRow: View {
     }
 
     /// `ContactsManager.displayName` - the name you gave the chat, else its Address Book name,
-    /// else who it is on chain, else the short address - read through the observed services so
-    /// the row redraws when any of them changes. The contact is the live one, not this
-    /// conversation's copy of it: a rename in User Info shows at once.
-    private var rowDisplayName: String {
+    /// else who it is on chain, else the short address. The contact is the live one, not this
+    /// conversation's copy of it: a rename in User Info shows at once. Whoever calls this
+    /// redraws on contacts and on `IdentityChangeTicker`.
+    @MainActor
+    static func displayName(for conversation: Conversation, myAddress: String?) -> String {
         let contact = ContactsManager.shared.getContact(byAddress: conversation.contact.address) ?? conversation.contact
         // The chat with yourself is named for what it is; who you are on chain is the chat
         // HEADER's job (the .kachat domain, else the address - ContactsManager.displayName).
-        if contact.address.lowercased() == walletManager.currentWallet?.publicAddress.lowercased() {
+        if contact.address.lowercased() == myAddress?.lowercased() {
             return AppLocalization.string("Your Address")
         }
         if let assigned = contact.assignedName { return assigned }
-        if let saved = addressBook.entry(for: contact.address)?.customName { return saved }
-        // On testnet: the .kachat name (read through the observed registry, so the row redraws
-        // when it lands); KNS isn't consulted there.
+        if let saved = AddressBookManager.shared.entry(for: contact.address)?.customName { return saved }
+        // On testnet: the .kachat name; KNS isn't consulted there.
         if KachatNamesService.isEnabled {
-            if let label = kachatRegistry.cachedIdentity(for: conversation.contact.address)?.label { return KachatNameLabel.display(label) }
+            if let label = KachatNamesRegistry.shared.cachedIdentity(for: conversation.contact.address)?.label { return KachatNameLabel.display(label) }
             return Contact.generateDefaultAlias(from: conversation.contact.address)
         }
         return Contact.generateDefaultAlias(from: conversation.contact.address)
@@ -2209,8 +2334,6 @@ struct ConversationRow: View {
 
     var body: some View {
         let lastMessage = conversation.lastMessage
-        // worked out once per draw (it was twice: the avatar's fallback and the title)
-        let name = rowDisplayName
 
         HStack(spacing: 12) {
             // Avatar
@@ -2240,7 +2363,7 @@ struct ConversationRow: View {
 
                     Spacer()
 
-                    if let state = chatService.chatFetchStates[conversation.contact.address] {
+                    if let state = fetchState {
                         switch state {
                         case .loading:
                             ProgressView()
@@ -2269,7 +2392,7 @@ struct ConversationRow: View {
                             )
                         }
 
-                        Text(reactionPreviewText ?? formatPreview(chatService.messageForPreview(lastMessage).readableContent))
+                        Text(reactionPreviewText ?? formatPreview((previewMessage ?? lastMessage).readableContent))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -2305,7 +2428,7 @@ struct ConversationRow: View {
         if calendar.isDateInToday(date) {
             return SharedFormatting.chatTime.string(from: date)
         } else if calendar.isDateInYesterday(date) {
-            return "Yesterday"
+            return AppLocalization.string("Yesterday")
         } else {
             return SharedFormatting.chatDay.string(from: date)
         }
@@ -2317,7 +2440,7 @@ struct ConversationRow: View {
     /// most recent activity was someone reacting to something older. `nil` when there's no
     /// reaction newer than the last message.
     private var reactionPreviewText: String? {
-        guard let preview = chatService.latestReactionByContact[conversation.contact.address] else { return nil }
+        guard let preview = reactionPreview else { return nil }
         // Compared on the same clock as the reaction (chain block time, ms): a message's
         // `timestamp` is cut to whole seconds on some paths, and an own reaction is stamped with
         // this phone's clock, so a reply right after a reaction could read as older and the
@@ -2329,7 +2452,6 @@ struct ConversationRow: View {
                              Int64(lastMessage.timestamp.timeIntervalSince1970 * 1000))
             if lastMs + 1000 >= preview.blockTime { return nil }
         }
-        let myAddress = walletManager.currentWallet?.publicAddress
         let reactedByMe = preview.reactorAddress == myAddress
         let targetIsMine = preview.targetMessageIsOutgoing ?? false
         // Shown as Text(String), which skips the lookup: localized here (audit 2026-11-24 #33).

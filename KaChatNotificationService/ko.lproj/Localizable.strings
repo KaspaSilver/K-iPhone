@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "%@을(를) 보냈습니다";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "체스 게임에 초대했습니다";
+"Accepted your chess game" = "체스 게임을 수락했습니다";
+"Declined your chess game" = "체스 게임을 거절했습니다";
+"Played a chess move" = "체스 수를 두었습니다";
+"Played %@ → %@" = "%@ → %@ 수를 두었습니다";
+"Lost on time" = "시간패했습니다";
+"Resigned the chess game" = "체스 게임에서 기권했습니다";
+"Removed their %@ reaction" = "%@ 반응을 취소했습니다";
+"Reacted %@ to a message" = "메시지에 %@ 반응을 남겼습니다";
+"Reacted %@ to your message" = "내 메시지에 %@ 반응을 남겼습니다";
+"Replied to a message" = "메시지에 답장했습니다";
+"Photo" = "사진";
+"Video" = "동영상";
+"Edited a message" = "메시지를 수정했습니다";
+"Sent a photo" = "사진을 보냈습니다";
+"Sent a voice message" = "음성 메시지를 보냈습니다";
+"Sent a video" = "동영상을 보냈습니다";

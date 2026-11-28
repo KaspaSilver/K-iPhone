@@ -68,11 +68,11 @@ final class ColdStorageSendEngine {
         var errorDescription: String? {
             switch self {
             case .noSpendableUtxos:
-                return "No spendable UTXOs at this address"
+                return AppLocalization.string("No spendable UTXOs at this address")
             case .insufficientFunds:
-                return "Insufficient funds to cover that amount plus the network fee"
+                return AppLocalization.string("Insufficient funds to cover that amount plus the network fee")
             case .tooManyInputs(let n):
-                return "This send would need \(n) UTXOs, but KasSigner only supports \(KsptCodec.maxInputs) inputs per transaction. Send a smaller amount or consolidate this address first."
+                return String(format: AppLocalization.string("This send would need %lld UTXOs, but KasSigner only supports %lld inputs per transaction. Send a smaller amount or consolidate this address first."), n, KsptCodec.maxInputs)
             case .notSigned:
                 return "Scanned transaction is not signed"
             case .inputCountMismatch:
@@ -507,6 +507,12 @@ final class ColdStorageSendEngine {
             )
             utxosToUse = manualUtxos.compactMap { freshByOutpoint["\($0.outpoint.transactionId):\($0.outpoint.index)"] }
             guard !utxosToUse.isEmpty else { return 0 }
+        } else if ColdStorageManager.isScriptHashAddress(fromAddress) {
+            // A quantum source's build spends `quantumSourceCoins`, which after a "Not confirmed"
+            // send leads with that send's coin in place of the 32nd largest: Max is priced on the
+            // same coins, or past 32 coins it offered more than the build can reach (release
+            // audit 2026-11-27, Low).
+            utxosToUse = Self.quantumSourceCoins(spendable, leadingOutpoint: ChatService.shared.conflictingOutpoint(in: spendable))
         } else {
             // Only as much as ONE transaction can actually spend. `selectUtxos` takes UTXOs
             // largest-first and stops when the amount is covered, so the most a single send can

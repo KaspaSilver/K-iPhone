@@ -278,60 +278,62 @@ extension ChatService {
         // Runs on app-active and wallet load: a KNS commit left without its reveal (from before
         // KNS left K) gets finished, which returns its coins (audit 2026-11-24 #4).
         Task { @MainActor in await KNSRevealRecovery.resumeIfNeeded() }
-        AppLog.log("[ChatService] Foreground contact sweep started (%.0fs, cap %d)",
-                   currentForegroundSweepBaseInterval, foregroundSweepMaxContacts)
+        AppLog.log("[ChatService] Foreground contact sweep started (%.0fs beat, cap %d)",
+                   ForegroundBeat.interval, foregroundSweepMaxContacts)
         foregroundSweepTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            // Base interval resolves per iteration: 5s on WiFi, 15s on expensive
-            // (cellular/metered) paths - the sweep is a backstop, not the primary path, so
-            // cellular trades a little freshness for a third of the requests.
-            var interval = self.currentForegroundSweepBaseInterval
+            // The sweep sleeps to the shared foreground beat (30 s on Wi-Fi, 60 s on cellular),
+            // so the radio wakes once per beat with the other polls (audit 2026-11-27 B5). A
+            // failed sweep waits 2, then 4 beats, up to `foregroundSweepMaxInterval`.
+            var beatsBetweenSweeps = 1
+            var beat = 0
             // Seed the group-catch-up clock: scenePhase .active just ran its own
             // GroupChatService.performCatchUpSync(), so the ride-along below should first
             // fire an interval from now, not duplicate that round trip immediately.
             self.lastForegroundGroupCatchUpAt = Date()
             while !Task.isCancelled {
-                let swept = await self.runForegroundContactSweep()
+                // The inbox (first messages, no handshake) every beat; every second beat while
+                // push is reliable, since a first message also comes as a push then.
+                let includeInbox = self.pushReliabilityState != .reliable || beat % 2 == 0
+                beat &+= 1
+                let swept = await self.runForegroundContactSweep(includeInbox: includeInbox)
                 if Task.isCancelled { return }
-                let base = self.currentForegroundSweepBaseInterval
                 switch swept {
                 case .failed:
-                    let next = min(max(interval, base) * 2, self.foregroundSweepMaxInterval)
-                    if next != interval {
-                        AppLog.log("[ChatService] Foreground contact sweep backing off to %.0fs after indexer failure", next)
+                    let maxBeats = max(1, Int(self.foregroundSweepMaxInterval / ForegroundBeat.interval))
+                    let next = min(beatsBetweenSweeps * 2, maxBeats)
+                    if next != beatsBetweenSweeps {
+                        AppLog.log("[ChatService] Foreground contact sweep backing off to %d beats after indexer failure", next)
                     }
-                    interval = next
+                    beatsBetweenSweeps = next
                 case .succeeded:
-                    if interval != base {
-                        AppLog.log("[ChatService] Foreground contact sweep recovered - back to %.0fs", base)
+                    if beatsBetweenSweeps != 1 {
+                        AppLog.log("%@", "[ChatService] Foreground contact sweep recovered - back to every beat")
                     }
-                    interval = base
+                    beatsBetweenSweeps = 1
                 case .skipped:
-                    break  // gated out (inactive / syncing / not ready) - keep the current interval
+                    break  // gated out (inactive / syncing / not ready) - keep the current pace
                 }
                 // Group-chat backstop (see `lastForegroundGroupCatchUpAt`): groups have no
                 // per-contact sweep equivalent - their live path is the blockAdded block-scan,
                 // and a block missed during a stream gap only got recovered on the next
-                // app-foreground catch-up. Run the cursor-based group catch-up at most once a
-                // minute while the app is active so an open app converges on missed group
-                // messages without needing a background/foreground cycle.
+                // app-foreground catch-up. Run the cursor-based group catch-up at most once per
+                // `foregroundGroupCatchUpInterval` while the app is active, on the same beat as
+                // the sweep, so an open app converges on missed group messages without needing a
+                // background/foreground cycle.
                 if UIApplication.shared.applicationState == .active,
                    WalletManager.shared.currentWallet != nil,
-                   self.lastForegroundGroupCatchUpAt.map({ Date().timeIntervalSince($0) >= self.foregroundGroupCatchUpInterval }) ?? true {
+                   // two seconds of slack: the beat lands a moment either side of the interval
+                   self.lastForegroundGroupCatchUpAt.map({ Date().timeIntervalSince($0) >= self.foregroundGroupCatchUpInterval - 2 }) ?? true {
                     self.lastForegroundGroupCatchUpAt = Date()
                     await GroupChatService.shared.performCatchUpSync()
                 }
-                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                for _ in 0..<beatsBetweenSweeps {
+                    await ForegroundBeat.sleepUntilNextBeat(offset: 2.2)
+                    if Task.isCancelled { return }
+                }
             }
         }
-    }
-
-    /// The sweep's base interval for the current network path: `foregroundSweepBaseInterval`
-    /// (5s) on WiFi, `foregroundSweepExpensiveInterval` (15s) on cellular/metered paths.
-    private var currentForegroundSweepBaseInterval: TimeInterval {
-        NetworkEpochMonitor.shared.isExpensivePath
-            ? foregroundSweepExpensiveInterval
-            : foregroundSweepBaseInterval
     }
 
     /// Cancel the foreground sweep (app backgrounded, wallet switch/teardown, logout).
@@ -351,7 +353,7 @@ extension ChatService {
     /// One serial pass over the sweep targets. Returns `.failed` on the first indexer error (the
     /// rest of the pass is abandoned so an unreachable indexer costs one request per sweep, not
     /// one per contact), `.skipped` when gating kept it from doing any work.
-    private func runForegroundContactSweep() async -> ForegroundSweepOutcome {
+    private func runForegroundContactSweep(includeInbox: Bool = true) async -> ForegroundSweepOutcome {
         guard UIApplication.shared.applicationState == .active,
               isConfigured,
               apiClient.hasIndexer,
@@ -363,9 +365,11 @@ extension ChatService {
         }
         // People writing to us for the first time, without a handshake (Message Requests). The
         // live subscription never sees these (the inbox tag is the indexer's), so this runs
-        // whether or not it is healthy.
-        await syncInbox()
-        if Task.isCancelled { return .skipped }
+        // whether or not it is healthy (every second beat while push is reliable, B5).
+        if includeInbox {
+            await syncInbox()
+            if Task.isCancelled { return .skipped }
+        }
         // The subscription delivers everything the rest of this sweep would find, within a second
         // or two, for as long as it is verified alive. The rest is for when it is not.
         guard !isUtxoSubscriptionHealthy else { return .skipped }
@@ -3089,6 +3093,14 @@ extension ChatService {
                 if !fromChattingAddress, let spendingIndex = sourceSpendingIndex, WalletManager.isQuantumIndex(spendingIndex) {
                     WalletManager.shared.markQuantumAddressSpent(sourceAddress, owner: wallet.publicAddress)
                 }
+                // From a spending address, its payment_notice goes once the payment shows up
+                // (`settleUnconfirmedSend`): sent now it could name a payment that never lands,
+                // and never sent, the payee has the KAS with no bubble or memo (audit 2026-11-27 C5).
+                if !fromChattingAddress, let unknown = error as? SendOutcomeUnknownError {
+                    owedSpendingNotices[unknown.txId.lowercased()] = OwedSpendingNotice(
+                        contactAddress: contact.address, amountSompi: amountSompi, memo: note,
+                        owner: wallet.publicAddress, at: Date())
+                }
                 // Never Failed with Retry, which could pay twice: Not confirmed, under the
                 // transaction's own id, until the payment shows up.
                 markSendUnconfirmed(
@@ -5407,6 +5419,7 @@ extension ChatService {
             )
         }
         saveMessages()
+        sendOwedSpendingNoticeIfAny(txId: txId, contactAddress: contactAddress)
         return true
     }
 

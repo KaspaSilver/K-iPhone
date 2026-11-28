@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "Size %@ gönderdi";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "Seni bir satranç oyununa davet etti";
+"Accepted your chess game" = "Satranç oyununu kabul etti";
+"Declined your chess game" = "Satranç oyununu reddetti";
+"Played a chess move" = "Bir satranç hamlesi yaptı";
+"Played %@ → %@" = "%@ → %@ oynadı";
+"Lost on time" = "Süreden kaybetti";
+"Resigned the chess game" = "Satranç oyununu terk etti";
+"Removed their %@ reaction" = "%@ tepkisini kaldırdı";
+"Reacted %@ to a message" = "Bir mesaja %@ ile tepki verdi";
+"Reacted %@ to your message" = "Mesajına %@ ile tepki verdi";
+"Replied to a message" = "Bir mesaja yanıt verdi";
+"Photo" = "Fotoğraf";
+"Video" = "Video";
+"Edited a message" = "Bir mesajı düzenledi";
+"Sent a photo" = "Bir fotoğraf gönderdi";
+"Sent a voice message" = "Bir sesli mesaj gönderdi";
+"Sent a video" = "Bir video gönderdi";

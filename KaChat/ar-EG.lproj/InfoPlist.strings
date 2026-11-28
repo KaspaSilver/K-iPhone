@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID بيُستخدم عشان تفتح عبارة الاسترداد بتاعتك وتسجّل دخول تاني، لو مفعّل في الإعدادات.";
 "NSLocalNetworkUsageDescription" = "K مش بيتصل بعقدة Kaspa أو سيرفر Nextcloud على شبكتك المحلية إلا لو إنت ظبطت واحد.";
 "NFCReaderUsageDescription" = "K بيستخدم NFC عشان يحفظ ويرجّع نسخة احتياطية متشفّرة من عبارة الاسترداد بتاعتك على الكارت الذكي بتاعك.";
-"NSPhotoLibraryAddUsageDescription" = "احفظ الصور اللي بتوصلك في مكتبة الصور بتاعتك.";
+"NSPhotoLibraryAddUsageDescription" = "K بيحفظ الصور اللي بتوصلك في مكتبة الصور عندك.";

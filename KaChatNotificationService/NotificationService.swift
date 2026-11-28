@@ -1897,14 +1897,20 @@ class NotificationService: UNNotificationServiceExtension {
               let parsed = try? JSONDecoder().decode(PushChessEnvelope.self, from: data) else { return nil }
         switch parsed.type {
         case "chess_invite":
-            return "♟️ Invited you to a game of chess"
+            return "♟️ " + NSLocalizedString("Invited you to a game of chess", comment: "Push body for a chess invite")
         case "chess_response":
-            return parsed.accepted == true ? "♟️ Accepted your chess game" : "♟️ Declined your chess game"
+            return "♟️ " + (parsed.accepted == true
+                ? NSLocalizedString("Accepted your chess game", comment: "Push body for an accepted chess invite")
+                : NSLocalizedString("Declined your chess game", comment: "Push body for a declined chess invite"))
         case "chess_move":
-            guard let from = parsed.from, let to = parsed.to else { return "♟️ Played a chess move" }
-            return "♟️ Played \(from) → \(to)"
+            guard let from = parsed.from, let to = parsed.to else {
+                return "♟️ " + NSLocalizedString("Played a chess move", comment: "Push body for a chess move")
+            }
+            return "♟️ " + String(format: NSLocalizedString("Played %@ → %@", comment: "Push body for a chess move: from and to squares"), from, to)
         case "chess_resign":
-            return parsed.reason == "timeout" ? "♟️ Lost on time" : "♟️ Resigned the chess game"
+            return "♟️ " + (parsed.reason == "timeout"
+                ? NSLocalizedString("Lost on time", comment: "Push body: the opponent's chess clock ran out")
+                : NSLocalizedString("Resigned the chess game", comment: "Push body: the opponent resigned"))
         default:
             return nil
         }
@@ -1934,9 +1940,12 @@ class NotificationService: UNNotificationServiceExtension {
         guard trimmed.first == "{", let data = trimmed.data(using: .utf8),
               let parsed = try? JSONDecoder().decode(PushReactionEnvelope.self, from: data),
               parsed.type == "reaction", Self.isReactionEmoji(parsed.emoji) else { return nil }
-        return parsed.action == "remove"
-            ? "Removed their \(parsed.emoji) reaction"
-            : (inGroup ? "Reacted \(parsed.emoji) to a message" : "Reacted \(parsed.emoji) to your message")
+        let format = parsed.action == "remove"
+            ? NSLocalizedString("Removed their %@ reaction", comment: "Push body: someone took back a reaction")
+            : (inGroup
+                ? NSLocalizedString("Reacted %@ to a message", comment: "Push body: a reaction in a group")
+                : NSLocalizedString("Reacted %@ to your message", comment: "Push body: a reaction to your message"))
+        return String(format: format, parsed.emoji)
     }
 
     /// A reaction whose emoji isn't one emoji: the app reads it as a removal and shows nothing,
@@ -2115,15 +2124,15 @@ class NotificationService: UNNotificationServiceExtension {
             if let text = Self.looseJSONString(named: "text", in: trimmed) { return text }
             // The server cut the envelope before its `text` (the txid and sender alone fill
             // most of a 150-char preview): the reply's words are not in this push at all.
-            return "Replied to a message"
+            return NSLocalizedString("Replied to a message", comment: "Push body for a reply whose text was cut off")
         }
         // Any other envelope that reached here: never the raw JSON on a lock screen.
-        if compact.contains("\"mimeType\":\"audio") { return "Voice message" }
-        if compact.contains("\"mimeType\":\"image") { return "Photo" }
-        if compact.contains("\"mimeType\":\"video") { return "Video" }
-        if compact.contains("\"type\":\"edit\"") { return "Edited a message" }
+        if compact.contains("\"mimeType\":\"audio") { return NSLocalizedString("Voice message", comment: "Push body for audio notification") }
+        if compact.contains("\"mimeType\":\"image") { return NSLocalizedString("Photo", comment: "Push body for a photo") }
+        if compact.contains("\"mimeType\":\"video") { return NSLocalizedString("Video", comment: "Push body for a video") }
+        if compact.contains("\"type\":\"edit\"") { return NSLocalizedString("Edited a message", comment: "Push body for an edited message") }
         if let text = Self.looseJSONString(named: "text", in: trimmed) { return text }
-        return "New message"
+        return NSLocalizedString("New message", comment: "Generic push body")
     }
 
     /// The value of a string field in JSON that may be truncated: everything after `"name":"`
@@ -2163,9 +2172,9 @@ class NotificationService: UNNotificationServiceExtension {
         // Matches the main app's `ChatService.formatNotificationBody` wording exactly (its title
         // already carries the sender's name, so the body doesn't repeat it - same here, since the
         // notification's own title/subtitle already is the sender's name by the time this runs).
-        if mimeType.hasPrefix("image/") { return "Sent a photo" }
-        if mimeType.hasPrefix("audio/") { return "Sent a voice message" }
-        if mimeType.hasPrefix("video/") { return "Sent a video" }
+        if mimeType.hasPrefix("image/") { return NSLocalizedString("Sent a photo", comment: "Push body for a photo") }
+        if mimeType.hasPrefix("audio/") { return NSLocalizedString("Sent a voice message", comment: "Push body for a voice message") }
+        if mimeType.hasPrefix("video/") { return NSLocalizedString("Sent a video", comment: "Push body for a video") }
         return text
     }
 

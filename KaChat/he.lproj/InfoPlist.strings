@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID משמש לפתיחת ביטוי השחזור שלכם ולהתחברות מחדש, כשהאפשרות מופעלת בהגדרות.";
 "NSLocalNetworkUsageDescription" = "K מתחברת לצומת Kaspa או לשרת Nextcloud ברשת המקומית שלכם רק אם הגדרתם אחד.";
 "NFCReaderUsageDescription" = "K משתמשת ב‑NFC כדי לשמור ולשחזר גיבוי מוצפן של ביטוי השחזור שלכם בכרטיס החכם שלכם.";
-"NSPhotoLibraryAddUsageDescription" = "שמירת תמונות שהתקבלו בספריית התמונות שלכם.";
+"NSPhotoLibraryAddUsageDescription" = "K שומרת תמונות שהתקבלו בספריית התמונות שלך.";

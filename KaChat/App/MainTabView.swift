@@ -26,8 +26,14 @@ struct MainTabView: View {
     /// Debounces the off-chat-tab discovery pause/resume so rapid tab-flipping can't thrash it.
     @State private var tabWorkTask: Task<Void, Never>?
     @State private var showWelcomeGuide = false
-    /// Kaspa Hub's glass menu over the dock's left side (`KaspaHubMenu`, owner 2026-11-26).
-    @State private var showHubMenu = false
+    /// Kaspa Hub's glass menu over the dock's left side (`KaspaHubMenu`, owner 2026-11-26). Read
+    /// and written here, observed only by the menu (`HubMenuState`), so the dock doesn't redraw.
+    private var showHubMenu: Bool {
+        get { HubMenuState.shared.isPresented }
+        nonmutating set {
+            if HubMenuState.shared.isPresented != newValue { HubMenuState.shared.isPresented = newValue }
+        }
+    }
     /// The dock tab you were on before a Hub section opened: where its close (Kasshi's X) goes back.
     @State private var tabBeforeHub = AppTab.chats.tag
     @Environment(\.scenePhase) private var scenePhase
@@ -104,7 +110,7 @@ struct MainTabView: View {
         // 2026-11-26); a section picked opens as a Hub section, the dock in view with Kaspa Hub
         // lit, and Kaspa Hub tapped again brings the menu back
         .overlay {
-            KaspaHubMenu(isPresented: $showHubMenu) { tab in
+            KaspaHubMenu { tab in
                 openHubSection(tab)
             }
         }
@@ -135,11 +141,6 @@ struct MainTabView: View {
         .onAppear {
             LaunchTrace.mark("main tabs on screen")
             installHubTabInterceptor()
-            // A hold with no guide to release it would strand the account: the branches below
-            // that DON'T present a guide lift it explicitly, and this covers every other path in.
-            if chatService.onboardingSyncHeld && !showWelcomeGuide && !walletManager.justCreatedNewWallet {
-                chatService.releaseSyncForOnboarding()
-            }
             chatService.startPolling()
             // kUSDT is checked while the app is open, so a token that arrives is announced
             TokenWallet.shared.startPolling()
@@ -160,10 +161,6 @@ struct MainTabView: View {
                 // Onboarding run interrupted: re-present the full guide from the top, still as
                 // an unskippable onboarding run.
                 showWelcomeGuide = true
-            } else {
-                // No setup guide is coming, so nothing is waiting on it - lift any hold rather
-                // than leaving the account permanently unsynced.
-                chatService.releaseSyncForOnboarding()
             }
         }
         .fullScreenCover(isPresented: $showWelcomeGuide) {
@@ -173,9 +170,6 @@ struct MainTabView: View {
                     // Everything the account owns starts syncing now, in the background: no
                     // progress screen and no "You're all set" (owner, 2026-11-26). The app is
                     // usable at once and chats and history fill in as they sync.
-                    if chatService.onboardingSyncHeld {
-                        chatService.releaseSyncForOnboarding()
-                    }
                 },
                 // MainTabView only ever presents the guide for account onboarding (fresh
                 // create/import or a kill/relaunch re-present) - Help replays live in

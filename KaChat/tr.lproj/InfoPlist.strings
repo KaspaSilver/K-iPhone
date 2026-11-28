@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID, Ayarlar’da açıksa kurtarma ifadenizin kilidini açmak ve yeniden giriş yapmak için kullanılır.";
 "NSLocalNetworkUsageDescription" = "K, yerel ağınızdaki bir Kaspa düğümüne veya Nextcloud sunucusuna yalnızca siz birini ayarlarsanız bağlanır.";
 "NFCReaderUsageDescription" = "K, kurtarma ifadenizin şifreli yedeğini akıllı kartınıza kaydetmek ve geri yüklemek için NFC kullanır.";
-"NSPhotoLibraryAddUsageDescription" = "Alınan görselleri fotoğraf arşivinize kaydedin.";
+"NSPhotoLibraryAddUsageDescription" = "K, alınan görüntüleri fotoğraf arşivinize kaydeder.";

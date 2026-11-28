@@ -4,12 +4,19 @@ enum ChatTimelineItem: Equatable, Identifiable {
     case daySeparator(Date)
     case message(index: Int, ChatMessage)
 
-    var id: String {
+    /// A value, not a string: a lazy `ForEach` reads every item's id on every pass, and after
+    /// "jump to start" that was thousands of strings built per pass (audit 2026-11-27 C10).
+    enum ID: Hashable {
+        case day(Int)
+        case message(UUID)
+    }
+
+    var id: ID {
         switch self {
         case .daySeparator(let day):
-            return "day-\(Int(day.timeIntervalSince1970))"
+            return .day(Int(day.timeIntervalSince1970))
         case .message(_, let message):
-            return "message-\(message.id.uuidString)"
+            return .message(message.id)
         }
     }
 }
@@ -106,7 +113,43 @@ enum MessageDaySeparatorFormatter {
     /// Checks the in-app selected language (see `AppLocalization`) before falling back to the
     /// device's own preferred-localization resolution, so day-separator labels ("Today",
     /// month/weekday names) follow an in-app language switch immediately too, not just `Text`.
+    /// Worked out once per language change, not per separator: `AppSettings.load()` decodes the
+    /// whole settings on every call, and this ran for each day separator on every pass (audit
+    /// 2026-11-27 C12). `.settingsDidChange` is posted whenever the language changes.
     private static var preferredLocale: Locale {
+        preferredLocaleCache.locale(resolve: resolvePreferredLocale)
+    }
+
+    private final class LocaleCache {
+        private let lock = NSLock()
+        private var cached: Locale?
+        private var observer: NSObjectProtocol?
+
+        init() {
+            observer = NotificationCenter.default.addObserver(
+                forName: .settingsDidChange, object: nil, queue: nil
+            ) { [weak self] _ in
+                guard let self else { return }
+                self.lock.lock()
+                self.cached = nil
+                self.lock.unlock()
+            }
+        }
+
+        func locale(resolve: () -> Locale) -> Locale {
+            lock.lock()
+            if let cached { lock.unlock(); return cached }
+            lock.unlock()
+            let resolved = resolve()
+            lock.lock()
+            cached = resolved
+            lock.unlock()
+            return resolved
+        }
+    }
+    private static let preferredLocaleCache = LocaleCache()
+
+    private static func resolvePreferredLocale() -> Locale {
         if let appLocale = AppSettings.load().language.locale {
             return appLocale
         }

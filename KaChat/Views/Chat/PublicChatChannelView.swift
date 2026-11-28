@@ -20,9 +20,12 @@ struct PublicChatChannelView: View {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     // A sender's `.kachat` name landing turns on their link previews
     // (`PublicChatMessageRow.senderHasKachatName`) through `contactsManager`: the registry sends
-    // ContactsManager's objectWillChange whenever an identity changes. Observing the registry
-    // itself redrew the room on every one of its flags.
+    // ContactsManager's objectWillChange when identities change (once per burst, a second
+    // after it starts). Observing the registry itself redrew the room on every one of its flags.
     @StateObject private var recorder = PublicChatAudioRecorder()
+    /// Translations: each row gets its own state as values from here, so a translation redraws
+    /// only its row (audit 2026-11-27 C8).
+    @ObservedObject private var translation = PostTranslationService.shared
 
     /// Voice notes go on chain, so the payload cap is the length cap.
     private var effectiveMaxRecordingDuration: TimeInterval { PublicChatAudioRecorder.maxDuration }
@@ -100,10 +103,6 @@ struct PublicChatChannelView: View {
     @State private var isEstimatingFee = false
     @State private var feeEstimateLength: Int?
     @State private var feeEstimateTask: Task<Void, Never>?
-    /// A once-a-minute clock for the reaction pill's green "sent" check, which is meant to go
-    /// away 10 minutes after your reaction. Rows skip re-rendering unless their inputs change
-    /// (`.equatable()`), so the expiry has to arrive as an input - see `isReactionCheckFresh`.
-    @State private var reactionCheckClock = Date()
     /// User-set fee, from tapping the fee pill - see KaChat's ChatDetailView.feeOverrideSompi's doc comment.
     @State private var feeOverrideSompi: UInt64?
     @State private var showFeeEditor = false
@@ -115,6 +114,8 @@ struct PublicChatChannelView: View {
     /// Set by a tap on the header band, consumed inside the `ScrollViewReader` (which is where
     /// the proxy lives). Mirrors how `pendingJumpToTxId` reaches the same place.
     @State private var pendingJumpToStart = false
+    /// The latest `settleAtBottom` run; a newer one (or nil) retires the older one's passes.
+    @State private var bottomSettleToken: UUID?
     @State private var showRoomInfo = false
     @State private var showOwnRoomExplainer = false
     /// The bell in the top-right corner: the room's notifications, in a half sheet.
@@ -186,13 +187,6 @@ struct PublicChatChannelView: View {
             // What the translation service can serve, so Translate is offered only for a
             // language pair that can succeed. No-op after the first answer.
             PostTranslationService.shared.refreshSupportedLanguages()
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000_000)
-                guard !Task.isCancelled else { return }
-                reactionCheckClock = Date()
-            }
         }
         .task {
             // Keeps retention feeling "live" while this room is open - a message disappears
@@ -472,6 +466,7 @@ struct PublicChatChannelView: View {
                                         guard !isLoadingOlder else { return }
                                         isLoadingOlder = true
                                         keepInPlaceAfterOlderLoad = messages.first?.id
+                                        bottomSettleToken = nil
                                         let countBefore = messages.count
                                         Task {
                                             await publicChatService.loadOlderMessages(forChannel: channelName)
@@ -535,6 +530,7 @@ struct PublicChatChannelView: View {
                                 // History paging in above a freshly opened room: someone at the
                                 // bottom stays there instead of being left in the history.
                                 scrollToBottom(using: proxy, animated: false)
+                                settleAtBottom(using: proxy)
                             }
                         }
                         // To the bottom only when the NEWEST message changed. This was on the
@@ -551,12 +547,14 @@ struct PublicChatChannelView: View {
                         }
                         .onChange(of: pendingJumpToTxId) { id in
                             guard let id else { return }
+                            bottomSettleToken = nil
                             jumpToReplyOriginal(id: id, in: messages, using: proxy)
                             pendingJumpToTxId = nil
                         }
                         .onChange(of: pendingJumpToStart) { jump in
                             guard jump else { return }
                             pendingJumpToStart = false
+                            bottomSettleToken = nil
                             // Not animated: see KaChat's `ChatDetailView.jumpToChatStart` for why a long
                             // animated ride across a whole history is worse than landing.
                             proxy.scrollTo("top_anchor", anchor: .top)
@@ -566,6 +564,7 @@ struct PublicChatChannelView: View {
                             if takeJumpRoute(in: messages) { return }
                             guard !listHasAppeared || wasAtBottomWhenHidden else { return }
                             scrollToBottom(using: proxy, animated: false)
+                            settleAtBottom(using: proxy)
                         }
                         // a mention in Profile's bell for this room, while it's already open
                         .onReceive(NotificationCenter.default.publisher(for: .openPublicChat)) { _ in
@@ -670,6 +669,24 @@ struct PublicChatChannelView: View {
         guard messages.contains(where: { $0.id == route.txId }) else { return false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { pendingJumpToTxId = route.txId }
         return true
+    }
+
+    /// The first scroll to the bottom runs while the lazy rows are still being measured, so a
+    /// room opened for the first time landed a few messages short of the newest (audit
+    /// 2026-11-27 T1). A few more unanimated scrolls in the next second finish the job, unless
+    /// something else has taken the scroll meanwhile: a jump, older messages loading or the
+    /// composer. One second is short enough not to fight a reader scrolling up.
+    private func settleAtBottom(using proxy: ScrollViewProxy) {
+        let token = UUID()
+        bottomSettleToken = token
+        for delay in [0.25, 0.6, 1.1] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard bottomSettleToken == token, keepInPlaceAfterOlderLoad == nil,
+                      pendingJumpToTxId == nil, !pendingJumpToStart, highlightedMessageID == nil,
+                      !isMessageFocused else { return }
+                proxy.scrollTo("bottom_anchor", anchor: .bottom)
+            }
+        }
     }
 
     private func scrollToBottom(using proxy: ScrollViewProxy, animated: Bool) {
@@ -814,6 +831,7 @@ struct PublicChatChannelView: View {
         let messageReactions: [GroupStore.ReactionSnapshot] =
             publicChatService.reactions(forChannel: channelName)[message.id] ?? []
         let replyDisplay: PublicChatReplyQuoteDisplay? = messageReplyQuote.map { replyQuoteDisplay(for: $0) }
+        let rowTranslationKey = PublicChatMessageRow.translationKey(for: shownMessage, replyQuote: messageReplyQuote)
         PublicChatMessageRow(
             message: shownMessage,
             isOwnMessage: message.senderAddress == myAddress,
@@ -872,11 +890,10 @@ struct PublicChatChannelView: View {
             onMoreReactions: { emojiPickerTarget = IdentifiedTxId(id: message.id) },
             activeQuickReactionMessageId: $activeQuickReactionMessageId,
             isQuickReactionBarShown: activeQuickReactionMessageId == message.id,
-            isReactionCheckFresh: messageReactions.contains {
-                $0.reactorAddress == (myAddress ?? "") && $0.deliveryStatus == .sent
-                    && Int64(reactionCheckClock.timeIntervalSince1970 * 1000) - $0.blockTime < 600_000
-            },
             isEdited: edit != nil,
+            translationState: translation.state(for: rowTranslationKey),
+            showsOriginalText: translation.isShowingOriginal(rowTranslationKey),
+            translationLanguages: translation.supportedLanguages,
             onEdit: canEdit ? { beginEdit(message) } : nil,
             // your own delivered message (a long voice note is several, so not that)
             onDelete: (message.senderAddress == myAddress && message.deliveryStatus == .sent && voiceNote == nil)
@@ -1565,8 +1582,10 @@ struct PublicChatReplyQuoteDisplay: Equatable {
 
 private struct PublicChatMessageRow: View, Equatable {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
-    /// Translation from the long-press menu - the KaPosts service, reused as-is.
-    @ObservedObject private var translation = PostTranslationService.shared
+    /// Translation from the long-press menu - the KaPosts service, reused as-is. Not observed:
+    /// this message's own state comes in as values (`translationState`, `showsOriginalText`), so
+    /// one translation redraws its row, not every row in the room (audit 2026-11-27 C8).
+    private var translation: PostTranslationService { .shared }
     let message: PublicChatMessage
     let isOwnMessage: Bool
     let avatarURLString: String?
@@ -1610,12 +1629,15 @@ private struct PublicChatMessageRow: View, Equatable {
     var activeQuickReactionMessageId: Binding<String?> = .constant(nil)
     /// Whether the quick-reaction bar is on THIS row, as a value so `==` can see it change.
     var isQuickReactionBarShown: Bool = false
-    /// Your sent reaction here is under 10 minutes old, so the pill still shows its green check.
-    /// Worked out by the parent against a minute clock; a value so `==` sees it expire.
-    var isReactionCheckFresh: Bool = false
     /// The text shown is an edit of what was sent (the parent swapped `content`); a small
     /// "edited" chip sits on the bubble. `onEdit` is offered on the user's own text bubbles only.
     var isEdited: Bool = false
+    /// This message's translation (`PostTranslationService.state(for: translationKey)`).
+    var translationState: PostTranslationService.State? = nil
+    /// The reader flipped this translation back to the original.
+    var showsOriginalText = false
+    /// What the service translates, which decides whether Translate is offered.
+    var translationLanguages: PostTranslationService.SupportedLanguages? = nil
     var onEdit: (() -> Void)? = nil
     /// Delete for Everyone, on the user's own delivered messages.
     var onDelete: (() -> Void)? = nil
@@ -1635,8 +1657,8 @@ private struct PublicChatMessageRow: View, Equatable {
     /// Everything the row draws from. The closures are left out on purpose - they are rebuilt
     /// on every parent pass and never compare equal, which is what made SwiftUI re-render every
     /// row on every room update - but whether each optional action EXISTS is compared, since
-    /// that changes what the row offers. Observed state inside the row (settings, translation)
-    /// still refreshes it on its own.
+    /// that changes what the row offers. Observed state inside the row (settings) still
+    /// refreshes it on its own; its translation comes in as values.
     static func == (lhs: PublicChatMessageRow, rhs: PublicChatMessageRow) -> Bool {
         lhs.message == rhs.message
             && lhs.isOwnMessage == rhs.isOwnMessage
@@ -1648,8 +1670,10 @@ private struct PublicChatMessageRow: View, Equatable {
             && lhs.reactions == rhs.reactions
             && lhs.myReactorAddress == rhs.myReactorAddress
             && lhs.isQuickReactionBarShown == rhs.isQuickReactionBarShown
-            && lhs.isReactionCheckFresh == rhs.isReactionCheckFresh
             && lhs.isEdited == rhs.isEdited
+            && lhs.translationState == rhs.translationState
+            && lhs.showsOriginalText == rhs.showsOriginalText
+            && lhs.translationLanguages == rhs.translationLanguages
             && lhs.voiceNote == rhs.voiceNote
             && (lhs.onEdit == nil) == (rhs.onEdit == nil)
             && (lhs.onDelete == nil) == (rhs.onDelete == nil)
@@ -1665,14 +1689,27 @@ private struct PublicChatMessageRow: View, Equatable {
         reactions.first { $0.reactorAddress == myReactorAddress }
     }
 
-    /// Status to show on the reaction pill. Same as `localReaction`'s status, except the green
-    /// "sent" checkmark is dropped once the reaction is older than 10 minutes - it's a recent
-    /// confirmation, not a permanent badge (pending/failed are always shown). Matches
-    /// `GroupMessageBubbleRow.pillReactionStatus`.
-    private var pillReactionStatus: ChatMessage.DeliveryStatus? {
-        guard let localReaction else { return nil }
-        guard localReaction.deliveryStatus == .sent else { return localReaction.deliveryStatus }
-        return isReactionCheckFresh ? .sent : nil
+    /// The reaction pill. Its status is `localReaction`'s, except the green "sent" checkmark is
+    /// dropped once the reaction is older than 10 minutes - it's a recent confirmation, not a
+    /// permanent badge (pending/failed are always shown). Matches
+    /// `GroupMessageBubbleRow.pillReactionStatus`. A fresh check redraws only this pill, once, when
+    /// it runs out (audit 2026-11-27: a minute clock on the screen redrew the whole room every
+    /// minute, in the background too).
+    @ViewBuilder
+    private var reactionPill: some View {
+        let emojis = reactions.map { $0.emoji }
+        if let localReaction, localReaction.deliveryStatus == .sent {
+            let expiry = Date(timeIntervalSince1970: Double(localReaction.blockTime) / 1000 + 600)
+            if expiry > Date() {
+                TimelineView(.explicit([expiry.addingTimeInterval(0.5)])) { _ in
+                    ReactionPillView(emojis: emojis, localReactionStatus: Date() < expiry ? .sent : nil)
+                }
+            } else {
+                ReactionPillView(emojis: emojis, localReactionStatus: nil)
+            }
+        } else {
+            ReactionPillView(emojis: emojis, localReactionStatus: localReaction?.deliveryStatus)
+        }
     }
 
     /// See `MessageBubbleView.inlineTextTruncationThreshold`'s doc comment - public chat rooms are
@@ -1689,7 +1726,12 @@ private struct PublicChatMessageRow: View, Equatable {
     /// must not show over the new one. States live in memory only, so `hashValue` being
     /// per-launch does not matter.
     private var translationKey: String {
-        "publicchat:\(message.id):\(displayText.hashValue)"
+        Self.translationKey(for: message, replyQuote: replyQuote)
+    }
+
+    /// The key the room looks the row's translation up by (the same text as `displayText`).
+    static func translationKey(for message: PublicChatMessage, replyQuote: MessageReplyContent?) -> String {
+        "publicchat:\(message.id):\((replyQuote?.text ?? message.content).hashValue)"
     }
 
     /// The text the bubble draws: the translation while one is showing, otherwise the message.
@@ -1697,7 +1739,13 @@ private struct PublicChatMessageRow: View, Equatable {
     /// `displayText`, the original.
     private var shownText: String {
         // Every way a room's body is drawn reads this one (see `strippingBidiControls`).
-        KaPostsMarkdown.strippingBidiControls(translation.displayText(for: translationKey, original: displayText))
+        let text: String
+        if case .translated(let translated, _)? = translationState, !showsOriginalText {
+            text = translated
+        } else {
+            text = displayText
+        }
+        return KaPostsMarkdown.strippingBidiControls(text)
     }
 
     /// Worth offering Translate: someone else's plain text message, confidently in a language
@@ -2074,7 +2122,7 @@ private struct PublicChatMessageRow: View, Equatable {
             }
             .overlay(alignment: isOwnMessage ? .bottomLeading : .bottomTrailing) {
                 if !reactions.isEmpty {
-                    ReactionPillView(emojis: reactions.map { $0.emoji }, localReactionStatus: pillReactionStatus)
+                    reactionPill
                         .offset(y: 10)
                 }
             }
@@ -2131,9 +2179,9 @@ private struct PublicChatMessageRow: View, Equatable {
         if let onDelete, voicePayload == nil {
             actions.append(.deleteForEveryone(onDelete))
         }
-        switch translation.state(for: translationKey) {
+        switch translationState {
         case .translated:
-            if translation.isShowingOriginal(translationKey) {
+            if showsOriginalText {
                 actions.append(.showTranslation { translation.showTranslation(key: translationKey) })
             } else {
                 actions.append(.showOriginal { translation.showOriginal(key: translationKey) })
@@ -2165,7 +2213,7 @@ private struct PublicChatMessageRow: View, Equatable {
     /// why it could not be.
     @ViewBuilder
     private var translationStatus: some View {
-        switch translation.state(for: translationKey) {
+        switch translationState {
         case .none:
             if voicePayload == nil, canTranslate {
                 translationLink("Translate") { translate() }
@@ -2178,7 +2226,7 @@ private struct PublicChatMessageRow: View, Equatable {
                     .foregroundColor(.secondary)
             }
         case .translated(_, let sourceName):
-            if translation.isShowingOriginal(translationKey) {
+            if showsOriginalText {
                 translationLink("Show translation") { translation.showTranslation(key: translationKey) }
             } else {
                 HStack(spacing: 4) {

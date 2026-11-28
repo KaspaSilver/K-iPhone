@@ -8,14 +8,21 @@ import UIKit
 struct KaChatApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var walletManager = WalletManager.shared
-    @StateObject private var contactsManager = ContactsManager.shared
-    @StateObject private var chatService = ChatService.shared
+    // Not observed here: the scene body never reads them, and as @StateObjects every publish
+    // (ChatService's above all) re-ran it (smoothness audit T5). Views still get them below.
+    private var contactsManager: ContactsManager { .shared }
+    private var chatService: ChatService { .shared }
     @StateObject private var settingsViewModel = SettingsViewModel()
-    @StateObject private var pushManager = PushNotificationManager.shared
-    @StateObject private var groupChatService = GroupChatService.shared
+    private var pushManager: PushNotificationManager { .shared }
+    private var groupChatService: GroupChatService { .shared }
     @State private var isProcessingOutboundShare = false
     @State private var lastActiveResyncAt: Date?
     @State private var hasCompletedFirstActiveTransition = false
+    /// Whether the app reached `.background` since it was last active. Control Center, the
+    /// notification shade and Face ID only pass through `.inactive`: nothing was stopped, so the
+    /// foreground block (the group catch-up's 2N+1 reads, the App Group writes) doesn't run
+    /// again (audit 2026-11-27 B3). True at launch, so the first activation runs it.
+    @State private var backgroundedSinceActive = true
     @Environment(\.scenePhase) private var scenePhase
 
     /// Below this, becoming active again skips the heavier resync work (node pool reconnect
@@ -130,6 +137,7 @@ struct KaChatApp: App {
         // No privacy cover in the App Switcher (owner's call, 2026-11-15): the app shows as it is.
         switch newPhase {
         case .background:
+            backgroundedSinceActive = true
             // Persist any debounced message draft immediately so it survives termination.
             ChatService.shared.flushPendingDraftSave()
             // The icon and the extension's count leave in step: pushes add to that count from here
@@ -181,6 +189,15 @@ struct KaChatApp: App {
             }
         case .active:
             LaunchTrace.mark("scene active")
+            let cameFromBackground = backgroundedSinceActive
+            backgroundedSinceActive = false
+            guard cameFromBackground else {
+                // Back from `.inactive` only: every poll and stream kept running. Just what the
+                // extensions may have left meanwhile.
+                Task { await pushManager.processPendingMessages() }
+                Task { await processPendingOutboundShareIfNeeded() }
+                return
+            }
             // Pushes changed the icon's number while the app was away: the next count is put
             // on it whatever this run put there before (`AppTabBadge.applyIconCount`).
             AppTabBadge.forgetAppliedIconCount()

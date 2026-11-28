@@ -19,7 +19,7 @@ enum ImagePrep {
 
     /// Longest edge cap in pixels before compression (small images: group and contact photos).
     static let chatMaxDimension: CGFloat = 1280
-    /// The default budget of `prepareForChatMessage` (small images only; chat photos go by
+    /// The default budget of `prepareJPEGForChatMessage` (small images only; chat photos go by
     /// `PhotoTier`).
     static let defaultChatTargetBytes = 20_000
     private static let maxShrinkAttempts = 4
@@ -35,14 +35,6 @@ enum ImagePrep {
     /// an iPhone-sent AVIF photo could permanently fail to render for an Android recipient with no
     /// way to detect or recover from that in advance. JPEG decodes everywhere, on every device on
     /// both platforms, so it's the only format guaranteed to actually reach the other person.
-    static func prepareForChatMessage(
-        _ image: UIImage,
-        targetBytes: Int = defaultChatTargetBytes
-    ) throws -> PreparedChatImage {
-        let data = try prepareJPEGForChatMessage(image, targetBytes: targetBytes)
-        return PreparedChatImage(data: data, fileName: "photo.jpg", mimeType: "image/jpeg")
-    }
-
     static func prepareJPEGForChatMessage(
         _ image: UIImage,
         targetBytes: Int = defaultChatTargetBytes

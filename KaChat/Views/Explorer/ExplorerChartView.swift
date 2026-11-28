@@ -264,6 +264,37 @@ extension ExplorerDemo {
     }
 }
 
+/// The point under the finger. Its own object, observed only by the headline and the scrub
+/// overlay (and the bars, which dim around it), so a drag doesn't rebuild the whole screen:
+/// the 240-point chart, the summary and the Mining Estimate (smoothness audit L7).
+@MainActor
+final class ExplorerChartSelection: ObservableObject {
+    @Published var point: ExplorerChartPoint?
+
+    /// The point nearest `date`, by binary search (points are oldest first).
+    static func nearest(_ points: [ExplorerChartPoint], to date: Date) -> ExplorerChartPoint? {
+        guard !points.isEmpty else { return nil }
+        var low = 0, high = points.count - 1
+        while low < high {
+            let mid = (low + high) / 2
+            if points[mid].date < date { low = mid + 1 } else { high = mid }
+        }
+        guard low > 0 else { return points[low] }
+        let before = points[low - 1], after = points[low]
+        return abs(before.date.timeIntervalSince(date)) <= abs(after.date.timeIntervalSince(date)) ? before : after
+    }
+
+    /// The last point at or before `date` (the bar whose span holds it), else the first.
+    static func spanning(_ points: [ExplorerChartPoint], at date: Date) -> ExplorerChartPoint? {
+        var low = 0, high = points.count
+        while low < high {
+            let mid = (low + high) / 2
+            if points[mid].date <= date { low = mid + 1 } else { high = mid }
+        }
+        return low > 0 ? points[low - 1] : points.first
+    }
+}
+
 /// One metric's history, full screen: the number (or the one under your finger), its change over
 /// the range, the chart (drag to read any point), the range's high, low and average, and what the
 /// number means.
@@ -276,7 +307,8 @@ struct ExplorerChartView: View {
     private var periods: [ExplorerKPeriod] {
         metric == .networkFees ? [.week, .month, .allTime] : ExplorerKPeriod.allCases
     }
-    @State private var selected: ExplorerChartPoint?
+    /// Held, not observed: only the views that show the selection watch it.
+    @State private var selection = ExplorerChartSelection()
     @State private var points: [ExplorerChartPoint] = []
     @State private var loading = true
     @State private var failed = false
@@ -288,7 +320,7 @@ struct ExplorerChartView: View {
         ScrollView {
             VStack(spacing: 16) {
                 if metric == .networkFees && feeSource == .demo { ExplorerDemoPill() }
-                headline(points)
+                ExplorerChartHeadline(metric: metric, period: period, points: points, selection: selection)
                     .redacted(reason: points.isEmpty ? .placeholder : [])
                 ExplorerCard {
                     VStack(alignment: .leading, spacing: 12) {
@@ -304,8 +336,11 @@ struct ExplorerChartView: View {
                                     Button("Try Again") { Task { await load() } }
                                 }
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else if metric.isBars {
+                                ExplorerBarPlot(metric: metric, period: period, points: points, selection: selection)
+                                    .opacity(loading ? 0.4 : 1)
                             } else {
-                                chart(points)
+                                ExplorerLinePlot(metric: metric, period: period, points: points, selection: selection)
                                     .opacity(loading ? 0.4 : 1)
                             }
                         }
@@ -345,7 +380,7 @@ struct ExplorerChartView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(metric.title)
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: period) { _ in selected = nil }
+        .onChange(of: period) { _ in selection.point = nil }
         .task(id: period) { await load() }
     }
 
@@ -370,8 +405,14 @@ struct ExplorerChartView: View {
                 fresh = real.points
                 feeSource = real.source
             } else {
+                // made-up numbers only in Debug builds; Release says the chart couldn't load
+                #if DEBUG
                 fresh = ExplorerDemo.series(metric, period: wanted, at: Date())
                 feeSource = .demo
+                #else
+                fresh = []
+                feeSource = nil
+                #endif
             }
         case .blockReward:
             fresh = ExplorerDemo.series(metric, period: wanted, at: Date())
@@ -381,128 +422,8 @@ struct ExplorerChartView: View {
         loading = false
     }
 
-    private func headline(_ points: [ExplorerChartPoint]) -> some View {
-        let shown = selected ?? points.last
-        let first = points.first?.value ?? 0
-        let change = first > 0 ? ((shown?.value ?? first) - first) / first * 100 : 0
-        // bars: the period's total, or the bar under your finger
-        let total = points.reduce(0) { $0 + $1.value }
-        let big: String = metric.isBars
-            ? metric.format(selected?.value ?? total)
-            : (shown.map { metric.format($0.value) } ?? "–")
-        return VStack(spacing: 6) {
-            Text(verbatim: big)
-                .font(.system(size: 38, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .contentTransition(.numericText())
-            if metric.isBars {
-                HStack(spacing: 6) {
-                    if let selected {
-                        Text(verbatim: bucketName(selected.date))
-                    } else {
-                        Text("Total")
-                        Text(LocalizedStringKey(period.title))
-                    }
-                }
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            } else {
-            HStack(spacing: 6) {
-                Label {
-                    Text(verbatim: Self.percent(change))
-                        .monospacedDigit()
-                } icon: {
-                    Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                }
-                .foregroundColor(.accentColor)
-                .font(.subheadline.weight(.semibold))
-                if let selected {
-                    Text(verbatim: selected.date.formatted(date: .abbreviated, time: period == .allTime ? .omitted : .shortened))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text(LocalizedStringKey(period.title))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 16)
-        .animation(.easeInOut(duration: 0.15), value: selected)
-    }
-
-    private func chart(_ points: [ExplorerChartPoint]) -> some View {
-        let values = points.map(\.value)
-        let low = values.min() ?? 0, high = values.max() ?? 1
-        let pad = max((high - low) * 0.08, high * 0.0005)
-        let interpolation: InterpolationMethod = metric.isStepped ? .stepEnd : .catmullRom
-        if metric.isBars { return AnyView(barChart(points)) }
-        return AnyView(Chart {
-            ForEach(points) { point in
-                AreaMark(x: .value("Date", point.date),
-                         yStart: .value("Floor", max(0, low - pad)),
-                         yEnd: .value("Value", point.value))
-                    .interpolationMethod(interpolation)
-                    .foregroundStyle(LinearGradient(colors: [Color.accentColor.opacity(0.35), Color.accentColor.opacity(0.02)],
-                                                    startPoint: .top, endPoint: .bottom))
-                LineMark(x: .value("Date", point.date), y: .value("Value", point.value))
-                    .interpolationMethod(interpolation)
-                    .foregroundStyle(Color.accentColor)
-                    .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
-            }
-            if let selected {
-                RuleMark(x: .value("Date", selected.date))
-                    .foregroundStyle(Color.secondary.opacity(0.5))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                PointMark(x: .value("Date", selected.date), y: .value("Value", selected.value))
-                    .foregroundStyle(Color.accentColor)
-                    .symbolSize(80)
-            }
-        }
-        .chartYScale(domain: max(0, low - pad)...(high + pad))
-        .chartYAxis {
-            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
-                AxisGridLine().foregroundStyle(Color.secondary.opacity(0.15))
-                AxisValueLabel {
-                    if let v = value.as(Double.self) {
-                        Text(verbatim: metric.axisLabel(v)).font(.caption2)
-                    }
-                }
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
-                AxisValueLabel(format: xFormat, collisionResolution: .greedy).font(.caption2)
-            }
-        }
-        // drag along the chart to read any point
-        .chartOverlay { proxy in
-            GeometryReader { geo in
-                Rectangle().fill(Color.clear).contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { drag in
-                                let origin = geo[proxy.plotAreaFrame].origin
-                                guard let date: Date = proxy.value(atX: drag.location.x - origin.x) else { return }
-                                let nearest = points.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
-                                if nearest != selected {
-                                    selected = nearest
-                                    Haptics.selection()
-                                }
-                            }
-                            .onEnded { _ in selected = nil }
-                    )
-            }
-        }
-        .accessibilityLabel(Text(metric.title)))
-    }
-
     /// What one bar covers.
-    private var bucketUnit: Calendar.Component {
+    static func bucketUnit(_ period: ExplorerKPeriod) -> Calendar.Component {
         switch period {
         case .day: return .hour
         case .week, .month: return .day
@@ -510,62 +431,15 @@ struct ExplorerChartView: View {
         }
     }
 
+    private var bucketUnit: Calendar.Component { Self.bucketUnit(period) }
+
     /// A bar's name: "3 PM", "Mon, Nov 24", "Nov 2025".
-    private func bucketName(_ date: Date) -> String {
+    static func bucketName(_ date: Date, period: ExplorerKPeriod) -> String {
         switch period {
         case .day: return date.formatted(.dateTime.weekday(.abbreviated).hour())
         case .week, .month: return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
         case .allTime: return date.formatted(.dateTime.month(.wide).year())
         }
-    }
-
-    /// Totals as bars from zero (Network Fees), the one under your finger picked out.
-    private func barChart(_ points: [ExplorerChartPoint]) -> some View {
-        let high = points.map(\.value).max() ?? 1
-        return Chart {
-            ForEach(points) { point in
-                BarMark(x: .value("Date", point.date, unit: bucketUnit),
-                        y: .value("Value", point.value))
-                    .foregroundStyle(Color.accentColor.opacity(selected == nil || selected == point ? 1 : 0.35))
-                    .cornerRadius(2)
-            }
-        }
-        .chartYScale(domain: 0...(high * 1.08))
-        .chartYAxis {
-            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
-                AxisGridLine().foregroundStyle(Color.secondary.opacity(0.15))
-                AxisValueLabel {
-                    if let v = value.as(Double.self) {
-                        Text(verbatim: metric.axisLabel(v)).font(.caption2)
-                    }
-                }
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
-                AxisValueLabel(format: xFormat, collisionResolution: .greedy).font(.caption2)
-            }
-        }
-        .chartOverlay { proxy in
-            GeometryReader { geo in
-                Rectangle().fill(Color.clear).contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { drag in
-                                let origin = geo[proxy.plotAreaFrame].origin
-                                guard let date: Date = proxy.value(atX: drag.location.x - origin.x) else { return }
-                                // the bar whose span holds the finger
-                                let hit = points.last { $0.date <= date } ?? points.first
-                                if hit != selected {
-                                    selected = hit
-                                    Haptics.selection()
-                                }
-                            }
-                            .onEnded { _ in selected = nil }
-                    )
-            }
-        }
-        .accessibilityLabel(Text(metric.title))
     }
 
     /// "4.2%", "15.1%", "27,743%": big changes lose their decimals.
@@ -575,7 +449,7 @@ struct ExplorerChartView: View {
         return size.formatted(.number.precision(.fractionLength(digits))) + "%"
     }
 
-    private var xFormat: Date.FormatStyle {
+    static func xFormat(_ period: ExplorerKPeriod) -> Date.FormatStyle {
         switch period {
         case .day: return .dateTime.hour()
         case .week: return .dateTime.weekday(.abbreviated)
@@ -621,6 +495,214 @@ struct ExplorerChartView: View {
     }
 }
 
+
+/// The big number over the chart: the latest point, or the one under your finger.
+private struct ExplorerChartHeadline: View {
+    let metric: ExplorerChartMetric
+    let period: ExplorerKPeriod
+    let points: [ExplorerChartPoint]
+    @ObservedObject var selection: ExplorerChartSelection
+
+    var body: some View {
+        let selected = selection.point
+        let shown = selected ?? points.last
+        let first = points.first?.value ?? 0
+        let change = first > 0 ? ((shown?.value ?? first) - first) / first * 100 : 0
+        // bars: the period's total, or the bar under your finger
+        let total = points.reduce(0) { $0 + $1.value }
+        let big: String = metric.isBars
+            ? metric.format(selected?.value ?? total)
+            : (shown.map { metric.format($0.value) } ?? "–")
+        return VStack(spacing: 6) {
+            Text(verbatim: big)
+                .font(.system(size: 38, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .contentTransition(.numericText())
+            if metric.isBars {
+                HStack(spacing: 6) {
+                    if let selected {
+                        Text(verbatim: ExplorerChartView.bucketName(selected.date, period: period))
+                    } else {
+                        Text("Total")
+                        Text(LocalizedStringKey(period.title))
+                    }
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            } else {
+            HStack(spacing: 6) {
+                Label {
+                    Text(verbatim: ExplorerChartView.percent(change))
+                        .monospacedDigit()
+                } icon: {
+                    Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
+                }
+                .foregroundColor(.accentColor)
+                .font(.subheadline.weight(.semibold))
+                if let selected {
+                    Text(verbatim: selected.date.formatted(date: .abbreviated, time: period == .allTime ? .omitted : .shortened))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(LocalizedStringKey(period.title))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+        .animation(.easeInOut(duration: 0.15), value: selected)
+    }
+}
+
+/// The area and line. Doesn't watch the selection: the rule and dot under the finger are drawn
+/// by `ExplorerChartScrub` over it, so a drag never rebuilds the marks.
+private struct ExplorerLinePlot: View {
+    let metric: ExplorerChartMetric
+    let period: ExplorerKPeriod
+    let points: [ExplorerChartPoint]
+    let selection: ExplorerChartSelection
+
+    var body: some View {
+        let values = points.map(\.value)
+        let low = values.min() ?? 0, high = values.max() ?? 1
+        let pad = max((high - low) * 0.08, high * 0.0005)
+        let interpolation: InterpolationMethod = metric.isStepped ? .stepEnd : .catmullRom
+        Chart {
+            ForEach(points) { point in
+                AreaMark(x: .value("Date", point.date),
+                         yStart: .value("Floor", max(0, low - pad)),
+                         yEnd: .value("Value", point.value))
+                    .interpolationMethod(interpolation)
+                    .foregroundStyle(LinearGradient(colors: [Color.accentColor.opacity(0.35), Color.accentColor.opacity(0.02)],
+                                                    startPoint: .top, endPoint: .bottom))
+                LineMark(x: .value("Date", point.date), y: .value("Value", point.value))
+                    .interpolationMethod(interpolation)
+                    .foregroundStyle(Color.accentColor)
+                    .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            }
+        }
+        .chartYScale(domain: max(0, low - pad)...(high + pad))
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
+                AxisGridLine().foregroundStyle(Color.secondary.opacity(0.15))
+                AxisValueLabel {
+                    if let v = value.as(Double.self) {
+                        Text(verbatim: metric.axisLabel(v)).font(.caption2)
+                    }
+                }
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                AxisValueLabel(format: ExplorerChartView.xFormat(period), collisionResolution: .greedy).font(.caption2)
+            }
+        }
+        // drag along the chart to read any point
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                ExplorerChartScrub(proxy: proxy, plotFrame: geo[proxy.plotAreaFrame], points: points,
+                                   bars: false, selection: selection)
+            }
+        }
+        .accessibilityLabel(Text(metric.title))
+    }
+}
+
+/// Totals as bars from zero (Network Fees), the one under your finger picked out. Watches the
+/// selection to dim the other bars; there are only a few dozen.
+private struct ExplorerBarPlot: View {
+    let metric: ExplorerChartMetric
+    let period: ExplorerKPeriod
+    let points: [ExplorerChartPoint]
+    @ObservedObject var selection: ExplorerChartSelection
+
+    var body: some View {
+        let high = points.map(\.value).max() ?? 1
+        let selected = selection.point
+        Chart {
+            ForEach(points) { point in
+                BarMark(x: .value("Date", point.date, unit: ExplorerChartView.bucketUnit(period)),
+                        y: .value("Value", point.value))
+                    .foregroundStyle(Color.accentColor.opacity(selected == nil || selected == point ? 1 : 0.35))
+                    .cornerRadius(2)
+            }
+        }
+        .chartYScale(domain: 0...(high * 1.08))
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
+                AxisGridLine().foregroundStyle(Color.secondary.opacity(0.15))
+                AxisValueLabel {
+                    if let v = value.as(Double.self) {
+                        Text(verbatim: metric.axisLabel(v)).font(.caption2)
+                    }
+                }
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                AxisValueLabel(format: ExplorerChartView.xFormat(period), collisionResolution: .greedy).font(.caption2)
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                ExplorerChartScrub(proxy: proxy, plotFrame: geo[proxy.plotAreaFrame], points: points,
+                                   bars: true, selection: selection)
+            }
+        }
+        .accessibilityLabel(Text(metric.title))
+    }
+}
+
+/// The drag that reads a point, and on a line chart the dashed rule and dot at it. Only this
+/// redraws as the finger moves.
+private struct ExplorerChartScrub: View {
+    let proxy: ChartProxy
+    let plotFrame: CGRect
+    let points: [ExplorerChartPoint]
+    let bars: Bool
+    @ObservedObject var selection: ExplorerChartSelection
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Rectangle().fill(Color.clear).contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { drag in
+                            guard let date: Date = proxy.value(atX: drag.location.x - plotFrame.origin.x) else { return }
+                            let hit = bars
+                                ? ExplorerChartSelection.spanning(points, at: date)
+                                : ExplorerChartSelection.nearest(points, to: date)
+                            if hit != selection.point {
+                                selection.point = hit
+                                Haptics.selection()
+                            }
+                        }
+                        .onEnded { _ in selection.point = nil }
+                )
+            if !bars, let selected = selection.point,
+               let x = proxy.position(forX: selected.date),
+               let y = proxy.position(forY: selected.value) {
+                let px = plotFrame.minX + x
+                Path { path in
+                    path.move(to: CGPoint(x: px, y: plotFrame.minY))
+                    path.addLine(to: CGPoint(x: px, y: plotFrame.maxY))
+                }
+                .stroke(Color.secondary.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                .allowsHitTesting(false)
+                Circle()
+                    .fill(Color.accentColor)
+                    .frame(width: 10, height: 10)
+                    .position(x: px, y: plotFrame.minY + y)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+}
 
 /// "If I point this much hashrate at Kaspa, what do I earn?" (moved from Portfolio's hashrate
 /// screen to the Explorer's hashrate chart, owner 2026-11-25). Straight proportional share: your

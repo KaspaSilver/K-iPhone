@@ -10,7 +10,9 @@ struct FeeShimmerOverlay: View {
     private static let sweepSeconds: TimeInterval = 1.2
 
     var body: some View {
-        TimelineView(.animation) { context in
+        // 30 fps is plenty for a soft sweep; uncapped it ran at 120 Hz on ProMotion (audit
+        // 2026-11-27).
+        TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
             let elapsed = context.date.timeIntervalSinceReferenceDate
                 .truncatingRemainder(dividingBy: Self.sweepSeconds)
             let phase = CGFloat(elapsed / Self.sweepSeconds) * 2 - 1

@@ -196,8 +196,6 @@ struct TokenManageView: View {
             amount: total.map { TokenAmount.amount($0, token: token) } ?? "--",
             detail: total.flatMap { TokenAmount.dollars($0, token: token) }
         ) {
-            TokenSampleBadge()
-                .padding(.top, 4)
             Button {
                 Haptics.impact(.light)
                 showAbout = true
@@ -680,8 +678,7 @@ struct TokenAddressView: View {
                 detail: String(format: AppLocalization.string("%@ held with it"),
                                KaspaUnit.amount(UInt64(current.coins) * token.kasPerCoinSompi))
             ) {
-                TokenSampleBadge()
-                    .padding(.top, 4)
+                EmptyView()
             }
 
             Text(verbatim: String(format: AppLocalization.string("%@ History"), token.symbol))
@@ -1116,7 +1113,6 @@ struct TrestlyBrowserView: View {
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                TokenSampleBadge()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)

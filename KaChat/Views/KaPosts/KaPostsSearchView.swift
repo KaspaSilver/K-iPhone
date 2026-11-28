@@ -112,8 +112,8 @@ struct KaPostsSearchView: View {
         }
     }
 
-    /// Whether the query finds this author by name. A `.kachat` name matches in either form,
-    /// whatever Show .kachat Endings shows: its label ("alice") or written out ("alice.kachat").
+    /// Whether the query finds this author by name. A `.kachat` name matches in either form: its
+    /// label ("alice") or written out ("alice.kachat").
     /// The ending on its own doesn't count, or "kachat" would find every named author.
     private func nameMatches(_ address: String, query: String, shown: String) -> Bool {
         guard let rawLabel = kachatRegistry.cachedIdentity(for: address)?.label, !rawLabel.isEmpty else {

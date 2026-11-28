@@ -48,6 +48,10 @@ final class AddressActivityNotifier: ObservableObject {
         NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
             Task { @MainActor in AddressActivityNotifier.shared.activeSince = Date() }
         }
+        // the debounced handled list is written before iOS may end the app
+        NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { AddressActivityNotifier.shared.flushHandledSave() }
+        }
     }
 
     /// When the app last became active (or this notifier started, on a cold launch). A receive in
@@ -117,6 +121,9 @@ final class AddressActivityNotifier: ObservableObject {
     private var handledTxIdOrder: [String] = []
     private var handledLoadedForWallet: String?
     private static let handledTxIdCap = 500
+    /// The wallet whose handled list has marks not written yet, and the debounced write (B7).
+    private var handledDirtyWallet: String?
+    private var handledSaveTask: Task<Void, Never>?
 
     private var inFlightTxIds: Set<String> = []
     private var lastCatchUpAt: Date?
@@ -221,19 +228,16 @@ final class AddressActivityNotifier: ObservableObject {
                 continue
             }
 
-            // Only quiet addresses (or notifications off): seen, nothing to say.
-            let loud = hits.filter { notifiable.contains($0.address) }
-            guard !loud.isEmpty else {
-                markHandled(txId: txId, wallet: wallet.publicAddress)
-                Task { await self.refreshBaselines(for: hitAddresses, wallet: wallet.publicAddress) }
-                continue
-            }
+            // Every receive goes in the bell; only one to an address whose switches are on rings
+            // (owner, 2026-11-27: the switches are the pings, not the record).
+            let rings = hits.contains { notifiable.contains($0.address) }
 
             inFlightTxIds.insert(txId)
             Task { [weak self] in
                 await self?.resolveAndNotifyLive(
                     txId: txId,
-                    hits: loud,
+                    hits: hits,
+                    rings: rings,
                     tracked: hitAddresses,
                     ownAddresses: ownAll,
                     walletAddress: wallet.publicAddress
@@ -272,7 +276,7 @@ final class AddressActivityNotifier: ObservableObject {
         var currentBalances: [String: UInt64] = [:]
         for address in watched { currentBalances[address] = 0 }
         for utxo in utxos where currentBalances[utxo.address] != nil {
-            currentBalances[utxo.address, default: 0] += utxo.amount
+            currentBalances[utxo.address] = Self.saturatingAdd(currentBalances[utxo.address] ?? 0, utxo.amount)
         }
 
         var baselines = loadBaselines(wallet: wallet.publicAddress)
@@ -284,18 +288,17 @@ final class AddressActivityNotifier: ObservableObject {
                 // Never-tracked address (feature install, newly revealed slot, fresh cold
                 // import): seed silently - its history predates our tracking.
                 baselines[address] = balance
-                if address == wallet.publicAddress {
-                    // the chatting address's receives count from now on
-                    UserDefaults.standard.set(Date().timeIntervalSince1970 * 1000, forKey: chattingCatchUpFloorKey(address))
-                }
+                // its receives count from now on (every address, as the chatting one's did, R2)
+                setCatchUpFloor(UInt64(Date().timeIntervalSince1970 * 1000), address: address, wallet: wallet.publicAddress)
                 changed = true
                 continue
             }
             if balance != previous { changed = true }
-            if balance > previous, !isFirstRun, notifiable.contains(address) {
+            if balance > previous, !isFirstRun {
                 await attributeAndNotifyIncrease(
                     address: address,
                     delta: balance - previous,
+                    rings: notifiable.contains(address),
                     walletAddress: wallet.publicAddress
                 )
                 // Switched account meanwhile: stop, and save nothing more for this one now;
@@ -303,14 +306,6 @@ final class AddressActivityNotifier: ObservableObject {
                 guard WalletManager.shared.currentWallet?.publicAddress == wallet.publicAddress else { return }
             }
             baselines[address] = balance
-        }
-
-        // Notifications off: the chatting address's floor moves to now as well, or its plain
-        // transfers from meanwhile would be announced by the first catch-up after they're back on.
-        if !notifiable.contains(wallet.publicAddress) {
-            let floorKey = chattingCatchUpFloorKey(wallet.publicAddress)
-            let nowMs = Date().timeIntervalSince1970 * 1000
-            UserDefaults.standard.set(max(nowMs, UserDefaults.standard.double(forKey: floorKey)), forKey: floorKey)
         }
 
         if changed {
@@ -321,11 +316,12 @@ final class AddressActivityNotifier: ObservableObject {
 
     // MARK: - Live resolution
 
-    /// `hits` are the outputs to addresses that notify; `tracked` every own address the tx paid,
-    /// quiet ones included, whose baselines move with it.
+    /// `hits` are the outputs to own addresses (all go in the bell; `rings` when one of them
+    /// notifies); `tracked` every own address the tx paid, whose baselines move with it.
     private func resolveAndNotifyLive(
         txId: String,
         hits: [(address: String, amount: UInt64)],
+        rings: Bool,
         tracked: Set<String>,
         ownAddresses: Set<String>,
         walletAddress: String
@@ -361,7 +357,7 @@ final class AddressActivityNotifier: ObservableObject {
         hits = hitAddresses.compactMap { address -> (address: String, amount: UInt64)? in
             let amount = fullTx.outputs
                 .filter { $0.scriptPublicKeyAddress == address }
-                .reduce(UInt64(0)) { $0 &+ $1.amount }
+                .reduce(UInt64(0)) { Self.saturatingAdd($0, $1.amount) }
             return amount > 0 ? (address: address, amount: amount) : nil
         }
         // The chatting address notifies only for a plain transfer: a chat payment or a
@@ -382,7 +378,7 @@ final class AddressActivityNotifier: ObservableObject {
         markHandled(txId: txId, wallet: walletAddress)
 
         if !isSelfSend {
-            postReceiveNotification(hits: hits, dedupeKey: txId)
+            postReceiveNotification(hits: hits, dedupeKey: txId, banner: rings)
             AppLog.log("[AddressActivity] Notified external receive %@ (%d output(s) to own addresses)",
                   String(txId.prefix(12)), hits.count)
         } else {
@@ -398,35 +394,43 @@ final class AddressActivityNotifier: ObservableObject {
     private func attributeAndNotifyIncrease(
         address: String,
         delta: UInt64,
+        rings: Bool,
         walletAddress: String
     ) async {
         let ownAll = ownInputAddressSet(walletAddress: walletAddress)
         let isChatting = address == walletAddress
+        // Three: a catch-up runs every foreground, and the chatting address's newest are mostly
+        // your own photos and voice notes, each a large read (audit 2026-11-27 B6).
         let recentTxs = await ChatService.shared.fetchFullTransactionsPaginated(
             for: address,
-            pageSize: 10,
-            maxTransactions: 10
+            pageSize: 3,
+            maxTransactions: 3
         )
         guard WalletManager.shared.currentWallet?.publicAddress == walletAddress else { return }
-        // the chatting address: only plain transfers newer than what was already looked at
-        let floorKey = chattingCatchUpFloorKey(walletAddress)
-        let floor = UInt64(max(0, UserDefaults.standard.double(forKey: floorKey)))
+        // Every address has a floor: only transactions newer than what was already looked at
+        // count. The chatting address has had one all along. Any other address gets its own the
+        // first time it's attributed (audit 2026-11-27 R2): since every own address is attributed,
+        // quiet ones too, a Cold Storage account with Alerts Off or switched-off spending
+        // addresses would otherwise file months-old receives once. A quiet address's first look
+        // only sets it; one that rings looks as it did before floors (it was attributed then
+        // too, and what it announced is marked handled).
+        let storedFloor = catchUpFloor(address: address, wallet: walletAddress)
+        let floor = storedFloor ?? 0
         let nowMs = UInt64(Date().timeIntervalSince1970 * 1000)
-        if isChatting {
-            // The floor never moves past a transaction this look skipped (audit 2026-11-25 C1):
-            // a block reward not accepted yet, from the last 10 minutes, may still be, so the
-            // next look sees it again. An empty answer (the read failed) moves it only on the
-            // first look.
-            let skippedTimes = recentTxs
-                .filter { !$0.belongsInHistory }
-                .compactMap(\.blockTime)
-                .filter { $0 > floor && nowMs - min(nowMs, $0) < 10 * 60 * 1000 }
-            var newest = recentTxs.compactMap(\.blockTime).max() ?? (floor == 0 ? nowMs : floor)
-            if let held = skippedTimes.min() { newest = min(newest, held - 1) }
-            UserDefaults.standard.set(Double(max(newest, floor)), forKey: floorKey)
-            // the first look only sets where it starts
-            if floor == 0 { return }
-        }
+        // The floor never moves past a transaction this look skipped (audit 2026-11-25 C1):
+        // a block reward not accepted yet, from the last 10 minutes, may still be, so the
+        // next look sees it again. An empty answer (the read failed) moves it only on the
+        // first look.
+        let skippedTimes = recentTxs
+            .filter { !$0.belongsInHistory }
+            .compactMap(\.blockTime)
+            .filter { $0 > floor && nowMs - min(nowMs, $0) < 10 * 60 * 1000 }
+        var newest = recentTxs.compactMap(\.blockTime).max() ?? (floor == 0 ? nowMs : floor)
+        if let held = skippedTimes.min() { newest = min(newest, held - 1) }
+        setCatchUpFloor(max(newest, floor), address: address, wallet: walletAddress)
+        // the first look only sets where it starts (the chatting address's always; another's
+        // while it's quiet)
+        if storedFloor == nil, isChatting || !rings { return }
 
         guard !recentTxs.isEmpty else {
             // Resolution failed entirely - still surface the funds, neutral wording (not for the
@@ -454,9 +458,11 @@ final class AddressActivityNotifier: ObservableObject {
             }
             let toAddress = tx.outputs
                 .filter { $0.scriptPublicKeyAddress == address }
-                .reduce(UInt64(0)) { $0 + $1.amount }
+                .reduce(UInt64(0)) { Self.saturatingAdd($0, $1.amount) }
             guard toAddress > 0 else { continue }
-            if handledTxIds.contains(tx.transactionId) {
+            // At or below the floor: already looked at (or from before it was watched), so it
+            // explains the balance without being filed again (R2).
+            if handledTxIds.contains(tx.transactionId) || (tx.blockTime ?? nowMs) <= floor {
                 attributedAny = true
                 continue
             }
@@ -479,7 +485,7 @@ final class AddressActivityNotifier: ObservableObject {
                 postReceiveNotification(
                     hits: [(address, toAddress)],
                     dedupeKey: tx.transactionId,
-                    banner: isCurrent && !pushWasTheNotice,
+                    banner: rings && isCurrent && !pushWasTheNotice,
                     happenedAtMs: blockTime > 0 ? Int64(blockTime) : nil
                 )
             }
@@ -494,16 +500,17 @@ final class AddressActivityNotifier: ObservableObject {
 
     // MARK: - Notification posting
 
-    /// `banner` false: the bell only (the push already told them, `activeSince`, or it isn't
-    /// from the last few minutes). `happenedAtMs` dates the bell's row (the block's time).
+    /// `banner` false: the bell only (the push already told them, `activeSince`, it isn't from
+    /// the last few minutes, or its address's switches are off). The bell always gets it, with
+    /// notifications off too (owner, 2026-11-27). `happenedAtMs` dates the bell's row.
     private func postReceiveNotification(
         hits: [(address: String, amount: UInt64)],
         dedupeKey: String,
         banner: Bool = true,
         happenedAtMs: Int64? = nil
     ) {
-        guard featureEnabled else { return }
-        let total = hits.reduce(UInt64(0)) { $0 + $1.amount }
+        let banner = banner && featureEnabled
+        let total = hits.reduce(UInt64(0)) { Self.saturatingAdd($0, $1.amount) }
         guard total > 0 else { return }
 
         let content = UNMutableNotificationContent()
@@ -513,20 +520,22 @@ final class AddressActivityNotifier: ObservableObject {
         // The tap opens the history of the address that got the Kaspa - with several, the one
         // that got the most (the body names them all).
         var byAddress: [String: UInt64] = [:]
-        for hit in hits { byAddress[hit.address, default: 0] += hit.amount }
+        for hit in hits { byAddress[hit.address] = Self.saturatingAdd(byAddress[hit.address] ?? 0, hit.amount) }
         let opened = byAddress.max { $0.value < $1.value }?.key ?? hits.first?.address ?? ""
         var info: [String: Any] = ["kind": kindKey(for: opened)]
         // A Cold Storage address has no history sheet of its own here: the tap opens Wallet.
         let opensAddress = !opened.isEmpty && !isColdOnly(opened)
         if opensAddress { info["address"] = opened }
         content.userInfo = info
-        applySoundPreference(to: content)
 
         // One notice per transaction: none when its Received push (`address_activity`, same
         // `tx_id`) already showed, and a push that comes later is only listed (`InAppBanner`).
         // `pushArrived` knows the pushes the app saw (`willPresent`, a tap: `notePushArrived`);
         // the extension doesn't run for them (no mutable-content).
         if banner, !InAppBanner.pushArrived(dedupeKey), InAppBanner.claim(dedupeKey) {
+            // The sound and the haptic go with the banner only: a bell-only row (notifications
+            // or this address's switch off, old, or the push told them) never buzzes (R1).
+            applySoundPreference(to: content)
             let center = UNUserNotificationCenter.current()
             let request = UNNotificationRequest(identifier: "addr-activity-\(dedupeKey)", content: content, trigger: nil)
             let txId = dedupeKey.lowercased()
@@ -543,7 +552,6 @@ final class AddressActivityNotifier: ObservableObject {
     }
 
     private func postBalanceIncreasedNotification(address: String, delta: UInt64) {
-        guard featureEnabled else { return }
         let content = UNMutableNotificationContent()
         content.title = String(format: AppLocalization.string("Balance increased by %@"), locale: AppLocalization.locale, "\(Self.formatKas(delta)) \(KaspaUnit.symbol)")
         content.body = describe(address: address)
@@ -552,11 +560,10 @@ final class AddressActivityNotifier: ObservableObject {
         var info: [String: Any] = ["kind": kindKey(for: address)]
         if opensAddress { info["address"] = address }
         content.userInfo = info
-        applySoundPreference(to: content)
 
-        // Bell only: this is the catch-up's fallback when it can't find the transaction, so
-        // when the Kaspa came is unknown and it may be long ago (owner, 2026-11-25: no ping for
-        // the past).
+        // Bell only, so no sound or haptic either (R1): this is the catch-up's fallback when it
+        // can't find the transaction, so when the Kaspa came is unknown and it may be long ago
+        // (owner, 2026-11-25: no ping for the past).
         let balId = "addr-activity-bal-\(address.suffix(12))-\(UUID().uuidString)"
         Task { @MainActor in
             GlobalNotificationCenter.shared.record(id: "wallet-\(balId)", source: .wallet, title: content.title, body: content.body, timestamp: Int64(Date().timeIntervalSince1970 * 1000), targetId: opensAddress ? address : nil)
@@ -614,6 +621,13 @@ final class AddressActivityNotifier: ObservableObject {
     static func shortAddress(_ address: String) -> String {
         guard address.count > 20 else { return address }
         return address.prefix(14) + "..." + address.suffix(6)
+    }
+
+    /// Amounts here can come from the REST API (a user-set server, and the UTXO read's
+    /// fallback): a sum past UInt64.max stops there instead of trapping (audit 2026-11-27 R6).
+    static func saturatingAdd(_ a: UInt64, _ b: UInt64) -> UInt64 {
+        let (sum, overflow) = a.addingReportingOverflow(b)
+        return overflow ? .max : sum
     }
 
     static func formatKas(_ sompi: UInt64) -> String {
@@ -790,6 +804,30 @@ final class AddressActivityNotifier: ObservableObject {
     /// of old payments.
     private func chattingCatchUpFloorKey(_ wallet: String) -> String { "addr_activity_chat_floor_\(wallet.lowercased())" }
 
+    /// The same floor for every other own address (R2), one dictionary per wallet: address -> ms.
+    private func addressFloorsKey(_ wallet: String) -> String { "addr_activity_floors_\(wallet.lowercased())" }
+
+    /// nil until the address's first look (or its baseline being seeded) sets it.
+    private func catchUpFloor(address: String, wallet: String) -> UInt64? {
+        if address == wallet {
+            let stored = UserDefaults.standard.double(forKey: chattingCatchUpFloorKey(wallet))
+            return stored > 0 ? UInt64(stored) : nil
+        }
+        let floors = UserDefaults.standard.dictionary(forKey: addressFloorsKey(wallet)) as? [String: Double] ?? [:]
+        guard let stored = floors[address], stored > 0 else { return nil }
+        return UInt64(stored)
+    }
+
+    private func setCatchUpFloor(_ ms: UInt64, address: String, wallet: String) {
+        if address == wallet {
+            UserDefaults.standard.set(Double(ms), forKey: chattingCatchUpFloorKey(wallet))
+            return
+        }
+        var floors = UserDefaults.standard.dictionary(forKey: addressFloorsKey(wallet)) as? [String: Double] ?? [:]
+        floors[address] = Double(ms)
+        UserDefaults.standard.set(floors, forKey: addressFloorsKey(wallet))
+    }
+
     /// Addresses that count as "ours" when they appear among a tx's INPUTS - superset of the
     /// notifiable set: chatting address + all spending (reserved pool addresses are
     /// spending-chain indices, so they're covered).
@@ -813,8 +851,10 @@ final class AddressActivityNotifier: ObservableObject {
     /// Delete Account: the wallet's catch-up floor, baselines and handled transactions.
     func removeAllData(forWallet wallet: String) {
         UserDefaults.standard.removeObject(forKey: chattingCatchUpFloorKey(wallet))
+        UserDefaults.standard.removeObject(forKey: addressFloorsKey(wallet))
         UserDefaults.standard.removeObject(forKey: baselinesKey(wallet: wallet))
         UserDefaults.standard.removeObject(forKey: handledTxIdsKey(wallet: wallet))
+        if handledDirtyWallet == wallet { handledDirtyWallet = nil }
         if handledLoadedForWallet == wallet {
             handledLoadedForWallet = nil
             handledTxIdOrder = []
@@ -844,7 +884,7 @@ final class AddressActivityNotifier: ObservableObject {
         var balances: [String: UInt64] = [:]
         for address in addresses { balances[address] = 0 }
         for utxo in utxos where balances[utxo.address] != nil {
-            balances[utxo.address, default: 0] += utxo.amount
+            balances[utxo.address] = Self.saturatingAdd(balances[utxo.address] ?? 0, utxo.amount)
         }
         var baselines = loadBaselines(wallet: wallet)
         for (address, balance) in balances {
@@ -865,6 +905,8 @@ final class AddressActivityNotifier: ObservableObject {
 
     private func ensureHandledTxIdsLoaded(wallet: String) {
         guard handledLoadedForWallet != wallet else { return }
+        // the last wallet's marks are written before its list leaves memory
+        flushHandledSave()
         handledLoadedForWallet = wallet
         let stored = UserDefaults.standard.stringArray(forKey: handledTxIdsKey(wallet: wallet)) ?? []
         handledTxIdOrder = stored
@@ -882,6 +924,28 @@ final class AddressActivityNotifier: ObservableObject {
             }
             handledTxIdOrder.removeFirst(overflow)
         }
+        scheduleHandledSave(wallet: wallet)
+    }
+
+    /// The handled list (up to 500 ids) is written a couple of seconds after the last mark, not
+    /// on every message sent (audit 2026-11-27 B7); going to the background writes it at once.
+    private func scheduleHandledSave(wallet: String) {
+        handledDirtyWallet = wallet
+        guard handledSaveTask == nil else { return }
+        handledSaveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.handledSaveTask = nil
+            self?.flushHandledSave()
+        }
+    }
+
+    private func flushHandledSave() {
+        handledSaveTask?.cancel()
+        handledSaveTask = nil
+        guard let wallet = handledDirtyWallet else { return }
+        handledDirtyWallet = nil
+        guard handledLoadedForWallet == wallet else { return }
         UserDefaults.standard.set(handledTxIdOrder, forKey: handledTxIdsKey(wallet: wallet))
     }
 }

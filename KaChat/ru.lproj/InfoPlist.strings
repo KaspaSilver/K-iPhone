@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID используется, чтобы открыть вашу сид-фразу и снова войти, если это включено в Настройках.";
 "NSLocalNetworkUsageDescription" = "K подключается к узлу Kaspa или серверу Nextcloud в вашей локальной сети, только если вы его настроите.";
 "NFCReaderUsageDescription" = "K использует NFC, чтобы сохранять и восстанавливать зашифрованную резервную копию вашей сид-фразы на смарт-карте.";
-"NSPhotoLibraryAddUsageDescription" = "Сохранять полученные изображения в вашу медиатеку.";
+"NSPhotoLibraryAddUsageDescription" = "K сохраняет полученные изображения в вашу медиатеку.";

@@ -83,16 +83,6 @@ enum UsernameMention {
         return tokens(in: text).contains { $0.name == me }
     }
 
-    /// The @token being typed at the end of `text` ("" right after the "@"), or nil.
-    static func typedQuery(in text: String) -> String? {
-        guard let at = text.lastIndex(of: "@") else { return nil }
-        let before = text[text.startIndex..<at].last
-        guard before == nil || before!.isWhitespace || "([{<\"'".contains(before!) else { return nil }
-        let query = String(text[text.index(after: at)...])
-        guard query.count <= 32, query.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) else { return nil }
-        return query.lowercased()
-    }
-
     /// Opens the profile of whoever `name` belongs to (KaPost's profile sheet; your own name, the
     /// Profile tab). Unknown names do nothing.
     @MainActor

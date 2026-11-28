@@ -123,7 +123,9 @@ final class PublicChatService: ObservableObject {
     /// Long voice notes in each room's loaded messages (`PublicChatVoiceParts`), worked out with
     /// them in `reloadMessages`, so the room draws each note as one bubble without sniffing
     /// every row on every pass. Set before `messagesByChannel`, which is what redraws.
-    private(set) var voiceNotesByChannel: [String: PublicChatVoiceParts.Result] = [:]
+    private(set) var voiceNotesByChannel: [String: PublicChatVoiceParts.Result] = [:] {
+        didSet { mergedReactionsCache.removeAll() }
+    }
     /// Each room's loaded messages by id (not the arena's), set with `messagesByChannel`: what a
     /// reply quotes is drawn from the message itself (`message(id:inChannel:)`), never from the
     /// sender and text the reply claims (audit #18).
@@ -133,7 +135,13 @@ final class PublicChatService: ObservableObject {
     /// see `PublicChatStore.fetchReactions`). Loaded per channel on open (`acquire`) and kept
     /// live afterward by `sendPublicChatReaction` / the incoming-reaction interception in
     /// `processPublicChatHits` and `fetchFromIndexerAndMerge`.
-    @Published private(set) var reactionsByChannel: [String: [String: [PublicChatReactionSnapshot]]] = [:]
+    @Published private(set) var reactionsByChannel: [String: [String: [PublicChatReactionSnapshot]]] = [:] {
+        didSet { mergedReactionsCache.removeAll() }
+    }
+    /// `reactions(forChannel:)`'s answer per room until the reactions or voice notes change: each
+    /// visible room row asked for it, merging every voice note's parts again, on every redraw
+    /// (audit 2026-11-27 C7).
+    private var mergedReactionsCache: [String: [String: [PublicChatReactionSnapshot]]] = [:]
     /// The newest edit per message txId, per room - see `MessageEditCodec`.
     @Published private(set) var editsByChannel: [String: [String: MessageEditSnapshot]] = [:]
     /// The room message whose text the composer is editing (the user's own) - see `sendPublicChatEdit`.
@@ -464,8 +472,14 @@ final class PublicChatService: ObservableObject {
     /// 2026-11-25 B4; 20 s of its own before), each joined room with its bell on that is not open
     /// asks the indexer for its newest rows (one small request per room, sequential). The open
     /// room keeps its own 8 s poll; the block scan stays as the fast path.
+    ///
+    /// With push working, a room the push covers is swept only every 5 minutes, as a safety net
+    /// (audit 2026-11-27 B4, as KaPost): its push fetches it at once (`fetchBeforePushBanner`).
+    /// Rooms the push doesn't cover keep every beat, and push off keeps today's cadence.
     func startForegroundSweep() {
         guard foregroundSweepTask == nil, walletAddress != nil else { return }
+        // Back in the foreground: the first sweep covers every room again.
+        lastPushCoveredSweepAt = nil
         foregroundSweepTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
@@ -482,11 +496,33 @@ final class PublicChatService: ObservableObject {
         foregroundSweepTask = nil
     }
 
+    /// When the last sweep included the rooms push covers.
+    private var lastPushCoveredSweepAt: Date?
+    private static let pushSafetyNetInterval: TimeInterval = 5 * 60
+
+    /// Push is registered and has proven itself on 1:1 messages (`PushReliabilityState`).
+    private var pushIsReliable: Bool {
+        let chat = ChatService.shared
+        return chat.isPushChannelOperational() && chat.pushReliabilityState == .reliable
+    }
+
+    /// A room the push registration watches (`collectWatchedPublicChatChannels`: tracked by the
+    /// app-wide indexer, bell on) and that is read from that indexer.
+    private func pushCoversRoom(_ channel: String) -> Bool {
+        Self.isIndexerTracked(channel) && indexerOverride(forChannel: channel).isEmpty
+    }
+
     private func sweepClosedRooms() async {
+        let pushCovers = pushIsReliable
+        let coveredDue = !pushCovers || lastPushCoveredSweepAt.map {
+            Date().timeIntervalSince($0) >= Self.pushSafetyNetInterval - 5
+        } ?? true
+        if coveredDue { lastPushCoveredSweepAt = Date() }
         let targets = channels.filter {
             $0.notifyEnabled && !isViewing(channel: $0.channelName)
                 && !Self.serviceChannels.contains($0.channelName)
                 && !Self.indexerBaseURL(forChannel: $0.channelName).isEmpty
+                && (coveredDue || !pushCoversRoom($0.channelName) || !sweptChannels.contains($0.channelName))
         }
         for channel in targets {
             guard !Task.isCancelled, UIApplication.shared.applicationState == .active else { return }
@@ -758,11 +794,6 @@ final class PublicChatService: ObservableObject {
             return total + 1
         }
         return max(count, manual)
-    }
-
-    var totalUnreadCount: Int {
-        channels.filter { !Self.serviceChannels.contains($0.channelName) }
-            .reduce(0) { $0 + unreadCount(forChannel: $1.channelName) }
     }
 
     func markChannelRead(_ name: String) {
@@ -1977,6 +2008,7 @@ final class PublicChatService: ObservableObject {
         let channel = PublicChatChannelName.normalize(name)
         let byTarget = reactionsByChannel[channel] ?? [:]
         guard let anchors = voiceNotesByChannel[channel]?.anchorIdByPartId, !anchors.isEmpty else { return byTarget }
+        if let cached = mergedReactionsCache[channel] { return cached }
         var merged = byTarget
         for (partId, anchorId) in anchors {
             guard let partReactions = byTarget[partId], !partReactions.isEmpty else { continue }
@@ -1987,6 +2019,7 @@ final class PublicChatService: ObservableObject {
             }
             merged[anchorId] = onAnchor
         }
+        mergedReactionsCache[channel] = merged
         return merged
     }
 
@@ -2280,6 +2313,15 @@ final class PublicChatService: ObservableObject {
         // Off the main actor: up to 400 rows, each a codec sniff, on every reload - and a
         // room's first backfill reloads once per history page.
         let indexed = !Self.serviceChannels.contains(channel)
+        // The open room's newest messages have their language worked out off the main thread
+        // while the rows are prepared, so their Translate check doesn't run in the push (audit
+        // 2026-11-27 C8).
+        if indexed, isViewing(channel: channel) {
+            let recent = rows.suffix(60).map(\.content)
+            Task.detached(priority: .utility) {
+                PostTranslationService.prewarmDetection(for: recent.map { MessageReplyCodec.unwrappedText($0) })
+            }
+        }
         let (fresh, voiceNotes, byId) = await Task.detached(priority: .userInitiated) {
             Self.preparedRows(rows, indexed: indexed)
         }.value

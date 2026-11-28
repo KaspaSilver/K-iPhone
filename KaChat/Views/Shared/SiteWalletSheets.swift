@@ -31,7 +31,7 @@ struct SiteWalletSheet: View {
                     lockedSource: connection.source,
                     siteHost: request.host,
                     onSent: { txId in wallet.sent(txId: txId) },
-                    onOutcomeUnknown: { txId in wallet.maybeSent(txId: txId) }
+                    onOutcomeUnknown: { txId in wallet.maybeSent(txId: txId, host: request.host) }
                 )
                 .environmentObject(ChatService.shared)
                 .environmentObject(ContactsManager.shared)

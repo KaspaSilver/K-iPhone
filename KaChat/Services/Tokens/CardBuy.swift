@@ -233,16 +233,21 @@ final class CardBuyEthereumProvider: NSObject, ObservableObject, WKScriptMessage
         } catch let failure as EIP712.Failure {
             throw ProviderError(code: Code.invalid, message: failure.message)
         }
-        // Never more than the order paid for, once K knows its amount (audit 2026-11-27 L2): the
-        // USDC delivered is that amount less fees, and this address may be MetaMask's account 0
-        // for someone who imported their MetaMask words.
-        if let order = CardBuyTracker.shared.buy, order.address.lowercased() == target.address.lowercased(),
-           let dollars = order.dollars.flatMap(Double.init), dollars > 0 {
+        // Never more than the order paid for (audit 2026-11-27 L2): the USDC delivered is that
+        // amount less fees, and this address may be MetaMask's account 0 for someone who imported
+        // their MetaMask words. K asks Trestly once for the order's amount (release audit
+        // 2026-11-27 C6). Not refused when it isn't known yet: the page asks for the permit before
+        // the card is charged, maybe before the order is saved, and refusing then would stop
+        // every card buy. The sheet still shows the amount and spender before anything is signed.
+        if let dollars = await CardBuyTracker.shared.knownOrderDollars(for: target) {
             let cap = UInt64((dollars * 1.01 + 1) * 1_000_000)
             guard request.valueUnits <= cap else {
                 throw ProviderError(code: Code.invalid, message: "This permit is for more than the order.")
             }
         }
+        // the order lookup may have waited on the network
+        guard !closed else { throw ProviderError(code: Code.unauthorized, message: "K closed this page.") }
+        guard pending == nil else { throw ProviderError(code: Code.busy, message: "A request from this page is already waiting in K.") }
         let approved = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
             request.answer = { continuation.resume(returning: $0) }
             pending = request
@@ -505,6 +510,21 @@ final class CardBuyTracker: ObservableObject {
     private func revealAddress(of buy: CardBuy) {
         guard let index = buy.spendingIndex else { return }
         Task { await TokenWallet.shared.revealFreshReceiveAddress(index) }
+    }
+
+    /// What the followed order for `target` costs, in dollars, asking Trestly once if K doesn't
+    /// know yet (the page can ask for the permit before the next poll). Only finite amounts up to
+    /// the permit limit, $1,000,000: Trestly's answer is data, and `UInt64(Double)` traps on
+    /// inf or a huge number (release audit 2026-11-27 R6, C6).
+    func knownOrderDollars(for target: TrestlyTarget) async -> Double? {
+        syncAccount()
+        guard let current = buy, current.isFollowed,
+              current.address.lowercased() == target.address.lowercased() else { return nil }
+        if current.dollars == nil { await poll(current) }
+        guard let after = buy, after.session == current.session,
+              let dollars = after.dollars.flatMap(Double.init),
+              dollars.isFinite, dollars > 0, dollars <= 1_000_000 else { return nil }
+        return dollars
     }
 
     /// The card's X, or Swap to Kaspa: the purchase is no longer shown.

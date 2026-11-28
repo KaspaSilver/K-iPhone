@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "שלח לך %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "הזמין/ה אותך למשחק שחמט";
+"Accepted your chess game" = "קיבל/ה את משחק השחמט שלך";
+"Declined your chess game" = "דחה/תה את משחק השחמט שלך";
+"Played a chess move" = "ביצע/ה מהלך שחמט";
+"Played %@ → %@" = "שיחק/ה %@ → %@";
+"Lost on time" = "הפסיד/ה בזמן";
+"Resigned the chess game" = "נכנע/ה במשחק השחמט";
+"Removed their %@ reaction" = "הסיר/ה את התגובה %@";
+"Reacted %@ to a message" = "הגיב/ה %@ להודעה";
+"Reacted %@ to your message" = "הגיב/ה %@ להודעה שלך";
+"Replied to a message" = "השיב/ה להודעה";
+"Photo" = "תמונה";
+"Video" = "וידאו";
+"Edited a message" = "ערך/ה הודעה";
+"Sent a photo" = "שלח/ה תמונה";
+"Sent a voice message" = "שלח/ה הודעה קולית";
+"Sent a video" = "שלח/ה סרטון";

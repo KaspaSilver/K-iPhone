@@ -8,20 +8,9 @@ import AVFoundation
 /// `kaspa:`/`kaspatest:` prefix, so this can't collide with someone typing a literal "@word"),
 /// swapped for the mentioned member's resolved display name only at render time. This is why
 /// composing shows a friendly `@Alice` while typing but the text actually sent/encrypted embeds
-/// her address - `encodeForSending` does that swap right before send, `decodeForDisplay` reverses
+/// her address - `GroupChatDetailView.encodeMentions` does that swap right before send, `decodeForDisplay` reverses
 /// it for every place a group message's content is shown.
 enum GroupMentionCodec {
-    static func encodeForSending(_ text: String, members: [GroupMember], resolveDisplayName: (String) -> String) -> String {
-        var result = text
-        // Longest name first, so e.g. "@Alice2" doesn't get partially clobbered by a "@Alice" replacement first.
-        for member in members.sorted(by: { resolveDisplayName($0.address).count > resolveDisplayName($1.address).count }) {
-            let name = resolveDisplayName(member.address)
-            guard !name.isEmpty else { continue }
-            result = result.replacingOccurrences(of: "@\(name)", with: "@\(member.address)")
-        }
-        return result
-    }
-
     static func decodeForDisplay(_ text: String, members: [GroupMember], resolveDisplayName: (String) -> String) -> String {
         // Every mention is "@kaspa:..." / "@kaspatest:...". The rows read this ten-odd times per
         // draw, often for a photo or voice note's base64: one scan, not a name lookup and a full
@@ -395,12 +384,13 @@ struct GroupChatDetailView: View {
         case daySeparator(Date)
         case message(GroupMessage)
 
-        var id: String {
+        /// A value, not a string, as `ChatTimelineItem.ID` (audit 2026-11-27 C10).
+        var id: ChatTimelineItem.ID {
             switch self {
             case .daySeparator(let day):
-                return "day-\(Int(day.timeIntervalSince1970))"
+                return .day(Int(day.timeIntervalSince1970))
             case .message(let message):
-                return "message-\(message.id.uuidString)"
+                return .message(message.id)
             }
         }
     }
@@ -443,14 +433,18 @@ struct GroupChatDetailView: View {
     private func rebuildTimelineIfNeeded() {
         let key = timelineCacheKey
         guard key != cachedTimelineKey else { return }
+        let contentMoved = cachedTimelineKey?.fingerprint != key.fingerprint
         cachedTimelineKey = key
-        // Filtered and sorted once here, then read by everything else from the cache.
-        let visible = computedMessages
-        let voiceGroups = VoicePartGrouping.group(visible)
-        cachedVoiceGroups = voiceGroups
-        let all = voiceGroups.hiddenIds.isEmpty ? visible : visible.filter { !voiceGroups.hiddenIds.contains($0.id) }
-        cachedMessages = all
-        cachedTimelineItems = buildTimelineItems(from: renderWindow(of: all))
+        // Filtered and sorted once here, then read by everything else from the cache. A page
+        // loaded at the top (the window grew, the content didn't) only re-slices it: it used to
+        // filter and sort the whole history again for every page (audit 2026-11-27 C3).
+        if contentMoved {
+            let visible = computedMessages
+            let voiceGroups = VoicePartGrouping.group(visible)
+            cachedVoiceGroups = voiceGroups
+            cachedMessages = voiceGroups.hiddenIds.isEmpty ? visible : visible.filter { !voiceGroups.hiddenIds.contains($0.id) }
+        }
+        cachedTimelineItems = buildTimelineItems(from: renderWindow(of: cachedMessages))
     }
 
     private func buildTimelineItems(from displayed: [GroupMessage]) -> [GroupTimelineItem] {
@@ -856,8 +850,17 @@ struct GroupChatDetailView: View {
         // pruned from the store so they never accumulate.
         .task(id: group.id) {
             while !Task.isCancelled {
-                groupChatService.pruneExpiredSystemMessages(for: group.id)
-                systemLineClock = Date()
+                // The thread is rebuilt only when a line actually ran out, and not while the app
+                // isn't active (audit 2026-11-27): the bare minute tick redrew the whole thread
+                // every minute, in the background too.
+                if UIApplication.shared.applicationState == .active {
+                    let anyExpired = (groupChatService.groupMessages[group.id] ?? [])
+                        .contains { GroupChatService.isExpiredSystemMessage($0) }
+                    if anyExpired {
+                        groupChatService.pruneExpiredSystemMessages(for: group.id)
+                        systemLineClock = Date()
+                    }
+                }
                 try? await Task.sleep(nanoseconds: 60_000_000_000)
             }
         }
@@ -2021,8 +2024,7 @@ struct GroupChatDetailView: View {
         // Primary-KNS-only, matching what the autocomplete actually inserts (see
         // mentionCandidates(for:)) - not the general displayName(for:) fallback chain used for
         // *rendering* (decodeForDisplay), which stays permissive so historical mentions still
-        // show something sensible. A member with no explicit primary returns "" here, which
-        // GroupMentionCodec.encodeForSending already skips.
+        // show something sensible. A member with no username is skipped.
         // Each member with a username: "@alice" or "@alice.kachat" (any case) becomes
         // "@<their address>", the group wire format. A name that isn't a member's stays text.
         var result = text
@@ -2437,6 +2439,7 @@ struct GroupChatDetailView: View {
     private func scrollToBottom(using proxy: ScrollViewProxy, animated: Bool, retryAfter: TimeInterval? = nil) {
         DispatchQueue.main.async {
             if animated {
+                landNearBottomIfFar(using: proxy)
                 withAnimation { proxy.scrollTo("bottom_anchor", anchor: .bottom) }
             } else {
                 proxy.scrollTo("bottom_anchor", anchor: .bottom)
@@ -2453,6 +2456,23 @@ struct GroupChatDetailView: View {
             } else {
                 proxy.scrollTo("bottom_anchor", anchor: .bottom)
             }
+        }
+    }
+
+    /// Far from the newest message, lands a few rows short of it without animation, so the
+    /// animated scroll covers the last screen only (audit 2026-11-27 C6, as the 1:1 chat).
+    private func landNearBottomIfFar(using proxy: ScrollViewProxy) {
+        guard let scrollView = scrollViewReference.scrollView else { return }
+        let height = scrollView.bounds.height
+        guard height > 0 else { return }
+        let bottomOffset = scrollView.contentSize.height - height + scrollView.adjustedContentInset.bottom
+        guard bottomOffset - scrollView.contentOffset.y > height * 3 else { return }
+        let shown = displayedMessages
+        guard shown.count > 8 else { return }
+        var transaction = Transaction()
+        transaction.animation = nil
+        withTransaction(transaction) {
+            proxy.scrollTo(shown[shown.count - 8].id, anchor: .top)
         }
     }
 
@@ -2877,7 +2897,11 @@ private struct GroupMessageBubbleRow: View {
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     // No `groupChatService` here: nothing in the row reads it, and observing it redrew every
     // visible row on each of the service's updates.
-    @EnvironmentObject var contactsManager: ContactsManager
+    // Nor `contactsManager`: the screen observes it and redraws the rows; the names the row
+    // works out itself (mentions, system lines) redraw through `IdentityChangeTicker`, batched,
+    // instead of every visible bubble on each contacts publish (audit 2026-11-27 C2).
+    private var contactsManager: ContactsManager { .shared }
+    @ObservedObject private var identityTicker = IdentityChangeTicker.shared
     /// Long-pressing a link surfaces this instead of the bubble's message sheet (the link
     /// recognizer fires first and the sheet stands down - see `LinkLongPress`); matches 1:1
     /// chat's own `linkMenuURL`.
@@ -2934,7 +2958,7 @@ private struct GroupMessageBubbleRow: View {
     }()
 
     /// The text itself and the names revision are in the key: an edit keeps the id (and often
-    /// the length), and renames or Show .kachat Endings change the decoded names (audit
+    /// the length), and renames change the decoded names (audit
     /// 2026-11-24 #10).
     private var memoKey: String {
         let raw = replyQuote?.text ?? message.content
@@ -4288,7 +4312,7 @@ private struct GroupRefreshProgressModal: View {
                         .controlSize(.large)
                     Text("Rebuilding this group")
                         .font(.headline)
-                    Text(groupChatService.refreshProgress?.phase.label ?? "Starting")
+                    Text(verbatim: groupChatService.refreshProgress?.phase.label ?? AppLocalization.string("Starting"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

@@ -24,7 +24,6 @@
 "Balance" = "余额";
 "Balance copied to clipboard." = "余额已复制到剪贴板。";
 "Banner" = "横幅";
-"Best" = "最佳";
 "Bio" = "简介";
 "Camera" = "相机";
 "Camera Access Required" = "需要相机访问权限";
@@ -45,7 +44,6 @@
 "Clear connection pool?" = "清除连接池？";
 "Close" = "关闭";
 "Confirm" = "确认";
-"Connect to a Node" = "连接到节点";
 "Connected Node" = "已连接节点";
 "Connected only to this node" = "仅连接到此节点";
 "Connection" = "连接";
@@ -77,7 +75,6 @@
 "Diagnostics" = "诊断";
 "Disabled" = "残疾人";
 "Discord user id" = "不一致的用户 ID";
-"Discover Addresses" = "发现地址";
 "Distance" = "距离";
 "Domain" = "领域";
 "Domains" = "域名";
@@ -94,7 +91,6 @@
 "Fee" = "费用";
 "Finish" = "完成";
 "From" = "发件人";
-"Fund Your Chatting Address" = "为您的聊天地址充值";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "在下方生成一个地址,以便从与您聊天所用地址不同的地址发送付款。";
 "Group Info" = "群组信息";
 "Hidden Users" = "隐藏的用户";
@@ -136,7 +132,6 @@
 "More options" = "更多选项";
 "Name" = "名称";
 "Network Fee" = "网络手续费";
-"New message" = "新消息";
 "Next" = "下一步";
 "No Conversations Yet" = "暂无会话";
 "No Sound" = "静音";
@@ -188,8 +183,6 @@
 "Received %@ KAS — %@" = "已接收 %@ KAS — %@";
 "Received %@ domain" = "已接收 %@ 域名";
 "Received domain transfer" = "已接收域名转移";
-"Received payment" = "收到付款";
-"Recommended" = "推荐";
 "Reconnect" = "重新连接";
 "Redirect URL" = "重定向网址";
 "Refresh Pool" = "刷新连接池";
@@ -197,7 +190,6 @@
 "Remove" = "移除";
 "Rename" = "重命名";
 "Rename Account" = "重命名账户";
-"Rename Address" = "重命名地址";
 "Rename Group" = "重命名群组";
 "Reply" = "回复";
 "Request to communicate" = "请求通信";
@@ -275,7 +267,6 @@
 "Share" = "分享";
 
 /* 5.2: name services, .kachat, Connection Settings, testnet */
-"Looking up domain..." = "正在查找域名...";
 "No domain" = "无域名";
 "Couldn't check" = "无法检查";
 "Edit KaChat Profile" = "编辑 KaChat 资料";
@@ -401,7 +392,6 @@
 "Take a photo and send it to the group." = "拍一张照片并发送到群组。";
 "Pick an image from your library and send it to the group." = "从相册选择一张图片并发送到群组。";
 "Record a voice message and send it to the group." = "录制一条语音消息并发送到群组。";
-"to %@" = "发送给 %@";
 "Add a memo (encrypted)" = "添加备注（已加密）";
 "Switch between Kaspa and your currency" = "在 Kaspa 和你的货币之间切换";
 "Send Photo or Video via Nextcloud" = "通过 Nextcloud 发送照片或视频";
@@ -721,7 +711,6 @@
 "Your Address" = "你的地址";
 
 /* Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses */
-"Quantum-safe" = "抗量子";
 
 /* Edit KaChat Profile: Clear Profile */
 "Clear Profile" = "清除资料";
@@ -814,7 +803,6 @@
 "Delete Contact" = "删除联系人";
 "Not in your contacts" = "不在你的联系人中";
 "Add them in Contacts." = "在“联系人”中添加。";
-"That file isn't a KaChat contacts export." = "该文件不是 KaChat 联系人导出文件。";
 "That contacts export has no contacts." = "该联系人导出文件中没有联系人。";
 "Edit Contact" = "编辑联系人";
 "No contacts yet" = "还没有联系人";
@@ -975,7 +963,6 @@
 "Add members" = "添加成员";
 "Everyone in your contacts is already in this group." = "你联系人中的所有人都已在这个群组里。";
 "New members can read messages from the moment they're added, not earlier history." = "新成员能读到加入之后的消息，读不到更早的历史记录。";
-"Add %lld member%@ to the group?%@" = "要把 %lld 位成员%@添加到群组吗？%@";
 "Refresh complete" = "刷新完成";
 "Rebuilding this group" = "正在重建此群组";
 "Re-reading the whole group from the chain, the same way importing your 12 or 24 words does. Leaving now would stop it partway." = "正在从链上重新读取整个群组，方式与导入你的 12 或 24 个单词相同。现在离开会让它中途停止。";
@@ -990,12 +977,10 @@
 "Hide password" = "隐藏密码";
 "Show password" = "显示密码";
 "Change Chatting Address" = "更改聊天地址";
-"Label" = "标签";
 "Notify on receive" = "收到时通知";
 "When a spending address receives Kaspa from someone else." = "当支出地址收到别人发来的 Kaspa 时。";
 "Checking address #%lld" = "正在检查地址 #%lld";
 "%lld found so far" = "目前已找到 %lld 个";
-"Contains domain" = "包含域名";
 "Tap anywhere to copy" = "轻点任意位置即可复制";
 "Anyone with this address's private key can spend its funds. Never share it with anyone." = "任何拥有此地址私钥的人都能动用其中的资金。请绝不要告诉任何人。";
 "Tap to reveal private key" = "轻点显示私钥";
@@ -1015,7 +1000,6 @@
 "Enter your 12 or 24 words" = "输入你的 12 或 24 个单词";
 "More reactions" = "更多回应";
 "Storage problem" = "存储问题";
-"Continue anyway" = "仍然继续";
 "Preparing a fresh address" = "正在准备一个全新的地址";
 "Share Profile" = "分享个人资料";
 "Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs." = "把此地址上的所有 UTXO 合并成一个，以减少以后发送所需的输入数量。";
@@ -1034,7 +1018,6 @@
 "No subfolders." = "没有子文件夹。";
 "Chatting" = "聊天";
 "Spending" = "支出";
-"Request" = "请求";
 "What is a passphrase?" = "什么是密码短语？";
 "If you are not sure, the answer is almost certainly no. A passphrase is something you would have typed in on purpose." = "如果你不确定，答案几乎肯定是没有。密码短语是你特意输入过的东西。";
 "No" = "否";
@@ -1264,15 +1247,12 @@
 "Clear %@?" = "清除%@？";
 "Clear All Cache?" = "清除全部缓存？";
 "Clears the unread badge on this group." = "清除此群组的未读标记。";
-"Connecting for live updates" = "正在连接实时更新";
 "Copies the address to your clipboard." = "将地址复制到剪贴板。";
 "Copies the name to your clipboard." = "将名称复制到剪贴板。";
 "Copies the text to your clipboard." = "将文本复制到剪贴板。";
 "Copy their Kaspa address." = "复制对方的 Kaspa 地址。";
 "Deletes this chat's messages from this device. The bot stays in the row." = "从此设备删除此聊天的消息。机器人仍保留在该行中。";
-"Downloading message history" = "正在下载消息记录";
 "Failed to open archive: %@" = "无法打开存档：%@";
-"Finding your conversations" = "正在查找你的会话";
 "Finished" = "已完成";
 "Finishing up..." = "正在收尾...";
 "Frees %@. Your messages, contacts and keys are not touched." = "释放 %@。你的消息、联系人和密钥不受影响。";
@@ -1284,7 +1264,6 @@
 "Leave everything as it is." = "保持一切不变。";
 "Leave your messages as they are." = "保持你的消息不变。";
 "Link" = "链接";
-"Loading saved messages" = "正在加载已保存的消息";
 "Message them directly, one to one." = "一对一直接给对方发消息。";
 "Moves it back into your chats." = "将其移回你的聊天。";
 "Mute User" = "静音用户";
@@ -1378,7 +1357,6 @@
 "Your Account" = "你的账户";
 
 /* Settings > Customization: .kachat name endings */
-"Show .kachat Endings" = "显示 .kachat 后缀";
 
 /* Chat composers: camera or microphone access is off (MediaAccess) */
 "Microphone Access Required" = "需要麦克风访问权限";
@@ -1403,7 +1381,6 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "你的聊天地址还会支付 %@ KAS，用于告知 %@ 这笔付款。";
 "Tap Retry on the photo to send the rest." = "点击照片上的“重试”以发送其余部分。";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "这条消息在一笔交易中需要的币太多。请在你的聊天地址上使用 Compound UTXOs，然后重试。";
-"Use Their Domain Name" = "使用对方的域名";
 "Show Request As QR" = "以二维码显示请求";
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "用 iPhone 相机扫描，即可在 K 中付款，所有信息都已填好。";
 "Set as Name" = "设为名称";
@@ -1417,7 +1394,6 @@
 "This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "这个 GIF 对于该画质来说太长了。请选择更高的画质，或更短的 GIF。";
 
 /* kUSDT: hold, receive, send (from KaPay, 2026-11-19) */
-"%@ Actions" = "%@ 操作";
 "%@ Address Visibility" = "%@ 地址显示";
 "%@ Balance" = "%@ 余额";
 "%@ History" = "%@ 记录";
@@ -1449,7 +1425,6 @@
 "Combined" = "合并数量";
 "Combined Coins" = "已合并币";
 "Couldn't check %@ just now: %@ Pull down to try again." = "暂时无法核对 %1$@：%2$@ 下拉重试。";
-"Discover kUSDT Addresses" = "查找 kUSDT 地址";
 "Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first." = "不要从以太坊、BNB Chain 或交易所向此地址发送 USDT：会丢失。请先在 Trestly 上跨链到 Kaspa。";
 "Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one." = "不要向此处发送 kUSDT：抗量子地址无法交易它。普通地址请用“收款”。";
 "Ethereum" = "Ethereum";
@@ -1458,7 +1433,6 @@
 "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "每枚 kUSDT 含有 1.5 KAS。发送 kUSDT 时，这些 KAS 会一起发送。";
 "Found %d addresses with %@." = "找到 %1$d 个持有 %2$@ 的地址。";
 "Generate New Address" = "生成新地址";
-"Generate Non-Quantum Address" = "生成非量子地址";
 "Goes With It" = "随附";
 "Held On" = "存放于";
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "款项进入此账户，计入你的支出总额。除 .kachat 名称外都可使用。";
@@ -1486,7 +1460,6 @@
 "Receive %@" = "接收 %@";
 "Received %@" = "已收到 %@";
 "Removes it from this list. Re-enable it in %@ Address Visibility." = "从此列表中移除。可在“%@ 地址显示”中重新启用。";
-"Sample Data" = "示例数据";
 "Send %@" = "发送 %@";
 "Send to Chatting Address" = "发送到聊天地址";
 "Sends, receives and combines on this phone show here from now on." = "从现在起，此手机上的发送、接收和合并会显示在这里。";
@@ -1506,7 +1479,6 @@
 "This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "此地址需要少量 KAS：网络费，加上你的找零币（你保留的 kUSDT）所需的 1.5 KAS。这 1.5 KAS 仍归你所有。";
 "This address on the Kaspa explorer." = "在 Kaspa 浏览器中查看此地址。";
 "This address's key isn't available on this phone." = "此地址的密钥不在这部手机上。";
-"Tokens" = "代币";
 "Total KAS" = "KAS 总计";
 "Trestly" = "Trestly";
 "Trestly API URL" = "Trestly API 网址";
@@ -1578,7 +1550,6 @@
 "Enter kpub" = "输入 kpub";
 "Export CSV" = "导出 CSV";
 "Fee (optional)" = "手续费(可选)";
-"Generate More Addresses" = "生成更多地址";
 "Give this account a name so you can recognize it." = "给这个账户起个名字,方便您识别。";
 "Import CSV" = "导入 CSV";
 "Import Failed" = "导入失败";
@@ -1603,7 +1574,6 @@
 "Transactions" = "交易";
 "Transfer" = "转移";
 "Value Over Time" = "随时间变化的价值";
-"kpub" = "kpub";
 "Registration isn't open yet." = "注册尚未开放。";
 "Claim" = "领取";
 "Marketplace" = "市场";
@@ -1897,7 +1867,6 @@
 "Tap the price or your value to see it in the pair you pick here. One at a time." = "轻点价格或你的价值，即可在此处选择的交易对中查看。一次一个。";
 "Converter" = "换算器";
 "Waiting for a price..." = "正在等待价格...";
-"Kaspa Network" = "Kaspa 网络";
 "Mining Estimate" = "挖矿估算";
 "Enter your hashrate to estimate earnings." = "输入你的算力以估算收益。";
 "Transaction Details" = "交易详情";
@@ -2112,13 +2081,9 @@
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
-"Continue to App" = "进入应用";
 "Join" = "加入";
 "Menu" = "菜单";
-"Pay in Kaspa" = "用 Kaspa 支付";
 "Record voice message" = "录制语音消息";
-"Spending Address" = "消费地址";
-"Withdraw Kaspa" = "提现 Kaspa";
 "Translate" = "翻译";
 "Show Original" = "显示原文";
 "Show Translation" = "显示译文";
@@ -2128,7 +2093,6 @@
 "Public Chats" = "公共聊天";
 "Private Chats" = "私人聊天";
 "Today" = "今天";
-"New Public Chat" = "新公共聊天";
 "Tip" = "打赏";
 "Tips" = "打赏";
 "No tips yet." = "暂无打赏。";
@@ -2143,7 +2107,6 @@
 "Quotes" = "引用";
 "Waiting for your coins to confirm. It sends on its own in a moment, so don't send it again." = "正在等待你的币确认。稍后会自动发送，请不要再次发送。";
 "This post isn't on the network yet, so it can't be replied to. Try again once it has posted." = "此帖子尚未上链，因此无法回复。请在发布完成后重试。";
-"Manage Address" = "管理地址";
 "Tips From" = "打赏来源";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "从你的 Chatting Address 打赏会计入帖子，你也会出现在打赏者名单中。";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "从其他地址打赏是私密的：作者会收到，并在你们的聊天中看到，但不会计入帖子，也不会显示你的名字。";
@@ -2314,7 +2277,6 @@
 "KaPost" = "KaPost";
 "Keep it in Drafts to finish later." = "保存在草稿中，稍后再完成。";
 "Keep looking" = "继续查找";
-"Languages" = "语言";
 "Leave the room as it is." = "保持房间不变。";
 "Load more" = "加载更多";
 "Load older posts" = "加载更早的帖子";
@@ -2396,7 +2358,6 @@
 "Tap to open your chat." = "点按以打开你的聊天。";
 "This post could not be loaded" = "无法加载此帖子";
 "This room follows the app's indexer again." = "此房间已恢复使用应用的索引器。";
-"Thread" = "串";
 "Throw this away." = "丢弃这个。";
 "Tip didn't send: there is no recent KAS price to turn %@ into KAS." = "打赏未发送：没有近期的 KAS 价格，无法将 %@ 换算成 KAS。";
 "Tipping" = "打赏";
@@ -2434,14 +2395,12 @@
 "Not counted on the post" = "不计入帖子";
 "Tip asks whether to send Kaspa or kUSDT each time." = "每次打赏都会询问发送 Kaspa 还是 kUSDT。";
 "The account changed, so this wasn't sent." = "账户已切换，因此未发送。";
-"There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "测试网还没有 KaPost 索引器。在“设置 > 连接”中关闭测试网，即可在主网阅读和发帖。";
 "KaChat Profile" = "KaChat 主页";
 "Your post is ready to go out. Open K to send it." = "你的帖子已准备好发送。打开 K 即可发送。";
 "Search KaPost" = "搜索 KaPost";
 "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "分享会发送一个在 K 中打开此房间的链接，以及供没有安装它的人使用的网页链接。隐藏仅对单个房间有效：在这里被隐藏的人仍会显示在其他所有房间中。";
 
 /* KaPosts leftovers (2026-11-21) */
-"KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPost 服务器没有响应。正在显示已保存的帖子和来自网络的新帖子。";
 "Trestly's pool code couldn't start in K." = "Trestly 的资金池代码无法在 K 中启动。";
 "Posting poll" = "正在发布投票";
 "Voting" = "正在投票";
@@ -2450,13 +2409,11 @@
 
 "Delete #%@?" = "删除 #%@？";
 
-"#%@ is off - turn it back on in Edit Default Public Chats" = "#%@ 已关闭 - 可在“编辑默认公开聊天”中重新开启";
 "Channel names must be 1-%d characters with no spaces or colons." = "频道名称须为 1-%d 个字符，不含空格或冒号。";
 "channel-name" = "频道名称";
 
 
 "See All Posts" = "查看所有帖子";
-"Opens KaPost, where everyone's posts are." = "打开 KaPost，查看所有人的帖子。";
 "When someone likes, replies to or shares your posts, or Kaspa or kUSDT arrives in your wallet, it shows up here." = "当有人点赞、回复或分享你的帖子，或有 Kaspa 或 kUSDT 到达你的钱包时，会显示在这里。";
 
 /* Chess, back from KaPlay (phase 4, 2026-11-21) */
@@ -2734,18 +2691,12 @@
 "Share to KaPost" = "分享到 KaPost";
 "Chess Challenge" = "国际象棋挑战";
 "Opens Chess to play this bot." = "打开国际象棋，与这个机器人对弈。";
-"KaPost, Public Chats and Chess are read from this indexer too." = "KaPost、公共聊天和国际象棋也从此索引器读取。";
 
 /* KaChat Stats and Kaspa Websites (back 2026-11-21) */
-"KaChat Stats" = "KaChat 统计";
-"Stats" = "统计";
 "24 Hours" = "24 小时";
 "All Time" = "全部时间";
 "Payments" = "付款";
-"Group Messages" = "群组消息";
 "Chess Moves" = "国际象棋着法";
-"Updated %@" = "更新于%@";
-"Counting since %@" = "自 %@ 起统计";
 "Fees" = "费用";
 "Kaspa Websites" = "Kaspa 网站";
 "Websites" = "网站";
@@ -2823,14 +2774,11 @@
 "Couldn't read this swap's amounts" = "无法读取此次兑换的金额";
 "Added to %@" = "已添加到 %@";
 "This only removes it from your local history - it doesn't affect the actual exchange." = "这只会把它从你的本地历史中移除，不影响实际的兑换。";
-"Swap History" = "兑换历史";
-"You Send" = "你支付";
 "You Get" = "你获得";
 "Receive %@ at" = "接收 %@ 的地址";
 "Powered by Trestly" = "由 Trestly 提供支持";
 "Powered by ChangeNOW" = "由 ChangeNOW 提供支持";
 "Rate" = "汇率";
-"Send %@ to this address" = "向此地址发送 %@";
 "ChangeNOW Exchange ID" = "ChangeNOW 兑换 ID";
 "Exchange ID copied" = "兑换 ID 已复制";
 "Refresh Status" = "刷新状态";
@@ -2991,9 +2939,6 @@
 "Show %lld new posts" = "显示 %lld 条新帖子";
 "View 1 reply" = "查看 1 条回复";
 "View %lld replies" = "查看 %lld 条回复";
-"Thread · %lld posts" = "串帖 · %lld 条帖子";
-"Conversation · %lld posts" = "对话 · %lld 条帖子";
-"Comments (%lld)" = "评论 (%lld)";
 "%@ in %llds" = "%2$lld 秒后%1$@";
 "· %lld posts" = "· %lld 条帖子";
 "Translated from %@" = "译自%@";
@@ -3191,10 +3136,8 @@
 "gRPC nodes can't be reached right now, so K is using a public node over wss." = "当前无法连接 gRPC 节点，因此 K 正在通过 wss 使用公共节点。";
 "Search public chats" = "搜索公共聊天";
 "Switches between your chats and public chats" = "在你的聊天和公共聊天之间切换";
-"More Rooms" = "更多聊天室";
 
 /* Kaspa Hub card links (2026-11-25) */
-"Link copied" = "链接已复制";
 "A link that opens this card in K." = "在 K 中打开此卡片的链接。";
 "Open" = "打开";
 "Opens this card." = "打开此卡片。";
@@ -3408,3 +3351,96 @@
 "1 KAS = %@%@" = "1 KAS = %@%@";
 "Posts aren't available on Testnet yet" = "测试网暂不支持帖子";
 "Their profile: posts, replies and followers." = "其主页：帖子、回复和关注者。";
+
+/* Release audit 2026-11-27: chess status, banner previews, errors, Posts/K names */
+"Waiting for response" = "等待回应";
+"Game declined" = "对局已拒绝";
+"Your turn" = "轮到你了";
+"Their turn" = "轮到对方";
+"Checkmate - White wins" = "将死 - 白方胜";
+"Checkmate - Black wins" = "将死 - 黑方胜";
+"Checkmate - You win!" = "将死 - 你赢了！";
+"Checkmate - You lost" = "将死 - 你输了";
+"Stalemate - draw" = "逼和 - 和棋";
+"Draw - not enough pieces to checkmate" = "和棋 - 子力不足以将死";
+"White lost on time" = "白方超时判负";
+"Black lost on time" = "黑方超时判负";
+"You lost on time" = "你超时判负";
+"They lost on time" = "对方超时判负";
+"White resigned" = "白方认输";
+"Black resigned" = "黑方认输";
+"You resigned" = "你已认输";
+"They resigned" = "对方已认输";
+"Accepted your chess game" = "接受了你的对局";
+"Declined your chess game" = "拒绝了你的对局";
+"Played %@ → %@" = "走了 %@ → %@";
+"Resigned the chess game" = "认输了这盘棋";
+"Reacted %@" = "回应了 %@";
+"Edited a message" = "编辑了一条消息";
+"Sent a photo" = "发送了一张照片";
+"Sent a voice message" = "发送了一条语音消息";
+"Sent a video" = "发送了一个视频";
+"Sent a file" = "发送了一个文件";
+"Give this shortcut the text of %lld messages?" = "要把 %lld 条消息的文字提供给这个快捷指令吗？";
+"Send this message to %@?" = "要将这条消息发送给 %@ 吗？";
+"Couldn't Sign In" = "无法登录";
+"K couldn't use this address to sign in. Try another one." = "K 无法使用此地址登录。请换一个地址试试。";
+"Sent from K" = "已从 K 发送";
+"Delete %lld Transactions?" = "要删除 %lld 笔交易吗？";
+"Price per %@" = "每 %@ 价格";
+"Less than %@ is left before this name expires. You'd have to renew it soon." = "此名称距离到期不足 %@。你很快就需要续期。";
+"Extending adds time to the current paid period, which holds at most %@. The price goes to the miners." = "延期会为当前已付费期限增加时间，该期限最长为 %@。费用归矿工所有。";
+"Unlock to sign in to %@" = "解锁以登录 %@";
+"Send Kaspa from Address #%lld" = "从地址 #%lld 发送 Kaspa";
+"Cold Storage %lld" = "冷存储 %lld";
+"Tip in %@, switch to KAS" = "以 %@ 打赏，切换到 KAS";
+"Tip in KAS, switch to %@" = "以 KAS 打赏，切换到 %@";
+"Restored %lld messages from %lld chats." = "已恢复 %lld 条消息，来自 %lld 个聊天。";
+"Filled %lld sent messages." = "已补全 %lld 条已发送消息。";
+"Re-reading your group invites" = "正在重新读取你的群组邀请";
+"Re-reading roster and epoch keys" = "正在重新读取成员名单和纪元密钥";
+"Re-fetching messages (%lld of %lld members)" = "正在重新获取消息（%lld/%lld 位成员）";
+"Decrypting history" = "正在解密历史记录";
+"You changed the group photo" = "你更改了群组照片";
+"You removed the group photo" = "你移除了群组照片";
+"You changed the group name to \"%@\"" = "你将群组名称改为“%@”";
+"%@ changed the group photo" = "%@ 更改了群组照片";
+"%@ removed the group photo" = "%@ 移除了群组照片";
+"%@ changed the group name to \"%@\"" = "%@ 将群组名称改为“%@”";
+"Gold" = "黄金";
+"Silver" = "白银";
+"Kaspa priced in bitcoin" = "以比特币计价的 Kaspa";
+"Shares of Vanguard's S&P 500 ETF" = "先锋标普 500 ETF 份额";
+"Troy ounces of gold" = "黄金金衡盎司";
+"Troy ounces of silver" = "白银金衡盎司";
+"Invalid words. Please enter 12 or 24 words." = "单词无效。请输入 12 个或 24 个单词。";
+"Couldn't read your words. Detected %lld words (expected 12 or 24)." = "无法读取你的单词。检测到 %lld 个单词（应为 12 或 24 个）。";
+"Word check failed: %@" = "单词校验失败：%@";
+"That address is one of your own accounts, so it cannot be added as a contact." = "该地址是你自己的账户之一，因此不能添加为联系人。";
+"An unknown error occurred." = "发生未知错误。";
+"No internet connection. Check your connection and try again." = "没有网络连接。请检查网络后重试。";
+"The connection timed out. Check your connection and try again." = "连接超时。请检查网络后重试。";
+"Couldn't reach the server. Check the address in Settings and your connection." = "无法连接服务器。请检查设置中的地址和你的网络。";
+"Couldn't make a secure connection to the server." = "无法与服务器建立安全连接。";
+"A network error occurred. Check your connection and try again." = "发生网络错误。请检查网络后重试。";
+"The server sent something the app couldn't read. Try again; if it keeps happening, update the app." = "服务器发送了应用无法读取的内容。请重试；如果持续出现，请更新应用。";
+"The Kaspa node returned an error. The app will try another node; try again in a moment." = "Kaspa 节点返回了错误。应用将尝试其他节点；请稍后重试。";
+"No spendable UTXOs available" = "没有可花费的 UTXO";
+"No spendable UTXOs" = "没有可花费的 UTXO";
+"Could not get private key" = "无法获取私钥";
+"Insufficient funds for payment" = "余额不足以完成付款";
+"Insufficient funds after fee" = "扣除手续费后余额不足";
+"Insufficient funds for handshake" = "余额不足以发送握手";
+"Insufficient funds for self-stash fee" = "余额不足以支付自存费用";
+"Balance too low to cover fee" = "余额太低，不足以支付手续费";
+"Missing group secrets - try rejoining this group." = "缺少群组密钥 - 请尝试重新加入此群组。";
+"Missing admin group secrets." = "缺少群组管理员密钥。";
+"No spendable UTXOs at this address" = "此地址没有可花费的 UTXO";
+"Insufficient funds to cover that amount plus the network fee" = "余额不足以支付该金额和网络费用";
+"This send would need %lld UTXOs, but KasSigner only supports %lld inputs per transaction. Send a smaller amount or consolidate this address first." = "此次发送需要 %lld 个 UTXO，但 KasSigner 每笔交易最多支持 %lld 个输入。请减少金额，或先合并此地址。";
+"There is no Posts indexer for testnet. Turn off Testnet in Settings > Connection Settings to read and post on mainnet." = "测试网还没有帖子索引器。在“设置 > 连接设置”中关闭测试网，即可在主网阅读和发帖。";
+"Posts' server isn't answering. Showing saved posts and new ones from the network." = "帖子服务器没有响应。正在显示已保存的帖子和网络上的新帖子。";
+"Opens Posts, where everyone's posts are." = "打开帖子，这里有所有人的帖子。";
+"Posts, Public Chats and Chess are read from this indexer too." = "帖子、公共聊天和国际象棋也从此索引器读取。";
+"No K backup was found on this Nextcloud server." = "此 Nextcloud 服务器上未找到 K 备份。";
+"That file isn't a K contacts export." = "该文件不是 K 联系人导出文件。";

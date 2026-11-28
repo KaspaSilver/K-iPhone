@@ -61,6 +61,29 @@ extension ChatService {
         }
     }
 
+    /// A payment From a spending address whose send got no answer (`SendOutcomeUnknownError`):
+    /// its `payment_notice` waits until the payment shows up (C5). In memory: a week at most.
+    struct OwedSpendingNotice {
+        let contactAddress: String
+        let amountSompi: UInt64
+        let memo: String
+        let owner: String
+        let at: Date
+    }
+
+    /// The Not confirmed payment `txId` turned out Sent: the notice it owes goes now, from the
+    /// account that made it only.
+    func sendOwedSpendingNoticeIfAny(txId: String, contactAddress: String) {
+        let key = txId.lowercased()
+        owedSpendingNotices = owedSpendingNotices.filter { Date().timeIntervalSince($0.value.at) < 7 * 24 * 3600 }
+        guard let owed = owedSpendingNotices[key],
+              owed.contactAddress.lowercased() == contactAddress.lowercased() else { return }
+        guard WalletManager.shared.currentWallet?.publicAddress == owed.owner else { return }
+        guard let contact = contactsManager.getContact(byAddress: owed.contactAddress) else { return }
+        owedSpendingNotices.removeValue(forKey: key)
+        sendSpendingPaymentNotice(to: contact, txId: key, amountSompi: owed.amountSompi, memo: owed.memo)
+    }
+
     // MARK: - Notices waiting for the chatting address
 
     struct UnsentPaymentNotice: Codable, Equatable {
@@ -132,24 +155,43 @@ extension ChatService {
     /// still fails stays for next time.
     func sendUnsentPaymentNotices() async {
         guard !sendingUnsentNotices else { return }
-        let pending = unsentNotices
+        // The account whose notices these are, fixed for the whole run (audit 2026-11-27 R4):
+        // after a switch mid-run its notices stay under its own key, never written under (or
+        // sent from) the other account's.
+        guard let owner = WalletManager.shared.currentWallet?.publicAddress else { return }
+        let key = Self.unsentNoticesKey(owner: owner)
+        let pending = Self.readUnsentNotices(key: key)
         guard !pending.isEmpty else { return }
         sendingUnsentNotices = true
         defer { sendingUnsentNotices = false }
-        var left: [UnsentPaymentNotice] = []
-        let owner = WalletManager.shared.currentWallet?.publicAddress
+        var sent = Set<String>()
         for notice in pending {
+            guard WalletManager.shared.currentWallet?.publicAddress == owner else { break }
+            // a contact not loaded yet keeps its notice for a later try
             guard let contact = contactsManager.getContact(byAddress: notice.contactAddress) else { continue }
             do {
                 _ = try await enqueueOutgoingTxOperation {
                     try await self.sendEnvelopeInternal(to: contact, payload: notice.payload, owner: owner)
                 }
+                sent.insert(notice.txId)
                 AppLog.log("[ChatService] Sent a kept payment_notice for %@", String(notice.txId.prefix(12)))
             } catch {
-                left.append(notice)
+                // stays for next time
             }
         }
-        unsentNotices = left
+        guard !sent.isEmpty else { return }
+        // Read again: a notice kept while these were sending stays. Only the sent ones go.
+        let remaining = Self.readUnsentNotices(key: key).filter { !sent.contains($0.txId) }
+        if remaining.isEmpty {
+            UserDefaults.standard.removeObject(forKey: key)
+        } else if let data = try? JSONEncoder().encode(remaining) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    private static func readUnsentNotices(key: String) -> [UnsentPaymentNotice] {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return [] }
+        return (try? JSONDecoder().decode([UnsentPaymentNotice].self, from: data)) ?? []
     }
 
     /// The chatting address got KAS: the notices waiting for it go out.
@@ -403,9 +445,13 @@ extension ChatService {
               let fullTx = try? JSONDecoder().decode(KaspaFullTransactionResponse.self, from: data) else {
             return .unknown
         }
+        // REST's amounts: an overflowing sum can't equal the claim (R6, no trap)
         let paid = fullTx.outputs
             .filter { $0.scriptPublicKeyAddress?.lowercased() == paidAddress.lowercased() }
-            .reduce(UInt64(0)) { $0 + $1.amount }
+            .reduce(UInt64(0)) { total, output in
+                let (sum, overflow) = total.addingReportingOverflow(output.amount)
+                return overflow ? UInt64.max : sum
+            }
         guard paid == claimedSompi else { return .invalid("it pays \(paid) sompi, not \(claimedSompi)") }
         guard (fullTx.payload ?? "").isEmpty else { return .invalid("the transaction carries a payload") }
         // an input without a resolved address could be one of ours: no chain answer yet
@@ -431,8 +477,12 @@ extension ChatService {
 
     /// A dollar send from a chat went out: the payer's bubble now, and the notice for the payee.
     /// If the notice can't go (an empty chatting address), it is kept and sent once there's KAS.
-    func recordTokenPayment(to contact: Contact, token: WalletToken, txId: String, index: UInt32, amount: UInt64) {
+    /// `owner`: the account the send was made from; a report arriving after a switch to another
+    /// one is dropped, never filed in (or announced from) that account (audit 2026-11-27 R5).
+    func recordTokenPayment(to contact: Contact, token: WalletToken, txId: String, index: UInt32, amount: UInt64,
+                            owner expectedOwner: String? = nil) {
         guard let wallet = WalletManager.shared.currentWallet else { return }
+        if let expectedOwner, wallet.publicAddress != expectedOwner { return }
         let txId = txId.lowercased()
         // once per payment: a send whose outcome was unknown can report in twice
         guard !(conversations.first(where: { $0.contact.address == contact.address })?.messages
@@ -660,19 +710,27 @@ extension ChatService {
             if coinOwner != payerKey, otherContactKeys.contains(coinOwner) { return .invalid("it spends another contact's coin") }
         }
 
-        // the real token: its covenant id, from the explorer or else the node
-        if let covenant = output.covenantId?.lowercased(), !covenant.isEmpty {
-            return covenant == Kusdt.hex(Kusdt.current.covenantId) ? .valid : .invalid("the coin isn't \(token.symbol)")
-        }
-        guard let utxos = try? await NodePoolService.shared.getUtxosByAddresses([coinAddress], allowRestFallback: false),
-              let coin = utxos.first(where: { $0.outpoint.transactionId.lowercased() == txId && $0.outpoint.index == notice.index }) else {
-            // spent since, or no node answer: can't tell it from a look-alike
-            return .unknown
-        }
-        guard coin.scriptPublicKey == script, coin.covenantId?.lowercased() == Kusdt.hex(Kusdt.current.covenantId) else {
+        // The real token: its covenant id. The node decides while the coin is unspent; the REST
+        // API's id is only a hint (audit 2026-11-27 C7: a user-set REST server could name kUSDT's
+        // id on a look-alike). A REST id that isn't kUSDT's is refused at once.
+        let kusdtCovenant = Kusdt.hex(Kusdt.current.covenantId)
+        let restCovenant = output.covenantId?.lowercased() ?? ""
+        if !restCovenant.isEmpty, restCovenant != kusdtCovenant {
             return .invalid("the coin isn't \(token.symbol)")
         }
-        return .valid
+        guard let utxos = try? await NodePoolService.shared.getUtxosByAddresses([coinAddress], allowRestFallback: false) else {
+            // no node answer: asked again later
+            return .unknown
+        }
+        if let coin = utxos.first(where: { $0.outpoint.transactionId.lowercased() == txId && $0.outpoint.index == notice.index }) {
+            guard coin.scriptPublicKey == script, coin.covenantId?.lowercased() == kusdtCovenant else {
+                return .invalid("the coin isn't \(token.symbol)")
+            }
+            return .valid
+        }
+        // Spent since (a notice read back from history, or the payee moved it first): the node
+        // can't show it any more, so the REST API's matching id is all there is to go on.
+        return restCovenant == kusdtCovenant ? .valid : .unknown
     }
 
     /// The owner key of a token coin an input spends: the redeem script, the last push of a P2SH

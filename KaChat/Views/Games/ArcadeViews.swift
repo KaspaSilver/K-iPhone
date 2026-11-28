@@ -137,7 +137,8 @@ struct ArcadeGameHomeView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
             } else {
-                VStack(spacing: 0) {
+                // lazy: up to 100 rows (smoothness audit L12)
+                LazyVStack(spacing: 0) {
                     ForEach(Array(rows.prefix(100).enumerated()), id: \.element.id) { index, row in
                         HStack(spacing: 12) {
                             Text(verbatim: "\(index + 1)")

@@ -192,10 +192,6 @@ struct TokenHolding: Identifiable, Equatable {
 final class TokenWallet: ObservableObject {
     static let shared = TokenWallet()
 
-    /// The screens ran on sample data before the token code was wired (2026-11-19). Off: balances
-    /// come from Trestly's API, every coin checked on the node (`KusdtBalances`).
-    static let isSampleData = false
-
     /// The tokens KaChat shows, in order.
     let tokens: [WalletToken] = [.kusdt]
 
@@ -303,12 +299,13 @@ final class TokenWallet: ObservableObject {
             apply(results, for: .kusdt, merging: true)
             loadActivityIfNeeded(account: account)
             await announceNewCoins(previous: previous, account: account, token: .kusdt)
-            lastError = nil
+            // only a change publishes: every poll redrew Manage kUSDT (smoothness audit L11)
+            if lastError != nil { lastError = nil }
             lastRefreshed = Date()
             scheduleFollowUpIfPending()
         } catch {
             if Self.isCancellation(error) { return }
-            lastError = error.localizedDescription
+            if lastError != error.localizedDescription { lastError = error.localizedDescription }
             AppLog.log("[kUSDT] lookup failed: %@", error.localizedDescription)
         }
     }
@@ -544,27 +541,41 @@ final class TokenWallet: ObservableObject {
     /// Bumped when a visibility set changes, so the screens that read it redraw.
     @Published private(set) var visibilityRevision = 0
 
+    /// The visibility sets read so far, by defaults key: Manage kUSDT reads them per holding on
+    /// every redraw (smoothness audit L11). Written through with the setters below, and dropped
+    /// with the account (`forgetLocalData`).
+    private var hiddenIDsCache: [String: Set<String>] = [:]
+    private var shownIndicesCache: [String: Set<Int>] = [:]
+
     /// Addresses holding the token that are hidden from Manage kUSDT, per account and token.
     func hiddenHoldingIDs(of token: WalletToken) -> Set<String> {
         guard let key = visibilityKey("hidden", token) else { return [] }
-        return Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        if let cached = hiddenIDsCache[key] { return cached }
+        let ids = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        hiddenIDsCache[key] = ids
+        return ids
     }
 
     func setHiddenHoldingIDs(_ ids: Set<String>, of token: WalletToken) {
         guard let key = visibilityKey("hidden", token) else { return }
         UserDefaults.standard.set(Array(ids).sorted(), forKey: key)
+        hiddenIDsCache[key] = ids
         visibilityRevision += 1
     }
 
     /// Spending indices without the token that are checked on, so Manage kUSDT lists them.
     func shownEmptyIndices(of token: WalletToken) -> Set<Int> {
         guard let key = visibilityKey("shown", token) else { return [] }
-        return Set((UserDefaults.standard.array(forKey: key) as? [Int]) ?? [])
+        if let cached = shownIndicesCache[key] { return cached }
+        let indices = Set((UserDefaults.standard.array(forKey: key) as? [Int]) ?? [])
+        shownIndicesCache[key] = indices
+        return indices
     }
 
     func setShownEmptyIndices(_ indices: Set<Int>, of token: WalletToken) {
         guard let key = visibilityKey("shown", token) else { return }
         UserDefaults.standard.set(Array(indices).sorted(), forKey: key)
+        shownIndicesCache[key] = indices
         visibilityRevision += 1
     }
 
@@ -704,7 +715,7 @@ final class TokenWallet: ObservableObject {
     /// A token coin doesn't land on your address (it sits at its own contract address), so the
     /// Kaspa watch never sees it arrive. Instead each refresh compares the coins it found with the
     /// ones known before (kept per account on this phone) and announces the new ones as Received,
-    /// like Kaspa: a local notification and the Notifications list, behind Settings >
+    /// like Kaspa: the Notifications list always, and a local notification behind Settings >
     /// Notifications > Address Activity. Never announced: the first look on this phone (it only
     /// learns what's there), what Discover finds, and coins from your own transfers (the
     /// transaction spent a coin of yours, or paid from one of your addresses).
@@ -770,8 +781,9 @@ final class TokenWallet: ObservableObject {
                 }
             }
         }
-        guard !received.isEmpty, Self.notificationsEnabled else { return }
-        postReceived(received, token: token, ring: anyCurrent, happenedAt: newest)
+        // The bell always gets it; only the ping follows the switches (owner, 2026-11-27).
+        guard !received.isEmpty else { return }
+        postReceived(received, token: token, ring: anyCurrent && Self.notificationsEnabled, happenedAt: newest)
     }
 
     /// How old a received coin may be and still ring: Trestly lists new coins late, and a coin
@@ -850,8 +862,9 @@ final class TokenWallet: ObservableObject {
 
     /// While the app is open and signed in, the balances are checked on every foreground beat
     /// (`ForegroundBeat`: 30 s on Wi-Fi, 60 s on cellular, 1.5 s after the room sweep, so the
-    /// radio wakes once per beat; audit 2026-11-25 B4), so a token that arrives is announced. Only
-    /// with Address Activity notifications on; the screens refresh themselves either way.
+    /// radio wakes once per beat; audit 2026-11-25 B4), so a token that arrives is announced. With
+    /// Address Activity notifications off, every 5 minutes, so the bell still gets Received kUSDT
+    /// (owner, 2026-11-27); the screens refresh themselves either way.
     func startPolling() {
         guard pollTask == nil else { return }
         pollTask = Task { @MainActor [weak self] in
@@ -864,9 +877,8 @@ final class TokenWallet: ObservableObject {
                     self.pollTask = nil
                     return
                 }
-                guard UIApplication.shared.applicationState == .active,
-                      Self.notificationsEnabled else { continue }
-                await self.refreshIfStale(maxAge: 25, background: true)
+                guard UIApplication.shared.applicationState == .active else { continue }
+                await self.refreshIfStale(maxAge: Self.notificationsEnabled ? 25 : 290, background: true)
             }
         }
     }
@@ -914,7 +926,7 @@ final class TokenWallet: ObservableObject {
                 progress(checkedThrough.map(WalletManager.addressNumber(forIndex:)) ?? 0, soFar)
             }
         } catch {
-            if !Self.isCancellation(error) { lastError = error.localizedDescription }
+            if !Self.isCancellation(error), lastError != error.localizedDescription { lastError = error.localizedDescription }
             return 0
         }
         if lastLookupFailures > 0 {
@@ -933,7 +945,7 @@ final class TokenWallet: ObservableObject {
         // the reveal awaited: still the same account?
         guard manager.currentWallet?.publicAddress == account else { return found }
         apply(results, for: token, merging: true)
-        lastError = nil
+        if lastError != nil { lastError = nil }
         lastRefreshed = Date()
         lastDiscovered = Date()
         return found
@@ -948,6 +960,8 @@ final class TokenWallet: ObservableObject {
             for kind in ["activity", "seen", "hidden", "shown", "receivewatch"] {
                 defaults.removeObject(forKey: "token_\(kind)_\(token.id)_\(account)")
             }
+            hiddenIDsCache["token_hidden_\(token.id)_\(account)"] = nil
+            shownIndicesCache["token_shown_\(token.id)_\(account)"] = nil
         }
         if loadedAccount == account {
             holdings = [:]
@@ -1010,7 +1024,7 @@ final class TokenWallet: ObservableObject {
     }
 
     func activity(of token: WalletToken) -> [TokenActivity] {
-        Self.isSampleData ? sample().activity : (activity[token.id] ?? [])
+        activity[token.id] ?? []
     }
 
     /// One address's activity: its page's history.
@@ -1019,7 +1033,6 @@ final class TokenWallet: ObservableObject {
     }
 
     private func allHoldings(of token: WalletToken) -> [TokenHolding]? {
-        if Self.isSampleData { return sample().holdings }
         // another account's balances are never shown, even for the moment before they're replaced
         guard loadedAccount == WalletManager.shared.currentWallet?.publicAddress else { return nil }
         return holdings[token.id]
@@ -1072,28 +1085,6 @@ final class TokenWallet: ObservableObject {
             await manager.generateNextSpendingAddress()
             if manager.maxSpendingAddressIndex <= before { break }
         }
-    }
-
-    /// The sample for the signed-in account (its own addresses), kept per account. Not published:
-    /// screens read it while they draw.
-    private var sampleCache: (account: String, holdings: [TokenHolding], activity: [TokenActivity])?
-
-    private func sample() -> (holdings: [TokenHolding], activity: [TokenActivity]) {
-        let chatting = WalletManager.shared.currentWallet?.publicAddress ?? ""
-        if let sampleCache, sampleCache.account == chatting { return (sampleCache.holdings, sampleCache.activity) }
-        let now = Date()
-        let holdings = [
-            TokenHolding(spendingIndex: nil, address: chatting, units: 25_500_000, coins: 1),
-            TokenHolding(spendingIndex: 2, address: WalletManager.shared.spendingAddress(at: 2) ?? "", units: 100_000_000, coins: 1),
-        ]
-        let activity = [
-            TokenActivity(kind: .received, units: 25_000_000, counterparty: "alice.kachat", date: now.addingTimeInterval(-300), pending: true, holdingID: "chatting"),
-            TokenActivity(kind: .sent, units: 19_500_000, counterparty: "kaspa:qpz8x4rm7gk0f3l5w2n9c6vht8ajd3e5u7y2s4q6r8t0", date: now.addingTimeInterval(-86_400 * 2), holdingID: "chatting"),
-            TokenActivity(kind: .swapped, units: 20_000_000, counterparty: "KasPool", date: now.addingTimeInterval(-86_400 * 5), holdingID: "chatting"),
-            TokenActivity(kind: .bridged, units: 100_000_000, counterparty: "Ethereum", date: now.addingTimeInterval(-86_400 * 9), holdingID: "s2"),
-        ]
-        sampleCache = (chatting, holdings, activity)
-        return (holdings, activity)
     }
 }
 
@@ -1155,16 +1146,3 @@ private struct USDTMark: Shape {
     }
 }
 
-/// "Sample Data": said on every token screen while `TokenWallet.isSampleData`.
-struct TokenSampleBadge: View {
-    var body: some View {
-        if TokenWallet.isSampleData {
-            Text("Sample Data")
-                .font(.caption2.weight(.bold))
-                .foregroundColor(.orange)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.orange.opacity(0.15)))
-        }
-    }
-}

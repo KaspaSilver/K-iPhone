@@ -123,7 +123,7 @@ enum KachatLive {
     private static var componentsFormatters: [String: DateComponentsFormatter] = [:]
     private static let componentsFormattersLock = NSLock()
 
-    private static func componentsFormatter(_ style: String, _ configure: (DateComponentsFormatter) -> Void) -> DateComponentsFormatter {
+    fileprivate static func componentsFormatter(_ style: String, _ configure: (DateComponentsFormatter) -> Void) -> DateComponentsFormatter {
         let locale = AppLocalization.locale
         let key = style + "|" + locale.identifier
         componentsFormattersLock.lock()
@@ -1220,7 +1220,8 @@ struct KachatLiveActivityPage: View {
             if model.activity.isEmpty {
                 KachatLiveEmpty(text: model.loaded ? "Nothing yet." : nil)
             } else {
-                VStack(spacing: 0) {
+                // lazy: up to 100 rows (smoothness audit L12)
+                LazyVStack(spacing: 0) {
                     ForEach(Array(model.activity.prefix(100).enumerated()), id: \.element.id) { index, e in
                         KachatEventRow(event: e, showName: true)
                         if index < min(model.activity.count, 100) - 1 { Divider().padding(.leading, 56) }
@@ -1401,11 +1402,13 @@ struct KachatOfferState {
     @MainActor var timeLeft: String? {
         guard let daa = actions.virtualDaa, !refundable else { return nil }
         let seconds = Double(UInt64(max(offer.refundAfter, 0)) - daa) / Double(KachatLive.daaPerSecond)
-        let f = DateComponentsFormatter()
-        f.allowedUnits = seconds >= 86_400 ? [.day, .hour] : (seconds >= 3600 ? [.hour, .minute] : [.minute])
-        f.unitsStyle = .abbreviated
-        f.maximumUnitCount = 2
-        f.calendar?.locale = AppLocalization.locale
+        // a kept formatter per range, not a new one per tile per redraw (smoothness audit L12)
+        let tier = seconds >= 86_400 ? "d" : (seconds >= 3600 ? "h" : "m")
+        let f = KachatLive.componentsFormatter("offer-left-\(tier)") { f in
+            f.allowedUnits = seconds >= 86_400 ? [.day, .hour] : (seconds >= 3600 ? [.hour, .minute] : [.minute])
+            f.unitsStyle = .abbreviated
+            f.maximumUnitCount = 2
+        }
         return f.string(from: max(60, seconds))
     }
 
@@ -1740,6 +1743,8 @@ struct KachatTxSheet<Inputs: View>: View {
     /// The step on screen; nil until the first move.
     @State private var screen: Screen?
     @State private var screenForward = true
+    /// A step slide in progress (`StepSlideState`).
+    @State private var stepSlide = StepSlideState()
     /// The fee being typed on the fee screen, and the fee it opened with (for its warning).
     @State private var feeDraft = ""
     @State private var feeAtEdit: UInt64?
@@ -1788,6 +1793,7 @@ struct KachatTxSheet<Inputs: View>: View {
             case .fee: feeScreen.transition(screenTransition)
             }
         }
+        .ignoresKeyboardWhileSliding(stepSlide)
         .toolbar(.hidden, for: .navigationBar)
         .modifier(planTasks)
     }
@@ -1798,6 +1804,7 @@ struct KachatTxSheet<Inputs: View>: View {
     }
 
     private func go(to next: Screen) {
+        stepSlide.begin()
         dismissSystemKeyboard()
         screenForward = next.rawValue > currentScreen.rawValue
         // The leaving screen re-renders with the new direction before it animates out.

@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "向你发送了 %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "邀请你下一盘国际象棋";
+"Accepted your chess game" = "接受了你的对局";
+"Declined your chess game" = "拒绝了你的对局";
+"Played a chess move" = "走了一步棋";
+"Played %@ → %@" = "走了 %@ → %@";
+"Lost on time" = "超时判负";
+"Resigned the chess game" = "认输了这盘棋";
+"Removed their %@ reaction" = "撤回了 %@ 回应";
+"Reacted %@ to a message" = "对一条消息回应了 %@";
+"Reacted %@ to your message" = "对你的消息回应了 %@";
+"Replied to a message" = "回复了一条消息";
+"Photo" = "照片";
+"Video" = "视频";
+"Edited a message" = "编辑了一条消息";
+"Sent a photo" = "发送了一张照片";
+"Sent a voice message" = "发送了一条语音消息";
+"Sent a video" = "发送了一个视频";

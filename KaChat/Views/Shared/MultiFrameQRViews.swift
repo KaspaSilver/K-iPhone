@@ -248,6 +248,10 @@ private class MultiFrameScannerViewController: UIViewController, AVCaptureMetada
 
     private var captureSession: AVCaptureSession?
     private var previewLayer: AVCaptureVideoPreviewLayer?
+    /// Start and stop in order on one queue: a start still running on another queue when the
+    /// scanner closed right after opening outran the stop, and the camera stayed on (audit
+    /// 2026-11-27).
+    private let sessionQueue = DispatchQueue(label: "com.kachat.multiframeqr.session", qos: .userInitiated)
     private var lastEmitTime: Date = .distantPast
 
     override func viewDidLoad() {
@@ -295,15 +299,16 @@ private class MultiFrameScannerViewController: UIViewController, AVCaptureMetada
     }
 
     private func startScanning() {
-        if let session = captureSession, !session.isRunning {
-            DispatchQueue.global(qos: .userInitiated).async {
-                session.startRunning()
-            }
+        guard let session = captureSession else { return }
+        sessionQueue.async {
+            if !session.isRunning { session.startRunning() }
         }
     }
 
     private func stopScanning() {
-        if let session = captureSession, session.isRunning {
+        // Whatever `isRunning` says now: a start may still be queued.
+        guard let session = captureSession else { return }
+        sessionQueue.async {
             session.stopRunning()
         }
     }

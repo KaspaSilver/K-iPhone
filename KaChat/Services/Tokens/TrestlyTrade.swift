@@ -239,7 +239,10 @@ enum TrestlyTrade {
     }
 
     /// Minutes left on this address's hold, or nil when it may trade: no hold, the hold ran out,
-    /// or a coin it had before is gone from the node (the earlier trade landed).
+    /// or a coin it had before is gone from the node (the earlier trade landed). A gone coin counts
+    /// only while this run still reserves the hold's coins: then no send of K's could have spent
+    /// it. After a relaunch the reservation is gone, a send may have taken one, and the hold lasts
+    /// its ten minutes (release audit 2026-11-27, Low).
     static func heldMinutes(for address: String) async -> Int? {
         guard let held = holds[address] else { return nil }
         let left = held.until.timeIntervalSinceNow
@@ -249,7 +252,8 @@ enum TrestlyTrade {
             holds = all
             return nil
         }
-        if !held.outpoints.isEmpty,
+        let reserved = ChatService.shared.heldOutpointKeys()
+        if !held.outpoints.isEmpty, held.outpoints.allSatisfy({ reserved.contains($0) }),
            let now = try? await NodePoolService.shared.getUtxosByAddresses([address]) {
             let present = Set(now.map(\.id))
             if held.outpoints.contains(where: { !present.contains($0) }) {

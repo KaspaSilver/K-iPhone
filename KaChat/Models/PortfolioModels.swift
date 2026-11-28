@@ -225,17 +225,17 @@ enum ChartPair: String, CaseIterable, Codable {
         switch self {
         case .bitcoin: return "Bitcoin"
         case .voo: return "VOO"
-        case .gold: return "Gold"
-        case .silver: return "Silver"
+        case .gold: return AppLocalization.string("Gold")
+        case .silver: return AppLocalization.string("Silver")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .bitcoin: return "Kaspa priced in bitcoin"
-        case .voo: return "Shares of Vanguard's S&P 500 ETF"
-        case .gold: return "Troy ounces of gold"
-        case .silver: return "Troy ounces of silver"
+        case .bitcoin: return AppLocalization.string("Kaspa priced in bitcoin")
+        case .voo: return AppLocalization.string("Shares of Vanguard's S&P 500 ETF")
+        case .gold: return AppLocalization.string("Troy ounces of gold")
+        case .silver: return AppLocalization.string("Troy ounces of silver")
         }
     }
 

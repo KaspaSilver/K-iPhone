@@ -3,7 +3,7 @@ import UIKit
 import Combine
 
 /// Moves whenever a name a group row or bubble shows could read differently: a contact renamed
-/// (the contacts list), an Address Book name, or Settings' Show .kachat Endings. The group memos
+/// (the contacts list) or an Address Book name. The group memos
 /// (`GroupChatRow.previewText`, `GroupMessageBubbleRow.displayContent`) put it in their keys
 /// beside `identityRevision`, so a rename shows at once instead of when the row's text changes
 /// (audit 2026-11-24 #10).
@@ -109,13 +109,37 @@ struct GroupChatRow: View {
         return text
     }
 
-    /// Group mirror of ConversationRow.reactionPreviewText: a reaction newer than the last
-    /// message becomes the row's preview ("Alice reacted to a message") - reactions never
-    /// become messages (they render as a corner pill), so without this the row would keep
-    /// showing an older message as if nothing happened. `nil` when the newest activity is a
-    /// regular message.
-    private var reactionPreviewText: String? {
-        guard let byTarget = groupChatService.reactionsByGroupId[group.id], !byTarget.isEmpty else { return nil }
+    /// The group's newest reaction and whether it's on your message, worked out once per change
+    /// to the group's reactions or messages: the walk over every reaction ran on each pass of
+    /// every row (audit 2026-11-27 C12). The line itself, with the reactor's current name, is
+    /// still made on each pass. Boxed so "no reaction" is remembered too.
+    private final class NewestReactionBox {
+        let snapshot: GroupStore.ReactionSnapshot?
+        let targetIsMine: Bool
+        init(_ snapshot: GroupStore.ReactionSnapshot?, targetIsMine: Bool) {
+            self.snapshot = snapshot
+            self.targetIsMine = targetIsMine
+        }
+    }
+    private static let newestReactionMemo: NSCache<NSString, NewestReactionBox> = {
+        let cache = NSCache<NSString, NewestReactionBox>()
+        cache.countLimit = 500
+        return cache
+    }()
+
+    private var newestReaction: NewestReactionBox {
+        let messages = groupChatService.groupMessages[group.id]
+        let key = "\(group.id)|\(groupChatService.reactionsRevision)|\(messages?.count ?? 0)|\(messages?.last?.id.uuidString ?? "-")" as NSString
+        if let cached = Self.newestReactionMemo.object(forKey: key) { return cached }
+        let box = computeNewestReaction()
+        Self.newestReactionMemo.setObject(box, forKey: key)
+        return box
+    }
+
+    private func computeNewestReaction() -> NewestReactionBox {
+        guard let byTarget = groupChatService.reactionsByGroupId[group.id], !byTarget.isEmpty else {
+            return NewestReactionBox(nil, targetIsMine: false)
+        }
         // Pick the newest reaction purely from the reaction snapshots, then resolve its target
         // once. Resolving inside the loop meant a linear search of the group's whole message
         // array for every reaction target that briefly held the lead.
@@ -126,12 +150,21 @@ struct GroupChatRow: View {
                 newestSnapshot = (candidate, targetTxId)
             }
         }
-        guard let newestSnapshot else { return nil }
-        let newest = (
-            snapshot: newestSnapshot.snapshot,
-            targetIsMine: groupChatService.groupMessages[group.id]?
-                .first(where: { $0.txId == newestSnapshot.targetTxId })?.isOutgoing == true
-        )
+        guard let newestSnapshot else { return NewestReactionBox(nil, targetIsMine: false) }
+        let targetIsMine = groupChatService.groupMessages[group.id]?
+            .first(where: { $0.txId == newestSnapshot.targetTxId })?.isOutgoing == true
+        return NewestReactionBox(newestSnapshot.snapshot, targetIsMine: targetIsMine)
+    }
+
+    /// Group mirror of ConversationRow.reactionPreviewText: a reaction newer than the last
+    /// message becomes the row's preview ("Alice reacted to a message") - reactions never
+    /// become messages (they render as a corner pill), so without this the row would keep
+    /// showing an older message as if nothing happened. `nil` when the newest activity is a
+    /// regular message.
+    private var reactionPreviewText: String? {
+        let found = newestReaction
+        guard let snapshot = found.snapshot else { return nil }
+        let newest = (snapshot: snapshot, targetIsMine: found.targetIsMine)
         // Same rule as 1:1 (ConversationRow.reactionPreviewText): chain time on both sides, a
         // message not in a block yet or within a second of the reaction wins.
         if let lastMessage {

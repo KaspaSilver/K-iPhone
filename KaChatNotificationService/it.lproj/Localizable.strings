@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "Ti ha inviato %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "Ti ha invitato a una partita a scacchi";
+"Accepted your chess game" = "Ha accettato la tua partita a scacchi";
+"Declined your chess game" = "Ha rifiutato la tua partita a scacchi";
+"Played a chess move" = "Ha fatto una mossa a scacchi";
+"Played %@ → %@" = "Ha giocato %@ → %@";
+"Lost on time" = "Ha perso per tempo";
+"Resigned the chess game" = "Ha abbandonato la partita a scacchi";
+"Removed their %@ reaction" = "Ha rimosso la reazione %@";
+"Reacted %@ to a message" = "Ha reagito con %@ a un messaggio";
+"Reacted %@ to your message" = "Ha reagito con %@ al tuo messaggio";
+"Replied to a message" = "Ha risposto a un messaggio";
+"Photo" = "Foto";
+"Video" = "Video";
+"Edited a message" = "Ha modificato un messaggio";
+"Sent a photo" = "Ha inviato una foto";
+"Sent a voice message" = "Ha inviato un messaggio vocale";
+"Sent a video" = "Ha inviato un video";

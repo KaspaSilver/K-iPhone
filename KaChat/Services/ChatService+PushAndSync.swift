@@ -452,12 +452,6 @@ extension ChatService {
             startPollingWhenStoreReadyTask = nil
             return
         }
-        // The setup wizard owns the screen: nothing syncs underneath it. `releaseSyncForOnboarding`
-        // calls back in here once the user is through.
-        guard !onboardingSyncHeld else {
-            AppLog.log("%@", "[ChatService] startPolling deferred: onboarding in progress")
-            return
-        }
         guard isMessageStoreReadyForCurrentWallet() else {
             scheduleStartPollingWhenStoreReady(interval: interval)
             return
@@ -518,13 +512,11 @@ extension ChatService {
             // Phase 1: Fetch handshakes first (needed to decrypt messages)
             // This is lightweight and establishes encryption keys
             AppLog.log("[ChatService] Phase 1: Fetching handshakes...")
-            setInitialSyncPhase(.handshakes)
             await fetchHandshakesOnly()
             AppLog.log("[ChatService] Phase 1 complete")
 
             // Phase 2: Setup UTXO subscription for real-time updates
             AppLog.log("[ChatService] Phase 2: Setting up UTXO subscription...")
-            setInitialSyncPhase(.subscribing)
             await setupUtxoSubscription()
             AppLog.log("[ChatService] Phase 2 complete, isUtxoSubscribed=%d", isUtxoSubscribed ? 1 : 0)
 
@@ -536,7 +528,6 @@ extension ChatService {
             // list - skipping this is exactly why previously-read chats once reappeared unread
             // after logout->login.
             AppLog.log("[ChatService] Phase 3: Loading messages from local store...")
-            setInitialSyncPhase(.localStore)
             await loadMessagesFromStoreIfNeeded(onlyIfEmpty: false)
             AppLog.log("[ChatService] Phase 3 complete")
 
@@ -544,7 +535,6 @@ extension ChatService {
             // NOTE: syncFromConversations() will preserve stored content and not
             // overwrite with placeholders thanks to the !isPlaceholder check
             AppLog.log("[ChatService] Phase 4: Full indexer sync...")
-            setInitialSyncPhase(.indexer)
             await fetchNewMessages()
             AppLog.log("[ChatService] Phase 4 complete")
 
@@ -553,7 +543,6 @@ extension ChatService {
             hasCompletedInitialSync = true
             // old chats whose first messages fell out of memory stay ordinary chats
             Task { await self.grandfatherPreexistingChats() }
-            setInitialSyncPhase(.finished)
 
             // No remote-push early-out here: fallback polling depends only on whether the
             // subscription came up. While the app runs, its own sync paths must detect
@@ -1438,7 +1427,10 @@ extension ChatService {
         for output in fullTx.outputs {
             guard let addr = output.scriptPublicKeyAddress, !addr.isEmpty else { continue }
             if addr == myAddress {
-                totalToUs += output.amount
+                // REST's amounts: a sum past UInt64.max is a made-up transaction, not a crash (R6)
+                let (sum, overflow) = totalToUs.addingReportingOverflow(output.amount)
+                if overflow { return nil }
+                totalToUs = sum
             } else {
                 outputsToOthers.append((address: addr, amount: output.amount))
             }

@@ -20,6 +20,20 @@ final class SharedDataManager {
         sharedDefaults?.object(forKey: key)
     }
 
+    /// Writes only a value that differs from what's there: these syncs run on every activation,
+    /// and an App Group write is a plist rewrite the extension's process sees too (audit
+    /// 2026-11-27 B3). Nil removes the key.
+    private static func setIfChanged(_ value: Any?, forKey key: String) {
+        guard let defaults = sharedDefaults else { return }
+        let current = defaults.object(forKey: key)
+        if let value {
+            if let current = current as? NSObject, current.isEqual(value) { return }
+            defaults.set(value, forKey: key)
+        } else if current != nil {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -88,13 +102,14 @@ final class SharedDataManager {
     /// Sync contacts from ContactsManager to shared container for notification extension
     @MainActor
     static func syncContactsForExtension() {
+        let ownAddress = WalletManager.shared.currentWallet?.publicAddress.lowercased()
         let contacts = ContactsManager.shared.contacts.map { contact in
             SharedContact(
                 address: contact.address,
                 // Who they are in the app: a name you gave them (chat or Address Book), else their
                 // .kachat name, else the short address - so a push from someone with a .kachat
                 // name says it, not their address.
-                alias: ContactsManager.shared.displayName(for: contact),
+                alias: extensionAlias(for: contact, ownAddress: ownAddress),
                 notificationModeOverride: contact.notificationModeOverride
             )
         }
@@ -104,6 +119,12 @@ final class SharedDataManager {
             return
         }
 
+        // Every activation runs this: an unchanged list isn't written again.
+        if sharedDefaults?.data(forKey: Keys.contacts) == data,
+           sharedDefaults?.string(forKey: Keys.contactsWallet) == WalletManager.shared.currentWallet?.publicAddress {
+            syncIdentityNamesForExtension()
+            return
+        }
         sharedDefaults?.set(data, forKey: Keys.contacts)
         // Stamped with the wallet these belong to, written AFTER the list so a reader can never
         // see a new stamp over an old list.
@@ -112,13 +133,30 @@ final class SharedDataManager {
         syncIdentityNamesForExtension()
     }
 
+    /// `ContactsManager.displayName(for:)`'s order, from what's already cached: that one queues
+    /// an identity lookup for every contact older than five minutes, so each activation asked
+    /// for every contact's name and redrew the screen as the answers landed (audit 2026-11-27 T4).
+    @MainActor
+    private static func extensionAlias(for contact: Contact, ownAddress: String?) -> String {
+        let key = contact.address.lowercased()
+        if key != ownAddress {
+            if let assigned = contact.assignedName { return assigned }
+            if let saved = AddressBookManager.shared.entry(for: contact.address)?.customName { return saved }
+        }
+        if KachatNamesService.isEnabled,
+           let label = KachatNamesRegistry.shared.cachedIdentityLabelWithoutLookup(for: contact.address) {
+            return KachatNameLabel.display(label)
+        }
+        return Contact.generateDefaultAlias(from: contact.address)
+    }
+
     /// The `.kachat` names this phone already knows (address -> "alice.kachat"), newest 500, so a
     /// KaPost push names the person who liked or replied even when they aren't a contact.
     /// Nothing is looked up for it: only names the app has already seen.
     @MainActor
     static func syncIdentityNamesForExtension() {
         let names = KachatNamesRegistry.shared.knownIdentityNames(limit: 500)
-        sharedDefaults?.set(names, forKey: "shared_identity_names")
+        setIfChanged(names, forKey: "shared_identity_names")
     }
 
     // MARK: - Recent Conversations (Share Extension direct targets)
@@ -192,17 +230,19 @@ final class SharedDataManager {
             return
         }
 
-        sharedDefaults?.set(data, forKey: Keys.groups)
-        AppLog.log("[SharedData] Synced %d groups to shared container", groups.count)
+        if sharedDefaults?.data(forKey: Keys.groups) != data {
+            sharedDefaults?.set(data, forKey: Keys.groups)
+            AppLog.log("[SharedData] Synced %d groups to shared container", groups.count)
+        }
 
         // Groups with "Only Notify if I'm Mentioned" on - the NSE checks this after decrypting a
         // group_message push, to decide whether to suppress it when the text doesn't mention the
         // wallet's own address (already shared separately via `syncWalletAddressForExtension`).
         if let silentData = try? JSONEncoder().encode(GroupChatService.shared.groupSilentNotifications) {
-            sharedDefaults?.set(silentData, forKey: Keys.groupSilentNotifications)
+            setIfChanged(silentData, forKey: Keys.groupSilentNotifications)
         }
         if let mentionsData = try? JSONEncoder().encode(GroupChatService.shared.groupMentionsOnlyNotifications) {
-            sharedDefaults?.set(mentionsData, forKey: Keys.groupMentionsOnlyNotifications)
+            setIfChanged(mentionsData, forKey: Keys.groupMentionsOnlyNotifications)
         }
 
         syncOwnGroupTxIdsForExtension()
@@ -223,14 +263,14 @@ final class SharedDataManager {
         // as personal in the push path. Fire-and-forget so the call sites stay synchronous.
         Task {
             let txIds = await GroupStore.shared.ownOutgoingTxIds(limit: 500)
-            sharedDefaults?.set(txIds, forKey: Keys.groupOwnTxIds)
+            setIfChanged(txIds, forKey: Keys.groupOwnTxIds)
         }
     }
 
     /// The extension once matched Android's `@{primaryKNSDomain}` mentions against the wallet's
     /// own .kas name. K reads no .kas names since 2026-11-23, so any name shared before is cleared.
     static func syncOwnKNSDomainForExtension() {
-        sharedDefaults?.removeObject(forKey: Keys.ownPrimaryKNSDomain)
+        setIfChanged(nil, forKey: Keys.ownPrimaryKNSDomain)
     }
 
     /// Sync notification defaults used by the notification service extension.
@@ -243,8 +283,8 @@ final class SharedDataManager {
         // The master switch and KaPost's per-kind switches: the extension can't read the app's
         // settings, so without these copies it rang for pushes the person had switched off
         // (audit 2026-11-24 notifications).
-        sharedDefaults?.set(settings.notificationMode != .disabled, forKey: Keys.notificationsEnabled)
-        sharedDefaults?.set([
+        setIfChanged(settings.notificationMode != .disabled, forKey: Keys.notificationsEnabled)
+        setIfChanged([
             "likes": settings.kaPostsNotifyLikes,
             "dislikes": settings.kaPostsNotifyDislikes,
             "comments": settings.kaPostsNotifyComments,
@@ -252,14 +292,14 @@ final class SharedDataManager {
             "follows": settings.kaPostsNotifyFollows,
             "mentions": settings.kaPostsNotifyMentions
         ], forKey: Keys.kaPostsNotificationKinds)
-        sharedDefaults?.set(settings.incomingNotificationSoundEnabled, forKey: Keys.incomingNotificationSoundEnabled)
-        sharedDefaults?.set(settings.incomingNotificationVibrationEnabled, forKey: Keys.incomingNotificationVibrationEnabled)
-        sharedDefaults?.set(settings.verboseAPILogging, forKey: Keys.verboseAPILogging)
-        sharedDefaults?.set(settings.kaspaRestAPIURL, forKey: Keys.kaspaRestAPIURL)
+        setIfChanged(settings.incomingNotificationSoundEnabled, forKey: Keys.incomingNotificationSoundEnabled)
+        setIfChanged(settings.incomingNotificationVibrationEnabled, forKey: Keys.incomingNotificationVibrationEnabled)
+        setIfChanged(settings.verboseAPILogging, forKey: Keys.verboseAPILogging)
+        setIfChanged(settings.kaspaRestAPIURL, forKey: Keys.kaspaRestAPIURL)
         if !settings.verboseAPILogging {
             // Turning verbose logging off also clears the last captured push payload, so no
             // encrypted-payload residue outlives the diagnostics session that recorded it.
-            sharedDefaults?.removeObject(forKey: "last_push_payload")
+            setIfChanged(nil, forKey: "last_push_payload")
         }
     }
 
@@ -267,7 +307,7 @@ final class SharedDataManager {
     @MainActor
     static func syncWalletAddressForExtension() {
         let address = WalletManager.shared.currentWallet?.publicAddress
-        sharedDefaults?.set(address, forKey: Keys.walletAddress)
+        setIfChanged(address, forKey: Keys.walletAddress)
     }
 
     /// Get contact by address (called from notification extension)

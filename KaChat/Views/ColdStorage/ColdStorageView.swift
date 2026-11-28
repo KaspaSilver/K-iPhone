@@ -351,7 +351,7 @@ struct ColdStorageListView: View {
             return
         }
         pendingKpub = trimmed
-        nameInput = "Cold Storage \(manager.accounts.count + 1)"
+        nameInput = String(format: AppLocalization.string("Cold Storage %lld"), manager.accounts.count + 1)
     }
 
     private func completeImport() {
@@ -433,7 +433,7 @@ private struct ColdStorageAccountCard: View {
                     .buttonStyle(.borderless)
                     .accessibilityLabel(Text("Remove Account"))
                 }
-                Text(verbatim: "\(sompi.map { KaspaUnit.groupedExact($0) } ?? "--") \(KaspaUnit.symbol)")
+                Text(verbatim: ManagedAddressCardAmount.kas(sompi))
                     .font(.title.weight(.bold))
                     .foregroundColor(.primary)
                     .monospacedDigit()
@@ -541,6 +541,10 @@ struct ColdStorageDetailView: View {
     @State private var loadToken = UUID()
     /// A pending reload after coin activity (`reloadAfterActivity`).
     @State private var activityReload: Task<Void, Never>?
+    /// When the last full load (used checks, name lookups) finished. Coming back within
+    /// `quickReturn` reloads balances only, so the rows don't reshuffle (smoothness audit L1).
+    @State private var lastFullLoad: Date?
+    private static let quickReturn: TimeInterval = 120
     /// Addresses that own at least one .kachat name - drives the "Contains username" tag and
     /// counts as used in the sort.
     @State private var domainOwningAddresses: Set<String> = []
@@ -668,7 +672,8 @@ struct ColdStorageDetailView: View {
         // rescanned on every Hub tab selection. Showing again reloads, which also covers any
         // activity skipped below while hidden (audit 2026-11-24 #23).
         .onScreenPresence(appear: {
-            Task { await loadEntries() }
+            let quick = lastFullLoad.map { Date().timeIntervalSince($0) < Self.quickReturn } ?? false
+            Task { await loadEntries(balancesOnly: quick && !entries.isEmpty) }
         }, disappear: {})
         // Live own-address receive detected (AddressActivityNotifier) - refresh balances so
         // the screen reflects the funds without a manual pull.
@@ -892,7 +897,7 @@ struct ColdStorageDetailView: View {
 
         return ManagedAddressCard(
             name: entry.displayLabel,
-            amount: "\(KaspaUnit.groupedExact(entry.balanceSompi)) \(KaspaUnit.symbol)",
+            amount: ManagedAddressCardAmount.kas(entry.balanceSompi),
             canSend: entry.balanceSompi > 0,
             used: used ? .used : (usedUnknown ? .checking : .unused),
             ownsUsername: domainOwningAddresses.contains(entry.address),
@@ -1011,17 +1016,51 @@ struct ColdStorageDetailView: View {
         let baseEntries = await manager.getAddressList(for: currentAccount)
         guard loadToken == token else { return }
         if balancesOnly {
-            // what the earlier checks found stays
-            let usedBefore = Set(entries.filter(\.everUsed).map(\.address))
+            // what the earlier checks found stays; an address that held coins before was used
+            let usedBefore = Set(entries.filter { $0.everUsed || $0.balanceSompi > 0 }.map(\.address))
+            let balanceBefore = Dictionary(entries.map { ($0.address, $0.balanceSompi) },
+                                           uniquingKeysWith: { first, _ in first })
             entries = baseEntries.map { entry in
                 var entry = entry
                 if usedBefore.contains(entry.address) { entry.everUsed = true }
                 return entry
             }.sorted { $0.index < $1.index }
             isLoading = false
+            // Still probe the rows whose balance moved and the ones whose last probe failed, so
+            // a just-used change address doesn't stay Unused until a pull (release audit C1).
+            let toProbe = entries.filter { entry in
+                !entry.everUsed && entry.balanceSompi == 0
+                    && (balanceBefore[entry.address] != entry.balanceSompi
+                        || unknownUsedAddresses.contains(entry.address))
+            }.map(\.address)
+            guard !toProbe.isEmpty else { return }
+            var updates: [String: Bool] = [:]
+            var stillUnknown: Set<String> = []
+            for address in toProbe {
+                let used = await ChatService.shared.spendingAddressUsedState(address)
+                guard loadToken == token else { return }
+                if let used { updates[address] = used } else { stillUnknown.insert(address) }
+            }
+            if updates.values.contains(true) {
+                var updated = entries
+                for idx in updated.indices where updates[updated[idx].address] == true {
+                    updated[idx].everUsed = true
+                }
+                entries = updated
+            }
+            let probed = Set(toProbe)
+            unknownUsedAddresses = unknownUsedAddresses.subtracting(probed).union(stillUnknown)
             return
         }
-        entries = baseEntries.sorted { $0.index < $1.index }
+        // Keep what the earlier checks found until the probes below answer: getAddressList
+        // reads every address as unused, so used-but-empty rows jumped into the Unused group
+        // and back (smoothness audit L1).
+        let usedEarlier = Set(entries.filter(\.everUsed).map(\.address))
+        entries = baseEntries.map { entry in
+            var entry = entry
+            if usedEarlier.contains(entry.address) { entry.everUsed = true }
+            return entry
+        }.sorted { $0.index < $1.index }
         isLoading = false
 
         // Which quantum addresses have spent, putting their key on chain (the slashed shield).
@@ -1063,11 +1102,15 @@ struct ColdStorageDetailView: View {
         }
         guard loadToken == token else { return }
         if !updates.isEmpty {
-            for idx in entries.indices {
-                if let used = updates[entries[idx].address] {
-                    entries[idx].everUsed = used
+            // One write. An address once used stays used: a probe reading "unused" after an
+            // earlier "used" is a degraded answer, and flipping it would move the row.
+            var updated = entries
+            for idx in updated.indices {
+                if let used = updates[updated[idx].address], used || !usedEarlier.contains(updated[idx].address) {
+                    updated[idx].everUsed = used
                 }
             }
+            entries = updated
         }
         unknownUsedAddresses = failedProbes.filter { address in
             !(entries.first(where: { $0.address == address })?.everUsed ?? false)
@@ -1079,7 +1122,8 @@ struct ColdStorageDetailView: View {
         // the addresses holding a .kachat name
         let owners = await KachatNamesRegistry.shared.ownersOfNames(among: addresses)
         guard loadToken == token else { return }
-        domainOwningAddresses = owners
+        if domainOwningAddresses != owners { domainOwningAddresses = owners }
+        lastFullLoad = Date()
     }
 
     /// Stamps the fresh hidden set onto the rows already loaded and adds any newly revealed
@@ -1293,12 +1337,15 @@ private struct ColdSendFlowView: View {
     private enum FormStep: Int { case recipient, amount, review, fee }
     @State private var formStep: FormStep?
     @State private var formForward = true
+    /// A step slide in progress (`StepSlideState`).
+    @State private var stepSlide = StepSlideState()
     @State private var feeDraft = ""
     private var currentFormStep: FormStep {
         formStep ?? (isCompoundMode ? .review : .recipient)
     }
 
     private func go(to next: FormStep) {
+        stepSlide.begin()
         dismissSystemKeyboard()
         formForward = next.rawValue > currentFormStep.rawValue
         DispatchQueue.main.async {
@@ -1459,6 +1506,7 @@ private struct ColdSendFlowView: View {
             case .fee: feeStep.transition(formTransition)
             }
         }
+        .ignoresKeyboardWhileSliding(stepSlide)
         // The recipient card only shows the lookup; this screen runs it.
         .onChange(of: toAddress) { handleInputChange($0) }
         .onChange(of: amountText) { _ in schedulePreview() }

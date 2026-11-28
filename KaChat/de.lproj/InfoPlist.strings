@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID wird verwendet, um deine Wiederherstellungsphrase freizugeben und dich wieder anzumelden, wenn es in den Einstellungen aktiviert ist.";
 "NSLocalNetworkUsageDescription" = "K verbindet sich nur dann mit einem Kaspa-Node oder einem Nextcloud-Server in deinem lokalen Netzwerk, wenn du einen einrichtest.";
 "NFCReaderUsageDescription" = "K verwendet NFC, um eine verschlüsselte Sicherung deiner Wiederherstellungsphrase auf deiner Smartcard zu speichern und wiederherzustellen.";
-"NSPhotoLibraryAddUsageDescription" = "Empfangene Bilder in deiner Fotomediathek speichern.";
+"NSPhotoLibraryAddUsageDescription" = "K speichert empfangene Bilder in deiner Fotomediathek.";

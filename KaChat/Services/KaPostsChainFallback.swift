@@ -1,3 +1,4 @@
+import Combine
 import CryptoKit
 import Foundation
 import UIKit
@@ -38,12 +39,23 @@ final class KaPostsIndexerHealth: ObservableObject {
     private static let failureWindow: TimeInterval = 120
     /// A network handoff fails every request in flight at once: that's one failure, not three.
     private static let minFailureSpacing: TimeInterval = 5
+    /// A timeout or dropped connection this soon after the phone changed network is the handoff,
+    /// not the indexer (audit 2026-11-27 B1: cellular timeouts turned the block stream on).
+    private static let networkChangeGrace: TimeInterval = 30
+    private var lastNetworkChangeAt = Date.distantPast
 
-    private init() {}
+    private init() {
+        NetworkEpochMonitor.shared.onEpochChange { [weak self] _ in
+            self?.lastNetworkChangeAt = Date()
+        }
+    }
 
     /// A request that failed: counts against the indexer only if it says so (`meansDown`).
     func note(_ error: Error) {
-        if Self.meansDown(error) { noteFailure() }
+        guard Self.meansDown(error) else { return }
+        if let code = (error as? URLError)?.code, code == .timedOut || code == .networkConnectionLost,
+           Date().timeIntervalSince(lastNetworkChangeAt) < Self.networkChangeGrace { return }
+        noteFailure()
     }
 
     func noteFailure() {
@@ -389,7 +401,9 @@ enum KaPostsChainPosts {
 }
 
 /// New posts off the node's block stream while the indexer is down: what the feed can still get
-/// live. Only while it's down, since streaming every block costs data the indexer otherwise saves.
+/// live. Only while it's down, since streaming every block costs data the indexer otherwise saves,
+/// and only while a Posts feed is on screen on Wi-Fi (audit 2026-11-27 B1: about 10 blocks a
+/// second on every tab and on cellular). What it found stays for the outage.
 @MainActor
 final class KaPostsLiveChainFeed: ObservableObject {
     static let shared = KaPostsLiveChainFeed()
@@ -401,7 +415,12 @@ final class KaPostsLiveChainFeed: ObservableObject {
     /// indexer, so a stranger's signed "delete" of someone else's post is never matched.
     @Published private(set) var amendments: [String: LiveAmendment] = [:]
     private var handlerId: UUID?
+    /// The outage: posts and amendments are kept while this is on.
     private var active = false
+    private var streaming = false
+    private var feedOnScreen = false
+    private var expensivePath = false
+    private var gateWatch: Set<AnyCancellable> = []
     /// Every copy of a signed payload after the first is a replay (`VerifiedPost.repeatKey`).
     /// Capped, oldest out first (`seenOrder`): during a long outage it grew by every post
     /// streamed while `posts` stayed at `keep`. The cap is far past `keep`, so a replay is only
@@ -434,12 +453,40 @@ final class KaPostsLiveChainFeed: ObservableObject {
         postId + ":" + KaPostsChainPosts.xOnly(authorPubkey)
     }
 
-    private init() {}
+    private init() {
+        expensivePath = NetworkEpochMonitor.shared.isExpensivePath
+        KaPostsDockRouter.shared.kaPostsOnScreen
+            .sink { [weak self] onScreen in
+                self?.feedOnScreen = onScreen
+                self?.updateStreaming()
+            }
+            .store(in: &gateWatch)
+        NetworkEpochMonitor.shared.expensivePathPublisher
+            .sink { [weak self] expensive in
+                self?.expensivePath = expensive
+                self?.updateStreaming()
+            }
+            .store(in: &gateWatch)
+    }
 
     func setActive(_ isActive: Bool) {
         guard isActive != active else { return }
         active = isActive
-        if isActive {
+        if !isActive {
+            // The indexer has these now.
+            posts = []
+            amendments = [:]
+            seenPayloads = []
+            seenOrder = []
+        }
+        updateStreaming()
+    }
+
+    private func updateStreaming() {
+        let shouldStream = active && feedOnScreen && !expensivePath
+        guard shouldStream != streaming else { return }
+        streaming = shouldStream
+        if shouldStream {
             if handlerId == nil {
                 handlerId = NodePoolService.shared.addBlockHandler { [weak self] block in
                     Self.scanQueue.async {
@@ -451,13 +498,9 @@ final class KaPostsLiveChainFeed: ObservableObject {
             }
             Task { await NodePoolService.shared.subscribeBlockAdded(client: Self.client) }
         } else {
-            // The indexer has these now. The handler goes too, as rooms' does (`stopScanning`):
-            // groups or the inbox scan can still keep the block stream on, so a kept handler
-            // parsed every later block for nothing (audit 2026-11-24 #26). `add` still ignores a scan already in flight.
-            posts = []
-            amendments = [:]
-            seenPayloads = []
-            seenOrder = []
+            // The handler goes too, as rooms' does (`stopScanning`): groups or the inbox scan can
+            // still keep the block stream on, so a kept handler parsed every later block for
+            // nothing (audit 2026-11-24 #26). `add` still ignores a scan already in flight.
             Task { await NodePoolService.shared.unsubscribeBlockAdded(client: Self.client) }
             if let id = handlerId {
                 BlockScanRegistry.shared.remove(id)
@@ -504,7 +547,7 @@ final class KaPostsLiveChainFeed: ObservableObject {
     }
 
     private func add(_ scan: Scan) {
-        guard active else { return }
+        guard active, streaming else { return }
         if !scan.amendments.isEmpty {
             var updated = amendments
             for (key, amendment) in scan.amendments {

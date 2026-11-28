@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "Отправил вам %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "Пригласил(а) вас сыграть в шахматы";
+"Accepted your chess game" = "Принял(а) вашу шахматную партию";
+"Declined your chess game" = "Отклонил(а) вашу шахматную партию";
+"Played a chess move" = "Сделал(а) ход в шахматах";
+"Played %@ → %@" = "Сделал(а) ход %@ → %@";
+"Lost on time" = "Проиграл(а) по времени";
+"Resigned the chess game" = "Сдался(-лась) в шахматной партии";
+"Removed their %@ reaction" = "Убрал(а) реакцию %@";
+"Reacted %@ to a message" = "Отреагировал(а) %@ на сообщение";
+"Reacted %@ to your message" = "Отреагировал(а) %@ на ваше сообщение";
+"Replied to a message" = "Ответил(а) на сообщение";
+"Photo" = "Фото";
+"Video" = "Видео";
+"Edited a message" = "Изменил(а) сообщение";
+"Sent a photo" = "Отправил(а) фото";
+"Sent a voice message" = "Отправил(а) голосовое сообщение";
+"Sent a video" = "Отправил(а) видео";

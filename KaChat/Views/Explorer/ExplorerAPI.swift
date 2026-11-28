@@ -200,12 +200,6 @@ enum ExplorerAPI {
 
     struct BalanceAnswer: Decodable { let balance: UInt64 }
     struct CountAnswer: Decodable { let total: Int }
-    struct UTXOAnswer: Decodable {
-        struct Outpoint: Decodable { let transactionId: String; let index: Int }
-        struct Entry: Decodable { let amount: String; let blockDaaScore: String? }
-        let outpoint: Outpoint
-        let utxoEntry: Entry
-    }
 
     // MARK: Reading what a transaction is
 
@@ -580,20 +574,10 @@ private extension String {
 extension ExplorerNetworkStats {
     /// Before kaspa.stream's first answer: drawn as placeholders.
     static let empty = ExplorerNetworkStats(
-        daaScore: 0, blueScore: 0, blocksPerSecond: 0, hashrate: 0, mempoolSize: 0, normalFeerate: 0,
+        blocksPerSecond: 0, hashrate: 0, mempoolSize: 0, normalFeerate: 0,
         priorityFeerate: 0, averageFee24h: 0, circulatingSupply: 0, maxSupply: 1, priceUSD: 0,
         nodeVersion: "", blockReward: 0, nextRewardDrop: Date()
     )
-
-    func with(daaScore: UInt64) -> ExplorerNetworkStats {
-        ExplorerNetworkStats(
-            daaScore: max(daaScore, self.daaScore), blueScore: blueScore, blocksPerSecond: blocksPerSecond,
-            hashrate: hashrate, mempoolSize: mempoolSize, normalFeerate: normalFeerate,
-            priorityFeerate: priorityFeerate, averageFee24h: averageFee24h, circulatingSupply: circulatingSupply,
-            maxSupply: maxSupply, priceUSD: priceUSD, nodeVersion: nodeVersion, blockReward: blockReward,
-            nextRewardDrop: nextRewardDrop
-        )
-    }
 }
 
 // MARK: - Live network
@@ -857,18 +841,27 @@ final class ExplorerLive: ObservableObject {
         slowAt = Date()
     }
 
+    /// The fee tile's stand-in until a real average is served: the demo's number in Debug builds,
+    /// nothing in Release.
+    private static var demoAverageFee: UInt64 {
+        #if DEBUG
+        return ExplorerDemo.stats(at: Date()).averageFee24h
+        #else
+        return 0
+        #endif
+    }
+
     private func publishStats() {
-        guard let slow, let anchor = daaAnchor else { return }
+        // still waits for the first block, as when the DAA score was part of it
+        guard let slow, daaAnchor != nil else { return }
         let next = ExplorerNetworkStats(
-            daaScore: anchor.score,
-            blueScore: blueScore ?? 0,
             blocksPerSecond: blocksPerSecond,
             hashrate: slow.hashrate,
             mempoolSize: mempool,
             normalFeerate: slow.feerate,
             priorityFeerate: slow.priority,
-            // not in kaspa.stream's API: demo until K's indexer counts fees
-            averageFee24h: ExplorerDemo.stats(at: Date()).averageFee24h,
+            // not in kaspa.stream's API: the demo's in Debug builds, 0 (shown as "–") in Release
+            averageFee24h: Self.demoAverageFee,
             circulatingSupply: slow.circulating,
             maxSupply: slow.max,
             priceUSD: slow.price,

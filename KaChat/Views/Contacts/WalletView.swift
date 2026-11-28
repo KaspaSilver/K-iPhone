@@ -321,11 +321,12 @@ struct WalletView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// What the total is worth in your currency. Testnet coins aren't worth anything.
+    /// What the total is worth in your currency. Testnet coins aren't worth anything. Two
+    /// decimals, as Manage Addresses' cards (`AddressBalanceCard`) show it (release audit).
     private func fiatText(_ sompi: UInt64?) -> String? {
         guard let sompi, AppSettings.load().networkType == .mainnet,
               let price = priceModel.currentPriceUsd, price > 0 else { return nil }
-        return formatFiatAmount(Double(sompi) / 100_000_000.0 * price, currency: priceModel.currentCurrency, decimals: 4)
+        return formatFiatAmount(Double(sompi) / 100_000_000.0 * price, currency: priceModel.currentCurrency)
     }
 
     // MARK: - Actions

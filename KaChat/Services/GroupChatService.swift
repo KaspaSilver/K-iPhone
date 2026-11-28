@@ -56,7 +56,12 @@ final class GroupChatService: ObservableObject {
     /// level - mirrors `ChatService.reactionsByTxId`'s shape for 1:1. Loaded once per group open
     /// (see `loadGroupReactions`) and kept live afterward by `sendGroupReaction`/the
     /// incoming-reaction interception in `handleIncomingGroupMessage` updating it directly.
-    @Published var reactionsByGroupId: [String: [String: [GroupStore.ReactionSnapshot]]] = [:]
+    @Published var reactionsByGroupId: [String: [String: [GroupStore.ReactionSnapshot]]] = [:] {
+        didSet { reactionsRevision &+= 1 }
+    }
+    /// Moves on every change to `reactionsByGroupId`, so a chat list row's reaction preview is
+    /// worked out again only then (audit 2026-11-27 C12).
+    private(set) var reactionsRevision = 0
     /// The newest edit per message txId, per group - see `MessageEditCodec`.
     @Published var editsByGroupId: [String: [String: MessageEditSnapshot]] = [:]
 
@@ -106,7 +111,6 @@ final class GroupChatService: ObservableObject {
     private var openGroupSinceBlockTime: UInt64 = 0
     private var allGroupsSinceBlockTime: UInt64 = 0
     private static let livePollOpenGroupSeconds: Double = 5
-    private static let livePollAllGroupsSeconds: Double = 30
     /// A pass starts a little before its cursor: the indexer's clock and a reorg both move.
     private static let livePollRewindMs: UInt64 = 10_000
     private static let livePollStartLookbackMs: UInt64 = 2 * 60 * 1000
@@ -117,14 +121,22 @@ final class GroupChatService: ObservableObject {
         guard livePollTask == nil, hasActiveWallet else { return }
         livePollTask = Task { @MainActor [weak self] in
             var lastFullPass = Date.distantPast
+            var lastFullBeat: Int?
             while !Task.isCancelled {
                 guard let self else { return }
                 let expensive = NetworkEpochMonitor.shared.isExpensivePath
-                let fullEvery = Self.livePollAllGroupsSeconds * (expensive ? 2 : 1)
                 if UIApplication.shared.applicationState == .active, !self.groups.isEmpty {
-                    let full = Date().timeIntervalSince(lastFullPass) >= fullEvery
+                    // Every group once per shared beat, with a group open too (audit 2026-11-27
+                    // B5: it ran on a 30-60 s clock of its own then). With push covering every
+                    // group, every 5 minutes as a safety net (B4): a group push runs the catch-up
+                    // at once (`PushNotificationManager`, "Group push -> catch-up sync").
+                    let beat = Self.currentLivePollBeat()
+                    let full = beat != lastFullBeat
+                        && (!self.pushCoversGroupTraffic
+                            || Date().timeIntervalSince(lastFullPass) >= Self.livePollPushSafetyNetSeconds - 5)
                     if full {
                         lastFullPass = Date()
+                        lastFullBeat = beat
                         await self.pollIndexerForLiveGroupTraffic(groups: self.groups, includeControl: true, cursor: \.allGroupsSinceBlockTime)
                     } else if let open = self.activeGroupId, let group = self.groups.first(where: { $0.id == open }) {
                         await self.pollIndexerForLiveGroupTraffic(groups: [group], includeControl: false, cursor: \.openGroupSinceBlockTime)
@@ -134,20 +146,42 @@ final class GroupChatService: ObservableObject {
                 if self.activeGroupId == nil {
                     // No group open: nothing to do until the next full pass, which runs on the
                     // shared foreground beat (audit 2026-11-25 B4, B16; it used to tick every 5 s
-                    // for nothing). Opening a group wakes the sleep (`wakeLivePoll`).
-                    let beat = Task { @MainActor in await ForegroundBeat.sleepUntilNextBeat(offset: 3) }
+                    // for nothing). Opening a group wakes the sleep (`wakeLivePoll`); that wake
+                    // is still in the same beat, so it brings the open group's fast poll, not a
+                    // pass over every group (audit 2026-11-25 M7).
+                    let beat = Task { @MainActor in await ForegroundBeat.sleepUntilNextBeat(offset: Self.livePollBeatOffset) }
                     self.livePollSleepTask = beat
                     await beat.value
                     self.livePollSleepTask = nil
-                    // Only a beat that came round is due a full pass. Opening a group cancels the
-                    // sleep for the open group's fast poll; forcing a pass over every group then
-                    // made each open cost a full sweep (audit 2026-11-25 M7).
-                    if !beat.isCancelled { lastFullPass = .distantPast }
                 } else {
-                    try? await Task.sleep(nanoseconds: UInt64(Self.livePollOpenGroupSeconds * (expensive ? 3 : 1) * 1_000_000_000))
+                    // The open group's own cadence, cut short at the beat so the full pass
+                    // lands on it.
+                    let openEvery = Self.livePollOpenGroupSeconds * (expensive ? 3 : 1)
+                    let toBeat = ForegroundBeat.delayToNextBeat(interval: ForegroundBeat.interval, offset: Self.livePollBeatOffset, now: Date())
+                    try? await Task.sleep(nanoseconds: UInt64(min(openEvery, toBeat) * 1_000_000_000))
                 }
             }
         }
+    }
+
+    /// Where the group pass sits inside the shared beat.
+    private static let livePollBeatOffset: TimeInterval = 3
+    /// With push covering every group, how often the full pass runs anyway.
+    private static let livePollPushSafetyNetSeconds: TimeInterval = 5 * 60
+
+    /// Which shared beat it is now (a little slack, so a wake right at the beat counts as it).
+    private static func currentLivePollBeat() -> Int {
+        let t = Date().timeIntervalSince1970 - livePollBeatOffset + 0.5
+        return Int(floor(t / ForegroundBeat.interval))
+    }
+
+    /// Push is registered, has proven itself (`PushReliabilityState`), and watches every group:
+    /// a silenced group or a quiet member gets no push (`collectWatchedGroupIds`), so then the
+    /// pass keeps every beat.
+    private var pushCoversGroupTraffic: Bool {
+        let chat = ChatService.shared
+        guard chat.isPushChannelOperational(), chat.pushReliabilityState == .reliable else { return false }
+        return groups.allSatisfy { !silentNotifications(for: $0.id) && quietMemberAddresses(for: $0.id).isEmpty }
     }
 
     func stopLivePolling() {
@@ -3852,11 +3886,12 @@ final class GroupChatService: ObservableObject {
 
             var label: String {
                 switch self {
-                case .invites: return "Re-reading your group invites"
-                case .control: return "Re-reading roster and epoch keys"
-                case .messages(let done, let total): return "Re-fetching messages (\(done) of \(total) members)"
-                case .rebuilding: return "Decrypting history"
-                case .finished: return "Done"
+                case .invites: return AppLocalization.string("Re-reading your group invites")
+                case .control: return AppLocalization.string("Re-reading roster and epoch keys")
+                case .messages(let done, let total):
+                    return String(format: AppLocalization.string("Re-fetching messages (%lld of %lld members)"), done, total)
+                case .rebuilding: return AppLocalization.string("Decrypting history")
+                case .finished: return AppLocalization.string("Done")
                 }
             }
         }

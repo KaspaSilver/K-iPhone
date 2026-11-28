@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID được dùng để mở cụm từ khôi phục của bạn và đăng nhập lại, khi được bật trong Cài đặt.";
 "NSLocalNetworkUsageDescription" = "K chỉ kết nối với một nút Kaspa hoặc máy chủ Nextcloud trong mạng cục bộ của bạn nếu bạn thiết lập.";
 "NFCReaderUsageDescription" = "K dùng NFC để lưu và khôi phục bản sao lưu đã mã hóa của cụm từ khôi phục trên thẻ thông minh của bạn.";
-"NSPhotoLibraryAddUsageDescription" = "Lưu ảnh nhận được vào thư viện ảnh của bạn.";
+"NSPhotoLibraryAddUsageDescription" = "K lưu hình ảnh nhận được vào thư viện ảnh của bạn.";

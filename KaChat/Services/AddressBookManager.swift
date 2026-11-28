@@ -51,6 +51,15 @@ final class AddressBookManager: ObservableObject {
 
     private init() {
         photoCache.countLimit = 200
+        // Costed by decoded bytes (`photoCost`): 200 full-size photos ran to about 100 MB
+        // (audit 2026-11-27).
+        photoCache.totalCostLimit = 24 * 1024 * 1024
+    }
+
+    /// The decoded size of a cached photo, for `photoCache`'s cost limit.
+    private static func photoCost(_ image: UIImage) -> Int {
+        if let cg = image.cgImage { return cg.bytesPerRow * cg.height }
+        return Int(image.size.width * image.scale * image.size.height * image.scale * 4)
     }
 
     // MARK: - Wallet
@@ -83,6 +92,39 @@ final class AddressBookManager: ObservableObject {
         photolessAddresses.removeAll()
         photoVersion &+= 1
         migrateLinkedNames(from: ContactsManager.shared.contacts)
+        prewarmPhotos()
+    }
+
+    /// Decodes the first screens' assigned photos off the main thread, so the first scroll
+    /// through Contacts doesn't decode them as rows come in (smoothness audit L12). Only the
+    /// first few dozen: a decoded avatar is about half a megabyte. The rest decode on demand.
+    private func prewarmPhotos() {
+        let wanted: [(address: String, url: URL)] = entries.prefix(30).compactMap { entry -> (address: String, url: URL)? in
+            let address = Self.normalize(entry.address)
+            guard photoCache.object(forKey: address as NSString) == nil,
+                  let url = photoURL(for: address) else { return nil }
+            return (address, url)
+        }
+        guard !wanted.isEmpty else { return }
+        let version = photoVersion
+        Task.detached(priority: .utility) {
+            var decoded: [(String, UIImage)] = []
+            for item in wanted {
+                guard FileManager.default.fileExists(atPath: item.url.path),
+                      let raw = UIImage(contentsOfFile: item.url.path) else { continue }
+                decoded.append((item.address, raw.preparingForDisplay() ?? raw))
+            }
+            guard !decoded.isEmpty else { return }
+            let images = decoded
+            await MainActor.run {
+                let manager = AddressBookManager.shared
+                // a photo changed, or another account loaded, while these were read
+                guard manager.photoVersion == version else { return }
+                for (address, image) in images where manager.photoCache.object(forKey: address as NSString) == nil {
+                    manager.photoCache.setObject(image, forKey: address as NSString, cost: AddressBookManager.photoCost(image))
+                }
+            }
+        }
     }
 
     /// Once per wallet: every chat contact that was linked to a phone contact becomes an Address
@@ -229,7 +271,7 @@ final class AddressBookManager: ObservableObject {
         }
         // decoded now, once, rather than at draw time on every frame it scrolls through
         let image = raw.preparingForDisplay() ?? raw
-        photoCache.setObject(image, forKey: key)
+        photoCache.setObject(image, forKey: key, cost: Self.photoCost(image))
         return image
     }
 
@@ -363,7 +405,7 @@ final class AddressBookManager: ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .notAnAddressBook: return AppLocalization.string("That file isn't a KaChat contacts export.")
+            case .notAnAddressBook: return AppLocalization.string("That file isn't a K contacts export.")
             case .empty: return AppLocalization.string("That contacts export has no contacts.")
             case .otherNetwork: return AppLocalization.string(AppSettings.load().networkType == .testnet
                 ? "Every address in that file is a Mainnet address. K is on Testnet."
@@ -386,7 +428,7 @@ final class AddressBookManager: ObservableObject {
     /// The export's file name, with the time so several exports don't overwrite each other.
     nonisolated static func exportFileName(at date: Date = Date()) -> String {
         let stamp = ISO8601DateFormatter().string(from: date).replacingOccurrences(of: ":", with: "-")
-        return "KaChat Contacts \(stamp).json"
+        return "K Contacts \(stamp).json"
     }
 
     /// Imports an export file into this wallet's book: an address not saved here is added (even

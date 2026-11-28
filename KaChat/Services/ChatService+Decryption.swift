@@ -739,9 +739,17 @@ extension KaspaFullTransactionResponse {
         var totalIn: UInt64 = 0
         for input in inputs {
             guard let amount = input.previousOutpointAmount else { return nil }
-            totalIn += amount
+            // REST's amounts: a sum past UInt64.max is no fee at all, not a crash (R6)
+            let (sum, overflow) = totalIn.addingReportingOverflow(amount)
+            if overflow { return nil }
+            totalIn = sum
         }
-        let totalOut = outputs.reduce(UInt64(0)) { $0 + $1.amount }
+        var totalOut: UInt64 = 0
+        for output in outputs {
+            let (sum, overflow) = totalOut.addingReportingOverflow(output.amount)
+            if overflow { return nil }
+            totalOut = sum
+        }
         return totalIn >= totalOut ? totalIn - totalOut : nil
     }
 
@@ -763,10 +771,15 @@ extension KaspaFullTransactionResponse {
 
         for output in outputs {
             guard let addr = output.scriptPublicKeyAddress, !addr.isEmpty else { continue }
+            // REST's amounts: a sum past UInt64.max is a made-up transaction, not a crash (R6)
             if addr == address {
-                totalToUs += output.amount
+                let (sum, overflow) = totalToUs.addingReportingOverflow(output.amount)
+                if overflow { return nil }
+                totalToUs = sum
             } else {
-                totalToOthers += output.amount
+                let (sum, overflow) = totalToOthers.addingReportingOverflow(output.amount)
+                if overflow { return nil }
+                totalToOthers = sum
                 if !haveRecipient || output.amount < recipientAmount {
                     recipientAmount = output.amount
                     haveRecipient = true

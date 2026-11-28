@@ -285,6 +285,9 @@ final class ChatService: ObservableObject {
     var mempoolResolveInFlight = Set<String>()
     var mempoolResolvedTxIds = Set<String>()
     var mempoolPayloadByTxId: [String: String] = [:]
+    /// Spending-address chat payments whose send got no answer, by txid: the notice each owes
+    /// (`sendOwedSpendingNoticeIfAny`). Kept across an account switch; each names its owner.
+    var owedSpendingNotices: [String: OwedSpendingNotice] = [:]
     var contextualFetchInFlight = Set<String>()
     var handshakeFetchTasks: [String: Task<[HandshakeResponse], Error>] = [:]
     var paymentFetchTasks: [String: Task<[PaymentResponse], Error>] = [:]
@@ -371,13 +374,9 @@ final class ChatService: ObservableObject {
     /// 250-480 indexer requests a minute on a busy wallet, more traffic than the subscription
     /// it was backing up, and load on the indexer that grew with every user.
     var foregroundSweepTask: Task<Void, Never>?
-    /// Interval between sweeps while the subscription is down; doubled (up to the max) after a
-    /// failed sweep so an unreachable indexer is never hammered in a tight loop, reset on the
-    /// next success.
-    let foregroundSweepBaseInterval: TimeInterval = 30.0
-    /// Sweep base interval on expensive (cellular/metered) paths. Resolved fresh each loop
-    /// iteration, so a WiFi/cellular flip takes effect on the next sweep.
-    let foregroundSweepExpensiveInterval: TimeInterval = 60.0
+    /// The sweep runs on `ForegroundBeat` (30 s on Wi-Fi, 60 s on cellular); after a failed sweep
+    /// it waits twice as many beats, up to this, so an unreachable indexer is never hammered in
+    /// a tight loop, back to every beat on the next success.
     let foregroundSweepMaxInterval: TimeInterval = 120.0
     /// Per-sweep contact cap. The few most recently active contacts are in every pass
     /// (`foregroundSweepPinnedContacts`); the rest of the window rotates through everyone
@@ -419,58 +418,6 @@ final class ChatService: ObservableObject {
     /// How many syncs are running: see `beginSyncBlockTime`.
     var syncDepth = 0
 
-    // MARK: - Onboarding sync hold
-
-    /// While true, `startPolling` refuses to start anything.
-    ///
-    /// Importing a seed kicks off a full from-genesis sync of every contact the account has ever
-    /// talked to, and all of its ingest lands on the main actor. That was running underneath the
-    /// setup wizard, which is why typing through it crawled. The hold is taken the moment an
-    /// import/create decides a wizard is coming, and released when the wizard finishes (or
-    /// immediately, if it turns out no wizard is shown).
-    @Published private(set) var onboardingSyncHeld = false
-
-    /// Which phase the post-wizard initial sync is in, for its progress sheet. Nil when idle.
-    @Published private(set) var initialSyncPhase: InitialSyncPhase?
-
-    enum InitialSyncPhase: Equatable {
-        case handshakes
-        case subscribing
-        case localStore
-        case indexer
-        case finished
-
-        var label: String {
-            switch self {
-            case .handshakes: return "Finding your conversations"
-            case .subscribing: return "Connecting for live updates"
-            case .localStore: return "Loading saved messages"
-            case .indexer: return "Downloading message history"
-            case .finished: return "Finished"
-            }
-        }
-    }
-
-    func holdSyncForOnboarding() {
-        guard !onboardingSyncHeld else { return }
-        onboardingSyncHeld = true
-        AppLog.log("%@", "[ChatService] Sync held until onboarding finishes")
-    }
-
-    /// Releases the hold and, if a wallet is loaded, starts the sync that was being deferred.
-    /// Safe to call when no hold is in place.
-    func releaseSyncForOnboarding(startSync: Bool = true) {
-        guard onboardingSyncHeld else { return }
-        onboardingSyncHeld = false
-        AppLog.log("%@", "[ChatService] Onboarding finished, starting deferred sync")
-        guard startSync else { return }
-        startPolling()
-        Task { await GroupChatService.shared.performCatchUpSync() }
-    }
-
-    func setInitialSyncPhase(_ phase: InitialSyncPhase?) {
-        initialSyncPhase = phase
-    }
     var syncMaxBlockTime: UInt64?
     var isConfigured = false
     /// On-chain payload kinds already read (see `onChainPayloadKind`), so each transaction is
@@ -981,6 +928,9 @@ final class ChatService: ObservableObject {
         incomingResolutionPendingTxIds = []
         incomingResolutionWarningTxIds = []
         incomingResolutionAmountHints = [:]
+        // the last account's mempool payloads and fetched transactions (B2, B6)
+        mempoolPayloadByTxId = [:]
+        FullTransactionCache.shared.removeAll()
         hiddenPaymentTxIdTimestamps = [:]
         // The last account's edited previews must not show in the next one's chat list (audit
         // 2026-11-25 M9); the open thread's edits go with them.

@@ -57,8 +57,7 @@ struct SendAssetChooser: View {
                             icon: AnyView(TokenIcon(token: token, size: 44)),
                             title: LocalizedStringKey(token.symbol),
                             subtitle: AppLocalization.string("Bridged USDT"),
-                            amount: tokens.balance(of: token).map { TokenAmount.amount($0, token: token) },
-                            badge: TokenWallet.isSampleData
+                            amount: tokens.balance(of: token).map { TokenAmount.amount($0, token: token) }
                         ) { pick(.token(token)) }
                     }
                 }
@@ -92,7 +91,7 @@ struct SendAssetChooser: View {
     }
 
     private func option(icon: AnyView, title: LocalizedStringKey, subtitle: String, amount: String?,
-                        badge: Bool = false, action: @escaping () -> Void) -> some View {
+                        action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
                 icon
@@ -101,7 +100,6 @@ struct SendAssetChooser: View {
                         Text(title)
                             .font(.headline)
                             .foregroundColor(.primary)
-                        if badge { TokenSampleBadge() }
                     }
                     Text(verbatim: subtitle)
                         .font(.caption)
@@ -189,7 +187,6 @@ struct DollarTokenChooser: View {
                         Text(verbatim: token.symbol)
                             .font(.headline)
                             .foregroundColor(.primary)
-                        if TokenWallet.isSampleData { TokenSampleBadge() }
                     }
                     Text(token.name)
                         .font(.caption)

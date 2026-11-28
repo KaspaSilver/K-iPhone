@@ -326,8 +326,8 @@ struct PortfolioView: View {
 private struct KasPriceChartScreen: View {
     @ObservedObject var viewModel: PortfolioViewModel
     @EnvironmentObject var settingsViewModel: SettingsViewModel
-    @State private var scrubbed: PricePoint?
-    @State private var range: ChartRangeSelection?
+    /// Held, not observed: only the header and the chart's marker watch a scrub.
+    @State private var scrub = PortfolioChartScrub()
 
     @State private var showPairSettings = false
 
@@ -338,9 +338,11 @@ private struct KasPriceChartScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                PortfolioScrubReader(scrub: scrub) { scrubbed, range in
+                    header(scrubbed: scrubbed, range: range)
+                }
                 chart
-                PortfolioRangePicker(viewModel: viewModel, onChange: { scrubbed = nil; range = nil })
+                PortfolioRangePicker(viewModel: viewModel, onChange: { scrub.clear() })
                 KasConverterCard(priceUsd: viewModel.currentPriceUsd, currency: currency)
                 marketStatsCard
             }
@@ -360,8 +362,7 @@ private struct KasPriceChartScreen: View {
     private func flip() {
         guard viewModel.canFlipChart else { return }
         Haptics.impact(.light)
-        scrubbed = nil
-        range = nil
+        scrub.clear()
         viewModel.flipChart()
     }
 
@@ -397,7 +398,7 @@ private struct KasPriceChartScreen: View {
     }
 
     // The Kaspa logo + name stay put while scrubbing - only the date + scrubbed price change.
-    private var header: some View {
+    private func header(scrubbed: PricePoint?, range: ChartRangeSelection?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image("KaspaLogo").resizable().scaledToFit().frame(width: 30, height: 30)
@@ -446,7 +447,7 @@ private struct KasPriceChartScreen: View {
     @ViewBuilder
     private var chart: some View {
         if viewModel.chartPriceHistory.count >= 2 {
-            PortfolioAreaChart(points: viewModel.chartPriceHistory, preciseAxis: viewModel.chartFlipped, onScrub: { scrubbed = $0 }, onRange: { range = $0 })
+            PortfolioAreaChart(points: viewModel.chartPriceHistory, preciseAxis: viewModel.chartFlipped, scrub: scrub)
                 .frame(height: 260)
         } else {
             ProgressView()
@@ -462,8 +463,8 @@ private struct KasPriceChartScreen: View {
 private struct PortfolioValueChartScreen: View {
     @ObservedObject var viewModel: PortfolioViewModel
     @EnvironmentObject var settingsViewModel: SettingsViewModel
-    @State private var scrubbed: PricePoint?
-    @State private var range: ChartRangeSelection?
+    /// Held, not observed: only the header and the chart's marker watch a scrub.
+    @State private var scrub = PortfolioChartScrub()
 
     @State private var showPairSettings = false
 
@@ -484,8 +485,7 @@ private struct PortfolioValueChartScreen: View {
     private func flip() {
         guard viewModel.canFlipChart else { return }
         Haptics.impact(.light)
-        scrubbed = nil
-        range = nil
+        scrub.clear()
         viewModel.flipChart()
     }
 
@@ -495,10 +495,12 @@ private struct PortfolioValueChartScreen: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header(currentValue: viewModel.chartCurrentValue)
+                PortfolioScrubReader(scrub: scrub) { scrubbed, range in
+                    header(currentValue: viewModel.chartCurrentValue, scrubbed: scrubbed, range: range)
+                }
 
                 if history.count >= 2 {
-                    PortfolioAreaChart(points: history, hideValues: viewModel.valuesHidden, preciseAxis: viewModel.chartFlipped, onScrub: { scrubbed = $0 }, onRange: { range = $0 })
+                    PortfolioAreaChart(points: history, hideValues: viewModel.valuesHidden, preciseAxis: viewModel.chartFlipped, scrub: scrub)
                         .frame(height: 240)
                 } else if viewModel.chartFlipped, viewModel.valueHistory.count >= 2 {
                     // The pair's series for this range is still on its way.
@@ -512,7 +514,7 @@ private struct PortfolioValueChartScreen: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                PortfolioRangePicker(viewModel: viewModel, onChange: { scrubbed = nil; range = nil })
+                PortfolioRangePicker(viewModel: viewModel, onChange: { scrub.clear() })
 
                 statsCard(summary)
             }
@@ -529,7 +531,7 @@ private struct PortfolioValueChartScreen: View {
         .swipeBackDisabled()
     }
 
-    private func header(currentValue: Double?) -> some View {
+    private func header(currentValue: Double?, scrubbed: PricePoint?, range: ChartRangeSelection?) -> some View {
         // The move across the SELECTED range, so pressing 1W answers "how did this do this week"
         // rather than repeating the 24h figure under every button.
         let rangeChange = viewModel.chartValueRangeChange
@@ -912,8 +914,8 @@ private func portfolioGlassBackground(cornerRadius: CGFloat) -> some View {
 // MARK: - Chart
 
 /// Swift Charts area+line chart with gridlines/axes and drag-to-scrub. Replaces the old bare
-/// sparkline so the full-screen views read like a real price/value graph. `onScrub` fires the
-/// nearest point (or nil on release) so the screen's header can show the selected value/date.
+/// sparkline so the full-screen views read like a real price/value graph. The scrub object holds
+/// the nearest point (or nil on release) so the screen's header can show the selected value/date.
 /// Two fingers on a chart: the points under them and how the value moved between them.
 struct ChartRangeSelection: Equatable {
     let start: PricePoint
@@ -955,6 +957,79 @@ private struct ChartRangeSummary: View {
     }
 }
 
+/// What a finger is reading on a chart: one point, or a two-finger range. Its own object, so a
+/// scrub redraws only the header and the marker over the chart, not the whole screen and the
+/// chart's marks (smoothness audit L7).
+@MainActor
+final class PortfolioChartScrub: ObservableObject {
+    @Published var point: PricePoint?
+    @Published var range: ChartRangeSelection?
+
+    func clear() {
+        if point != nil { point = nil }
+        if range != nil { range = nil }
+    }
+}
+
+/// Redraws `content` alone when the scrub moves.
+private struct PortfolioScrubReader<Content: View>: View {
+    @ObservedObject var scrub: PortfolioChartScrub
+    @ViewBuilder let content: (PricePoint?, ChartRangeSelection?) -> Content
+
+    var body: some View { content(scrub.point, scrub.range) }
+}
+
+/// The rule and dot at the scrubbed point, or the shaded two-finger range, drawn over the chart
+/// so the marks underneath never rebuild during a scrub.
+private struct PortfolioScrubMarkers: View {
+    @ObservedObject var scrub: PortfolioChartScrub
+    let proxy: ChartProxy
+    let plot: CGRect
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color.clear
+            if let point = scrub.point,
+               let x = proxy.position(forX: point.timestamp),
+               let y = proxy.position(forY: point.value) {
+                rule(at: plot.minX + x, color: Color.secondary.opacity(0.35))
+                dot(at: CGPoint(x: plot.minX + x, y: plot.minY + y), color: .accentColor)
+            }
+            if let range = scrub.range,
+               let x1 = proxy.position(forX: range.start.timestamp),
+               let x2 = proxy.position(forX: range.end.timestamp) {
+                let color: Color = range.amount >= 0 ? .green : .red
+                Rectangle()
+                    .fill(color.opacity(0.10))
+                    .frame(width: max(0, x2 - x1), height: plot.height)
+                    .position(x: plot.minX + (x1 + x2) / 2, y: plot.midY)
+                ForEach([range.start, range.end], id: \.timestamp) { edge in
+                    if let x = proxy.position(forX: edge.timestamp), let y = proxy.position(forY: edge.value) {
+                        rule(at: plot.minX + x, color: color.opacity(0.6))
+                        dot(at: CGPoint(x: plot.minX + x, y: plot.minY + y), color: color)
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func rule(at x: CGFloat, color: Color) -> some View {
+        Path { path in
+            path.move(to: CGPoint(x: x, y: plot.minY))
+            path.addLine(to: CGPoint(x: x, y: plot.maxY))
+        }
+        .stroke(color, lineWidth: 1)
+    }
+
+    private func dot(at point: CGPoint, color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: 12, height: 12)
+            .position(point)
+    }
+}
+
 private struct PortfolioAreaChart: View {
     let points: [PricePoint]
     /// The eye button: no value labels down the axis either.
@@ -962,12 +1037,9 @@ private struct PortfolioAreaChart: View {
     /// Bitcoin-scale numbers: the default axis label rounds every tick to "0.000001", so
     /// label by significant digits instead.
     var preciseAxis = false
-    var onScrub: ((PricePoint?) -> Void)?
-    /// Two fingers down: the range between them, live; nil once they lift.
-    var onRange: ((ChartRangeSelection?) -> Void)?
-
-    @State private var selected: PricePoint?
-    @State private var rangeSelected: ChartRangeSelection?
+    /// The finger's point and the two-finger range, live; nil once they lift. Written here,
+    /// not observed: `PortfolioScrubMarkers` draws them.
+    let scrub: PortfolioChartScrub
 
     var body: some View {
         let values = points.map(\.value)
@@ -1006,34 +1078,6 @@ private struct PortfolioAreaChart: View {
                 .foregroundStyle(Color.accentColor)
                 .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             }
-
-            if let selected {
-                RuleMark(x: .value("Time", selected.timestamp))
-                    .foregroundStyle(Color.secondary.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1))
-                PointMark(x: .value("Time", selected.timestamp), y: .value("Value", selected.value))
-                    .foregroundStyle(Color.accentColor)
-                    .symbolSize(120)
-            }
-
-            if let range = rangeSelected {
-                let up = range.amount >= 0
-                RectangleMark(
-                    xStart: .value("From", range.start.timestamp),
-                    xEnd: .value("To", range.end.timestamp),
-                    yStart: .value("Min", lowerBound),
-                    yEnd: .value("Max", upperBound)
-                )
-                .foregroundStyle((up ? Color.green : Color.red).opacity(0.10))
-                ForEach([range.start, range.end], id: \.timestamp) { edge in
-                    RuleMark(x: .value("Time", edge.timestamp))
-                        .foregroundStyle((up ? Color.green : Color.red).opacity(0.6))
-                        .lineStyle(StrokeStyle(lineWidth: 1))
-                    PointMark(x: .value("Time", edge.timestamp), y: .value("Value", edge.value))
-                        .foregroundStyle(up ? Color.green : Color.red)
-                        .symbolSize(120)
-                }
-            }
         }
         .chartYScale(domain: lowerBound...upperBound)
         .chartXAxis {
@@ -1058,33 +1102,34 @@ private struct PortfolioAreaChart: View {
         }
         .chartOverlay { proxy in
             GeometryReader { geo in
-                // One finger scrubs; two fingers select a range and read the return across it.
-                ChartTouchOverlay(
-                    onSingle: { x in
-                        guard let x, let nearest = nearestPoint(atX: x, proxy: proxy, geo: geo) else {
-                            if selected != nil { selected = nil; onScrub?(nil) }
-                            return
+                ZStack {
+                    PortfolioScrubMarkers(scrub: scrub, proxy: proxy, plot: geo[proxy.plotAreaFrame])
+                    // One finger scrubs; two fingers select a range and read the return across it.
+                    ChartTouchOverlay(
+                        onSingle: { x in
+                            guard let x, let nearest = nearestPoint(atX: x, proxy: proxy, geo: geo) else {
+                                if scrub.point != nil { scrub.point = nil }
+                                return
+                            }
+                            if scrub.point?.timestamp != nearest.timestamp {
+                                scrub.point = nearest
+                            }
+                        },
+                        onPair: { pair in
+                            guard let pair,
+                                  let first = nearestPoint(atX: pair.0, proxy: proxy, geo: geo, clamped: true),
+                                  let second = nearestPoint(atX: pair.1, proxy: proxy, geo: geo, clamped: true) else {
+                                if scrub.range != nil { scrub.range = nil }
+                                return
+                            }
+                            let ordered = first.timestamp <= second.timestamp ? (first, second) : (second, first)
+                            let range = ChartRangeSelection(start: ordered.0, end: ordered.1)
+                            if scrub.range != range {
+                                scrub.range = range
+                            }
                         }
-                        if selected?.timestamp != nearest.timestamp {
-                            selected = nearest
-                            onScrub?(nearest)
-                        }
-                    },
-                    onPair: { pair in
-                        guard let pair,
-                              let first = nearestPoint(atX: pair.0, proxy: proxy, geo: geo, clamped: true),
-                              let second = nearestPoint(atX: pair.1, proxy: proxy, geo: geo, clamped: true) else {
-                            if rangeSelected != nil { rangeSelected = nil; onRange?(nil) }
-                            return
-                        }
-                        let ordered = first.timestamp <= second.timestamp ? (first, second) : (second, first)
-                        let range = ChartRangeSelection(start: ordered.0, end: ordered.1)
-                        if rangeSelected != range {
-                            rangeSelected = range
-                            onRange?(range)
-                        }
-                    }
-                )
+                    )
+                }
             }
         }
     }

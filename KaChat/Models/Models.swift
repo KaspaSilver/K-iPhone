@@ -973,6 +973,9 @@ enum MessageReplyCodec {
 
     static func parse(_ text: String?) -> MessageReplyContent? {
         guard let text, text.utf8.count < 100_000 else { return nil }
+        // A reply's JSON always holds its "reply" type value: anything without those bytes is
+        // answered with no cache lookup and no decode (audit 2026-11-27 C1).
+        guard PayloadSniff.containsASCII(text, PayloadSniff.replyType) else { return nil }
         let key = text as NSString
         if let hit = parseCache.object(forKey: key) { return hit.value }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1437,6 +1440,11 @@ enum ChessCodec {
     /// Parses `text` as any of the four chess envelope shapes, or nil if it isn't one.
     static func parseAny(_ text: String?) -> ChessEnvelope? {
         guard let text, text.utf8.count < 100_000 else { return nil }
+        // Every chess envelope's type value starts `"chess_` (escaped inside a reply, still the
+        // same bytes): a byte search answers the rest - photos, voice parts, replies - with no
+        // decode. Past ~1,000 messages the cache below thrashed and the open chat's rebuild
+        // decoded every JSON-looking message again (audit 2026-11-27 C1).
+        guard PayloadSniff.containsASCII(text, PayloadSniff.chessType) else { return nil }
         let key = text as NSString
         if let hit = parseAnyCache.object(forKey: key) { return hit.value }
         let result = parseAnyUncached(text)
@@ -1468,6 +1476,26 @@ enum ChessCodec {
 
     private struct ChessTypeOnly: Decodable {
         let type: String
+    }
+}
+
+/// Byte searches that rule a payload out before any JSON decode.
+enum PayloadSniff {
+    /// `"chess_`: the start of every chess envelope's type value.
+    static let chessType: [UInt8] = Array("\"chess_".utf8)
+    /// `"reply"`: a reply envelope's type value.
+    static let replyType: [UInt8] = Array("\"reply\"".utf8)
+
+    /// True when `needle` appears in `text`'s UTF-8 bytes. A plain memory search over native
+    /// strings; a bridged one falls back to Foundation's.
+    static func containsASCII(_ text: String, _ needle: [UInt8]) -> Bool {
+        if let found = text.utf8.withContiguousStorageIfAvailable({ bytes -> Bool in
+            guard bytes.count >= needle.count, let base = bytes.baseAddress else { return false }
+            return needle.withUnsafeBufferPointer { memmem(base, bytes.count, $0.baseAddress, $0.count) != nil }
+        }) {
+            return found
+        }
+        return text.range(of: String(decoding: needle, as: UTF8.self)) != nil
     }
 }
 
@@ -3504,18 +3532,21 @@ enum KasiaError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        // The fixed sentences are in the app's language. The four wrapped messages keep their
+        // English text: send paths match on it ("insufficient funds", "orphan"), and
+        // `UserFacingError` translates the known ones when a person reads them.
         case .walletNotFound:
-            return "Account not found. Please create or import an account."
+            return AppLocalization.string("Account not found. Please create or import an account.")
         case .invalidSeedPhrase:
-            return "Invalid words. Please enter 12 or 24 words."
+            return AppLocalization.string("Invalid words. Please enter 12 or 24 words.")
         case .seedPhraseParsingFailed(let wordCount):
-            return "Couldn't read your words. Detected \(wordCount) words (expected 12 or 24)."
+            return String(format: AppLocalization.string("Couldn't read your words. Detected %lld words (expected 12 or 24)."), wordCount)
         case .mnemonicValidationFailed(let reason):
-            return "Word check failed: \(reason)"
+            return String(format: AppLocalization.string("Word check failed: %@"), reason)
         case .invalidAddress:
-            return "Invalid Kaspa address format."
+            return AppLocalization.string("Invalid Kaspa address format.")
         case .ownAccountAddress:
-            return "That address is one of your own accounts, so it cannot be added as a contact."
+            return AppLocalization.string("That address is one of your own accounts, so it cannot be added as a contact.")
         case .networkError(let message):
             return "Network error: \(message)"
         case .keychainError(let message):
@@ -3525,7 +3556,7 @@ enum KasiaError: LocalizedError {
         case .apiError(let message):
             return "API error: \(message)"
         case .unknownError:
-            return "An unknown error occurred."
+            return AppLocalization.string("An unknown error occurred.")
         }
     }
 }
@@ -3560,11 +3591,11 @@ struct SendFeeChangedError: LocalizedError {
 
 enum UserFacingError {
     static func message(for error: Error) -> String {
-        if error is CancellationError { return "Cancelled." }
+        if error is CancellationError { return AppLocalization.string("Cancelled.") }
         if let kasia = error as? KasiaError {
             switch kasia {
             case .networkError(let text), .apiError(let text), .keychainError(let text), .encryptionError(let text):
-                return text.isEmpty ? kasia.localizedDescription : text
+                return text.isEmpty ? kasia.localizedDescription : AppLocalization.string(text)
             default:
                 return kasia.localizedDescription
             }
@@ -3572,26 +3603,26 @@ enum UserFacingError {
         if let urlError = error as? URLError {
             switch urlError.code {
             case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
-                return "No internet connection. Check your connection and try again."
+                return AppLocalization.string("No internet connection. Check your connection and try again.")
             case .timedOut:
-                return "The connection timed out. Check your connection and try again."
+                return AppLocalization.string("The connection timed out. Check your connection and try again.")
             case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed, .badURL, .unsupportedURL:
-                return "Couldn't reach the server. Check the address in Settings and your connection."
+                return AppLocalization.string("Couldn't reach the server. Check the address in Settings and your connection.")
             case .secureConnectionFailed, .serverCertificateUntrusted, .serverCertificateHasBadDate,
                  .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid, .clientCertificateRejected:
-                return "Couldn't make a secure connection to the server."
+                return AppLocalization.string("Couldn't make a secure connection to the server.")
             case .cancelled:
-                return "Cancelled."
+                return AppLocalization.string("Cancelled.")
             default:
-                return "A network error occurred. Check your connection and try again."
+                return AppLocalization.string("A network error occurred. Check your connection and try again.")
             }
         }
         if error is DecodingError {
-            return "The server sent something the app couldn't read. Try again; if it keeps happening, update the app."
+            return AppLocalization.string("The server sent something the app couldn't read. Try again; if it keeps happening, update the app.")
         }
         let typeName = String(describing: type(of: error))
         if typeName.hasPrefix("GRPC") {
-            return "The Kaspa node returned an error. The app will try another node; try again in a moment."
+            return AppLocalization.string("The Kaspa node returned an error. The app will try another node; try again in a moment.")
         }
         // LocalizedError conformers (NextcloudError, the swap client, ...) write their own
         // sentences; anything else gets Foundation's description with any prefix removed.
@@ -3605,7 +3636,8 @@ enum UserFacingError {
         for prefix in ["Network error: ", "API error: ", "Keychain error: ", "Encryption error: "] {
             if cleaned.hasPrefix(prefix) { cleaned = String(cleaned.dropFirst(prefix.count)) }
         }
-        return cleaned.isEmpty ? "Something went wrong. Please try again." : cleaned
+        // the app's own common error sentences have translations (an unknown text comes back as is)
+        return AppLocalization.string(cleaned.isEmpty ? "Something went wrong. Please try again." : cleaned)
     }
 }
 

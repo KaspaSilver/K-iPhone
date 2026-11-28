@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID serve a sbloccare la tua frase di recupero e ad accedere di nuovo, se attivato in Impostazioni.";
 "NSLocalNetworkUsageDescription" = "K si collega a un nodo Kaspa o a un server Nextcloud della tua rete locale solo se ne configuri uno.";
 "NFCReaderUsageDescription" = "K usa l’NFC per salvare e ripristinare un backup cifrato della tua frase di recupero sulla tua smart card.";
-"NSPhotoLibraryAddUsageDescription" = "Salva le immagini ricevute nella tua libreria foto.";
+"NSPhotoLibraryAddUsageDescription" = "K salva le immagini ricevute nella tua libreria foto.";

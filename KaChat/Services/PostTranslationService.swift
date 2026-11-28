@@ -72,18 +72,18 @@ final class PostTranslationService: ObservableObject {
     /// more. Short social-media text is genuinely hard to identify, and a wrong guess is worse
     /// than no offer: it puts a "Translate from Portuguese" link under a perfectly readable
     /// English post.
-    private static let minimumConfidence = 0.55
+    nonisolated private static let minimumConfidence = 0.55
     /// The floor for Latin-script text SHORTER than `minimumLetters`. A short post has to be
     /// nearly certain, but certainty is common: measured, "bom dia" scores 0.79 and "sehr gut"
     /// 1.00, while "hola" scores 0.56 and "gm" 0.28. This used to be a hard letter floor instead,
     /// which rejected "đang rất hóng" - eleven letters, Vietnamese at 1.00 - and "danke schön"
     /// (ten, 1.00) before the recognizer ever ran, so a short reply in another language showed no
     /// Translate link at all.
-    private static let shortTextConfidence = 0.75
+    nonisolated private static let shortTextConfidence = 0.75
     /// Where the long-text floor takes over from the short-text one.
-    private static let minimumLetters = 12
+    nonisolated private static let minimumLetters = 12
     /// Below this the recognizer is not worth running: emoji-only and "gm" posts fall out here.
-    private static let minimumLettersToDetect = 4
+    nonisolated private static let minimumLettersToDetect = 4
 
     /// Stable per-post key. On-chain posts key by their txid so a translation survives the feed
     /// being re-sorted or re-paged; local session posts fall back to their UUID.
@@ -104,7 +104,8 @@ final class PostTranslationService: ObservableObject {
     /// pass while scrolling. `NLLanguageRecognizer` over a 25k-character post is nowhere near
     /// cheap enough for that. Keyed by content, like the cell's own linkify cache, and boxed
     /// because NSCache holds objects.
-    private static let detectionCache: NSCache<NSString, DetectionBox> = {
+    // NSCache is thread-safe: the room fills it off the main thread (`prewarmDetection`).
+    nonisolated(unsafe) private static let detectionCache: NSCache<NSString, DetectionBox> = {
         let cache = NSCache<NSString, DetectionBox>()
         cache.countLimit = 400
         return cache
@@ -117,7 +118,7 @@ final class PostTranslationService: ObservableObject {
 
     /// The post's language, or nil when it can't be identified confidently. Cached - see
     /// `detectionCache`.
-    static func detectedLanguage(of text: String) -> Locale.Language? {
+    nonisolated static func detectedLanguage(of text: String) -> Locale.Language? {
         let cacheKey = text as NSString
         if let cached = detectionCache.object(forKey: cacheKey) { return cached.language }
         let detected = computeDetectedLanguage(of: text)
@@ -125,9 +126,20 @@ final class PostTranslationService: ObservableObject {
         return detected
     }
 
+    /// Works out the language of texts about to be drawn, off the main thread, so a row's first
+    /// draw finds it cached: a room opening ran `NLLanguageRecognizer` on the main thread for
+    /// every visible message during the push (audit 2026-11-27 C8).
+    nonisolated static func prewarmDetection(for texts: [String]) {
+        let pending = texts.filter { detectionCache.object(forKey: $0 as NSString) == nil }
+        guard !pending.isEmpty else { return }
+        Task.detached(priority: .utility) {
+            for text in pending { _ = PostTranslationService.detectedLanguage(of: text) }
+        }
+    }
+
     /// URLs and @mentions are stripped first: a post that is mostly a link otherwise identifies
     /// as whatever language the URL's letters resemble.
-    private static func computeDetectedLanguage(of text: String) -> Locale.Language? {
+    nonisolated private static func computeDetectedLanguage(of text: String) -> Locale.Language? {
         let stripped = strippedForDetection(text)
         let letterCount = stripped.filter(\.isLetter).count
         guard letterCount >= minimumLettersToDetect else { return nil }
@@ -165,12 +177,12 @@ final class PostTranslationService: ObservableObject {
         return Locale.Language(identifier: best.key.rawValue)
     }
 
-    private static let latinScript = "Latn"
+    nonisolated private static let latinScript = "Latn"
 
     /// The ISO 15924 script a language is normally written in, from CLDR's own likely-subtags data
     /// ("ru" -> "ru-Cyrl-RU"), so there is no hand-maintained language-to-script table to fall out
     /// of date.
-    private static func scriptCode(of language: NLLanguage) -> String? {
+    nonisolated private static func scriptCode(of language: NLLanguage) -> String? {
         Locale.Language(identifier: language.rawValue)
             .maximalIdentifier
             .split(separator: "-")
@@ -182,7 +194,7 @@ final class PostTranslationService: ObservableObject {
     /// The script at least half the letters are written in, or nil when the text is genuinely
     /// mixed. Deliberately coarse: it only has to separate "this is Cyrillic/Arabic/Han/..." from
     /// "this is Latin", which is the call the recognizer gets wrong.
-    private static func dominantScript(of text: String) -> String? {
+    nonisolated private static func dominantScript(of text: String) -> String? {
         var counts: [String: Int] = [:]
         var total = 0
         for character in text where character.isLetter {
@@ -197,7 +209,7 @@ final class PostTranslationService: ObservableObject {
     /// Unicode block to script code. Only the blocks that matter for the languages a translation
     /// service serves; everything else counts as Latin, which is the conservative answer because
     /// the Latin branch is the one that keeps the confidence floor.
-    private static func scriptName(for value: UInt32) -> String {
+    nonisolated private static func scriptName(for value: UInt32) -> String {
         switch value {
         case 0x0370...0x03FF, 0x1F00...0x1FFF: return "Grek"
         case 0x0400...0x052F, 0x2DE0...0x2DFF, 0xA640...0xA69F: return "Cyrl"
@@ -212,7 +224,7 @@ final class PostTranslationService: ObservableObject {
         }
     }
 
-    private static func strippedForDetection(_ text: String) -> String {
+    nonisolated private static func strippedForDetection(_ text: String) -> String {
         var result = text
         for pattern in [#"https?://\S+"#, #"@[A-Za-z0-9._-]+"#] {
             result = result.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
@@ -233,16 +245,65 @@ final class PostTranslationService: ObservableObject {
     /// picked Vietnamese on an English phone get English posts with no Translate link at all
     /// (source == target, so nothing was offered) and Vietnamese posts translated INTO English.
     static var readerLanguageCode: String? {
-        if let chosen = AppSettings.load().language.appleLanguageCode {
-            return Locale.Language(identifier: chosen).languageCode?.identifier
-        }
-        return Locale.current.language.languageCode?.identifier
+        ReaderSettings.shared.values.languageCode
     }
 
     /// The locale to name languages in, so "Translated from Vietnamese" is written in the
     /// language the reader chose rather than the one the phone is set to.
     private static var readerLocale: Locale {
-        AppSettings.load().language.locale ?? .current
+        ReaderSettings.shared.values.locale
+    }
+
+    /// The reader's language, locale and the service URL, worked out once per settings change:
+    /// `canOffer` runs for every visible post and room message on every pass, and each read
+    /// copied the whole settings three times (audit 2026-11-27 P8). Every settings save posts
+    /// `.settingsDidChange`.
+    private final class ReaderSettings: @unchecked Sendable {
+        static let shared = ReaderSettings()
+
+        struct Values {
+            let languageCode: String?
+            let locale: Locale
+            let serviceURL: String
+        }
+
+        private let lock = NSLock()
+        private var cached: Values?
+        private var observer: NSObjectProtocol?
+
+        private init() {
+            observer = NotificationCenter.default.addObserver(
+                forName: .settingsDidChange, object: nil, queue: nil
+            ) { [weak self] _ in
+                guard let self else { return }
+                self.lock.lock()
+                self.cached = nil
+                self.lock.unlock()
+            }
+        }
+
+        var values: Values {
+            lock.lock()
+            if let cached { lock.unlock(); return cached }
+            lock.unlock()
+            let settings = AppSettings.load()
+            let languageCode: String?
+            if let chosen = settings.language.appleLanguageCode {
+                languageCode = Locale.Language(identifier: chosen).languageCode?.identifier
+            } else {
+                languageCode = Locale.current.language.languageCode?.identifier
+            }
+            let raw = settings.translationServiceURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolved = Values(
+                languageCode: languageCode,
+                locale: settings.language.locale ?? .current,
+                serviceURL: raw.isEmpty ? AppSettings.defaultTranslationServiceURL : raw
+            )
+            lock.lock()
+            cached = resolved
+            lock.unlock()
+            return resolved
+        }
     }
 
     /// The reader's own language by name ("English"), for "Shows this message in English."
@@ -411,8 +472,7 @@ final class PostTranslationService: ObservableObject {
     /// On both networks: translating text has nothing to do with which chain the app is on, so
     /// testnet uses the same service as mainnet.
     private static var currentServiceURL: String {
-        let raw = AppSettings.load().translationServiceURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        return raw.isEmpty ? AppSettings.defaultTranslationServiceURL : raw
+        ReaderSettings.shared.values.serviceURL
     }
 
     private static func translationServiceComponents() -> URLComponents? {

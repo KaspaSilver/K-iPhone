@@ -47,7 +47,6 @@ struct KaPostsDockCopy: View {
     @ObservedObject private var connection = ConnectionHealth.shared
     @ObservedObject private var backupStatus = AccountBackupStatus.shared
     @ObservedObject private var notifCenter = KaPostsNotificationCenter.shared
-    @ObservedObject private var publicChatBadge = PublicChatUnreadBadge.shared
     @ObservedObject private var globalNotifCenter = GlobalNotificationCenter.shared
 
     /// The capsule's height, matching the system dock.

@@ -999,11 +999,16 @@ final class KachatNamesRegistry: ObservableObject {
             // the first pass once the app has settled after launch or sign-in
             try? await Task.sleep(nanoseconds: 8_000_000_000)
             while !Task.isCancelled, let self {
+                let passAt = Date()
                 if UIApplication.shared.applicationState == .active {
                     if self.source == .chain { await self.refreshIfStale(maxAge: 55) }
                     await self.refreshUnnamedIdentities()
                 }
-                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                // About once a minute, on the shared beat so it doesn't wake the radio by itself
+                // (audit 2026-11-27 B5): every other beat on Wi-Fi, every beat on cellular.
+                repeat {
+                    await ForegroundBeat.sleepUntilNextBeat(offset: 1.6)
+                } while !Task.isCancelled && Date().timeIntervalSince(passAt) < 55
             }
         }
     }
@@ -1124,10 +1129,32 @@ final class KachatNamesRegistry: ObservableObject {
 
     /// An identity changed: chats, contacts and the Address Book show people by these names and
     /// avatars, so they re-render, and the names shared with the extensions are synced.
+    /// The two stores are told once for a burst, a second after its first change (smoothness
+    /// audit 2026-11-27 C2): each answered batch pinged them at once, and every screen observing
+    /// them (chats, groups, rooms, the Chats list) redrew mid-fling. Avatars and chat rows already
+    /// redraw from the registry through `IdentityChangeTicker`.
     private func identitiesChanged() {
-        ContactsManager.shared.objectWillChange.send()
         ContactsManager.shared.scheduleSharedNameSync()
-        AddressBookManager.shared.objectWillChange.send()
+        guard !identityStorePingScheduled else { return }
+        identityStorePingScheduled = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.identityStorePingDelay)
+            self?.identityStorePingScheduled = false
+            ContactsManager.shared.objectWillChange.send()
+            AddressBookManager.shared.objectWillChange.send()
+        }
+    }
+    private var identityStorePingScheduled = false
+    private static let identityStorePingDelay: UInt64 = 1_000_000_000
+
+    /// The address's cached `.kachat` label, never queuing a lookup: for work that isn't drawing
+    /// (the names copied to the notification extension, audit 2026-11-27 T4), where
+    /// `cachedIdentity` would ask the indexer again for every contact older than five minutes.
+    func cachedIdentityLabelWithoutLookup(for address: String) -> String? {
+        guard KachatNamesService.profilesEnabled else { return nil }
+        let key = address.lowercased()
+        guard NetworkType.isOnActiveNetwork(key) else { return nil }
+        return identities[key]?.identity.label
     }
 
     /// Files a fetched identity in the cache; true when it changed (the caller then calls

@@ -18,3 +18,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "Mengirimi Anda %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "Mengajak Anda bermain catur";
+"Accepted your chess game" = "Menerima permainan catur Anda";
+"Declined your chess game" = "Menolak permainan catur Anda";
+"Played a chess move" = "Menjalankan langkah catur";
+"Played %@ → %@" = "Menjalankan %@ → %@";
+"Lost on time" = "Kalah waktu";
+"Resigned the chess game" = "Menyerah dalam permainan catur";
+"Removed their %@ reaction" = "Menghapus reaksi %@";
+"Reacted %@ to a message" = "Bereaksi %@ pada sebuah pesan";
+"Reacted %@ to your message" = "Bereaksi %@ pada pesan Anda";
+"Replied to a message" = "Membalas pesan";
+"Photo" = "Foto";
+"Video" = "Video";
+"Edited a message" = "Mengedit pesan";
+"Sent a photo" = "Mengirim foto";
+"Sent a voice message" = "Mengirim pesan suara";
+"Sent a video" = "Mengirim video";

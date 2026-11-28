@@ -1843,7 +1843,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KaChatNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = KaChatNotificationService;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 KaChat. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Cyber Ventures. All rights reserved.";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1878,7 +1878,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KaChatNotificationService/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = KaChatNotificationService;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 KaChat. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Cyber Ventures. All rights reserved.";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -2137,7 +2137,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KaChatShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = K;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 KaChat. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Cyber Ventures. All rights reserved.";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -2171,7 +2171,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = KaChatShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = K;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 KaChat. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Cyber Ventures. All rights reserved.";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

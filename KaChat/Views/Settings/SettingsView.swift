@@ -29,6 +29,8 @@ struct SettingsView: View {
     /// The backup steps from Back Up Account. Finishing them clears the backup banner.
     @State private var showAccountBackup = false
     @State private var accountHasPassphrase = false
+    /// Whether each account has a passphrase, once read (the read decrypts the seed).
+    @MainActor private static var passphraseByAccount: [String: Bool] = [:]
     @State private var showDeleteAccountConfirmation = false
     /// The seed phrase over the Delete Account warning, which it closes back to.
     @State private var showSeedPhraseOverDeleteWarning = false
@@ -91,16 +93,17 @@ struct SettingsView: View {
                     }
                     // moved here from the old Profile screen, which became your KaPosts profile
                     // (2026-11-21)
-                    // KaPosts' own settings (the cool down), here since 2026-11-21 rather than in the
-                    // feed's menu; its tips moved to Customization > Tipping on 2026-11-23
-                    settingsCategoryRow("Posts", icon: "square.text.square", tint: .accentColor) {
-                        KaPostsSettingsView(onClose: {}, embedded: true, part: .kaPost)
-                    }
                     settingsCategoryRow("Help", icon: "questionmark.circle", tint: .accentColor) {
                         ProfileHelpView(onWelcomeGuide: { showWelcomeGuideReplay = true })
                     }
                     settingsCategoryRow("Notifications", icon: "bell.badge", tint: .accentColor) {
                         NotificationsHubPage()
+                    }
+                    // KaPosts' own settings (the cool down), here since 2026-11-21 rather than in the
+                    // feed's menu; its tips moved to Customization > Tipping on 2026-11-23. Under
+                    // its name, Posts, in the alphabetical list (release audit).
+                    settingsCategoryRow("Posts", icon: "square.text.square", tint: .accentColor) {
+                        KaPostsSettingsView(onClose: {}, embedded: true, part: .kaPost)
                     }
                     settingsCategoryRow("Security", icon: "lock.shield", tint: .accentColor) {
                         securityPage
@@ -163,11 +166,19 @@ struct SettingsView: View {
                 SeedPhraseView()
             }
             .task(id: walletManager.currentWallet?.publicAddress) {
+                // Known for this account already: the seed isn't decrypted again on every visit to
+                // Settings (smoothness audit L10; an account's passphrase never changes).
+                let account = walletManager.currentWallet?.publicAddress ?? ""
+                if let known = Self.passphraseByAccount[account] {
+                    accountHasPassphrase = known
+                    return
+                }
                 // A failed read says nothing about the passphrase: try again next time, rather
                 // than settling on "none" and hiding the card's passphrase option.
                 do {
                     let seed = try walletManager.getSeedPhrase()
                     accountHasPassphrase = !(seed?.passphrase ?? "").isEmpty
+                    if seed != nil, !account.isEmpty { Self.passphraseByAccount[account] = accountHasPassphrase }
                 } catch {
                     AppLog.log("[Settings] Seed read failed; passphrase state left as it was")
                 }
@@ -2193,7 +2204,7 @@ struct ConnectionSettingsView: View {
         } footer: {
             // KaPlay had its own Chess card for the arena's indexer; here the arena is a public
             // room, and every room follows this indexer (`AppSettings.publicChatIndexerURL`).
-            Text("KaPost, Public Chats and Chess are read from this indexer too.")
+            Text("Posts, Public Chats and Chess are read from this indexer too.")
         }
 
         Section {
@@ -2913,16 +2924,34 @@ struct ConnectionStatusIndicator: View {
 enum DockDotIcon {
     private static var cache: [String: UIImage] = [:]
 
+    private static var symbols: [String: UIImage] = [:]
+    /// The no-dot copies, kept with the image they were made from (compared by identity, so a
+    /// new picture never gets an old copy).
+    private static var plain: [String: (base: UIImage, image: UIImage)] = [:]
+
+    /// Cached: a new image per call replaced the tab item's image on every tab switch and every
+    /// Hub menu toggle (smoothness audit T2).
     static func symbol(_ name: String, selected: Bool, dark: Bool) -> UIImage {
+        let key = "\(name)-\(selected)-\(dark)"
+        if let cached = symbols[key] { return cached }
         let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .medium)
         let color: UIColor = selected ? (UIColor(named: "AccentColor") ?? .systemTeal) : (dark ? .white : .black)
-        return UIImage(systemName: name, withConfiguration: config)?
+        let image = UIImage(systemName: name, withConfiguration: config)?
             .withTintColor(color, renderingMode: .alwaysOriginal) ?? UIImage()
+        symbols[key] = image
+        return image
     }
 
     /// `base` with `dot` at its top right; `base` as is when there's no dot.
     static func image(_ base: UIImage, dot: UIColor?, dark: Bool, key: String) -> UIImage {
-        guard let dot else { return base.withRenderingMode(.alwaysOriginal) }
+        guard let dot else {
+            let plainKey = "\(key)-\(dark)"
+            if let kept = plain[plainKey], kept.base === base { return kept.image }
+            let image = base.withRenderingMode(.alwaysOriginal)
+            if plain.count > 32 { plain.removeAll() }
+            plain[plainKey] = (base, image)
+            return image
+        }
         let cacheKey = "\(key)-\(dot.description)-\(dark)"
         if let cached = cache[cacheKey] { return cached }
         let dotSide: CGFloat = 9
@@ -4272,9 +4301,9 @@ struct ChatRestoreProgressModal: View {
     }
 
     private func successMessage(conversations: Int, messages: Int, filledSent: Int) -> String {
-        var text = "Restored \(messages) messages from \(conversations) chats."
+        var text = String(format: AppLocalization.string("Restored %lld messages from %lld chats."), messages, conversations)
         if filledSent > 0 {
-            text += " Filled \(filledSent) sent messages."
+            text += " " + String(format: AppLocalization.string("Filled %lld sent messages."), filledSent)
         }
         return text
     }

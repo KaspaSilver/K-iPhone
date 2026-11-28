@@ -23,7 +23,10 @@ extension EnvironmentValues {
 
 struct ExplorerView: View {
     @ObservedObject private var walletManager = WalletManager.shared
-    @ObservedObject private var live = ExplorerLive.shared
+    /// Not observed here: it publishes with every block, and the whole home redrew each second.
+    /// `ExplorerStatsObserver` and `ExplorerFeedObserver` watch it for the parts that change
+    /// (smoothness audit L9).
+    private var live: ExplorerLive { ExplorerLive.shared }
     @ObservedObject private var kStats = ExplorerKStats.shared
     @State private var searching = false
     /// What the text typed so far matches, looked up as you type.
@@ -65,28 +68,32 @@ struct ExplorerView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     searchBar
-                    if live.failed {
-                        Label("kaspa.stream can't be reached right now.", systemImage: "wifi.exclamationmark")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
+                    ExplorerStatsObserver { _, failed in
+                        if failed {
+                            Label("kaspa.stream can't be reached right now.", systemImage: "wifi.exclamationmark")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     if !query.trimmingCharacters(in: .whitespaces).isEmpty {
                         liveResults
                     } else if searchFocused {
                         suggestions
                     } else {
-                        Group {
-                            liveCard
-                            statsGrid
+                        ExplorerStatsObserver { stats, _ in
+                            Group {
+                                liveCard
+                                statsGrid
+                            }
+                            .redacted(reason: stats == nil ? .placeholder : [])
                         }
-                        .redacted(reason: live.stats == nil ? .placeholder : [])
                         PageCycleBar(
                             tabs: [(tab: Page.blocks, title: "Blocks"),
                                    (tab: Page.transactions, title: "Transactions"),
                                    (tab: Page.kActivity, title: "K Activity")],
                             selection: $page
                         )
-                        latestList
+                        ExplorerFeedObserver { latestList }
                         Text("Live blocks from K's node · data from kaspa.stream")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -548,8 +555,35 @@ struct ExplorerView: View {
         switch kStats.averageFee?.source {
         case .indexer: return "average, last 24 hours"
         case .kaspalytics: return "average, yesterday"
-        default: return "demo: not served yet"
+        default:
+            #if DEBUG
+            return "demo: not served yet"
+            #else
+            return "not served yet"
+            #endif
         }
+    }
+
+    /// The tile's fee: the served average, else the demo's in Debug and "–" in Release (a wallet
+    /// doesn't show made-up numbers).
+    private func feeTileValue(_ stats: ExplorerNetworkStats) -> String {
+        if let served = kStats.averageFee?.sompi {
+            return ExplorerChartMetric.networkFees.format(Double(served) / 100_000_000)
+        }
+        #if DEBUG
+        return ExplorerChartMetric.networkFees.format(Double(stats.averageFee24h) / 100_000_000)
+        #else
+        return "–"
+        #endif
+    }
+
+    /// K Activity before K's indexer answers: the demo in Debug, "–" in Release.
+    private static func kActivityFallback(_ period: ExplorerKPeriod) -> ExplorerKActivity {
+        #if DEBUG
+        return ExplorerDemo.kActivity(period, at: Date())
+        #else
+        return ExplorerKActivity(period: period, counts: [:], unavailable: true)
+        #endif
     }
 
     private var statsGrid: some View {
@@ -568,7 +602,7 @@ struct ExplorerView: View {
                                  detail: "transactions waiting")
                 Button { open(.chart(.networkFees)) } label: {
                     ExplorerStatTile(icon: "gauge.with.dots.needle.33percent", color: .accentColor, title: "Network Fee",
-                                     value: ExplorerChartMetric.networkFees.format(Double(kStats.averageFee?.sompi ?? stats.averageFee24h) / 100_000_000),
+                                     value: feeTileValue(stats),
                                      detail: feeTileDetail,
                                      showsChevron: true)
                 }
@@ -593,11 +627,11 @@ struct ExplorerView: View {
                 .buttonStyle(ChatHeaderChipButtonStyle())
             }
             supplyCard(stats)
-            // K's indexer's numbers; the demo only until they first arrive
+            // K's indexer's numbers; until they first arrive, the demo (Debug) or "–" (Release)
             let periods = kStats.periods
             let shown = periods.contains(kPeriod) ? kPeriod : (periods.first ?? .day)
             ExplorerKActivityCard(period: $kPeriod, periods: periods,
-                                  activity: kStats.activity[shown] ?? ExplorerDemo.kActivity(shown, at: Date()))
+                                  activity: kStats.activity[shown] ?? Self.kActivityFallback(shown))
         }
         .padding(.horizontal, 16)
     }
@@ -885,7 +919,7 @@ struct ExplorerTransactionView: View {
     private func ioCard(title: LocalizedStringKey, items: [ExplorerIO], marksChange: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             ExplorerSectionTitle(title)
-            ExplorerCard {
+            ExplorerCard(lazy: true) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, io in
                     if index > 0 { Divider().padding(.leading, 60) }
                     if io.address.isEmpty {
@@ -1047,7 +1081,7 @@ struct ExplorerBlockView: View {
     private var list: some View {
         switch page {
         case .transactions:
-            ExplorerCard {
+            ExplorerCard(lazy: true) {
                 ForEach(Array(block.transactions.enumerated()), id: \.element.id) { index, tx in
                     if index > 0 { Divider().padding(.leading, 62) }
                     NavigationLink(value: ExplorerRoute.transaction(tx.id)) {
@@ -1107,6 +1141,14 @@ struct ExplorerBlockView: View {
 
 struct ExplorerAddressView: View {
     let info: ExplorerAddress
+    /// `info.transactions` as shown, filtered once here rather than on every read in `body`.
+    private let firstPage: [ExplorerTransaction]
+
+    init(info: ExplorerAddress) {
+        self.info = info
+        self.firstPage = Self.shown(info.transactions)
+    }
+
     @State private var toast: String?
     @State private var page: Page = .history
     @State private var showQR = false
@@ -1118,16 +1160,17 @@ struct ExplorerAddressView: View {
         info.address.lowercased() == WalletManager.shared.currentWallet?.publicAddress.lowercased()
     }
 
-    /// Pages of history loaded after the first.
+    /// Pages of history loaded after the first, already filtered (`shown`).
     @State private var morePages: [ExplorerTransaction] = []
     @State private var nextBefore: Int64??
     @State private var loadingMore = false
 
     /// Unaccepted mining rewards are left out (owner, 2026-11-25): every block merging a found
     /// block carries one, and only one counts. Other unaccepted transactions stay, marked.
-    private var history: [ExplorerTransaction] {
-        (info.transactions + morePages).filter { !($0.kind == .coinbase && $0.isNotAccepted) }
+    private static func shown(_ txs: [ExplorerTransaction]) -> [ExplorerTransaction] {
+        txs.filter { !($0.kind == .coinbase && $0.isNotAccepted) }
     }
+    private var history: [ExplorerTransaction] { firstPage + morePages }
     private var cursor: Int64? { nextBefore ?? info.nextPageBefore }
 
     /// The transaction count, and Load More while there's older history.
@@ -1165,7 +1208,7 @@ struct ExplorerAddressView: View {
         Task {
             if let (txs, next) = try? await ExplorerAPI.addressPage(info.address, before: before) {
                 let known = Set(history.map(\.id))
-                morePages += txs.filter { !known.contains($0.id) }
+                morePages += Self.shown(txs.filter { !known.contains($0.id) })
                 nextBefore = .some(next)
             }
             loadingMore = false
@@ -1261,7 +1304,7 @@ struct ExplorerAddressView: View {
                     Divider().padding(.vertical, 4)
                     HStack {
                         TokenIcon(token: .kusdt, size: 20)
-                        Text(verbatim: TokenAmount.amount(kusdt, token: .kusdt))
+                        Text(verbatim: ExplorerFormat.kusdt(kusdt))
                             .font(.subheadline.weight(.semibold))
                             .monospacedDigit()
                         Spacer()
@@ -1291,7 +1334,7 @@ struct ExplorerAddressView: View {
     private var list: some View {
         switch page {
         case .history:
-            ExplorerCard {
+            ExplorerCard(lazy: true) {
                 if history.isEmpty {
                     Text("No transactions yet.")
                         .font(.footnote)
@@ -1317,7 +1360,7 @@ struct ExplorerAddressView: View {
                 Divider().padding(.leading, 62)
                 let units = info.kusdtUnits ?? 0
                 assetRow(name: "kUSDT", detail: "A dollar token on Kaspa",
-                         amount: TokenAmount.amount(units, token: .kusdt),
+                         amount: ExplorerFormat.kusdt(units),
                          value: (Double(units) / 1_000_000).formatted(.currency(code: "USD"))) {
                     TokenIcon(token: .kusdt, size: 36)
                 }
@@ -1535,6 +1578,28 @@ struct ExplorerAgoText: View {
     }
 }
 
+/// Redraws `content` only when the network numbers or the can't-reach flag change, not with
+/// every block the live feed adds (smoothness audit L9).
+private struct ExplorerStatsObserver<Content: View>: View {
+    @ViewBuilder let content: (ExplorerNetworkStats?, Bool) -> Content
+    @State private var stats = ExplorerLive.shared.stats
+    @State private var failed = ExplorerLive.shared.failed
+
+    var body: some View {
+        content(stats, failed)
+            .onReceive(ExplorerLive.shared.$stats) { if $0 != stats { stats = $0 } }
+            .onReceive(ExplorerLive.shared.$failed) { if $0 != failed { failed = $0 } }
+    }
+}
+
+/// Redraws `content` with every change to the live feed: the newest blocks and transactions.
+private struct ExplorerFeedObserver<Content: View>: View {
+    @ObservedObject private var live = ExplorerLive.shared
+    @ViewBuilder let content: () -> Content
+
+    var body: some View { content() }
+}
+
 /// The live card's DAA score, run on from the newest block at the measured rate, once a second.
 struct ExplorerDAAScore: View {
     @ObservedObject private var live = ExplorerLive.shared
@@ -1630,13 +1695,22 @@ struct ExplorerDemoPill: View {
 }
 
 struct ExplorerCard<Content: View>: View {
+    /// Rows built as they scroll in, for long lists (an address's history, a block's
+    /// transactions, a transaction's inputs and outputs; smoothness audit L8).
+    var lazy = false
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(spacing: 0) { content() }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        Group {
+            if lazy {
+                LazyVStack(alignment: .leading, spacing: 0) { content() }
+            } else {
+                VStack(spacing: 0) { content() }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -1764,7 +1838,7 @@ struct ExplorerKActivityCard: View {
     private var totals: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: ExplorerFormat.grouped(UInt64(activity.total)))
+                Text(verbatim: activity.unavailable ? "–" : ExplorerFormat.grouped(UInt64(activity.total)))
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
@@ -2156,17 +2230,35 @@ enum ExplorerFormat {
     /// What a transaction moved: kUSDT for a token transaction, else KAS; "–" when it can't be
     /// told (a transaction read off the node, whose change isn't known).
     static func amountLine(_ tx: ExplorerTransaction, short: Bool = false) -> String {
-        if let units = tx.tokenUnits { return TokenAmount.amount(units, token: .kusdt) }
+        if let units = tx.tokenUnits { return kusdt(units) }
         guard let sompi = tx.movedAmount else { return "–" }
         return short ? shortKAS(sompi) : KaspaUnit.amount(sompi)
     }
 
-    /// A row's amount: "1.25 KAS", "12.3K KAS".
+    /// A row's amount: "1.25 KAS", "12.3K KAS". Under 0.01 KAS by its first digits
+    /// ("0.0001 KAS"): a post's or handshake's net is only its fee, which read "−0 KAS"
+    /// (release audit).
     static func shortKAS(_ sompi: UInt64) -> String {
         let kas = Double(sompi) / 100_000_000
-        let text = kas >= 1000
-            ? kas.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)))
-            : kas.formatted(.number.precision(.fractionLength(0...2)))
+        let text: String
+        if kas >= 1000 {
+            text = kas.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)))
+        } else if sompi > 0, kas < 0.01 {
+            text = kas.formatted(.number.precision(.significantDigits(1...3)))
+        } else {
+            text = kas.formatted(.number.precision(.fractionLength(0...2)))
+        }
         return "\(text) \(KaspaUnit.symbol)"
+    }
+
+    /// kUSDT to the cent ("2.66 kUSDT"), as the app's dollar amounts read; an amount under a
+    /// cent keeps its digits rather than reading 0 (release audit: "2.659812").
+    static func kusdt(_ units: UInt64) -> String {
+        let token = WalletToken.kusdt
+        guard token.decimals > 2 else { return TokenAmount.amount(units, token: token) }
+        let step = TokenAmount.pow10(token.decimals - 2)
+        let cents = units / step + (units % step >= step / 2 ? 1 : 0)
+        guard cents > 0 else { return TokenAmount.amount(units, token: token) }
+        return TokenAmount.amount(cents * step, token: token)
     }
 }

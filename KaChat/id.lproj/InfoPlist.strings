@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID digunakan untuk membuka frasa pemulihan Anda dan masuk kembali, jika diaktifkan di Pengaturan.";
 "NSLocalNetworkUsageDescription" = "K hanya terhubung ke node Kaspa atau server Nextcloud di jaringan lokal Anda jika Anda mengaturnya.";
 "NFCReaderUsageDescription" = "K menggunakan NFC untuk menyimpan dan memulihkan cadangan terenkripsi frasa pemulihan Anda di kartu pintar Anda.";
-"NSPhotoLibraryAddUsageDescription" = "Simpan gambar yang diterima ke perpustakaan foto Anda.";
+"NSPhotoLibraryAddUsageDescription" = "K menyimpan gambar yang diterima ke perpustakaan foto Anda.";

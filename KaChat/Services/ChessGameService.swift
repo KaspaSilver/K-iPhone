@@ -131,6 +131,11 @@ struct ChessGameSummary {
     }
 
     var statusText: String {
+        AppLocalization.string(statusKey)
+    }
+
+    /// The English status, the key `statusText` looks up in the app's language.
+    private var statusKey: String {
         switch status {
         case .pendingResponse: return "Waiting for response"
         case .declined: return "Game declined"
@@ -138,7 +143,7 @@ struct ChessGameSummary {
             guard let viewerColor else { return board.sideToMove == .white ? "White to move" : "Black to move" }
             return board.sideToMove == viewerColor ? "Your turn" : "Their turn"
         case .checkmate(let winner):
-            guard let viewerColor else { return "Checkmate - \(winner == .white ? "White" : "Black") wins" }
+            guard let viewerColor else { return winner == .white ? "Checkmate - White wins" : "Checkmate - Black wins" }
             return winner == viewerColor ? "Checkmate - You win!" : "Checkmate - You lost"
         case .stalemate:
             return "Stalemate - draw"
@@ -146,10 +151,10 @@ struct ChessGameSummary {
             return "Draw - not enough pieces to checkmate"
         case .resigned(let loser, let timeout):
             if timeout {
-                guard let viewerColor else { return "\(loser == .white ? "White" : "Black") lost on time" }
+                guard let viewerColor else { return loser == .white ? "White lost on time" : "Black lost on time" }
                 return loser == viewerColor ? "You lost on time" : "They lost on time"
             }
-            guard let viewerColor else { return "\(loser == .white ? "White" : "Black") resigned" }
+            guard let viewerColor else { return loser == .white ? "White resigned" : "Black resigned" }
             return loser == viewerColor ? "You resigned" : "They resigned"
         }
     }
@@ -331,6 +336,8 @@ enum ChessGameService {
     /// more than one candidate in practice; if older history somehow left more than one, the most
     /// recently invited game wins.
     static func activeGame(in messages: [ChatMessage], myAddress: String, contactAddress: String) -> ChessGameSummary? {
+        // only chess messages are parsed, and each game is summarized over them alone
+        let messages = chessMessages(in: messages)
         let inviteMessages = messages
             .filter {
                 if case .invite = ChessCodec.parseAny(MessageReplyCodec.unwrappedText($0.content)) { return true }
@@ -355,6 +362,7 @@ enum ChessGameService {
     /// local player; stalemate/declined/pending/in-progress games don't count either way. Used by
     /// `ChessGameView`'s W/L counter and `ChatInfoView`'s "Chess Stats" row.
     static func record(in messages: [ChatMessage], myAddress: String, contactAddress: String) -> (wins: Int, losses: Int) {
+        let messages = chessMessages(in: messages)
         let inviteMessages = messages.filter {
             if case .invite = ChessCodec.parseAny(MessageReplyCodec.unwrappedText($0.content)) { return true }
             return false
@@ -378,6 +386,12 @@ enum ChessGameService {
             }
         }
         return (wins, losses)
+    }
+
+    /// The messages that can be chess at all (a byte search, `PayloadSniff`): a whole history's
+    /// photos and voice parts were unwrapped and decoded for every game (audit 2026-11-27 C1).
+    static func chessMessages(in messages: [ChatMessage]) -> [ChatMessage] {
+        messages.filter { PayloadSniff.containsASCII($0.content, PayloadSniff.chessType) }
     }
 
     // MARK: - Sending actions

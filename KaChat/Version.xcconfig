@@ -44,8 +44,12 @@
 // A build run from Xcode (not Cloud, not an archive) gets its own next number from the app
 // target's "Local Build Number" script phase: one above CURRENT_PROJECT_VERSION, then one more
 // per build, kept in the gitignored KaChat/.local-build-number - so About counts up there too.
-KACHAT_BUILD_NUMBER = 1
-KACHAT_IS_RELEASE = NO
+// CFBundleVersion in all three Info.plists: the same number for a local archive as the one
+// above (it was 1, so a local archive went up as build 1; release audit 2026-11-27 R8). Builds
+// run from Xcode and Xcode Cloud replace it anyway.
+KACHAT_BUILD_NUMBER = $(CURRENT_PROJECT_VERSION)
+// YES for the App Store release (owner, 2026-11-27): About shows plain "5.4".
+KACHAT_IS_RELEASE = YES
 CURRENT_PROJECT_VERSION = 202607032579
 MARKETING_VERSION = 5.4
 

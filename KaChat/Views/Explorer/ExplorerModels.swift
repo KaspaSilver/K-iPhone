@@ -3,9 +3,9 @@ import Foundation
 import SwiftUI
 
 // K's own block explorer (owner, 2026-11-25): blocks, transactions and addresses inside the app,
-// so nothing opens a website. DESIGN STAGE: every screen reads `ExplorerDemo`, made-up data shaped
-// like the real thing. Once the design is settled the same models are filled from the node pool
-// (live blocks, mempool, coins) and 30 days of history; nothing in the views should need to change.
+// so nothing opens a website. The models are filled from kaspa.stream's API, K's own node and K's
+// indexer (`ExplorerAPI`, `ExplorerLive`, `ExplorerKStats`). `ExplorerDemo` is made-up data shaped
+// like the real thing: Debug builds fall back to it when a source doesn't answer; Release shows "–".
 
 // MARK: - Models
 
@@ -29,10 +29,10 @@ enum ExplorerTxKind: String, CaseIterable, Sendable {
     var title: LocalizedStringKey {
         switch self {
         case .payment: return "Payment"
-        case .kachatMessage: return "KaChat Message"
+        case .kachatMessage: return "K Message"
         case .handshake: return "Handshake"
         case .paymentNotice: return "Payment Notice"
-        case .kapost: return "KaPost"
+        case .kapost: return "Post"
         case .publicChat: return "Public Chat"
         case .kachatName: return "Username"
         case .kusdtTransfer: return "kUSDT Transfer"
@@ -44,14 +44,14 @@ enum ExplorerTxKind: String, CaseIterable, Sendable {
         }
     }
 
-    /// The kind counted ("KaChat Messages"), for K's 24-hour card.
+    /// The kind counted ("K Messages"), for K's 24-hour card.
     var plural: LocalizedStringKey {
         switch self {
         case .payment: return "Payments"
-        case .kachatMessage: return "KaChat Messages"
+        case .kachatMessage: return "K Messages"
         case .handshake: return "Handshakes"
         case .paymentNotice: return "Payment Notices"
-        case .kapost: return "KaPosts"
+        case .kapost: return "Posts"
         case .publicChat: return "Public Chat Messages"
         case .kachatName: return "Username Actions"
         case .kusdtTransfer: return "kUSDT Transfers"
@@ -217,9 +217,10 @@ struct ExplorerAddress: Hashable {
     let coins: [ExplorerCoin]
 }
 
+/// No DAA or blue score here: they change with every block, and publishing them made the whole
+/// Explorer home redraw each second. `ExplorerLive.daaScore(at:)` and `currentBlueScore()` give
+/// them live (smoothness audit L9).
 struct ExplorerNetworkStats: Hashable {
-    let daaScore: UInt64
-    let blueScore: UInt64
     let blocksPerSecond: Double
     /// Hashes per second.
     let hashrate: Double
@@ -299,8 +300,10 @@ struct ExplorerKActivity: Hashable {
     var activeAddresses: Int? = nil
     /// Network fees K's transactions paid, in sompi; nil when not served.
     var fees: UInt64? = nil
-    /// Made-up numbers (the design-stage demo).
+    /// Made-up numbers (the demo, Debug builds only).
     var isDemo = false
+    /// Nothing served yet (Release, before K's indexer answers): the total reads "–".
+    var unavailable = false
 
     var total: Int { counts.values.reduce(0) { $0.addingReportingOverflow($1).overflow ? .max : $0 + $1 } }
     /// Percent up (or down) on the window before.
@@ -439,8 +442,6 @@ enum ExplorerDemo {
         let elapsed = UInt64(max(0, now.timeIntervalSince(launchedAt)) * 10)
         let wobble = sin(now.timeIntervalSince1970 / 7)
         return ExplorerNetworkStats(
-            daaScore: baseDaa + elapsed,
-            blueScore: baseBlue + elapsed,
             blocksPerSecond: 10 + wobble * 0.08,
             hashrate: 1.47e18 * (1 + wobble * 0.01),
             mempoolSize: 34 + Int(wobble * 12),

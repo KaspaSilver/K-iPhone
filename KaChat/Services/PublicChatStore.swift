@@ -331,16 +331,6 @@ final class PublicChatStore {
         return result
     }
 
-    func isJoined(_ name: String) -> Bool {
-        let normalized = PublicChatChannelName.normalize(name)
-        var found = false
-        let context = viewContext
-        context.performAndWait {
-            found = fetchChannel(name: normalized, in: context) != nil
-        }
-        return found
-    }
-
     private func fetchChannel(name: String, in context: NSManagedObjectContext) -> CDPublicChatChannel? {
         let request = NSFetchRequest<CDPublicChatChannel>(entityName: CDPublicChatChannel.entityName)
         request.predicate = NSPredicate(format: "channelName == %@", name)

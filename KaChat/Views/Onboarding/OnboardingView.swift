@@ -410,7 +410,7 @@ struct OnboardingView: View {
         signInErrorMessage = nil
 
         if settingsViewModel.settings.biometricAccountLoginEnabled {
-            DeviceAuth.authenticate(reason: "Unlock to sign in to \(account.displayAlias)") {
+            DeviceAuth.authenticate(reason: String(format: AppLocalization.string("Unlock to sign in to %@"), account.displayAlias)) {
                 performSignIn(account)
             } onFailure: {
                 signInErrorMessage = "Authentication failed."

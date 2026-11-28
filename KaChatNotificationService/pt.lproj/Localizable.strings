@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "Enviou a você %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "Convidou você para uma partida de xadrez";
+"Accepted your chess game" = "Aceitou sua partida de xadrez";
+"Declined your chess game" = "Recusou sua partida de xadrez";
+"Played a chess move" = "Fez uma jogada de xadrez";
+"Played %@ → %@" = "Jogou %@ → %@";
+"Lost on time" = "Perdeu por tempo";
+"Resigned the chess game" = "Desistiu da partida de xadrez";
+"Removed their %@ reaction" = "Removeu a reação %@";
+"Reacted %@ to a message" = "Reagiu com %@ a uma mensagem";
+"Reacted %@ to your message" = "Reagiu com %@ à sua mensagem";
+"Replied to a message" = "Respondeu a uma mensagem";
+"Photo" = "Foto";
+"Video" = "Vídeo";
+"Edited a message" = "Editou uma mensagem";
+"Sent a photo" = "Enviou uma foto";
+"Sent a voice message" = "Enviou uma mensagem de voz";
+"Sent a video" = "Enviou um vídeo";

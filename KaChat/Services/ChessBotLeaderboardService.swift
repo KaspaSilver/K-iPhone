@@ -110,11 +110,4 @@ final class ChessBotLeaderboardService: ObservableObject {
         }
         return rows.sorted { ($0.moves, $0.at, $0.address) < ($1.moves, $1.at, $1.address) }
     }
-
-    /// Has anyone played this bot, as far as this phone can tell?
-    func hasBeenPlayed(_ bot: ChessBot) -> Bool {
-        let record = ChessBotProgress.shared.record(for: bot)
-        if record.wins + record.losses + record.draws > 0 { return true }
-        return (boards[.allTime]?[bot.level]?.games ?? 0) > 0
-    }
 }

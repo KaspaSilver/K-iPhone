@@ -24,3 +24,22 @@
 
 /* Dollar payment in a chat (2026-11-22) */
 "Sent you %@" = "Sent you %@";
+
+/* Release audit 2026-11-27: chess, reactions and media previews */
+"Invited you to a game of chess" = "Invited you to a game of chess";
+"Accepted your chess game" = "Accepted your chess game";
+"Declined your chess game" = "Declined your chess game";
+"Played a chess move" = "Played a chess move";
+"Played %@ → %@" = "Played %@ → %@";
+"Lost on time" = "Lost on time";
+"Resigned the chess game" = "Resigned the chess game";
+"Removed their %@ reaction" = "Removed their %@ reaction";
+"Reacted %@ to a message" = "Reacted %@ to a message";
+"Reacted %@ to your message" = "Reacted %@ to your message";
+"Replied to a message" = "Replied to a message";
+"Photo" = "Photo";
+"Video" = "Video";
+"Edited a message" = "Edited a message";
+"Sent a photo" = "Sent a photo";
+"Sent a voice message" = "Sent a voice message";
+"Sent a video" = "Sent a video";

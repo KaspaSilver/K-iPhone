@@ -4,4 +4,4 @@
 "NSFaceIDUsageDescription" = "Face ID se usa para desbloquear tu frase semilla y volver a iniciar sesión, si lo activas en Ajustes.";
 "NSLocalNetworkUsageDescription" = "K solo se conecta a un nodo de Kaspa o a un servidor de Nextcloud de tu red local si configuras uno.";
 "NFCReaderUsageDescription" = "K usa NFC para guardar y restaurar una copia de seguridad cifrada de tu frase semilla en tu tarjeta inteligente.";
-"NSPhotoLibraryAddUsageDescription" = "Guardar las imágenes recibidas en tu fototeca.";
+"NSPhotoLibraryAddUsageDescription" = "K guarda las imágenes recibidas en tu fototeca.";

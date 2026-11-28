@@ -221,17 +221,24 @@ extension ChatService {
             var totalToOthers: UInt64 = 0
             var recipientAddress = ""
             var recipientAmount: UInt64 = 0
+            // The amounts are the REST API's (a user-set server): a sum past UInt64.max is a
+            // made-up transaction, skipped, not a crash on every sync (audit 2026-11-27 R6).
+            var amountsOverflow = false
 
             for output in tx.outputs {
                 if paysUs(output) {
-                    totalToUs += output.amount
+                    let (sum, overflow) = totalToUs.addingReportingOverflow(output.amount)
+                    if overflow { amountsOverflow = true; break }
+                    totalToUs = sum
                 } else if let addr = output.scriptPublicKeyAddress, !addr.isEmpty {
                     if addr == address {
                         // labelled ours, but the script says otherwise: not ours, and not
                         // anyone's we can name either
                         continue
                     } else {
-                        totalToOthers += output.amount
+                        let (sum, overflow) = totalToOthers.addingReportingOverflow(output.amount)
+                        if overflow { amountsOverflow = true; break }
+                        totalToOthers = sum
                         // For outgoing: track recipient (non-change output)
                         // Usually the payment is smaller than change, but we want the non-sender address
                         if addr != senderAddress {
@@ -248,6 +255,11 @@ extension ChatService {
                         }
                     }
                 }
+            }
+
+            if amountsOverflow {
+                skippedDirection += 1
+                continue
             }
 
             // Determine transaction direction based on inputs
@@ -1454,7 +1466,31 @@ extension ChatService {
         return result
     }
 
+    /// One transaction from the REST API, shared: a read already in flight for it is joined, and
+    /// a complete answer from the last half minute is reused (`FullTransactionCache`). One receive
+    /// is resolved by the payment path and the Received KAS notifier at once (audit 2026-11-27 B6).
     func fetchKaspaFullTransaction(
+        txId: String,
+        retries: Int,
+        delayNs: UInt64
+    ) async -> KaspaFullTransactionResponse? {
+        let cache = FullTransactionCache.shared
+        let key = txId.lowercased()
+        if let hit = cache.cached(key) { return hit }
+        if let running = cache.inFlight[key] {
+            if let tx = await running.value { return tx }
+            // that read gave up; this caller's own retries still get their turn
+        }
+        let task = Task { @MainActor [weak self] () -> KaspaFullTransactionResponse? in
+            await self?.readKaspaFullTransaction(txId: txId, retries: retries, delayNs: delayNs)
+        }
+        cache.inFlight[key] = task
+        let tx = await task.value
+        cache.finish(key, task: task, tx: tx)
+        return tx
+    }
+
+    private func readKaspaFullTransaction(
         txId: String,
         retries: Int,
         delayNs: UInt64
@@ -2384,7 +2420,7 @@ extension ChatService {
                 }
                 for contextMsg in messages {
                     // Skip if already have this message
-                    if await findLocalMessage(txId: contextMsg.txId) != nil {
+                    if await findLocalMessage(txId: contextMsg.txId, inConversationWith: contactAddress) != nil {
                         continue
                     }
 
@@ -2776,9 +2812,19 @@ extension ChatService {
     /// notification burst; a synchronous Core Data fetch here froze the app during initial sync
     /// (see `MessageStore.fetchMessage`). The in-memory scan below is the fast path and stays
     /// synchronous; only a miss awaits the background-context fetch.
-    func findLocalMessage(txId: String) async -> ChatMessage? {
-        for conversation in conversations {
-            if let message = conversation.messages.first(where: { $0.txId == txId }) {
+    /// `inConversationWith`: the chat the message most likely belongs to, looked in first. The
+    /// open chat's 2 s poll gets its recent messages back on every pass (the 90 s rewind), and
+    /// each of them scanned every chat's history from the oldest message (audit 2026-11-27 C9).
+    /// Searched newest first: what comes back is recent. A txid is in one chat at most
+    /// (`addMessageToConversation` dedupes on it), so the order doesn't change the answer.
+    func findLocalMessage(txId: String, inConversationWith contactAddress: String? = nil) async -> ChatMessage? {
+        if let contactAddress,
+           let conversation = conversations.first(where: { $0.contact.address == contactAddress }),
+           let message = conversation.messages.last(where: { $0.txId == txId }) {
+            return message
+        }
+        for conversation in conversations where conversation.contact.address != contactAddress {
+            if let message = conversation.messages.last(where: { $0.txId == txId }) {
                 return message
             }
         }
@@ -3443,21 +3489,21 @@ extension ChatService {
         if let chessEnvelope = ChessCodec.parseAny(unwrapped) {
             switch chessEnvelope {
             case .invite:
-                return "♟️ Invited you to a game of chess"
+                return "♟️ " + AppLocalization.string("Invited you to a game of chess")
             case .response(let response):
-                return response.accepted ? "♟️ Accepted your chess game" : "♟️ Declined your chess game"
+                return "♟️ " + AppLocalization.string(response.accepted ? "Accepted your chess game" : "Declined your chess game")
             case .move(let move):
-                return "♟️ Played \(move.from) → \(move.to)"
+                return "♟️ " + String(format: AppLocalization.string("Played %@ → %@"), move.from, move.to)
             case .resign(let resign):
-                return resign.reason == "timeout" ? "♟️ Lost on time" : "♟️ Resigned the chess game"
+                return "♟️ " + AppLocalization.string(resign.reason == "timeout" ? "Lost on time" : "Resigned the chess game")
             }
         }
         // Same guard for reaction envelopes, mirroring the NSE's reactionPreviewText.
         if let reaction = MessageReactionCodec.parse(unwrapped) {
-            return "Reacted \(reaction.emoji)"
+            return String(format: AppLocalization.string("Reacted %@"), reaction.emoji)
         }
         if MessageEditCodec.parse(unwrapped) != nil {
-            return "Edited a message"
+            return AppLocalization.string("Edited a message")
         }
         // Check if content is a file JSON payload
         let trimmed = unwrapped.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -3474,13 +3520,13 @@ extension ChatService {
 
         let mime = mimeType.lowercased()
         if mime.hasPrefix("image/") {
-            return "Sent a photo"
+            return AppLocalization.string("Sent a photo")
         } else if mime.hasPrefix("audio/") {
-            return "Sent a voice message"
+            return AppLocalization.string("Sent a voice message")
         } else if mime.hasPrefix("video/") {
-            return "Sent a video"
+            return AppLocalization.string("Sent a video")
         } else {
-            return "Sent a file"
+            return AppLocalization.string("Sent a file")
         }
     }
 
@@ -3830,5 +3876,51 @@ extension ChatService {
             return count + convo.messages.filter { !$0.isOutgoing }.count
         }
         return IncomingResyncSummary(chats: targets.count, messages: restoredMessages)
+    }
+}
+
+/// Full transactions read from the REST API in the last half minute, by txid, and the reads in
+/// flight (audit 2026-11-27 B6): one receive is resolved by ChatService's payment path and by
+/// `AddressActivityNotifier` at once, and each read it, with retries, on its own. Only an
+/// answer whose inputs are all resolved is kept, so a caller retrying for the sender still asks
+/// again. Cleared on an account switch.
+@MainActor
+final class FullTransactionCache {
+    static let shared = FullTransactionCache()
+    private init() {}
+
+    private static let lifetime: TimeInterval = 30
+    private static let cap = 64
+    private var entries: [String: (tx: KaspaFullTransactionResponse, at: Date)] = [:]
+    var inFlight: [String: Task<KaspaFullTransactionResponse?, Never>] = [:]
+
+    func cached(_ key: String) -> KaspaFullTransactionResponse? {
+        guard let entry = entries[key] else { return nil }
+        guard Date().timeIntervalSince(entry.at) < Self.lifetime else {
+            entries.removeValue(forKey: key)
+            return nil
+        }
+        return entry.tx
+    }
+
+    func finish(_ key: String, task: Task<KaspaFullTransactionResponse?, Never>, tx: KaspaFullTransactionResponse?) {
+        // a later read for the same txid may have replaced this one
+        if inFlight[key] == task { inFlight.removeValue(forKey: key) }
+        guard let tx, Self.isComplete(tx) else { return }
+        if entries.count >= Self.cap {
+            let now = Date()
+            entries = entries.filter { now.timeIntervalSince($0.value.at) < Self.lifetime }
+            if entries.count >= Self.cap { entries.removeAll() }
+        }
+        entries[key] = (tx, Date())
+    }
+
+    func removeAll() {
+        entries.removeAll()
+        inFlight.removeAll()
+    }
+
+    private static func isComplete(_ tx: KaspaFullTransactionResponse) -> Bool {
+        (tx.inputs ?? []).allSatisfy { !($0.previousOutpointAddress ?? "").isEmpty }
     }
 }

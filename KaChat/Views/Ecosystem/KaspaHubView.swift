@@ -88,6 +88,7 @@ final class HubRouter: ObservableObject {
 
     /// A sign-out: nothing of the last account's Hub is kept (audit 2026-11-27 L15).
     func reset() {
+        HubMenuState.shared.isPresented = false
         openSection = nil
         leftAt = nil
         forgetCount &+= 1
@@ -527,8 +528,17 @@ struct KaspaHubLinkCard: View {
 /// that rises from the dock's left side, about as wide as the first three dock icons and at most
 /// half the screen tall, with every section in a scrollable list. A tap anywhere else closes it;
 /// a section picked opens as a Hub section, the dock in view with Kaspa Hub lit.
+/// Whether Kaspa Hub's menu is up. Its own object, observed only by the menu: as `MainTabView`
+/// state, every open and close re-ran the whole dock (every tab item and icon) inside the spring,
+/// and the dock's glass could twitch (smoothness audit T2).
+@MainActor
+final class HubMenuState: ObservableObject {
+    static let shared = HubMenuState()
+    @Published var isPresented = false
+}
+
 struct KaspaHubMenu: View {
-    @Binding var isPresented: Bool
+    @ObservedObject private var menu = HubMenuState.shared
     let onPick: (AppTab) -> Void
     @ObservedObject private var layout = DockLayout.shared
 
@@ -536,27 +546,36 @@ struct KaspaHubMenu: View {
     private static let dockClearance: CGFloat = 72
 
     var body: some View {
+        // Always in the tree, shown by scale and opacity, not inserted with a transition: a
+        // view coming in with a transition took no taps until its spring settled, so a section
+        // picked while the menu was still rising was lost (release audit T2). Hit testing
+        // follows `isPresented` at once.
+        let shown = menu.isPresented
         GeometryReader { geo in
             ZStack(alignment: .bottomLeading) {
-                if isPresented {
-                    // a tap outside, the dock included, closes it
-                    Color.black.opacity(0.18)
-                        .ignoresSafeArea()
-                        .onTapGesture { close() }
-                        .transition(.opacity)
-                    panel(maxHeight: geo.size.height * 0.5)
-                        .frame(width: min(geo.size.width * 0.64, 300))
-                        .padding(.leading, 16)
-                        .padding(.bottom, Self.dockClearance)
-                        .transition(.scale(scale: 0.4, anchor: .bottomLeading).combined(with: .opacity))
-                }
+                // a tap outside, the dock included, closes it
+                // `contentShape`: while it fades in the colour is almost clear and took no taps, so
+                // a tap in the first moments went through to the screen beneath (it opened a chat).
+                Color.black.opacity(shown ? 0.18 : 0)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture { close() }
+                    .allowsHitTesting(shown)
+                panel(maxHeight: geo.size.height * 0.5)
+                    .frame(width: min(geo.size.width * 0.64, 300))
+                    .padding(.leading, 16)
+                    .padding(.bottom, Self.dockClearance)
+                    .scaleEffect(shown ? 1 : 0.4, anchor: .bottomLeading)
+                    .opacity(shown ? 1 : 0)
+                    .allowsHitTesting(shown)
+                    .accessibilityHidden(!shown)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         }
     }
 
     private func close() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { isPresented = false }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { menu.isPresented = false }
     }
 
     /// The sections in alphabetical order (owner, 2026-11-27), by the name shown in the person's
@@ -568,14 +587,24 @@ struct KaspaHubMenu: View {
     }
 
     private func panel(maxHeight: CGFloat) -> some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 2) {
                 ForEach(alphabeticalTabs) { tab in
                     Button {
                         Haptics.impact(.light)
-                        close()
-                        // after the panel's close has started, so the two don't fight
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { onPick(tab) }
+                        // A quick fade, and the section opens once it's gone: building a section
+                        // (Posts, the Explorer, a web view) during the close stalled it.
+                        if #available(iOS 17.0, *) {
+                            withAnimation(.easeOut(duration: 0.15), completionCriteria: .logicallyComplete) {
+                                menu.isPresented = false
+                            } completion: {
+                                onPick(tab)
+                            }
+                        } else {
+                            withAnimation(.easeOut(duration: 0.15)) { menu.isPresented = false }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { onPick(tab) }
+                        }
                     } label: {
                         HStack(spacing: 12) {
                             AppTabIcon(tab: tab, size: 18)
@@ -604,6 +633,11 @@ struct KaspaHubMenu: View {
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 6)
+        }
+        // kept between opens now, so each open starts at the top, as a new list did
+        .onChange(of: menu.isPresented) { presented in
+            if presented, let first = alphabeticalTabs.first { proxy.scrollTo(first.id, anchor: .top) }
+        }
         }
         // its rows' height (about 48 pt each), at most half the screen, scrolling past that
         .frame(height: min(CGFloat(layout.hub.count) * 48 + 16, maxHeight))

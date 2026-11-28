@@ -207,6 +207,19 @@ struct GetKaChatMessagesIntent: AppIntent {
             .prefix(normalizedLimit)
             .map { KaChatShortcutHelpers.jsonString(for: $0) }
 
+        // The answer is decrypted chats: an automation or an imported shortcut gets them only
+        // once the person says so, as a payment is confirmed (release audit 2026-11-27 C8).
+        if !output.isEmpty {
+            let question = String(format: AppLocalization.string("Give this shortcut the text of %lld messages?"), output.count)
+            if #available(iOS 18.0, *) {
+                try await requestConfirmation(actionName: .`continue`, dialog: IntentDialog(stringLiteral: question))
+            } else {
+                guard try await $limit.requestConfirmation(for: limit, dialog: IntentDialog(stringLiteral: question)) else {
+                    throw KasiaError.networkError(AppLocalization.string("Cancelled."))
+                }
+            }
+        }
+
         return .result(value: Array(output), dialog: "Returned \(output.count) messages")
     }
 }
@@ -232,6 +245,21 @@ struct SendKaChatMessageIntent: AppIntent {
         }
 
         let target = try KaChatShortcutHelpers.resolveContact(from: contact)
+
+        // A message goes on chain for good, from your chatting address: confirmed first, as a
+        // payment is, so an automation never sends one on its own (release audit 2026-11-27 C8).
+        let alias = target.alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let recipient = alias.isEmpty ? "\(target.address.prefix(14))...\(target.address.suffix(6))" : alias
+        let shown = text.count > 200 ? String(text.prefix(200)) + "…" : text
+        let question = String(format: AppLocalization.string("Send this message to %@?"), recipient) + "\n\n" + shown
+        if #available(iOS 18.0, *) {
+            try await requestConfirmation(actionName: .send, dialog: IntentDialog(stringLiteral: question))
+        } else {
+            guard try await $message.requestConfirmation(for: message, dialog: IntentDialog(stringLiteral: question)) else {
+                throw KasiaError.networkError(AppLocalization.string("Cancelled."))
+            }
+        }
+
         try await ChatService.shared.sendMessage(to: target, content: text)
         return .result(dialog: "Message sent to \(target.alias)")
     }
@@ -322,6 +350,18 @@ struct SendKaChatAudioIntent: AppIntent {
         let fileName = audioFile.filename.isEmpty ? "audio.webm" : audioFile.filename
         guard let mimeType = KaChatShortcutHelpers.audioMimeType(for: fileName) else {
             throw KasiaError.networkError("Unsupported audio format")
+        }
+
+        // Confirmed first, as a text message is (release audit 2026-11-27 C8).
+        let alias = target.alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let recipient = alias.isEmpty ? "\(target.address.prefix(14))...\(target.address.suffix(6))" : alias
+        let question = String(format: AppLocalization.string("Send this message to %@?"), recipient)
+        if #available(iOS 18.0, *) {
+            try await requestConfirmation(actionName: .send, dialog: IntentDialog(stringLiteral: question))
+        } else {
+            guard try await $audioFile.requestConfirmation(for: audioFile, dialog: IntentDialog(stringLiteral: question)) else {
+                throw KasiaError.networkError(AppLocalization.string("Cancelled."))
+            }
         }
 
         try await ChatService.shared.sendAudio(to: target, audioData: data, fileName: fileName, mimeType: mimeType)

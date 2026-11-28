@@ -9,8 +9,16 @@ import UIKit
 /// the send screen itself (From), so there is no "primary" here.
 struct ManageAddressesView: View {
     @EnvironmentObject var walletManager: WalletManager
-    @EnvironmentObject var chatService: ChatService
+    /// Unobserved: only its methods are called, and observing it redrew and re-sorted every
+    /// card on each chat publish (smoothness audit L3).
+    private var chatService: ChatService { ChatService.shared }
     @EnvironmentObject var settingsViewModel: SettingsViewModel
+    /// A pending reload after coin activity (`reloadAfterActivity`).
+    @State private var activityReload: Task<Void, Never>?
+    /// The reload above is still in its one-second wait (it may be cancelled then, not later).
+    @State private var activityReloadWaiting = false
+    /// Activity came in while that reload was loading: one more follows it.
+    @State private var activityReloadQueued = false
 
     @State private var entries: [SpendingAddressEntry] = []
     @State private var isLoading = false
@@ -135,19 +143,19 @@ struct ManageAddressesView: View {
         // Live own-address receive detected (AddressActivityNotifier) - refresh balances so
         // the screen reflects the funds without a manual pull.
         .onReceive(NotificationCenter.default.publisher(for: .ownAddressActivity)) { _ in
-            Task { await loadEntries() }
+            reloadAfterActivity()
         }
         // Always-post variant: also fires for self-send change (payment rotation,
         // consolidation) that the notification-gated event above suppresses.
         .onReceive(NotificationCenter.default.publisher(for: .ownAddressUtxoActivity)) { _ in
-            Task { await loadEntries() }
+            reloadAfterActivity()
         }
         // Primary pointer rotated (post-send rotation or Set as Primary elsewhere) - the rows
         // already read the live primary index for the star and menu guards, so they update the
         // moment WalletManager republishes; this reload refreshes balances and the persisted
         // snapshot so the old primary's row is consistent (and hideable) right away.
         .onReceive(NotificationCenter.default.publisher(for: .spendingPrimaryChanged)) { _ in
-            Task { await loadEntries() }
+            reloadAfterActivity()
         }
         .toast(message: toastMessage)
         .alert(
@@ -314,7 +322,7 @@ struct ManageAddressesView: View {
     }
 
     private static func kasAmount(_ sompi: UInt64?) -> String {
-        "\(sompi.map { KaspaUnit.groupedExact($0) } ?? "--") \(KaspaUnit.symbol)"
+        ManagedAddressCardAmount.kas(sompi)
     }
 
     private func addressRow(_ entry: SpendingAddressEntry) -> some View {
@@ -671,27 +679,42 @@ struct ManageAddressesView: View {
         // full resolved transaction, so even a full in-flight batch is tiny on the wire.
         toProbe.sort { $0.index < $1.index }
         let concurrencyLimit = 8
+        let chat = ChatService.shared
         var pending = toProbe.makeIterator()
+        // Answers are applied in batches, at most every 0.3 s: one write and one re-sort per
+        // answer moved rows between groups as you scrolled (smoothness audit L4).
+        var batch: [String: Bool] = [:]
+        var lastFlush = Date()
+        func flush() {
+            guard !batch.isEmpty else { return }
+            var updated = entries
+            for position in updated.indices {
+                if let used = batch[updated[position].address] { updated[position].everUsed = used }
+            }
+            entries = updated
+            unknownUsedAddresses.subtract(batch.keys)
+            batch.removeAll()
+            lastFlush = Date()
+        }
         await withTaskGroup(of: (String, Bool?).self) { group in
             for _ in 0..<concurrencyLimit {
                 guard let entry = pending.next() else { break }
-                group.addTask { (entry.address, await self.chatService.spendingAddressUsedState(entry.address)) }
+                group.addTask { (entry.address, await chat.spendingAddressUsedState(entry.address)) }
             }
             while let (address, used) = await group.next() {
                 if let used {
-                    if let position = entries.firstIndex(where: { $0.address == address }) {
-                        entries[position].everUsed = used
-                    }
-                    unknownUsedAddresses.remove(address)
+                    batch[address] = used
                     AppLog.log("[ManageAddresses] everUsed check address=…%@ used=%@", String(address.suffix(8)), used ? "true" : "false")
                 }
                 // A failed probe stays in unknownUsedAddresses: the badge keeps showing
                 // "Checking" (never a possibly-wrong "Unused") and pull to refresh retries.
+                if Date().timeIntervalSince(lastFlush) >= 0.3 { flush() }
                 if let entry = pending.next() {
-                    group.addTask { (entry.address, await self.chatService.spendingAddressUsedState(entry.address)) }
+                    group.addTask { (entry.address, await chat.spendingAddressUsedState(entry.address)) }
                 }
             }
         }
+        flush()
 
         // Persist the freshly-loaded snapshot so the NEXT open paints instantly from cache.
         walletManager.storeSpendingAddressListCache(entries)
@@ -701,7 +724,32 @@ struct ManageAddressesView: View {
         let addresses = (walletManager.currentWallet.map { [$0.publicAddress] } ?? []) + baseEntries.map { $0.address }
         // the addresses holding a .kachat name
         let owners = await KachatNamesRegistry.shared.ownersOfNames(among: addresses)
-        domainOwningAddresses = owners
+        if domainOwningAddresses != owners { domainOwningAddresses = owners }
+    }
+
+    /// Coin activity and primary changes reload once, a second after the last one: three
+    /// notifications for one payment each started a full reload (smoothness audit L4).
+    /// Cancelled only while it's still waiting: cancelling a load in progress left rows
+    /// "Checking" and cached a half-probed list, so a change then queues one more reload
+    /// instead (release audit C4).
+    private func reloadAfterActivity() {
+        if activityReload != nil && !activityReloadWaiting {
+            activityReloadQueued = true
+            return
+        }
+        activityReload?.cancel()
+        activityReloadWaiting = true
+        activityReload = Task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            activityReloadWaiting = false
+            await loadEntries()
+            activityReload = nil
+            if activityReloadQueued {
+                activityReloadQueued = false
+                reloadAfterActivity()
+            }
+        }
     }
 
     /// Address Actions' two Generate rows (owner's call, 2026-11-19, as in KaPay): a regular
@@ -833,7 +881,14 @@ struct ManageAddressesView: View {
         guard !isDiscovering else { return }
         isDiscovering = true
         discoveryProgress = WalletManager.SpendingDiscoveryProgress(checkingIndex: 0, foundCount: 0)
+        // At most four updates a second (and every new find): each one re-sorted the list
+        // (smoothness audit L4).
+        var lastProgress = Date.distantPast
         let discovered = await walletManager.discoverSpendingAddresses { progress in
+            let now = Date()
+            guard progress.foundCount != discoveryProgress?.foundCount
+                    || now.timeIntervalSince(lastProgress) >= 0.25 else { return }
+            lastProgress = now
             discoveryProgress = progress
         }
         await loadEntries()
@@ -861,6 +916,16 @@ struct ManageAddressesView: View {
                 }
             }
         }
+    }
+}
+
+/// An address card's KAS balance: all eight decimals, grouped ("1,234.50000000 KAS"), but an
+/// empty address reads "0 KAS", not "0.00000000 KAS" (release audit). Shared by Manage
+/// Addresses' and Cold Storage's cards, so they match.
+enum ManagedAddressCardAmount {
+    static func kas(_ sompi: UInt64?) -> String {
+        guard let sompi else { return "-- \(KaspaUnit.symbol)" }
+        return "\(sompi == 0 ? "0" : KaspaUnit.groupedExact(sompi)) \(KaspaUnit.symbol)"
     }
 }
 
@@ -1161,7 +1226,8 @@ struct SpendingAddressWithdrawView: View {
     var preloadedUtxos: [UTXO] = []
     let onComplete: () -> Void
 
-    @EnvironmentObject var chatService: ChatService
+    /// Unobserved: only its methods are called (smoothness audit L3).
+    private var chatService: ChatService { ChatService.shared }
     // (no ContactsManager: it was observed and never read, audit 2026-11-24 #29)
     @EnvironmentObject var settingsViewModel: SettingsViewModel
     @Environment(\.dismiss) private var dismiss
@@ -1305,7 +1371,7 @@ struct SpendingAddressWithdrawView: View {
     private var review: some View {
             SwipeUpToSendScrollView(
                 screenTitle: isCompoundMode ? "Compound UTXOs"
-                    : "Send Kaspa from Address #\(WalletManager.addressNumber(forIndex: source.index))",
+                    : String(format: AppLocalization.string("Send Kaspa from Address #%lld"), WalletManager.addressNumber(forIndex: source.index)),
                 onCancel: { dismiss() },
                 title: isCompoundMode ? "Swipe up to Consolidate" : "Swipe up to Send",
                 isBusy: isSending,
@@ -1972,7 +2038,8 @@ struct SpendingAddressTransactionHistoryView: View {
     /// The tapped transaction, while its action chooser is up.
     @State private var transactionActionTarget: KaspaFullTransactionResponse?
 
-    @EnvironmentObject var chatService: ChatService
+    /// Unobserved: only its methods are called (smoothness audit L3).
+    private var chatService: ChatService { ChatService.shared }
     @EnvironmentObject var settingsViewModel: SettingsViewModel
 
     private enum Tab: String, CaseIterable {
@@ -2576,7 +2643,8 @@ private struct SpendingAddressVisibilityView: View {
 /// Privacy tab (they can't be hidden or unhidden while the offer is live anyway).
 private struct AddressVisibilityChainList: View {
     @EnvironmentObject var walletManager: WalletManager
-    @EnvironmentObject var chatService: ChatService
+    /// Unobserved: only its methods are called (smoothness audit L3).
+    private var chatService: ChatService { ChatService.shared }
 
     /// Which chain this list pages: the quantum chain lives at `quantumIndexBase` and up, so
     /// one pager over raw indices never reached it (its first page was #20,000).

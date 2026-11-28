@@ -24,7 +24,6 @@
 "Balance" = "残高";
 "Balance copied to clipboard." = "残高をクリップボードにコピーしました。";
 "Banner" = "バナー";
-"Best" = "最高";
 "Bio" = "バイオ";
 "Camera" = "カメラ";
 "Camera Access Required" = "カメラへのアクセスが必要です";
@@ -45,7 +44,6 @@
 "Clear connection pool?" = "接続プールをクリアしますか？";
 "Close" = "閉じる";
 "Confirm" = "確認";
-"Connect to a Node" = "ノードに接続";
 "Connected Node" = "接続済みノード";
 "Connected only to this node" = "このノードのみに接続";
 "Connection" = "接続";
@@ -77,7 +75,6 @@
 "Diagnostics" = "診断";
 "Disabled" = "無効";
 "Discord user id" = "DiscordのユーザーID";
-"Discover Addresses" = "アドレスを検出";
 "Distance" = "距離";
 "Domain" = "ドメイン";
 "Domains" = "ドメイン";
@@ -94,7 +91,6 @@
 "Fee" = "手数料";
 "Finish" = "完了";
 "From" = "送信元";
-"Fund Your Chatting Address" = "チャットアドレスに入金する";
 "Generate one below to start sending payments from a separate address than the one you chat from." = "チャットに使用しているアドレスとは別のアドレスから支払いを送信するには、以下で1つ生成してください。";
 "Group Info" = "グループ情報";
 "Hidden Users" = "非表示のユーザー";
@@ -136,7 +132,6 @@
 "More options" = "その他のオプション";
 "Name" = "名前";
 "Network Fee" = "ネットワーク手数料";
-"New message" = "新しいメッセージ";
 "Next" = "次へ";
 "No Conversations Yet" = "まだ会話がありません";
 "No Sound" = "サウンドなし";
@@ -188,8 +183,6 @@
 "Received %@ KAS — %@" = "%@ KASを受信 — %@";
 "Received %@ domain" = "%@ ドメインを受信";
 "Received domain transfer" = "ドメイン転送を受信";
-"Received payment" = "支払いを受け取りました";
-"Recommended" = "おすすめ";
 "Reconnect" = "再接続";
 "Redirect URL" = "リダイレクトURL";
 "Refresh Pool" = "プールを更新";
@@ -197,7 +190,6 @@
 "Remove" = "削除";
 "Rename" = "名前を変更";
 "Rename Account" = "アカウント名を変更";
-"Rename Address" = "アドレス名を変更";
 "Rename Group" = "グループ名を変更";
 "Reply" = "返信";
 "Request to communicate" = "通信リクエスト";
@@ -275,7 +267,6 @@
 "Share" = "共有";
 
 /* 5.2: name services, .kachat, Connection Settings, testnet */
-"Looking up domain..." = "ドメインを検索中...";
 "No domain" = "ドメインなし";
 "Couldn't check" = "確認できませんでした";
 "Edit KaChat Profile" = "KaChatプロフィールを編集";
@@ -401,7 +392,6 @@
 "Take a photo and send it to the group." = "写真を撮ってグループに送信します。";
 "Pick an image from your library and send it to the group." = "ライブラリから画像を選んでグループに送信します。";
 "Record a voice message and send it to the group." = "ボイスメッセージを録音してグループに送信します。";
-"to %@" = "%@ へ";
 "Add a memo (encrypted)" = "メモを追加（暗号化）";
 "Switch between Kaspa and your currency" = "Kaspaと通貨を切り替え";
 "Send Photo or Video via Nextcloud" = "Nextcloudで写真または動画を送信";
@@ -721,7 +711,6 @@
 "Your Address" = "自分のアドレス";
 
 /* Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses */
-"Quantum-safe" = "量子耐性";
 
 /* Edit KaChat Profile: Clear Profile */
 "Clear Profile" = "プロフィールをクリア";
@@ -814,7 +803,6 @@
 "Delete Contact" = "連絡先を削除";
 "Not in your contacts" = "連絡先にありません";
 "Add them in Contacts." = "「連絡先」で追加してください。";
-"That file isn't a KaChat contacts export." = "そのファイルは KaChat の連絡先エクスポートではありません。";
 "That contacts export has no contacts." = "その連絡先エクスポートには連絡先がありません。";
 "Edit Contact" = "連絡先を編集";
 "No contacts yet" = "連絡先はまだありません";
@@ -975,7 +963,6 @@
 "Add members" = "メンバーを追加";
 "Everyone in your contacts is already in this group." = "連絡先の全員が、すでにこのグループにいます。";
 "New members can read messages from the moment they're added, not earlier history." = "新しいメンバーが読めるのは、追加された時点以降のメッセージです。それより前の履歴は読めません。";
-"Add %lld member%@ to the group?%@" = "メンバー%lld人%@をグループに追加しますか？%@";
 "Refresh complete" = "更新完了";
 "Rebuilding this group" = "このグループを再構築中";
 "Re-reading the whole group from the chain, the same way importing your 12 or 24 words does. Leaving now would stop it partway." = "12語または24語をインポートするときと同じ方法で、グループ全体をチェーンから再読み込みしています。今離れると途中で止まってしまいます。";
@@ -990,12 +977,10 @@
 "Hide password" = "パスワードを隠す";
 "Show password" = "パスワードを表示";
 "Change Chatting Address" = "チャットアドレスを変更";
-"Label" = "ラベル";
 "Notify on receive" = "受信時に通知";
 "When a spending address receives Kaspa from someone else." = "支出アドレスが他の人からKaspaを受け取ったとき。";
 "Checking address #%lld" = "アドレス #%lld を確認中";
 "%lld found so far" = "これまでに%lld件見つかりました";
-"Contains domain" = "ドメインを含む";
 "Tap anywhere to copy" = "どこでもタップしてコピー";
 "Anyone with this address's private key can spend its funds. Never share it with anyone." = "このアドレスの秘密鍵を持つ人は、誰でもその資金を使えます。絶対に誰にも教えないでください。";
 "Tap to reveal private key" = "タップして秘密鍵を表示";
@@ -1015,7 +1000,6 @@
 "Enter your 12 or 24 words" = "12語または24語を入力";
 "More reactions" = "その他のリアクション";
 "Storage problem" = "ストレージの問題";
-"Continue anyway" = "このまま続ける";
 "Preparing a fresh address" = "新しいアドレスを準備中";
 "Share Profile" = "プロフィールを共有";
 "Combines all UTXOs at this address into a single one, to reduce the number of inputs a future send needs." = "このアドレスのすべてのUTXOを1つにまとめ、今後の送信で必要な入力の数を減らします。";
@@ -1034,7 +1018,6 @@
 "No subfolders." = "サブフォルダはありません。";
 "Chatting" = "チャット";
 "Spending" = "支出";
-"Request" = "リクエスト";
 "What is a passphrase?" = "パスフレーズとは？";
 "If you are not sure, the answer is almost certainly no. A passphrase is something you would have typed in on purpose." = "わからない場合は、ほぼ間違いなく「いいえ」です。パスフレーズは、自分で意識して入力するものです。";
 "No" = "いいえ";
@@ -1264,15 +1247,12 @@
 "Clear %@?" = "%@を消去しますか？";
 "Clear All Cache?" = "すべてのキャッシュを消去しますか？";
 "Clears the unread badge on this group." = "このグループの未読バッジを消します。";
-"Connecting for live updates" = "リアルタイム更新に接続中";
 "Copies the address to your clipboard." = "アドレスをクリップボードにコピーします。";
 "Copies the name to your clipboard." = "名前をクリップボードにコピーします。";
 "Copies the text to your clipboard." = "テキストをクリップボードにコピーします。";
 "Copy their Kaspa address." = "相手のKaspaアドレスをコピーします。";
 "Deletes this chat's messages from this device. The bot stays in the row." = "このチャットのメッセージをこのデバイスから削除します。ボットは列に残ります。";
-"Downloading message history" = "メッセージ履歴をダウンロード中";
 "Failed to open archive: %@" = "アーカイブを開けませんでした: %@";
-"Finding your conversations" = "会話を検索中";
 "Finished" = "完了";
 "Finishing up..." = "仕上げ中...";
 "Frees %@. Your messages, contacts and keys are not touched." = "%@を解放します。メッセージ、連絡先、鍵には影響しません。";
@@ -1284,7 +1264,6 @@
 "Leave everything as it is." = "すべてそのままにします。";
 "Leave your messages as they are." = "メッセージをそのままにします。";
 "Link" = "リンク";
-"Loading saved messages" = "保存済みメッセージを読み込み中";
 "Message them directly, one to one." = "1対1で直接メッセージを送ります。";
 "Moves it back into your chats." = "チャットに戻します。";
 "Mute User" = "ユーザーをミュート";
@@ -1378,7 +1357,6 @@
 "Your Account" = "あなたのアカウント";
 
 /* Settings > Customization: .kachat name endings */
-"Show .kachat Endings" = ".kachat の末尾を表示";
 
 /* Chat composers: camera or microphone access is off (MediaAccess) */
 "Microphone Access Required" = "マイクへのアクセスが必要です";
@@ -1403,7 +1381,6 @@
 "Your chatting address also pays %@ KAS to tell %@ about this payment." = "チャットアドレスは、この支払いを %2$@ に知らせるために、さらに %1$@ KAS を支払います。";
 "Tap Retry on the photo to send the rest." = "残りを送信するには、写真の「再試行」をタップしてください。";
 "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again." = "このメッセージは 1 つのトランザクションに必要なコインが多すぎます。チャットアドレスで Compound UTXOs を使ってから、もう一度お試しください。";
-"Use Their Domain Name" = "相手のドメイン名を使う";
 "Show Request As QR" = "リクエストを QR で表示";
 "Scan it with an iPhone's camera to pay in K, with everything filled in." = "iPhone のカメラでスキャンすると、すべて入力済みの状態で K で支払えます。";
 "Set as Name" = "名前に設定";
@@ -1417,7 +1394,6 @@
 "This GIF is too long for that quality. Pick a higher one, or a shorter GIF." = "このGIFはその画質には長すぎます。より高い画質か、短いGIFを選んでください。";
 
 /* kUSDT: hold, receive, send (from KaPay, 2026-11-19) */
-"%@ Actions" = "%@ の操作";
 "%@ Address Visibility" = "%@ アドレスの表示";
 "%@ Balance" = "%@ 残高";
 "%@ History" = "%@ の履歴";
@@ -1449,7 +1425,6 @@
 "Combined" = "まとめた額";
 "Combined Coins" = "コインをまとめました";
 "Couldn't check %@ just now: %@ Pull down to try again." = "%1$@ を確認できませんでした：%2$@ 下に引いて再試行してください。";
-"Discover kUSDT Addresses" = "kUSDT アドレスを検出";
 "Don't send USDT from Ethereum, BNB Chain or an exchange to this address: it would be lost. Bridge it to Kaspa on Trestly first." = "Ethereum、BNB Chain、取引所からこのアドレスに USDT を送らないでください：失われます。先に Trestly で Kaspa へブリッジしてください。";
 "Don't send kUSDT here: it can't be traded from a quantum-resistant address. Use Receive for a regular one." = "ここに kUSDT を送らないでください：耐量子アドレスからは取引できません。通常のアドレスは「受け取る」で。";
 "Ethereum" = "Ethereum";
@@ -1458,7 +1433,6 @@
 "Every kUSDT coin holds 1.5 KAS. It goes along with the kUSDT when you send it." = "kUSDT コインには1枚ごとに 1.5 KAS が含まれます。kUSDT を送ると一緒に送られます。";
 "Found %d addresses with %@." = "%2$@ のあるアドレスが %1$d 件見つかりました。";
 "Generate New Address" = "新しいアドレスを生成";
-"Generate Non-Quantum Address" = "非量子アドレスを作成";
 "Goes With It" = "一緒に送付";
 "Held On" = "保管先";
 "It lands in this account and shows in your spending total. Use it for everything except .kachat names." = "このアカウントに入り、支払い用の合計に含まれます。.kachat の名前以外なら何にでも使えます。";
@@ -1486,7 +1460,6 @@
 "Receive %@" = "%@ を受け取る";
 "Received %@" = "%@ を受け取りました";
 "Removes it from this list. Re-enable it in %@ Address Visibility." = "この一覧から外します。「%@ アドレスの表示」で再表示できます。";
-"Sample Data" = "サンプルデータ";
 "Send %@" = "%@ を送信";
 "Send to Chatting Address" = "チャットアドレスに送る";
 "Sends, receives and combines on this phone show here from now on." = "これ以降、この端末での送金・受取・まとめがここに表示されます。";
@@ -1506,7 +1479,6 @@
 "This address needs a little KAS: the network fee, plus 1.5 KAS for your change coin (the kUSDT you keep). That 1.5 KAS stays yours." = "このアドレスには少し KAS が必要です：ネットワーク手数料と、お釣りのコイン（手元に残る kUSDT）用の 1.5 KAS。この 1.5 KAS はあなたのものです。";
 "This address on the Kaspa explorer." = "Kaspa エクスプローラーでこのアドレスを見る。";
 "This address's key isn't available on this phone." = "このアドレスの鍵はこの電話にありません。";
-"Tokens" = "トークン";
 "Total KAS" = "KAS 合計";
 "Trestly" = "Trestly";
 "Trestly API URL" = "Trestly API の URL";
@@ -1578,7 +1550,6 @@
 "Enter kpub" = "kpubを入力";
 "Export CSV" = "CSVをエクスポート";
 "Fee (optional)" = "手数料 (任意)";
-"Generate More Addresses" = "アドレスをさらに生成";
 "Give this account a name so you can recognize it." = "このアカウントを識別できるように名前を付けてください。";
 "Import CSV" = "CSVをインポート";
 "Import Failed" = "インポートに失敗しました";
@@ -1603,7 +1574,6 @@
 "Transactions" = "取引";
 "Transfer" = "移行";
 "Value Over Time" = "時間経過による価値";
-"kpub" = "kpub";
 "Registration isn't open yet." = "登録はまだ始まっていません。";
 "Claim" = "取得";
 "Marketplace" = "マーケット";
@@ -1897,7 +1867,6 @@
 "Tap the price or your value to see it in the pair you pick here. One at a time." = "価格または評価額をタップすると、ここで選んだペアで表示されます。一度に1つです。";
 "Converter" = "換算";
 "Waiting for a price..." = "価格を待っています...";
-"Kaspa Network" = "Kaspaネットワーク";
 "Mining Estimate" = "マイニング見積もり";
 "Enter your hashrate to estimate earnings." = "収益を見積もるにはハッシュレートを入力してください。";
 "Transaction Details" = "取引の詳細";
@@ -2112,13 +2081,9 @@
 
 /* KaPosts and Public Chats, from KaPost (2026-11-21) */
 "$" = "$";
-"Continue to App" = "アプリへ進む";
 "Join" = "参加";
 "Menu" = "メニュー";
-"Pay in Kaspa" = "Kaspaで支払う";
 "Record voice message" = "音声メッセージを録音";
-"Spending Address" = "使用アドレス";
-"Withdraw Kaspa" = "Kaspaを引き出す";
 "Translate" = "翻訳";
 "Show Original" = "原文を表示";
 "Show Translation" = "翻訳を表示";
@@ -2128,7 +2093,6 @@
 "Public Chats" = "パブリックチャット";
 "Private Chats" = "プライベートチャット";
 "Today" = "今日";
-"New Public Chat" = "新しい公開チャット";
 "Tip" = "チップ";
 "Tips" = "チップ";
 "No tips yet." = "まだチップはありません。";
@@ -2143,7 +2107,6 @@
 "Quotes" = "引用";
 "Waiting for your coins to confirm. It sends on its own in a moment, so don't send it again." = "コインの承認を待っています。まもなく自動で送信されるので、もう一度送信しないでください。";
 "This post isn't on the network yet, so it can't be replied to. Try again once it has posted." = "この投稿はまだネットワーク上にないため、返信できません。投稿が完了してからもう一度お試しください。";
-"Manage Address" = "アドレスを管理";
 "Tips From" = "チップの送信元";
 "From your Chatting Address the tip counts on the post, and you're listed as a tipper." = "Chatting Addressからのチップは投稿にカウントされ、チップを送った人として表示されます。";
 "From another address the tip is private: the author gets it, and sees it in your chat, but it doesn't count on the post or name you as a tipper." = "別のアドレスからのチップは非公開です。投稿者は受け取り、チャットで確認できますが、投稿にはカウントされず、あなたの名前も出ません。";
@@ -2314,7 +2277,6 @@
 "KaPost" = "KaPost";
 "Keep it in Drafts to finish later." = "下書きに保存して、後で完成させます。";
 "Keep looking" = "さらに探す";
-"Languages" = "言語";
 "Leave the room as it is." = "ルームはそのままにします。";
 "Load more" = "さらに読み込む";
 "Load older posts" = "以前の投稿を読み込む";
@@ -2396,7 +2358,6 @@
 "Tap to open your chat." = "タップしてチャットを開きます。";
 "This post could not be loaded" = "この投稿を読み込めませんでした";
 "This room follows the app's indexer again." = "このルームはアプリのインデクサーを使うようになりました。";
-"Thread" = "スレッド";
 "Throw this away." = "これを破棄します。";
 "Tip didn't send: there is no recent KAS price to turn %@ into KAS." = "チップを送れませんでした：%@ を KAS に換算できる最近の KAS 価格がありません。";
 "Tipping" = "チップ";
@@ -2434,14 +2395,12 @@
 "Not counted on the post" = "投稿には数えられません";
 "Tip asks whether to send Kaspa or kUSDT each time." = "チップを押すたびに Kaspa か kUSDT かを確認します。";
 "The account changed, so this wasn't sent." = "アカウントが切り替わったため、送信されませんでした。";
-"There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet." = "テストネット用の KaPost インデクサーはありません。メインネットで閲覧・投稿するには、設定 > 接続 でテストネットをオフにしてください。";
 "KaChat Profile" = "KaChatプロフィール";
 "Your post is ready to go out. Open K to send it." = "投稿の準備ができました。Kを開いて送信してください。";
 "Search KaPost" = "KaPost を検索";
 "Sharing sends a link that opens this room in K, and a web link for anyone without it. Hiding is per room: someone hidden here still shows in every other room." = "共有すると、K でこのルームを開くリンクと、K を持っていない人向けの Web リンクが送られます。非表示はルームごとの設定で、ここで非表示にした人も他のルームでは表示されます。";
 
 /* KaPosts leftovers (2026-11-21) */
-"KaPost's server isn't answering. Showing saved posts and new ones from the network." = "KaPostのサーバーが応答していません。保存済みの投稿とネットワークからの新しい投稿を表示しています。";
 "Trestly's pool code couldn't start in K." = "TrestlyのプールコードをKで起動できませんでした。";
 "Posting poll" = "投票を投稿中";
 "Voting" = "投票中";
@@ -2450,13 +2409,11 @@
 
 "Delete #%@?" = "#%@ を削除しますか？";
 
-"#%@ is off - turn it back on in Edit Default Public Chats" = "#%@ はオフです -「デフォルトの公開チャットを編集」で再びオンにできます";
 "Channel names must be 1-%d characters with no spaces or colons." = "チャンネル名は 1〜%d 文字で、空白やコロンは使えません。";
 "channel-name" = "チャンネル名";
 
 
 "See All Posts" = "すべての投稿を見る";
-"Opens KaPost, where everyone's posts are." = "みんなの投稿がある KaPost を開きます。";
 "When someone likes, replies to or shares your posts, or Kaspa or kUSDT arrives in your wallet, it shows up here." = "誰かがあなたの投稿にいいね、返信、共有したとき、またはウォレットに Kaspa や kUSDT が届いたときに、ここに表示されます。";
 
 /* Chess, back from KaPlay (phase 4, 2026-11-21) */
@@ -2734,18 +2691,12 @@
 "Share to KaPost" = "KaPostでシェア";
 "Chess Challenge" = "チェス チャレンジ";
 "Opens Chess to play this bot." = "チェスを開いてこのボットと対戦します。";
-"KaPost, Public Chats and Chess are read from this indexer too." = "KaPost、パブリックチャット、チェスもこのインデクサーから読み込みます。";
 
 /* KaChat Stats and Kaspa Websites (back 2026-11-21) */
-"KaChat Stats" = "KaChat の統計";
-"Stats" = "統計";
 "24 Hours" = "24時間";
 "All Time" = "全期間";
 "Payments" = "支払い";
-"Group Messages" = "グループメッセージ";
 "Chess Moves" = "チェスの指し手";
-"Updated %@" = "%@に更新";
-"Counting since %@" = "%@から集計";
 "Fees" = "手数料";
 "Kaspa Websites" = "Kaspa のウェブサイト";
 "Websites" = "ウェブサイト";
@@ -2823,14 +2774,11 @@
 "Couldn't read this swap's amounts" = "このスワップの金額を読み取れませんでした";
 "Added to %@" = "%@ に追加しました";
 "This only removes it from your local history - it doesn't affect the actual exchange." = "端末内の履歴から削除するだけです。実際の交換には影響しません。";
-"Swap History" = "スワップ履歴";
-"You Send" = "送る額";
 "You Get" = "受け取る額";
 "Receive %@ at" = "%@ の受取アドレス";
 "Powered by Trestly" = "Trestly 提供";
 "Powered by ChangeNOW" = "ChangeNOW 提供";
 "Rate" = "レート";
-"Send %@ to this address" = "このアドレスに %@ を送ってください";
 "ChangeNOW Exchange ID" = "ChangeNOW 取引 ID";
 "Exchange ID copied" = "取引 ID をコピーしました";
 "Refresh Status" = "ステータスを更新";
@@ -2991,9 +2939,6 @@
 "Show %lld new posts" = "新しい投稿を%lld件表示";
 "View 1 reply" = "1件の返信を表示";
 "View %lld replies" = "%lld件の返信を表示";
-"Thread · %lld posts" = "スレッド · %lld件の投稿";
-"Conversation · %lld posts" = "会話 · %lld件の投稿";
-"Comments (%lld)" = "コメント (%lld)";
 "%@ in %llds" = "%2$lld秒後に%1$@";
 "· %lld posts" = "· %lld件の投稿";
 "Translated from %@" = "%@から翻訳";
@@ -3191,10 +3136,8 @@
 "gRPC nodes can't be reached right now, so K is using a public node over wss." = "現在 gRPC ノードに接続できないため、K は wss 経由で公開ノードを使用しています。";
 "Search public chats" = "パブリックチャットを検索";
 "Switches between your chats and public chats" = "チャットとパブリックチャットを切り替えます";
-"More Rooms" = "その他のルーム";
 
 /* Kaspa Hub card links (2026-11-25) */
-"Link copied" = "リンクをコピーしました";
 "A link that opens this card in K." = "このカードを K で開くリンク。";
 "Open" = "開く";
 "Opens this card." = "このカードを開きます。";
@@ -3408,3 +3351,96 @@
 "1 KAS = %@%@" = "1 KAS = %@%@";
 "Posts aren't available on Testnet yet" = "投稿はまだテストネットでは利用できません";
 "Their profile: posts, replies and followers." = "プロフィール：投稿、返信、フォロワー。";
+
+/* Release audit 2026-11-27: chess status, banner previews, errors, Posts/K names */
+"Waiting for response" = "返答待ち";
+"Game declined" = "対局は辞退されました";
+"Your turn" = "あなたの番";
+"Their turn" = "相手の番";
+"Checkmate - White wins" = "チェックメイト - 白の勝ち";
+"Checkmate - Black wins" = "チェックメイト - 黒の勝ち";
+"Checkmate - You win!" = "チェックメイト - あなたの勝ち！";
+"Checkmate - You lost" = "チェックメイト - あなたの負け";
+"Stalemate - draw" = "ステイルメイト - 引き分け";
+"Draw - not enough pieces to checkmate" = "引き分け - チェックメイトに必要な駒がありません";
+"White lost on time" = "白の時間切れ負け";
+"Black lost on time" = "黒の時間切れ負け";
+"You lost on time" = "時間切れで負けました";
+"They lost on time" = "相手の時間切れ負け";
+"White resigned" = "白が投了しました";
+"Black resigned" = "黒が投了しました";
+"You resigned" = "あなたが投了しました";
+"They resigned" = "相手が投了しました";
+"Accepted your chess game" = "チェスの対局を承諾しました";
+"Declined your chess game" = "チェスの対局を辞退しました";
+"Played %@ → %@" = "%@ → %@ を指しました";
+"Resigned the chess game" = "チェスの対局で投了しました";
+"Reacted %@" = "%@ でリアクションしました";
+"Edited a message" = "メッセージを編集しました";
+"Sent a photo" = "写真を送信しました";
+"Sent a voice message" = "音声メッセージを送信しました";
+"Sent a video" = "動画を送信しました";
+"Sent a file" = "ファイルを送信しました";
+"Give this shortcut the text of %lld messages?" = "このショートカットに%lld件のメッセージの本文を渡しますか？";
+"Send this message to %@?" = "このメッセージを%@に送信しますか？";
+"Couldn't Sign In" = "サインインできませんでした";
+"K couldn't use this address to sign in. Try another one." = "Kはこのアドレスでサインインできませんでした。別のアドレスをお試しください。";
+"Sent from K" = "Kから送信済み";
+"Delete %lld Transactions?" = "%lld件の取引を削除しますか？";
+"Price per %@" = "%@あたりの価格";
+"Less than %@ is left before this name expires. You'd have to renew it soon." = "この名前の有効期限まで残り%@未満です。まもなく更新が必要になります。";
+"Extending adds time to the current paid period, which holds at most %@. The price goes to the miners." = "延長すると現在の支払い済み期間に時間が追加されます。期間は最長%@です。料金はマイナーに支払われます。";
+"Unlock to sign in to %@" = "%@にサインインするにはロックを解除してください";
+"Send Kaspa from Address #%lld" = "アドレス #%lld からKaspaを送信";
+"Cold Storage %lld" = "コールドストレージ %lld";
+"Tip in %@, switch to KAS" = "%@でチップ、KASに切り替え";
+"Tip in KAS, switch to %@" = "KASでチップ、%@に切り替え";
+"Restored %lld messages from %lld chats." = "%lld件のメッセージを%lld件のチャットから復元しました。";
+"Filled %lld sent messages." = "送信済みメッセージ%lld件を補完しました。";
+"Re-reading your group invites" = "グループ招待を再読み込み中";
+"Re-reading roster and epoch keys" = "メンバー一覧とエポック鍵を再読み込み中";
+"Re-fetching messages (%lld of %lld members)" = "メッセージを再取得中（%lld/%lld人）";
+"Decrypting history" = "履歴を復号中";
+"You changed the group photo" = "グループの写真を変更しました";
+"You removed the group photo" = "グループの写真を削除しました";
+"You changed the group name to \"%@\"" = "グループ名を「%@」に変更しました";
+"%@ changed the group photo" = "%@がグループの写真を変更しました";
+"%@ removed the group photo" = "%@がグループの写真を削除しました";
+"%@ changed the group name to \"%@\"" = "%@がグループ名を「%@」に変更しました";
+"Gold" = "金";
+"Silver" = "銀";
+"Kaspa priced in bitcoin" = "ビットコイン建てのKaspa";
+"Shares of Vanguard's S&P 500 ETF" = "VanguardのS&P 500 ETFの口数";
+"Troy ounces of gold" = "金のトロイオンス";
+"Troy ounces of silver" = "銀のトロイオンス";
+"Invalid words. Please enter 12 or 24 words." = "無効な単語です。12語または24語を入力してください。";
+"Couldn't read your words. Detected %lld words (expected 12 or 24)." = "単語を読み取れませんでした。%lld語を検出しました（12語または24語が必要です）。";
+"Word check failed: %@" = "単語の確認に失敗しました: %@";
+"That address is one of your own accounts, so it cannot be added as a contact." = "このアドレスはあなた自身のアカウントのため、連絡先に追加できません。";
+"An unknown error occurred." = "不明なエラーが発生しました。";
+"No internet connection. Check your connection and try again." = "インターネットに接続されていません。接続を確認してもう一度お試しください。";
+"The connection timed out. Check your connection and try again." = "接続がタイムアウトしました。接続を確認してもう一度お試しください。";
+"Couldn't reach the server. Check the address in Settings and your connection." = "サーバーに接続できませんでした。設定のアドレスと接続を確認してください。";
+"Couldn't make a secure connection to the server." = "サーバーと安全に接続できませんでした。";
+"A network error occurred. Check your connection and try again." = "ネットワークエラーが発生しました。接続を確認してもう一度お試しください。";
+"The server sent something the app couldn't read. Try again; if it keeps happening, update the app." = "サーバーからアプリが読み取れない応答がありました。もう一度お試しください。繰り返す場合はアプリを更新してください。";
+"The Kaspa node returned an error. The app will try another node; try again in a moment." = "Kaspaノードがエラーを返しました。アプリは別のノードを試します。しばらくしてからもう一度お試しください。";
+"No spendable UTXOs available" = "使用可能なUTXOがありません";
+"No spendable UTXOs" = "使用可能なUTXOがありません";
+"Could not get private key" = "秘密鍵を取得できませんでした";
+"Insufficient funds for payment" = "支払いに必要な残高が足りません";
+"Insufficient funds after fee" = "手数料を差し引くと残高が足りません";
+"Insufficient funds for handshake" = "ハンドシェイクに必要な残高が足りません";
+"Insufficient funds for self-stash fee" = "セルフスタッシュの手数料に必要な残高が足りません";
+"Balance too low to cover fee" = "残高が手数料に足りません";
+"Missing group secrets - try rejoining this group." = "グループの秘密鍵がありません。このグループに参加し直してください。";
+"Missing admin group secrets." = "グループ管理者の秘密鍵がありません。";
+"No spendable UTXOs at this address" = "このアドレスに使用可能なUTXOがありません";
+"Insufficient funds to cover that amount plus the network fee" = "この金額とネットワーク手数料に必要な残高が足りません";
+"This send would need %lld UTXOs, but KasSigner only supports %lld inputs per transaction. Send a smaller amount or consolidate this address first." = "この送金には%lld個のUTXOが必要ですが、KasSignerは1件の取引につき%lld個の入力までしか対応していません。金額を減らすか、先にこのアドレスを統合してください。";
+"There is no Posts indexer for testnet. Turn off Testnet in Settings > Connection Settings to read and post on mainnet." = "テストネット用の投稿インデクサーはありません。メインネットで閲覧・投稿するには、設定 > 接続設定 でテストネットをオフにしてください。";
+"Posts' server isn't answering. Showing saved posts and new ones from the network." = "投稿のサーバーが応答していません。保存済みの投稿とネットワークからの新しい投稿を表示しています。";
+"Opens Posts, where everyone's posts are." = "みんなの投稿がある「投稿」を開きます。";
+"Posts, Public Chats and Chess are read from this indexer too." = "投稿、パブリックチャット、チェスもこのインデクサーから読み込まれます。";
+"No K backup was found on this Nextcloud server." = "このNextcloudサーバーにKのバックアップが見つかりませんでした。";
+"That file isn't a K contacts export." = "このファイルはKの連絡先エクスポートではありません。";

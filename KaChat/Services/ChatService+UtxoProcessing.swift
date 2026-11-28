@@ -490,8 +490,14 @@ extension ChatService {
             saveMessages()
         }
 
-        // Refresh balance to reflect UTXO changes
-        _ = try? await WalletManager.shared.refreshBalance(force: true)
+        // Refresh balance to reflect UTXO changes - only when the batch touches the chatting
+        // address, the one `refreshBalance` reads: a contact's batch can't move it (audit
+        // 2026-11-27 B7). An entry with no address could be ours, so it refreshes too.
+        let touchesOwnBalance = parsed.added.contains { $0.address == nil || $0.address == myAddress }
+            || parsed.removed.contains { $0.address == nil || $0.address == myAddress }
+        if touchesOwnBalance {
+            _ = try? await WalletManager.shared.refreshBalance(force: true)
+        }
     }
 
     func enqueueIncomingPaymentResolution(
@@ -575,7 +581,7 @@ extension ChatService {
            let mempoolEntry = await NodePoolService.shared.getMempoolEntry(txId: txId, attempt: attempt),
            !mempoolEntry.payload.isEmpty {
             payloadHint = mempoolEntry.payload
-            mempoolPayloadByTxId[txId] = mempoolEntry.payload
+            rememberMempoolPayload(mempoolEntry.payload, txId: txId)
         }
 
         let txInfo = await resolveTransactionInfo(txId: txId, ourAddress: myAddress)
@@ -1174,6 +1180,20 @@ extension ChatService {
         )
     }
 
+    /// The mempool's payload for a transaction being resolved, kept until its resolution ends.
+    /// Capped: a payload is up to a photo's worth of hex, and an entry nobody clears (a path that
+    /// gave up) must not stay for the session (audit 2026-11-27 B2).
+    func rememberMempoolPayload(_ payload: String, txId: String) {
+        if mempoolPayloadByTxId[txId] == nil, mempoolPayloadByTxId.count >= Self.mempoolPayloadCap {
+            // the ones a payment resolution still waits on stay; the rest are refetched if needed
+            mempoolPayloadByTxId = mempoolPayloadByTxId.filter { incomingResolutionPendingTxIds.contains($0.key) }
+            if mempoolPayloadByTxId.count >= Self.mempoolPayloadCap { mempoolPayloadByTxId.removeAll() }
+        }
+        mempoolPayloadByTxId[txId] = payload
+    }
+
+    static let mempoolPayloadCap = 48
+
     func clearSelfStashRetryState(txId: String) {
         selfStashRetryCounts.removeValue(forKey: txId)
         selfStashFirstAttemptAt.removeValue(forKey: txId)
@@ -1182,11 +1202,16 @@ extension ChatService {
     }
 
 
+    /// REST's outputs: a sum past UInt64.max is 0 (nothing believable to us), never a trap (R6).
     func sumOutputsToAddress(_ outputs: [KaspaFullTxOutput], address: String) -> UInt64 {
-        outputs.reduce(0) { partial, output in
-            guard let addr = output.scriptPublicKeyAddress, addr == address else { return partial }
-            return partial + output.amount
+        var total: UInt64 = 0
+        for output in outputs {
+            guard let addr = output.scriptPublicKeyAddress, addr == address else { continue }
+            let (sum, overflow) = total.addingReportingOverflow(output.amount)
+            if overflow { return 0 }
+            total = sum
         }
+        return total
     }
 
     func startMempoolResolveIfNeeded(
@@ -1210,7 +1235,7 @@ extension ChatService {
         }
         guard let entry else { return }
         if !entry.payload.isEmpty {
-            mempoolPayloadByTxId[txId] = entry.payload
+            rememberMempoolPayload(entry.payload, txId: txId)
         }
 
         // Avoid REST if we can classify using mempool + our UTXO set
@@ -1408,6 +1433,13 @@ extension ChatService {
         blockDaaScore: UInt64,
         privateKey: Data?
     ) async {
+        // `resolvePayloadOnly` keeps the mempool's payload: it goes with this resolution, every
+        // way out of it, unless a payment resolution of the same transaction still uses it (B2).
+        defer {
+            if !incomingResolutionPendingTxIds.contains(txId) {
+                mempoolPayloadByTxId.removeValue(forKey: txId)
+            }
+        }
         if await findLocalMessage(txId: txId) != nil {
             return
         }
@@ -1652,7 +1684,7 @@ extension ChatService {
         AppLog.log("[ChatService] Mempool lookup start for self-stash %@", String(txId.prefix(12)))
         if let entry = await NodePoolService.shared.getMempoolEntry(txId: txId, attempt: 1) {
             if !entry.payload.isEmpty {
-                mempoolPayloadByTxId[txId] = entry.payload
+                rememberMempoolPayload(entry.payload, txId: txId)
                 if await findLocalMessage(txId: txId) != nil {
                     return .alreadyStored
                 }

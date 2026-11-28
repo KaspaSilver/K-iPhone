@@ -62,14 +62,27 @@ struct MarkdownComposerField: UIViewRepresentable {
         context.coordinator.isApplyingExternalUpdate = true
         defer { context.coordinator.isApplyingExternalUpdate = false }
 
-        if uiView.text != text {
-            uiView.text = text
+        // Compared with what the field last sent or was given, not with `uiView.text`: that
+        // bridged and compared the whole post on every update, and the string the field just
+        // sent compares equal at once (same storage). The selection's offsets are converted
+        // (three walks over the text) only when it or the text changed (audit 2026-11-27 P6).
+        let coordinator = context.coordinator
+        var textChanged = false
+        if coordinator.lastText != text {
+            if uiView.text != text {
+                uiView.text = text
+            }
+            coordinator.lastText = text
+            textChanged = true
         }
-        context.coordinator.placeholderLabel?.isHidden = !text.isEmpty
-        context.coordinator.placeholderLabel?.text = placeholder
+        coordinator.placeholderLabel?.isHidden = !text.isEmpty
+        coordinator.placeholderLabel?.text = placeholder
 
-        if let target = Self.nsRange(forCharacters: selection, in: text), uiView.selectedRange != target {
-            uiView.selectedRange = target
+        if textChanged || coordinator.lastSelection != selection {
+            if let target = Self.nsRange(forCharacters: selection, in: text), uiView.selectedRange != target {
+                uiView.selectedRange = target
+            }
+            coordinator.lastSelection = selection
         }
 
         if isFocused, !uiView.isFirstResponder {
@@ -99,6 +112,9 @@ struct MarkdownComposerField: UIViewRepresentable {
         var parent: MarkdownComposerField
         var placeholderLabel: UILabel?
         var isApplyingExternalUpdate = false
+        /// What the view holds, as last sent to or set from the bindings (`updateUIView`).
+        var lastText: String?
+        var lastSelection: ClosedRange<Int>?
 
         init(parent: MarkdownComposerField) {
             self.parent = parent
@@ -106,8 +122,10 @@ struct MarkdownComposerField: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingExternalUpdate else { return }
-            parent.text = textView.text
-            placeholderLabel?.isHidden = !textView.text.isEmpty
+            let current: String = textView.text
+            lastText = current
+            parent.text = current
+            placeholderLabel?.isHidden = current.isEmpty
             pushSelection(textView)
         }
 
@@ -129,6 +147,7 @@ struct MarkdownComposerField: UIViewRepresentable {
                 of: textView.selectedRange,
                 in: textView.text
             )
+            lastSelection = range
             if parent.selection != range { parent.selection = range }
         }
     }

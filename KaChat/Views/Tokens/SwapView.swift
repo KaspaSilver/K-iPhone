@@ -689,17 +689,6 @@ struct SwapView: View {
         guard let value = Double(text) else { return text }
         return String(format: "%.8f", value)
     }
-
-    private func makeQRCodeImage(from string: String) -> UIImage? {
-        let data = Data(string.utf8)
-        let filter = CIFilter.qrCodeGenerator()
-        filter.setValue(data, forKey: "inputMessage")
-        guard let output = filter.outputImage else { return nil }
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
-    }
 }
 
 /// "Finished"/"Failed"/etc. pill, matching the withdraw/consolidate history rows' orange/green/red
@@ -815,16 +804,10 @@ private struct SwapDetailView: View {
                     if !swap.isTrestly {
                     HStack {
                         Spacer()
-                        if let qrImage = makeQRCodeImage(from: swap.payinAddress) {
-                            Image(uiImage: qrImage)
-                                .interpolation(.none)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 180, height: 180)
-                                .padding(12)
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
+                        SwapQRCodeView(text: swap.payinAddress, side: 180)
+                            .padding(12)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         Spacer()
                     }
                     }
@@ -1009,17 +992,6 @@ private struct SwapDetailView: View {
                 }
             }
         }
-    }
-
-    private func makeQRCodeImage(from string: String) -> UIImage? {
-        let data = Data(string.utf8)
-        let filter = CIFilter.qrCodeGenerator()
-        filter.setValue(data, forKey: "inputMessage")
-        guard let output = filter.outputImage else { return nil }
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
     }
 }
 
@@ -1523,6 +1495,48 @@ private func swapQRImage(_ string: String) -> UIImage? {
     return UIImage(cgImage: cgImage)
 }
 
+/// Deposit QRs already made, by their text. NSCache is safe from any thread.
+private let swapQRCache = NSCache<NSString, UIImage>()
+
+/// A swap's deposit QR, made once off the main thread (as `AddressReceiveView` does), not in
+/// `body` during the deposit screen's push and on every SwapService publish (smoothness audit L6).
+private struct SwapQRCodeView: View {
+    let text: String
+    let side: CGFloat
+    @State private var image: UIImage?
+
+    init(text: String, side: CGFloat) {
+        self.text = text
+        self.side = side
+        _image = State(initialValue: swapQRCache.object(forKey: text as NSString))
+    }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .interpolation(.none)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Color.clear
+            }
+        }
+        .frame(width: side, height: side)
+        .task(id: text) {
+            if let cached = swapQRCache.object(forKey: text as NSString) {
+                image = cached
+                return
+            }
+            let string = text
+            let made = await Task.detached(priority: .userInitiated) { swapQRImage(string) }.value
+            guard !Task.isCancelled, string == text else { return }
+            if let made { swapQRCache.setObject(made, forKey: string as NSString) }
+            image = made
+        }
+    }
+}
+
 /// A ChangeNOW swap's deposit: what to send and where (QR and address, the tag if the coin needs
 /// one), waiting for payment, and the transaction ID. Checks ChangeNOW every 10 s while it shows,
 /// and moves on to the completion screen once the swap finishes. Drawn from the exchange made,
@@ -1584,15 +1598,9 @@ private struct SwapDepositScreen: View {
 
                 statusCard(swap, to: to)
 
-                if let image = swapQRImage(swap.payinAddress) {
-                    Image(uiImage: image)
-                        .interpolation(.none)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 200, height: 200)
-                        .padding(14)
-                        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
-                }
+                SwapQRCodeView(text: swap.payinAddress, side: 200)
+                    .padding(14)
+                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Deposit Address")

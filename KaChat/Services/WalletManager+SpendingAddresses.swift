@@ -188,10 +188,18 @@ extension WalletManager {
     private var spendingLabels: [Int: String] {
         get {
             guard let key = spendingDefaultsKey("labels"),
-                  let data = UserDefaults.standard.data(forKey: key),
-                  let decoded = try? JSONDecoder().decode([Int: String].self, from: data) else {
+                  let data = UserDefaults.standard.data(forKey: key) else {
                 return [:]
             }
+            // Decoded once per change: address history rows ask for labels while drawing
+            // (smoothness audit L5). Keyed by the stored bytes, so any write shows at once.
+            if let cached = Self.spendingLabelsCache, cached.key == key, cached.data == data {
+                return cached.labels
+            }
+            guard let decoded = try? JSONDecoder().decode([Int: String].self, from: data) else {
+                return [:]
+            }
+            Self.spendingLabelsCache = (key, data, decoded)
             return decoded
         }
         set {
@@ -619,23 +627,6 @@ extension WalletManager {
         return maxSpendingAddressIndex + 1
     }
 
-    /// On the quantum chain: the lowest hidden quantum slot that
-    /// is confirmed unused (recycling un-hides it), else one past the chain's end - which is
-    /// always safe.
-    func lowestUnusedQuantumAddress() async -> Int {
-        let entries = await getSpendingAddressList().filter { $0.isQuantum }.sorted { $0.index < $1.index }
-        for entry in entries {
-            guard entry.hidden else { continue }
-            if entry.isCurrent { continue }
-            if entry.balanceSompi > 0 { continue }
-            if isQuantumAddressSpentLocally(entry.address) { continue }
-            if await ChatService.shared.spendingAddressUsedState(entry.address) == false {
-                return entry.index
-            }
-        }
-        return await verifiedFreshQuantumIndex()
-    }
-
     // MARK: - Quantum spent-state (the shield)
 
     /// Quantum addresses this wallet has spent FROM: the spend put their key on chain for good,
@@ -870,6 +861,8 @@ extension WalletManager {
     }
 
     private static var ownAddressIndexCache: (key: String, map: [String: Int])?
+    /// `spendingLabels`, decoded (smoothness audit L5).
+    private static var spendingLabelsCache: (key: String, data: Data, labels: [Int: String])?
 
     /// Every spending address this phone has derived for the account `address` (either network
     /// encoding, either network), read from that account's derived-address cache - for a saved

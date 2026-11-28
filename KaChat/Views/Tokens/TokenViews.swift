@@ -33,7 +33,6 @@ struct TokenBalanceCard: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
-                    TokenSampleBadge()
                 }
             }
 

@@ -228,7 +228,9 @@ struct KaPostsSettingsView: View {
                                 .background(Capsule().fill(Color.accentColor.opacity(0.12)))
                             }
                             .buttonStyle(.borderless)
-                            .accessibilityLabel(Text(tipInFiat ? "Tip in \(tipCurrency.code), switch to KAS" : "Tip in KAS, switch to \(settingsViewModel.settings.currency.code)"))
+                            .accessibilityLabel(Text(verbatim: tipInFiat
+                                ? String(format: AppLocalization.string("Tip in %@, switch to KAS"), tipCurrency.code)
+                                : String(format: AppLocalization.string("Tip in KAS, switch to %@"), settingsViewModel.settings.currency.code)))
                         }
                         // a full-width line under the amount, not one starting at the unit button
                         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
